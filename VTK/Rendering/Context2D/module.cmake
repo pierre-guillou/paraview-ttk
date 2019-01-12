@@ -1,0 +1,21 @@
+vtk_module(vtkRenderingContext2D
+  GROUPS
+    Rendering
+  TEST_DEPENDS
+    vtkRenderingContextOpenGL2
+    vtkTestingRendering
+    vtkViewsContext2D
+    vtkChartsCore
+  KIT
+    vtkRendering
+  DEPENDS
+    vtkCommonCore
+    vtkCommonDataModel
+    vtkCommonExecutionModel
+    vtkRenderingCore
+  PRIVATE_DEPENDS
+    vtkCommonMath
+    vtkCommonTransforms
+    vtkFiltersGeneral
+    vtkRenderingFreeType
+  )

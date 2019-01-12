@@ -1,0 +1,2 @@
+License information for icons
+=============================

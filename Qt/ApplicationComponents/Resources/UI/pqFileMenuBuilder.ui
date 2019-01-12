@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>pqFileMenuBuilder</class>
+ <widget class="QMenu" name="pqFileMenuBuilder">
+  <property name="title">
+   <string>&amp;File</string>
+  </property>
+  <widget class="QMenu" name="menuRecentFiles">
+   <property name="title">
+    <string>&amp;Recent Files</string>
+   </property>
+  </widget>
+  <action name="actionServerConnect">
+   <property name="icon">
+    <iconset resource="../../../Components/Resources/pqComponents.qrc">
+     <normaloff>:/pqWidgets/Icons/pqConnect24.png</normaloff>:/pqWidgets/Icons/pqConnect24.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Connect...</string>
+   </property>
+   <property name="statusTip">
+    <string>Connect</string>
+   </property>
+  </action>
+  <action name="actionServerDisconnect">
+   <property name="icon">
+    <iconset resource="../../../Components/Resources/pqComponents.qrc">
+     <normaloff>:/pqWidgets/Icons/pqDisconnect24.png</normaloff>:/pqWidgets/Icons/pqDisconnect24.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Disconnect</string>
+   </property>
+   <property name="statusTip">
+    <string>Disconnect</string>
+   </property>
+  </action>
+  <action name="actionFileSaveScreenshot">
+   <property name="icon">
+    <iconset resource="../../../Components/Resources/pqComponents.qrc">
+     <normaloff>:/pqWidgets/Icons/pqCaptureScreenshot24.png</normaloff>:/pqWidgets/Icons/pqCaptureScreenshot24.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save Screenshot...</string>
+   </property>
+  </action>
+  <action name="actionFileSaveAnimation">
+   <property name="icon">
+    <iconset resource="../../../Components/Resources/pqComponents.qrc">
+     <normaloff>:/pqWidgets/Icons/pqSaveAnimation24.png</normaloff>:/pqWidgets/Icons/pqSaveAnimation24.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save &amp;Animation...</string>
+   </property>
+   <property name="PV_MUST_BE_MASTER_TO_SHOW" stdset="0">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionFileSaveData">
+   <property name="icon">
+    <iconset resource="../../../Components/Resources/pqComponents.qrc">
+     <normaloff>:/pqWidgets/Icons/pqSave24.png</normaloff>:/pqWidgets/Icons/pqSave24.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save Data...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+   <property name="PV_MUST_BE_MASTER_TO_SHOW" stdset="0">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionFileLoadServerState">
+   <property name="text">
+    <string>&amp;Load State...</string>
+   </property>
+   <property name="PV_MUST_BE_MASTER_TO_SHOW" stdset="0">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionFileSaveServerState">
+   <property name="text">
+    <string>&amp;Save State...</string>
+   </property>
+  </action>
+  <action name="actionFileSaveGeometry">
+   <property name="text">
+    <string>Save &amp;Geometry...</string>
+   </property>
+   <property name="PV_MUST_BE_MASTER_TO_SHOW" stdset="0">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionReloadFiles">
+   <property name="text">
+     <string>Reload Files</string>
+   </property>
+   <property name="iconText">
+    <string>Reload Files</string>
+   </property>
+   <property name="toolTip">
+    <string>Reload data files in case they were changed externally.</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
+   </property>
+  </action>
+  <action name="actionFileOpen">
+   <property name="icon">
+    <iconset resource="../../../Components/Resources/pqComponents.qrc">
+     <normaloff>:/pqWidgets/Icons/pqOpen24.png</normaloff>:/pqWidgets/Icons/pqOpen24.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Open...</string>
+   </property>
+   <property name="statusTip">
+    <string>Open</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+   <property name="PV_MUST_BE_MASTER_TO_SHOW" stdset="0">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionFileExit">
+   <property name="text">
+    <string>E&amp;xit</string>
+   </property>
+   <property name="statusTip">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionExport">
+   <property name="text">
+    <string>Export Scene...</string>
+   </property>
+  </action>
+  <action name="actionFileSaveWindowArrangement">
+   <property name="text">
+    <string>Save Window Arrangement...</string>
+   </property>
+   <property name="toolTip">
+    <string>Save window arrangement to a file</string>
+   </property>
+   <property name="statusTip">
+    <string>Save window arrangement to a file</string>
+   </property>
+  </action>
+  <action name="actionFileLoadWindowArrangement">
+   <property name="text">
+    <string>Load Window Arrangement...</string>
+   </property>
+   <property name="toolTip">
+    <string>Load window arrangement from a file</string>
+   </property>
+   <property name="statusTip">
+    <string>Load window arrangement from a file</string>
+   </property>
+  </action>
+  <action name="actionFileImportCinemaDatabase">
+   <property name="icon">
+    <iconset resource="../../../Components/Resources/pqComponents.qrc">
+     <normaloff>:/pqWidgets/Icons/cinemascience_mark.png</normaloff>:/pqWidgets/Icons/cinemascience_mark.png</iconset>
+   </property>
+   <property name="text">
+    <string>Import Cinema Database...</string>
+   </property>
+   <property name="toolTip">
+    <string>Import a Cinema Database file</string>
+   </property>
+   <property name="statusTip">
+    <string>Import a Cinema Database file</string>
+   </property>
+  </action>
+  <action name="actionFileLoadMaterials">
+   <property name="text">
+    <string>Load OSPRay Materials...</string>
+   </property>
+   <property name="toolTip">
+    <string>Load an OSPRay Materials file</string>
+   </property>
+   <property name="statusTip">
+    <string>Load an OSPRay Materials file</string>
+   </property>
+  </action>
+  <addaction name="actionFileOpen"/>
+  <addaction name="menuRecentFiles"/>
+  <addaction name="actionReloadFiles"/>
+  <addaction name="separator"/>
+  <addaction name="actionFileLoadServerState"/>
+  <addaction name="actionFileSaveServerState"/>
+  <addaction name="separator"/>
+  <addaction name="actionFileSaveData"/>
+  <addaction name="actionFileSaveScreenshot"/>
+  <addaction name="actionExport"/>
+  <addaction name="separator"/>
+  <addaction name="actionFileSaveAnimation"/>
+  <addaction name="actionFileSaveGeometry"/>
+  <addaction name="separator"/>
+  <addaction name="actionFileImportCinemaDatabase"/>
+  <addaction name="separator"/>
+  <addaction name="actionFileLoadMaterials"/>
+  <addaction name="separator"/>
+  <addaction name="actionFileLoadWindowArrangement"/>
+  <addaction name="actionFileSaveWindowArrangement"/>
+  <addaction name="separator"/>
+  <addaction name="actionServerConnect"/>
+  <addaction name="actionServerDisconnect"/>
+  <addaction name="separator"/>
+  <addaction name="actionFileExit"/>
+ </widget>
+ <resources>
+  <include location="../../../Components/Resources/pqComponents.qrc"/>
+ </resources>
+ <connections/>
+</ui>
