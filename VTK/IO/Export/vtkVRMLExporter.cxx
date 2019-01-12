@@ -38,6 +38,8 @@
 
 vtkStandardNewMacro(vtkVRMLExporter);
 
+vtkPolyData *exportPolyData_ = NULL;
+
 vtkVRMLExporter::vtkVRMLExporter()
 {
   this->Speed = 4.0;
@@ -66,8 +68,8 @@ void vtkVRMLExporter::WriteData()
   vtkActor *anActor, *aPart;
   vtkLightCollection *lc;
   vtkLight *aLight;
-  vtkCamera *cam;
-  double *tempd;
+//  vtkCamera *cam;
+//  double *tempd;
   FILE *fp;
 
   // make sure the user specified a FileName or FilePointer
@@ -123,28 +125,30 @@ void vtkVRMLExporter::WriteData()
   // End of Background
 
   // do the camera
-  cam = ren->GetActiveCamera();
-  fprintf(fp,"    Viewpoint\n      {\n      fieldOfView %f\n",
-          cam->GetViewAngle()*vtkMath::Pi()/180.0);
-  fprintf(fp,"      position %f %f %f\n",cam->GetPosition()[0],
-          cam->GetPosition()[1], cam->GetPosition()[2]);
-  fprintf(fp,"      description \"Default View\"\n");
-  tempd = cam->GetOrientationWXYZ();
-  fprintf(fp,"      orientation %g %g %g %g\n      }\n", tempd[1], tempd[2],
-          tempd[3], tempd[0]*vtkMath::Pi()/180.0);
-
-  // do the lights first the ambient then the others
-  fprintf(fp,
-    "    NavigationInfo {\n      type [\"EXAMINE\",\"FLY\"]\n      speed %f\n",
-          this->Speed);
-  if (ren->GetLights()->GetNumberOfItems() == 0)
-  {
-    fprintf(fp,"      headlight TRUE}\n\n");
-  }
-  else
-  {
-    fprintf(fp,"      headlight FALSE}\n\n");
-  }
+  // BUG fix.
+//  cam = ren->GetActiveCamera();
+//  fprintf(fp,"    Viewpoint\n      {\n      fieldOfView %f\n",
+//          cam->GetViewAngle()*vtkMath::Pi()/180.0);
+//  fprintf(fp,"      position %f %f %f\n",cam->GetPosition()[0],
+//          cam->GetPosition()[1], cam->GetPosition()[2]);
+//  fprintf(fp,"      description \"Default View\"\n");
+//  tempd = cam->GetOrientationWXYZ();
+//  fprintf(fp,"      orientation %g %g %g %g\n      }\n", tempd[1], tempd[2],
+//          tempd[3], tempd[0]*vtkMath::Pi()/180.0);
+//
+//  // do the lights first the ambient then the others
+//  fprintf(fp,
+//    "    NavigationInfo {\n      type [\"EXAMINE\",\"FLY\"]\n      speed %f\n",
+//          this->Speed);
+//  if (ren->GetLights()->GetNumberOfItems() == 0)
+//  {
+//    fprintf(fp,"      headlight TRUE}\n\n");
+//  }
+//  else
+//  {
+//    fprintf(fp,"      headlight FALSE}\n\n");
+//  }
+  // end of BUG fix.
   fprintf(fp,
     "    DirectionalLight { ambientIntensity 1 intensity 0 # ambient light\n");
   fprintf(fp,"      color %f %f %f }\n\n", ren->GetAmbient()[0],
@@ -229,6 +233,9 @@ void vtkVRMLExporter::WriteALight(vtkLight *aLight, FILE *fp)
 
 void vtkVRMLExporter::WriteAnActor(vtkActor *anActor, FILE *fp)
 {
+
+  printf("[vtkVRMLExporter] Using TTK fix for VRML export...\n");
+
   vtkSmartPointer<vtkPolyData> pd;
   vtkPointData *pntData;
   vtkPoints *points;
@@ -308,6 +315,10 @@ void vtkVRMLExporter::WriteAnActor(vtkActor *anActor, FILE *fp)
   fprintf(fp,"      scale %g %g %g\n", tempd[0], tempd[1], tempd[2]);
   fprintf(fp,"      children [\n");
   trans->Delete();
+
+  // BUG fix
+  exportPolyData_ = static_cast<vtkPolyData *>(pd);
+  // end of BUG fix
 
   pm = vtkPolyDataMapper::New();
   pm->SetInputData(pd);
@@ -713,6 +724,23 @@ void vtkVRMLExporter::WritePointData(vtkPoints *points, vtkDataArray *normals,
     fprintf(fp,"            ]\n");
     fprintf(fp,"          }\n");
   }
+
+  // BUG fix here.
+  if(exportPolyData_){
+    fprintf(fp,"          texCoordIndex[\n");
+    vtkCellArray *cells = exportPolyData_->GetPolys();
+    vtkIdType npts = 0;
+    vtkIdType *indx = NULL;
+    for(cells->InitTraversal(); cells->GetNextCell(npts, indx);){
+      fprintf(fp,"            ");
+      for(int i = 0; i < npts; i++){
+        fprintf(fp, "%i, ", static_cast<int>(indx[i]));
+      }
+      fprintf(fp, "-1,\n");
+    }
+    fprintf(fp,"          ]\n");
+  }
+  // end of BUG fix here.
 
   // write out the point data
   if (colors)
