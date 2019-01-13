@@ -42,8 +42,8 @@ endif()
 #------------------------------------------------------------------------------
 # Set a default build type if none was specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to 'Debug' as none was specified.")
-  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+  message(STATUS "Setting build type to 'Release' as none was specified.")
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
   # Set the possible values of build type for cmake-gui
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
     "MinSizeRel" "RelWithDebInfo")
@@ -263,7 +263,7 @@ if (UNIX)
   # Since development installs are currently being tested only on linuxes. We
   # can support these for other platforms if time permits.
   option(PARAVIEW_INSTALL_DEVELOPMENT_FILES
-    "When enabled, \"make install\" will install development files" OFF)
+    "When enabled, \"make install\" will install development files" ON)
 endif()
 
 cmake_dependent_option(PARAVIEW_USE_MPI_SSEND
@@ -317,7 +317,7 @@ cmake_dependent_option(PARAVIEW_ENABLE_COMMANDLINE_TOOLS
   "Build ParaView command-line tools" ON
   "NOT PARAVIEW_BUILD_QT_GUI" ON)
 
-option(PARAVIEW_ENABLE_PYTHON "Enable/Disable Python scripting support" OFF)
+option(PARAVIEW_ENABLE_PYTHON "Enable/Disable Python scripting support" ON)
 cmake_dependent_option(PARAVIEW_USE_UNIFIED_BINDINGS "If enabled, Python bindings will back the ClientServer wrapping implementation" OFF
   PARAVIEW_ENABLE_PYTHON OFF)
 mark_as_advanced(PARAVIEW_USE_UNIFIED_BINDINGS)
