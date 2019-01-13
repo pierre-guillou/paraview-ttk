@@ -834,6 +834,11 @@ set (PARAVIEW_CONFIG_INSTALLED FALSE)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ParaViewConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/ParaViewConfig.cmake @ONLY)
 
+# TTK hack: get a VTKmTargets.cmake file at configure time
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/VTKmTargets.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/VTK/ThirdParty/vtkm/vtk-m/lib/cmake/paraview-5.6/vtkm/VTKmTargets.cmake
+  @ONLY)
+
 set (PARAVIEW_CONFIG_INSTALLED TRUE)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ParaViewConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/ParaViewConfig.cmake @ONLY)
