@@ -17,7 +17,7 @@ elseif(UNIX AND NOT ANDROID AND NOT APPLE_IOS AND NOT CMAKE_SYSTEM_NAME STREQUAL
   set(default_use_x ON)
 endif()
 
-option(VTK_USE_X "Use X for VTK render windows" ${default_use_x})
+option(VTK_USE_X "Use X for VTK render windows" OFF)
 mark_as_advanced(VTK_USE_X)
 
 # For optional APIs that could be available for the OpenGL implementation
