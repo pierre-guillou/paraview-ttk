@@ -43,6 +43,7 @@ All rights reserve
 #include "vtkAxisActor.h"                 // access to enum values
 #include "vtkRenderingAnnotationModule.h" // For export macro
 #include <list>                           // To process exponent list as reference
+#include <string>
 
 class vtkCamera;
 class vtkPolyData;
