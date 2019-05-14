@@ -64,6 +64,7 @@
 #include "vtkObject.h"
 #include <map> // for methods
 #include <vector> // for ivars
+#include <string>
 
 class vtkDataArray;
 class vtkOpenGLVertexArrayObject;
