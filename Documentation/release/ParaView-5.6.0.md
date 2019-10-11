@@ -158,7 +158,7 @@ JSON description files for time series can now be written for these additional f
 vtm, vtmb, vthb, vth, vtp, vtt, vtu, vti, vtk, vts, vtr, pvtp, pvtu, pvtt, pvti,
 pvts, pvtr, pvtk, ply, stl
 
-The name of the series file must follow the format <filename>.<format>.series,
+The name of the series file must follow the format \<filename\>.\<format\>.series,
 e.g., `images.vti.series`. More information about the content of the file can be
 found [here](https://gitlab.kitware.com/paraview/paraview/blob/v5.5.0/Documentation/release/ParaView-5.5.0.md).
 
@@ -324,7 +324,7 @@ are available in the **Alphabetical** category.
 
 ## Selection in the Point Gaussian representation
 
-* Points selection now works with the **Point Gaussian** representation.
+Points selection now works with the **Point Gaussian** representation.
 
 ## Optional rescaling of log plots with negative data values
 
@@ -366,8 +366,30 @@ volume rendering, and new path tracer materials like the principled material
 as exemplified with the "scratched" sample material.
 
 |![OSPRay-rendered surfaces with new materials](img/5.6.0/ospray.png)|
-| |
-| |
+|:--:|
+| *OSPRay-rendered surfaces with new materials.* |
+
+## NVIDIA IndeX plugin 2.2
+
+**Structured Volume Grids:**
+
+* New render engine provides optimized memory usage and faster initialization times.
+* Added Catalyst support for In-Situ visualizations.
+* Added support for all ParaView's playback modes when using time series datasets.
+* Added support for interactive changes of scalar values/properties.
+* Added support to render volume combined geometry in cluster mode.
+* Added support for datasets with signed types sint8 and sint16.
+
+**Unstructured Volume Grids:**
+
+*   New Visual Elements presets: Iso-Surface, Depth Enhancement and Edge Enhancement.
+*   Added support for interactive changes of scalar values/properties.
+
+**Common:**
+
+*   Added support for orthographic projection camera.
+*   Added support for logarithmic scale in colormaps when mapping data to colors.
+*   Improved profiling log: HW/SW information and detailed performance values.
 
 ## Improve support of dependent components for volume representation
 
@@ -451,7 +473,7 @@ A MPI4PY issue with SGI's MPT MPI library has been resolved.
 
 ## Pass Arrays filter
 
-The Pass Arrays filter now properly deals with ghost information.
+The **Pass Arrays** filter now properly deals with ghost information.
 
 ## Point selection and hovering fixed in Slice view
 
