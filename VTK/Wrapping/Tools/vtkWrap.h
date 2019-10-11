@@ -48,6 +48,7 @@ int vtkWrap_IsVoidPointer(ValueInfo *val);
 int vtkWrap_IsCharPointer(ValueInfo *val);
 int vtkWrap_IsPODPointer(ValueInfo *val);
 int vtkWrap_IsZeroCopyPointer(ValueInfo *val);
+int vtkWrap_IsStdVector(ValueInfo *val);
 int vtkWrap_IsVTKObject(ValueInfo *val);
 int vtkWrap_IsSpecialObject(ValueInfo *val);
 int vtkWrap_IsPythonObject(ValueInfo *val);
@@ -271,6 +272,13 @@ void vtkWrap_DeclareVariableSize(
   FILE *fp, ValueInfo *v, const char *name, int idx);
 
 /**
+ * Qualify all the unqualified identifiers in the given expression
+ * and print the result to the file.
+ */
+void vtkWrap_QualifyExpression(
+  FILE *fp, ClassInfo *data, const char *text);
+
+/**
  * Makes a superclass name into a valid identifier. Returns NULL if the given
  * name is valid as-is.
  */
@@ -282,3 +290,4 @@ char *vtkWrap_SafeSuperclassName(const char *name);
 #endif
 
 #endif
+/* VTK-HeaderTest-Exclude: vtkWrap.h */

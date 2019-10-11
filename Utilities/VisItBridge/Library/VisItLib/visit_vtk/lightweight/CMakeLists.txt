@@ -1,6 +1,6 @@
 #*****************************************************************************
 #
-# Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+# Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 # Produced at the Lawrence Livermore National Laboratory
 # LLNL-CODE-442911
 # All rights reserved.
@@ -59,6 +59,7 @@ vtkDataSetFromVolume.C
 #vtkDebugStream.C        
 vtkEnumThreshold.C
 #vtkMultiLineSource.C
+vtkElementLabelArray.C
 vtkPolyDataRelevantPointsFilter.C
 #vtkSkewLookupTable.C
 vtkTriangulationTables.C
@@ -70,6 +71,7 @@ vtkVisItPointLocator.C
 vtkVisItUtility.C
 )
 
+if (FALSE)
 INCLUDE_DIRECTORIES(
 ${VISIT_SOURCE_DIR}/visit_vtk/full
 ${VISIT_SOURCE_DIR}/visit_vtk/lightweight
@@ -79,21 +81,25 @@ ${VTK_INCLUDE_DIRS}
 )
 
 # Add link directories needed to use our libraries and VTK.
-LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY} ${VTK_LIBRARY_DIRS})
+LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY})
+endif ()
 
-#ADD_LIBRARY(lightweight_visit_vtk
-VTK_ADD_LIBRARY(lightweight_visit_vtk
+ADD_LIBRARY(lightweight_visit_vtk
     ${LIGHTWEIGHT_VISIT_VTK_SOURCES}
 )
 
 #TARGET_LINK_LIBRARIES(lightweight_visit_vtk visitcommon vtkCommonCore vtkFiltersCore vtkIOLegacy)
 target_link_libraries(lightweight_visit_vtk
-    LINK_PUBLIC
+    PUBLIC
         visitcommon
-    LINK_PRIVATE
-        vtkCommonCore
-        vtkFiltersGeneral
-        vtkIOXML
-        vtkIOLegacy)
+        VTK::CommonCore
+        VTK::CommonDataModel
+        VTK::CommonExecutionModel
+        VTK::FiltersCore
+    PRIVATE
+        VTK::IOLegacy)
+target_include_directories(lightweight_visit_vtk
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
 
 VISIT_INSTALL_TARGETS(lightweight_visit_vtk)

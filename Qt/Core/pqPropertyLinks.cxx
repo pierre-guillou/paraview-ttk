@@ -37,6 +37,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <QMap>
 #include <QtDebug>
+
+#include <cassert>
 #include <set>
 
 class pqPropertyLinks::pqInternals
@@ -70,6 +72,22 @@ pqPropertyLinks::~pqPropertyLinks()
 }
 
 //-----------------------------------------------------------------------------
+bool pqPropertyLinks::addPropertyLink(QObject* qobject, const char* qproperty, const char* qsignal,
+  vtkSMProxy* smproxy, vtkSMProperty* smproperty, int smindex)
+{
+  return this->addPropertyLink<pqPropertyLinksConnection>(
+    qobject, qproperty, qsignal, smproxy, smproperty, smindex);
+}
+
+//-----------------------------------------------------------------------------
+bool pqPropertyLinks::addTraceablePropertyLink(QObject* qobject, const char* qproperty,
+  const char* qsignal, vtkSMProxy* smproxy, vtkSMProperty* smproperty, int smindex)
+{
+  return this->addTraceablePropertyLink<pqPropertyLinksConnection>(
+    qobject, qproperty, qsignal, smproxy, smproperty, smindex);
+}
+
+//-----------------------------------------------------------------------------
 void pqPropertyLinks::setUseUncheckedProperties(bool val)
 {
   if (val == this->UseUncheckedProperties)
@@ -89,7 +107,7 @@ void pqPropertyLinks::setUseUncheckedProperties(bool val)
 //-----------------------------------------------------------------------------
 bool pqPropertyLinks::addNewConnection(pqPropertyLinksConnection* connection)
 {
-  Q_ASSERT(connection);
+  assert(connection);
 
   // Avoid adding duplicates.
   foreach (pqPropertyLinksConnection* existing, this->Internals->Connections)

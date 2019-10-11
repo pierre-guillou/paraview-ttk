@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -160,6 +160,25 @@ avtImageRepresentation::avtImageRepresentation()
     Initialize();
 }
 
+// ****************************************************************************
+//  Method: avtImageRepresentation constructor
+//
+//  Programmer: Brad Whitlock
+//  Creation:  Thu Feb  1 16:27:29 PST 2018
+//
+// ****************************************************************************
+
+avtImageRepresentation::avtImageRepresentation(int w, int h, int ncomp)
+{
+    Initialize();
+
+    asVTK = NewImage(w, h, ncomp);
+
+    zbuffer = vtkFloatArray::New();
+    zbuffer->SetNumberOfTuples(w*h);
+    zbuffer->SetName("zbuffer");
+}
+
 
 // ****************************************************************************
 //  Method: avtImageRepresentation constructor
@@ -223,6 +242,9 @@ avtImageRepresentation::avtImageRepresentation(
 //
 //    Burlen Loring, Tue Sep  1 07:28:33 PDT 2015
 //    use a vtk data array to store the z-buffer.
+//
+//    Kathleen Biagas, Tue May 10 17:03:10 PDT 2016
+//    Use vtkAbstractArray::VTK_DATA_ARRAY_DELETE.
 //
 // ****************************************************************************
 
@@ -848,6 +870,37 @@ avtImageRepresentation::NewImage(int width, int height, int nchan)
     return image;
 }
 
+// ****************************************************************************
+// Method: avtImageRepresentation::NewValueImage
+//
+// Purpose:
+//   Create a new value image.
+//
+// Arguments:
+//      width    The width of the image.
+//      height   The height of the image.
+//
+// Returns:    
+//
+// Note:       
+//
+// Programmer: Brad Whitlock
+// Creation:   Mon Sep 25 12:56:42 PDT 2017
+//
+// Modifications:
+//
+// ****************************************************************************
+
+vtkImageData *
+avtImageRepresentation::NewValueImage(int width, int height)
+{
+    vtkImageData *image = vtkImageData::New();
+    image->SetExtent(0, width-1, 0, height-1, 0, 0);
+    image->SetSpacing(1., 1., 1.);
+    image->SetOrigin(0., 0., 0.);
+    image->AllocateScalars(VTK_FLOAT, 1);
+    return image;
+}
 
 // ****************************************************************************
 //  Function: GetImageFromString

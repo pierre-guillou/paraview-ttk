@@ -35,12 +35,6 @@
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property specifies the name of the scalar array
         from which the contour filter will compute isolines and/or
         isosurfaces.</Documentation>
@@ -52,7 +46,7 @@
                          number_of_elements="1">
         <BooleanDomain name="bool" />
         <Hints>
-          <PropertyWidgetDecorator type="NonPolyDataInputDecorator" />
+          <PropertyWidgetDecorator type="InputDataTypeDecorator" name="vtkPolyData"  exclude="1"/>
         </Hints>
         <Documentation>If this property is set to 1, a scalar array containing
         a normal value at each point in the isosurface or isoline will be
@@ -161,12 +155,6 @@
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property specifies the name of the scalar array
         from which the contour filter will compute isolines and/or
         isosurfaces.</Documentation>

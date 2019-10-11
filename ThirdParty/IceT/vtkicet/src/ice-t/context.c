@@ -32,8 +32,8 @@ IceTContext icetCreateContext(IceTCommunicator comm)
     IceTContext context = malloc(sizeof(struct IceTContextStruct));
 
     if (context == NULL) {
-        icetRaiseError("Could not allocate memory for IceT context.",
-                       ICET_OUT_OF_MEMORY);
+        icetRaiseError(ICET_OUT_OF_MEMORY,
+                       "Could not allocate memory for IceT context.");
         return NULL;
     }
 
@@ -101,7 +101,7 @@ IceTContext icetGetContext(void)
 void icetSetContext(IceTContext context)
 {
     if (context && (context->magic_number != CONTEXT_MAGIC_NUMBER)) {
-        icetRaiseError("Invalid context.", ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE, "Invalid context.");
         return;
     }
     icet_current_context = context;

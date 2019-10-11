@@ -74,12 +74,15 @@ public:
   /**
    * Change the window to fill the entire screen.
    */
-  void SetFullScreen(int) override;
+  void SetFullScreen(vtkTypeBool) override;
 
   /**
    * Resize the window.
    */
   void WindowRemap() override;
+
+  // Call X funcs to map unmap
+  void SetShowWindow(bool val) override;
 
   /**
    * Set the preferred window size to full screen.
@@ -91,6 +94,11 @@ public:
    */
   void SetSize(int,int) override;
   void SetSize(int a[2]) override { this->SetSize(a[0], a[1]); }
+  /**
+   * Specify the size of the rendering window in pixels but do not resize
+   * the XWindow. Useful when resizing is done interactively.
+   */
+  void SetSizeNoXResize(int,int);
 
   //@{
   /**
@@ -108,7 +116,7 @@ public:
    * overrides the superclass method since this class can actually check
    * whether the window has been realized yet.
    */
-  void SetStereoCapableWindow(int capable) override;
+  void SetStereoCapableWindow(vtkTypeBool capable) override;
 
   /**
    * Make this window the current OpenGL context.
@@ -285,11 +293,6 @@ public:
    */
   void Render() override;
 
-  /**
-   * Render without displaying the window.
-   */
-  void SetOffScreenRendering(int i) override;
-
   //@{
   /**
    * Ability to push and pop this window's context
@@ -350,9 +353,6 @@ protected:
 
   void CreateAWindow() override;
   void DestroyWindow() override;
-  void CreateOffScreenWindow(int width, int height);
-  void DestroyOffScreenWindow();
-  void ResizeOffScreenWindow(int width, int height);
   void CloseDisplay();
 
 

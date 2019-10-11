@@ -71,12 +71,17 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestOffAxisStereo.cxx
   TestOrderedTriangulator.cxx
   TestOpacity.cxx
+  TestStereoBackgroundLeft.cxx
+  TestStereoBackgroundRight.cxx
   TestOSConeCxx.cxx
+  TestOnAndOffScreenConeCxx.cxx
   TestPickTextActor.cxx,NO_VALID
   TestPointSelection.cxx,NO_VALID
+  TestPointSelectionWithCellData.cxx,NO_VALID
   TestPolygonSelection.cxx
   TestResetCameraVerticalAspectRatio.cxx
   TestResetCameraVerticalAspectRatioParallel.cxx
+  TestSelectVisiblePoints.cxx,NO_VALID
   TestSplitViewportStereoHorizontal.cxx
   TestTexturedBackground.cxx
   TestTextureSize.cxx,NO_VALID

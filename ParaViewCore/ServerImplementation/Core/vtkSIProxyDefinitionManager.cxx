@@ -139,10 +139,14 @@ public:
     std::map<std::string, vtkSmartPointer<vtkPVXMLElement> >& propertyMap)
   {
     std::set<std::string> propertyTypeName;
+    propertyTypeName.insert("DoubleMapProperty");
     propertyTypeName.insert("DoubleVectorProperty");
+    propertyTypeName.insert("IdTypeVectorProperty");
+    propertyTypeName.insert("InputProperty");
     propertyTypeName.insert("IntVectorProperty");
-    propertyTypeName.insert("ProxyProperty");
     propertyTypeName.insert("Property");
+    propertyTypeName.insert("ProxyProperty");
+    propertyTypeName.insert("StringVectorProperty");
 
     unsigned int numChildren = proxy->GetNumberOfNestedElements();
     unsigned int cc;
@@ -195,9 +199,9 @@ public:
   vtkTypeMacro(vtkInternalDefinitionIterator, vtkPVProxyDefinitionIterator);
 
   //-------------------------------------------------------------------------
-  void GoToFirstItem() VTK_OVERRIDE { this->Reset(); }
+  void GoToFirstItem() override { this->Reset(); }
   //-------------------------------------------------------------------------
-  void GoToNextItem() VTK_OVERRIDE
+  void GoToNextItem() override
   {
     if (!this->IsDoneWithCoreTraversal())
     {
@@ -217,7 +221,7 @@ public:
     }
   }
   //-------------------------------------------------------------------------
-  bool IsDoneWithTraversal() VTK_OVERRIDE
+  bool IsDoneWithTraversal() override
   {
     if (!this->Initialized)
     {
@@ -238,9 +242,9 @@ public:
     return false;
   }
   //-------------------------------------------------------------------------
-  const char* GetGroupName() VTK_OVERRIDE { return this->CurrentGroupName.c_str(); }
+  const char* GetGroupName() override { return this->CurrentGroupName.c_str(); }
   //-------------------------------------------------------------------------
-  const char* GetProxyName() VTK_OVERRIDE
+  const char* GetProxyName() override
   {
     if (this->IsCustom())
     {
@@ -252,9 +256,9 @@ public:
     }
   }
   //-------------------------------------------------------------------------
-  bool IsCustom() VTK_OVERRIDE { return this->IsDoneWithCoreTraversal(); }
+  bool IsCustom() override { return this->IsDoneWithCoreTraversal(); }
   //-------------------------------------------------------------------------
-  vtkPVXMLElement* GetProxyDefinition() VTK_OVERRIDE
+  vtkPVXMLElement* GetProxyDefinition() override
   {
     if (this->IsCustom())
     {
@@ -266,7 +270,7 @@ public:
     }
   }
   //-------------------------------------------------------------------------
-  vtkPVXMLElement* GetProxyHints() VTK_OVERRIDE
+  vtkPVXMLElement* GetProxyHints() override
   {
     vtkPVXMLElement* definition = this->GetProxyDefinition();
     if (definition)
@@ -276,7 +280,7 @@ public:
     return NULL;
   }
   //-------------------------------------------------------------------------
-  void AddTraversalGroupName(const char* groupName) VTK_OVERRIDE
+  void AddTraversalGroupName(const char* groupName) override
   {
     this->GroupNames.insert(std::string(groupName));
   }
@@ -294,7 +298,7 @@ public:
   }
 
   //-------------------------------------------------------------------------
-  void GoToNextGroup() VTK_OVERRIDE { this->NextGroup(); }
+  void GoToNextGroup() override { this->NextGroup(); }
 
 protected:
   vtkInternalDefinitionIterator()
@@ -996,9 +1000,13 @@ void vtkSIProxyDefinitionManager::MergeProxyDefinition(
         return;
       }
       else
-      { // Remove the given subProxy of the Element to Fill
+      {
+        // Replace the overriden sub proxy definition by the new one
         vtkPVXMLElement* subProxyDefToRemove = subProxyToFill[name].GetPointer();
-        subProxyDefToRemove->GetParent()->RemoveNestedElement(subProxyDefToRemove);
+        vtkPVXMLElement* overridingProxyDef = subProxySrc[name].GetPointer();
+        subProxyDefToRemove->GetParent()->ReplaceNestedElement(
+          subProxyDefToRemove, overridingProxyDef);
+        overridingProxyDef->GetParent()->RemoveNestedElement(overridingProxyDef);
       }
     }
     // Move to next
@@ -1023,9 +1031,11 @@ void vtkSIProxyDefinitionManager::MergeProxyDefinition(
         return;
       }
       else
-      { // Remove the given property of the Element to Fill
+      { // Replace the overriden property by the new one
         vtkPVXMLElement* subPropDefToRemove = propertiesToFill[name].GetPointer();
-        subPropDefToRemove->GetParent()->RemoveNestedElement(subPropDefToRemove);
+        vtkPVXMLElement* overridingProp = propertiesSrc[name].GetPointer();
+        subPropDefToRemove->GetParent()->ReplaceNestedElement(subPropDefToRemove, overridingProp);
+        overridingProp->GetParent()->RemoveNestedElement(overridingProp);
       }
     }
     // Move to next
@@ -1039,7 +1049,7 @@ void vtkSIProxyDefinitionManager::MergeProxyDefinition(
     elementToFill->RemoveNestedElement(elementToFill->FindNestedElementByName("Documentation"));
   }
 
-  // Fill the output with all the input elements
+  // Fill the output with all the remaining input elements
   unsigned int numChildren = element->GetNumberOfNestedElements();
   unsigned int cc;
   for (cc = 0; cc < numChildren; cc++)

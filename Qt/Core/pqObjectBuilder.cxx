@@ -39,7 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMDomain.h"
 #include "vtkSMDomainIterator.h"
 #include "vtkSMInputProperty.h"
-#include "vtkSMParaViewPipelineController.h"
+#include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
 #include "vtkSMRenderViewProxy.h"
@@ -50,6 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStringVectorProperty.h"
 #include "vtkSMTransferFunctionManager.h"
+#include "vtkSMViewLayoutProxy.h"
 #include "vtkSmartPointer.h"
 
 #include <QApplication>
@@ -77,6 +78,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+#include <cassert>
+#include <chrono>
 
 namespace pqObjectBuilderNS
 {
@@ -331,7 +335,7 @@ void pqObjectBuilder::destroy(pqPipelineSource* source)
 }
 
 //-----------------------------------------------------------------------------
-pqView* pqObjectBuilder::createView(const QString& type, pqServer* server, bool detachedFromLayout)
+pqView* pqObjectBuilder::createView(const QString& type, pqServer* server)
 {
   if (!server)
   {
@@ -346,10 +350,6 @@ pqView* pqObjectBuilder::createView(const QString& type, pqServer* server, bool 
   {
     qDebug() << "Failed to create a proxy for the requested view type:" << type;
     return NULL;
-  }
-  if (detachedFromLayout)
-  {
-    proxy->SetAnnotation("ParaView::DetachedFromLayout", "true");
   }
 
   // notify the world that we may create a new view. applications may handle
@@ -376,6 +376,14 @@ pqView* pqObjectBuilder::createView(const QString& type, pqServer* server, bool 
 }
 
 //-----------------------------------------------------------------------------
+#if !defined(VTK_LEGACY_REMOVE)
+pqView* pqObjectBuilder::createView(const QString& type, pqServer* server, bool)
+{
+  return this->createView(type, server);
+}
+#endif
+
+//-----------------------------------------------------------------------------
 void pqObjectBuilder::destroy(pqView* view)
 {
   if (!view)
@@ -386,6 +394,17 @@ void pqObjectBuilder::destroy(pqView* view)
   emit this->destroying(view);
   vtkNew<vtkSMParaViewPipelineController> controller;
   controller->UnRegisterProxy(view->getProxy());
+}
+
+//-----------------------------------------------------------------------------
+void pqObjectBuilder::addToLayout(pqView* view, pqProxy* layout)
+{
+  if (view)
+  {
+    vtkNew<vtkSMParaViewPipelineControllerWithRendering> controller;
+    controller->AssignViewToLayout(view->getViewProxy(),
+      vtkSMViewLayoutProxy::SafeDownCast(layout ? layout->getProxy() : nullptr));
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -732,7 +751,12 @@ void pqObjectBuilder::removeServer(pqServer* server)
 //-----------------------------------------------------------------------------
 pqServer* pqObjectBuilder::resetServer(pqServer* server)
 {
-  Q_ASSERT(server);
+  assert(server);
+
+  // save the current remaining lifetime to restore it
+  // when we recreate the server following reset.
+  const int remainingLifetime = server->getRemainingLifeTime();
+  auto startTime = std::chrono::system_clock::now();
 
   pqServerResource resource = server->getResource();
   vtkSmartPointer<vtkSMSession> session = server->session();
@@ -763,6 +787,11 @@ pqServer* pqObjectBuilder::resetServer(pqServer* server)
   if (id != 0)
   {
     newServer = smModel->findServer(id);
+
+    auto endTime = std::chrono::system_clock::now();
+    auto deltaMinutes = std::chrono::duration_cast<std::chrono::minutes>(endTime - startTime);
+    newServer->setRemainingLifeTime(
+      remainingLifetime > 0 ? (remainingLifetime - deltaMinutes.count()) : remainingLifetime);
     emit this->finishedAddingServer(newServer);
   }
   return newServer;

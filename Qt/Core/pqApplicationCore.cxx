@@ -56,6 +56,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqEventDispatcher.h"
 #include "pqInterfaceTracker.h"
 #include "pqLinksModel.h"
+#include "pqMainWindowEventManager.h"
 #include "pqObjectBuilder.h"
 #include "pqOptions.h"
 #include "pqPipelineFilter.h"
@@ -75,8 +76,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCommand.h"
 #include "vtkInitializationHelper.h"
 #include "vtkPVGeneralSettings.h"
+#include "vtkPVLogger.h"
 #include "vtkPVPluginTracker.h"
-#include "vtkPVSynchronizedRenderWindows.h"
+#include "vtkPVView.h"
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
 #include "vtkProcessModule.h"
@@ -92,15 +94,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMWriterFactory.h"
 #include "vtkSmartPointer.h"
 
-#if !defined(VTK_LEGACY_REMOVE)
-#include "pqDisplayPolicy.h"
-#endif
-
-// Do this after all above includes. On a VS2015 with Qt 5,
-// these includes cause build errors with pqRenderView etc.
-// due to some leaked through #define's (is my guess).
-#include "pqQVTKWidgetBase.h"
-#include <QSurfaceFormat>
+#include <cassert>
 
 //-----------------------------------------------------------------------------
 class pqApplicationCore::pqInternals
@@ -123,7 +117,7 @@ pqApplicationCore::pqApplicationCore(
   int& argc, char** argv, pqOptions* options, QObject* parentObject)
   : QObject(parentObject)
 {
-  vtkPVSynchronizedRenderWindows::SetUseGenericOpenGLRenderWindow(true);
+  vtkPVView::SetUseGenericOpenGLRenderWindow(true);
 
   vtkSmartPointer<pqOptions> defaultOptions;
   if (!options)
@@ -136,19 +130,6 @@ pqApplicationCore::pqApplicationCore(
   vtkInitializationHelper::SetOrganizationName(QApplication::organizationName().toStdString());
   vtkInitializationHelper::SetApplicationName(QApplication::applicationName().toStdString());
   vtkInitializationHelper::Initialize(argc, argv, vtkProcessModule::PROCESS_CLIENT, options);
-
-  // Setup the default format.
-  QSurfaceFormat fmt = pqQVTKWidgetBase::defaultFormat();
-
-  // Request quad-buffered stereo format only for Crystal Eyes
-  std::string stereoType = options->GetStereoType();
-  fmt.setStereo(stereoType == "Crystal Eyes");
-
-  // ParaView does not support multisamples.
-  fmt.setSamples(0);
-
-  QSurfaceFormat::setDefaultFormat(fmt);
-
   this->constructor();
 }
 
@@ -156,7 +137,7 @@ pqApplicationCore::pqApplicationCore(
 void pqApplicationCore::constructor()
 {
   // Only 1 pqApplicationCore instance can be created.
-  Q_ASSERT(pqApplicationCore::Instance == NULL);
+  assert(pqApplicationCore::Instance == NULL);
   pqApplicationCore::Instance = this;
 
   this->UndoStack = NULL;
@@ -185,11 +166,7 @@ void pqApplicationCore::constructor()
 
   this->PluginManager = new pqPluginManager(this);
 
-// * Create various factories.
-#if !defined(VTK_LEGACY_REMOVE)
-  this->DisplayPolicy = new pqDisplayPolicy(this);
-#endif
-
+  // * Create various factories.
   this->ProgressManager = new pqProgressManager(this);
 
   // add standard server manager model interface
@@ -222,6 +199,9 @@ void pqApplicationCore::constructor()
     pqCoreUtilities::connect(
       pvsettings, vtkCommand::ModifiedEvent, this, SLOT(generalSettingsChanged()));
   }
+
+  // * Set up the manager for converting main window events to signals.
+  this->MainWindowEventManager = new pqMainWindowEventManager(this);
 }
 
 //-----------------------------------------------------------------------------
@@ -240,6 +220,9 @@ pqApplicationCore::~pqApplicationCore()
 
   delete this->LinksModel;
   this->LinksModel = 0;
+
+  delete this->MainWindowEventManager;
+  this->MainWindowEventManager = 0;
 
   delete this->ObjectBuilder;
   this->ObjectBuilder = 0;
@@ -269,12 +252,9 @@ pqApplicationCore::~pqApplicationCore()
   this->HelpEngine = NULL;
 #endif
 
-// We don't call delete on these since we have already setup parent on these
-// correctly so they will be deleted. It's possible that the user calls delete
-// on these explicitly in which case we end up with segfaults.
-#if !defined(VTK_LEGACY_REMOVE)
-  this->DisplayPolicy = 0;
-#endif
+  // We don't call delete on these since we have already setup parent on these
+  // correctly so they will be deleted. It's possible that the user calls delete
+  // on these explicitly in which case we end up with segfaults.
   this->UndoStack = 0;
 
   // Delete all children, which clears up all managers etc. before the server
@@ -304,27 +284,6 @@ void pqApplicationCore::setUndoStack(pqUndoStack* stack)
     emit this->undoStackChanged(stack);
   }
 }
-
-#if !defined(VTK_LEGACY_REMOVE)
-//-----------------------------------------------------------------------------
-void pqApplicationCore::setDisplayPolicy(pqDisplayPolicy* policy)
-{
-  VTK_LEGACY_BODY(pqApplicationCore::setDisplayPolicy, "ParaView 5.5");
-  delete this->DisplayPolicy;
-  this->DisplayPolicy = policy;
-  if (policy)
-  {
-    policy->setParent(this);
-  }
-}
-
-//-----------------------------------------------------------------------------
-pqDisplayPolicy* pqApplicationCore::getDisplayPolicy() const
-{
-  VTK_LEGACY_BODY(pqApplicationCore::getDisplayPolicy, "ParaView 5.5");
-  return this->DisplayPolicy;
-}
-#endif // VTK_LEGACY_REMOVE
 
 //-----------------------------------------------------------------------------
 void pqApplicationCore::registerManager(const QString& function, QObject* _manager)
@@ -553,7 +512,13 @@ pqSettings* pqApplicationCore::settings()
       QSettings::IniFormat, QSettings::UserScope, settingsOrg, settingsApp + suffix, this);
     if (disable_settings || settings->value("pqApplicationCore.DisableSettings", false).toBool())
     {
+      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "loading of Qt settings skipped (disabled).");
       settings->clear();
+    }
+    else
+    {
+      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "loading Qt settings from '%s'",
+        settings->fileName().toLocal8Bit().data());
     }
     // now settings are ready!
 

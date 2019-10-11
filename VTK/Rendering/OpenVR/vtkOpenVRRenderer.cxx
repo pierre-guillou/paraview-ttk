@@ -88,6 +88,14 @@ vtkOpenVRRenderer::~vtkOpenVRRenderer()
   this->FloorActor = 0;
 }
 
+//----------------------------------------------------------------------------
+vtkCamera* vtkOpenVRRenderer::MakeCamera()
+{
+  vtkCamera *cam = vtkOpenVRCamera::New();
+  this->InvokeEvent(vtkCommand::CreateCameraEvent, cam);
+  return cam;
+}
+
 // adjust the floor if we need to
 void vtkOpenVRRenderer::DeviceRender()
 {
@@ -96,7 +104,7 @@ void vtkOpenVRRenderer::DeviceRender()
     vtkOpenVRRenderWindow *win =
       static_cast<vtkOpenVRRenderWindow *>(this->GetRenderWindow());
 
-    double distance = win->GetPhysicalScale();
+    double physicalScale = win->GetPhysicalScale();
 
     double trans[3];
     win->GetPhysicalTranslation(trans);
@@ -113,7 +121,7 @@ void vtkOpenVRRenderer::DeviceRender()
 
     static_cast<vtkTransform *>(this->FloorActor->GetUserTransform())->Identity();
     static_cast<vtkTransform *>(this->FloorActor->GetUserTransform())->Translate(-trans[0], -trans[1], -trans[2]);
-    static_cast<vtkTransform *>(this->FloorActor->GetUserTransform())->Scale(distance, distance, distance);
+    static_cast<vtkTransform *>(this->FloorActor->GetUserTransform())->Scale(physicalScale, physicalScale, physicalScale);
     static_cast<vtkTransform *>(this->FloorActor->GetUserTransform())->Concatenate(rot);
   }
   this->Superclass::DeviceRender();
@@ -167,7 +175,7 @@ void vtkOpenVRRenderer::ResetCamera(double bounds[6])
   }
   else
   {
-    vtkErrorMacro(<< "Trying to reset non-existant camera");
+    vtkErrorMacro(<< "Trying to reset non-existent camera");
     return;
   }
 
@@ -292,7 +300,7 @@ void vtkOpenVRRenderer::ResetCameraClippingRange( double bounds[6] )
   this->GetActiveCameraAndResetIfCreated();
   if ( this->ActiveCamera == nullptr )
   {
-    vtkErrorMacro(<< "Trying to reset clipping range of non-existant camera");
+    vtkErrorMacro(<< "Trying to reset clipping range of non-existent camera");
     return;
   }
 
@@ -302,7 +310,7 @@ void vtkOpenVRRenderer::ResetCameraClippingRange( double bounds[6] )
   vtkOpenVRRenderWindow *win =
     static_cast<vtkOpenVRRenderWindow *>(this->GetRenderWindow());
   win->GetPhysicalTranslation(trans);
-  double distance = win->GetPhysicalScale();
+  double physicalScale = win->GetPhysicalScale();
 
   range[0] = 0.2; // 20 cm in front of HMD
   range[1] = 0.0;
@@ -323,7 +331,7 @@ void vtkOpenVRRenderer::ResetCameraClippingRange( double bounds[6] )
     }
   }
 
-  range[1] /= distance; // convert to physical scale
+  range[1] /= physicalScale; // convert to physical scale
   range[1] += 3.0; // add 3 meters for room to walk around
 
   // to see transmitters make sure far is at least 10 meters
@@ -332,7 +340,7 @@ void vtkOpenVRRenderer::ResetCameraClippingRange( double bounds[6] )
     range[1] = 10.0;
   }
 
-  this->ActiveCamera->SetClippingRange( range[0]*distance, range[1]*distance );
+  this->ActiveCamera->SetClippingRange( range[0]*physicalScale, range[1]*physicalScale );
 }
 
 void vtkOpenVRRenderer::PrintSelf(ostream& os, vtkIndent indent)

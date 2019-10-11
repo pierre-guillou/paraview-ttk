@@ -240,7 +240,11 @@ void vtkExodusFileSeriesReader::FindRestartedResults()
   // there on the first file set (before the first restart occurred).  Thus it is
   // optional (although there can only be one as this is the only place we check
   // numbering).
-  vtksys::RegularExpression regEx("^(.*\\.e)(-s.[0-9]+)?(\\.[0-9]+\\.[0-9]+)?$");
+  //
+  // The `e` in the above pattern can be any of exodus supported extensions e.g.
+  // exo, ex2, etc. Hence we keep the regex generic (ref: paraview/paraview#19056,
+  // paraview/paraview#19202).
+  vtksys::RegularExpression regEx("^(.*\\.[eg][^-.]*)(-s.[0-9]+)?(\\.[0-9]+\\.[0-9]+)?$");
   if (!regEx.find(baseName))
   {
     // Filename does not follow convention.  Just use it.
@@ -271,11 +275,13 @@ void vtkExodusFileSeriesReader::FindRestartedResults()
       continue;
     this->AddFileNameInternal((path + file).c_str());
   }
+  this->CopyRealFileNamesFromFileNames();
 
   // Check to make sure we found something.
   if (this->GetNumberOfFileNames() < 1)
   {
     vtkWarningMacro(<< "Could not find any actual files matching " << originalFile.c_str());
     this->AddFileNameInternal(originalFile);
+    this->CopyRealFileNamesFromFileNames();
   }
 }

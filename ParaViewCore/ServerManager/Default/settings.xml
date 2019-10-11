@@ -237,6 +237,7 @@
         <EnumerationDomain name="enum">
           <Entry text="Grow and update on 'Apply'" value="0" />
           <Entry text="Grow and update every timestep" value="1" />
+          <Entry text="Update on 'Apply'" value="2" />
           <Entry text="Clamp and update every timestep" value="3" />
         </EnumerationDomain>
       </IntVectorProperty>
@@ -365,7 +366,7 @@
         command="SetResetDisplayEmptyViews"
         panel_visibility="advanced">
         <Documentation>
-          When showing a representation in an empty view, set wether or not to reset
+          When showing a representation in an empty view, set whether or not to reset
           the view display.
         </Documentation>
         <BooleanDomain name="bool" />
@@ -539,7 +540,7 @@
       <IntVectorProperty name="ResolveCoincidentTopology"
         command="SetResolveCoincidentTopology"
         number_of_elements="1"
-        default_values="3"
+        default_values="1"
         panel_visibility="advanced">
         <Documentation>
           Set the mode to use to overcome the OpenGL rendering issue when faces
@@ -559,12 +560,46 @@
       <DoubleVectorProperty name="PolygonOffsetParameters"
         command="SetPolygonOffsetParameters"
         number_of_elements="2"
-        default_values="1.0 1.0"
+        default_values="0.0 0.0"
         panel_visibility="advanced">
         <DoubleRangeDomain name="range" />
         <Documentation>
-          Set the polygon offset parameters. Refer to the OpenGL manual,
-          glPolygonOffset for details on how to use these parameters.
+          Set the polygon offset parameters to control how polygon depths are shifted
+          in the depth buffer. Change these parameters to change how coincident lines,
+          points, and polygons are resolved when rendering. The first parameter controls
+          how much the angle of the polygon relative to the camera view plane contributes
+          to the depth offset of pixels in the rendered polygon. The second parameter is
+          a constant offset to add to the depth buffer. Refer to the OpenGL manual on
+          glPolygonOffset for further details on these parameters.
+        </Documentation>
+        <Hints>
+          <RestartRequired />
+        </Hints>
+      </DoubleVectorProperty>
+
+      <DoubleVectorProperty name="LineOffsetParameters"
+        command="SetLineOffsetParameters"
+        number_of_elements="2"
+        default_values="0.0 -4"
+        panel_visibility="advanced">
+        <DoubleRangeDomain name="range" />
+        <Documentation>
+          Parameters used the same way as the parameters in **Polygon Offset Parameters**,
+          but applied when lines are rendered.
+        </Documentation>
+        <Hints>
+          <RestartRequired />
+        </Hints>
+      </DoubleVectorProperty>
+
+      <DoubleVectorProperty name="PointOffsetParameter"
+        command="SetPointOffsetParameter"
+        number_of_elements="1"
+        default_values="-8"
+        panel_visibility="advanced">
+        <DoubleRangeDomain name="range" />
+        <Documentation>
+        Specifies a constant depth offset to apply when points are rendered.
         </Documentation>
         <Hints>
           <RestartRequired />
@@ -583,6 +618,10 @@
         </Documentation>
         <Hints>
           <RestartRequired />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="ResolveCoincidentTopology"
+                                   value="3" />
         </Hints>
       </DoubleVectorProperty>
 

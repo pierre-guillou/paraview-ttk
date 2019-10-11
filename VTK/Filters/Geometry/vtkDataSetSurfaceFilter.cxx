@@ -1336,8 +1336,11 @@ int vtkDataSetSurfaceFilter::DataSetExecute(vtkDataSet *input,
           pts->InsertId(i,pt);
         }
         newCellId = output->InsertNextCell(cell->GetCellType(), pts);
-        outputCD->CopyData(cd,cellId,newCellId);
-        this->RecordOrigCellId(newCellId, cellId);
+        if (newCellId > 0)
+        {
+          outputCD->CopyData(cd,cellId,newCellId);
+          this->RecordOrigCellId(newCellId, cellId);
+        }
         break;
       case 3:
         for (j=0; j < cell->GetNumberOfFaces(); j++)
@@ -1359,8 +1362,11 @@ int vtkDataSetSurfaceFilter::DataSetExecute(vtkDataSet *input,
               pts->InsertId(i,pt);
             }
             newCellId = output->InsertNextCell(face->GetCellType(), pts);
-            outputCD->CopyData(cd,cellId,newCellId);
-            this->RecordOrigCellId(newCellId, cellId);
+            if (newCellId > 0)
+            {
+              outputCD->CopyData(cd,cellId,newCellId);
+              this->RecordOrigCellId(newCellId, cellId);
+            }
           }
         }
         break;
@@ -2418,6 +2424,11 @@ void vtkDataSetSurfaceFilter::InsertTriInHash(vtkIdType a, vtkIdType b,
 void vtkDataSetSurfaceFilter::InsertPolygonInHash(vtkIdType* ids,
                                                   int numPts, vtkIdType sourceId)
 {
+  // sanity check
+  if (numPts == 0)
+  {
+    return;
+  }
   vtkFastGeomQuad *quad, **end;
 
   // find the index to the smallest id
@@ -2452,7 +2463,7 @@ void vtkDataSetSurfaceFilter::InsertPolygonInHash(vtkIdType* ids,
       {
         // if the first two points match loop through forwards
         // checking all points
-        if (tab[1] == quad->ptArray[1])
+        if (numPts > 1 && tab[1] == quad->ptArray[1])
         {
           for (int i = 2; i < numPts; ++i)
           {

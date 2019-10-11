@@ -256,8 +256,10 @@ static radixkrInfo radixkrGetK(IceTInt compose_group_size,
         info.num_rounds++;
 
         if (info.num_rounds > max_num_k) {
-            icetRaiseError("Somehow we got more factors than possible.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(
+                ICET_SANITY_CHECK_FAIL,
+                "Somehow we got more factors than possible (%d > %d).",
+                info.num_rounds, max_num_k);
         }
     }
 
@@ -270,8 +272,8 @@ static radixkrInfo radixkrGetK(IceTInt compose_group_size,
             product = product*info.rounds[round].k + info.rounds[round].r;
         }
         if (product != compose_group_size) {
-            icetRaiseError("Product of k's not equal to number of processes.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Product of k's not equal to number of processes.");
         }
     }
 
@@ -773,8 +775,8 @@ static void radixkrCompositeIncomingImages(radixkrPartnerGroupInfo p_group,
             = icetSparseImageUnpackageFromReceive(receiver->receiveBuffer);
         if (   (icetSparseImageGetWidth(receiver->receiveImage) != width)
             || (icetSparseImageGetHeight(receiver->receiveImage) != height) ) {
-            icetRaiseError("Radix-kr received image with wrong size.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Radix-kr received image with wrong size.");
         }
 
         /* Try to composite that image. */
@@ -811,8 +813,8 @@ void icetRadixkrCompose(const IceTInt *compose_group,
     /* Find your rank in your group. */
     group_rank = icetFindMyRankInGroup(compose_group, group_size);
     if (group_rank < 0) {
-        icetRaiseError("Local process not in compose_group?",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Local process not in compose_group?");
         *result_image = icetSparseImageNull();
         *piece_offset = 0;
         return;
@@ -830,7 +832,7 @@ void icetRadixkrCompose(const IceTInt *compose_group,
 
     /* num_rounds > 0 is assumed several places throughout this function */
     if (info.num_rounds <= 0) {
-        icetRaiseError("Radix-kr has no rounds?", ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL, "Radix-kr has no rounds?");
     }
 
     /* IceT does some tricks with partitioning an image so that no matter what

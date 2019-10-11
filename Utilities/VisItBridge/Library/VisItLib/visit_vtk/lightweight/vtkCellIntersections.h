@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -64,7 +64,7 @@ class VISIT_VTK_LIGHT_API vtkCellIntersections : public vtkObject
 {
 public:
   vtkTypeMacro(vtkCellIntersections,vtkObject);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   static vtkCellIntersections *New();

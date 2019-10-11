@@ -210,7 +210,7 @@ public:
   void ReleaseGraphicsResources(vtkWindow *) override;
   int RenderOpaqueGeometry(vtkViewport *viewport) override;
   int RenderTranslucentPolygonalGeometry(vtkViewport *viewport) override;
-  int HasTranslucentPolygonalGeometry() override;
+  vtkTypeBool HasTranslucentPolygonalGeometry() override;
   //@}
 
   void Highlight(int highlight) override;
@@ -236,6 +236,14 @@ public:
   * Register internal Pickers within PickingManager
   */
   void RegisterPickers() override;
+
+  /**
+   * Override to ensure that the internal actor's visibility is consistent with
+   * this representation's visibility. Inconsistency between the two would cause
+   * issues in picking logic which relies on individual view prop visibility to
+   * determine whether the prop is pickable.
+   */
+  void SetVisibility(vtkTypeBool visible) override;
 
 protected:
   vtkPointHandleRepresentation3D();

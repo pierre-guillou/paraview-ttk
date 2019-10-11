@@ -47,6 +47,7 @@
 #include "vtkMathConfigure.h" // For <cmath> and VTK_HAS_ISNAN etc.
 
 #include <cassert> // assert() in inline implementations.
+#include <algorithm> // for std::clamp
 
 #ifndef DBL_MIN
 #  define VTK_DBL_MIN    2.2250738585072014e-308
@@ -112,10 +113,12 @@ public:
   /**
    * Rounds a float to the nearest integer.
    */
+#if 1
   static int Round(float f) {
     return static_cast<int>( f + ( f >= 0.0 ? 0.5 : -0.5 ) ); }
   static int Round(double f) {
     return static_cast<int>( f + ( f >= 0.0 ? 0.5 : -0.5 ) ); }
+#endif
 
   /**
    * Round a double to type OutT if OutT is integral, otherwise simply clamp
@@ -453,14 +456,14 @@ public:
    * Compute the norm of 3-vector (float version).
    */
   static float Norm(const float v[3]) {
-    return static_cast<float> (sqrt( v[0] * v[0] + v[1] * v[1] + v[2] * v[2] ) );
+    return std::sqrt( v[0] * v[0] + v[1] * v[1] + v[2] * v[2] );
   }
 
   /**
    * Compute the norm of 3-vector (double version).
    */
   static double Norm(const double v[3]) {
-    return sqrt( v[0] * v[0] + v[1] * v[1] + v[2] * v[2] );
+    return std::sqrt( v[0] * v[0] + v[1] * v[1] + v[2] * v[2] );
   }
 
   /**
@@ -529,13 +532,13 @@ public:
 
   /**
    * Compute the amplitude of a Gaussian function with mean=0 and specified variance.
-   * That is, 1./(sqrt(2 Pi * variance)) * exp(-distanceFromMean^2/(2.*variance)).
+   * That is, 1./(std::sqrt(2 Pi * variance)) * exp(-distanceFromMean^2/(2.*variance)).
    */
   static double GaussianAmplitude(const double variance, const double distanceFromMean);
 
   /**
    * Compute the amplitude of a Gaussian function with specified mean and variance.
-   * That is, 1./(sqrt(2 Pi * variance)) * exp(-(position - mean)^2/(2.*variance)).
+   * That is, 1./(std::sqrt(2 Pi * variance)) * exp(-(position - mean)^2/(2.*variance)).
    */
   static double GaussianAmplitude(const double mean, const double variance, const double position);
 
@@ -600,7 +603,7 @@ public:
    * (float version).
    */
   static float Norm2D(const float x[2]) {
-    return static_cast<float> (sqrt( x[0] * x[0] + x[1] * x[1] ) );
+    return std::sqrt( x[0] * x[0] + x[1] * x[1] );
   }
 
   /**
@@ -608,7 +611,7 @@ public:
    * (double version).
    */
   static double Norm2D(const double x[2]) {
-    return sqrt( x[0] * x[0] + x[1] * x[1] );
+    return std::sqrt( x[0] * x[0] + x[1] * x[1] );
   }
 
   /**
@@ -1002,8 +1005,6 @@ public:
     RGBToHSV(rgb[0], rgb[1], rgb[2], hsv, hsv+1, hsv+2);
   }
   static void RGBToHSV(float r, float g, float b, float *h, float *s, float *v);
-  VTK_LEGACY(static double* RGBToHSV(const double rgb[3]) VTK_SIZEHINT(3));
-  VTK_LEGACY(static double* RGBToHSV(double r, double g, double b) VTK_SIZEHINT(3));
   static void RGBToHSV(const double rgb[3], double hsv[3]) {
     RGBToHSV(rgb[0], rgb[1], rgb[2], hsv, hsv+1, hsv+2);
   }
@@ -1022,8 +1023,6 @@ public:
     HSVToRGB(hsv[0], hsv[1], hsv[2], rgb, rgb+1, rgb+2);
   }
   static void HSVToRGB(float h, float s, float v, float *r, float *g, float *b);
-  VTK_LEGACY(static double* HSVToRGB(const double hsv[3]) VTK_SIZEHINT(3));
-  VTK_LEGACY(static double* HSVToRGB(double h, double s, double v) VTK_SIZEHINT(3));
   static void HSVToRGB(const double hsv[3], double rgb[3])
     { HSVToRGB(hsv[0], hsv[1], hsv[2], rgb, rgb+1, rgb+2); }
   static void HSVToRGB(double h, double s, double v, double *r, double *g, double *b);
@@ -1038,7 +1037,6 @@ public:
   }
   static void LabToXYZ(double L, double a, double b,
                        double *x, double *y, double *z);
-  VTK_LEGACY(static double *LabToXYZ(const double lab[3]) VTK_SIZEHINT(3));
   //@}
 
   //@{
@@ -1050,7 +1048,6 @@ public:
   }
   static void XYZToLab(double x, double y, double z,
                        double *L, double *a, double *b);
-  VTK_LEGACY(static double *XYZToLab(const double xyz[3]) VTK_SIZEHINT(3));
   //@}
 
   //@{
@@ -1062,7 +1059,6 @@ public:
   }
   static void XYZToRGB(double x, double y, double z,
                        double *r, double *g, double *b);
-  VTK_LEGACY(static double *XYZToRGB(const double xyz[3]) VTK_SIZEHINT(3));
   //@}
 
   //@{
@@ -1074,7 +1070,6 @@ public:
   }
   static void RGBToXYZ(double r, double g, double b,
                        double *x, double *y, double *z);
-  VTK_LEGACY(static double *RGBToXYZ(const double rgb[3]) VTK_SIZEHINT(3));
   //@}
 
   //@{
@@ -1089,7 +1084,6 @@ public:
   }
   static void RGBToLab(double red, double green, double blue,
                        double *L, double *a, double *b);
-  VTK_LEGACY(static double *RGBToLab(const double rgb[3]) VTK_SIZEHINT(3));
   //@}
 
   //@{
@@ -1101,7 +1095,6 @@ public:
   }
   static void LabToRGB(double L, double a, double b,
                        double *red, double *green, double *blue);
-  VTK_LEGACY(static double *LabToRGB(const double lab[3]) VTK_SIZEHINT(3));
   //@}
 
   //@{
@@ -1513,17 +1506,10 @@ inline T vtkMath::ClampValue(const T & value, const T & min, const T & max)
 #if __cplusplus >= 201703L
   return std::clamp(value, min, max);
 #else
-  if (value < min)
-  {
-    return min;
-  }
-
-  if (max < value)
-  {
-    return max;
-  }
-
-  return value;
+  // compilers are good at optimizing the ternary operator,
+  // use '<' since it is preferred by STL for custom types
+  T v = (min < value ? value : min);
+  return (v < max ? v : max);
 #endif
 }
 

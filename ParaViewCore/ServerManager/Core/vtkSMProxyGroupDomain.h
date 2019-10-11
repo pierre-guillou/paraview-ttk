@@ -42,7 +42,7 @@ class VTKPVSERVERMANAGERCORE_EXPORT vtkSMProxyGroupDomain : public vtkSMDomain
 public:
   static vtkSMProxyGroupDomain* New();
   vtkTypeMacro(vtkSMProxyGroupDomain, vtkSMDomain);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Add a group to the domain. The domain is the union of
@@ -55,7 +55,7 @@ public:
    * The property has to be a vtkSMProxyproperty or a sub-class. All
    * proxies pointed by the property have to be in the domain.
    */
-  int IsInDomain(vtkSMProperty* property) VTK_OVERRIDE;
+  int IsInDomain(vtkSMProperty* property) override;
 
   /**
    * Returns true if the proxy is in the domain.
@@ -88,6 +88,11 @@ public:
   const char* GetProxyName(unsigned int idx);
 
   /**
+   * Given an index, returns a proxy.
+   */
+  vtkSMProxy* GetProxy(unsigned int idx);
+
+  /**
    * Returns the name (in the group) of a proxy.
    */
   const char* GetProxyName(vtkSMProxy* proxy);
@@ -100,7 +105,7 @@ protected:
    * Set the appropriate ivars from the xml element. Should
    * be overwritten by subclass if adding ivars.
    */
-  int ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLElement* element) VTK_OVERRIDE;
+  int ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLElement* element) override;
 
   vtkSMProxyGroupDomainInternals* PGInternals;
 

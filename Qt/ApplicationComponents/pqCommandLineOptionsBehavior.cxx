@@ -68,7 +68,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QString>
 #include <QStringList>
 
-#ifdef PARAVIEW_ENABLE_PYTHON
+#include <cassert>
+
+#if VTK_MODULE_ENABLE_VTK_PythonInterpreter
 #include "vtkPythonInterpreter.h"
 #endif
 
@@ -125,19 +127,7 @@ void pqCommandLineOptionsBehavior::processCommandLineOptions()
   // Now we are assured that some default server connection has been made
   // (either the one requested by the user on the command line or simply the
   // default one).
-  Q_ASSERT(pqActiveObjects::instance().activeServer() != 0);
-
-  // For tile display testing lets enable the dump of images
-  if (options->GetTileImagePath())
-  {
-    vtkSMProxy* proxy =
-      vtkSMProxyManager::GetProxyManager()->NewProxy("tile_helper", "TileDisplayHelper");
-    vtkSMStringVectorProperty* pathProperty =
-      vtkSMStringVectorProperty::SafeDownCast(proxy->GetProperty("DumpImagePath"));
-    pathProperty->SetElement(0, options->GetTileImagePath());
-    proxy->UpdateVTKObjects();
-    proxy->Delete();
-  }
+  assert(pqActiveObjects::instance().activeServer() != 0);
 
   // check for --data option.
   if (options->GetParaViewDataName())
@@ -183,7 +173,7 @@ void pqCommandLineOptionsBehavior::processCommandLineOptions()
 
   if (options->GetPythonScript())
   {
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_VTK_PythonInterpreter
     QFile file(options->GetPythonScript());
     if (file.open(QIODevice::ReadOnly))
     {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -142,17 +142,12 @@ class PIPELINE_API avtCallback
                                      { swRendering = b; };
     static bool                  GetSoftwareRendering(void)
                                      { return swRendering; };
-
-    static void                  SetMantaMode(bool b)
-                                     { useManta = b; }
-    static bool                  UseManta(void)
-                                     { return useManta; }
-
+#ifdef VISIT_OSPRAY
     static void                  SetOSPRayMode(bool b)
                                      { useOSPRay = b; }
     static bool                  UseOSPRay(void)
                                      { return useOSPRay; }
-
+#endif
     static void                  RegisterGetDatabaseCallback(
                                                   GetDatabaseCallback, void *);
     static ref_ptr<avtDatabase>  GetDatabase(const std::string &, int,
@@ -193,8 +188,9 @@ class PIPELINE_API avtCallback
     static bool                  nowinMode;
     static bool                  nowinInteractionMode;
     static bool                  swRendering;
-    static bool                  useManta;
+#ifdef VISIT_OSPRAY
     static bool                  useOSPRay;
+#endif
     static bool                  safeMode;
 
     static GlobalAttributes::BackendType backendType;

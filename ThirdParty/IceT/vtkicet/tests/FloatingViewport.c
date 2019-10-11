@@ -16,6 +16,7 @@
 
 #include <IceTDevCommunication.h>
 #include <IceTDevMatrix.h>
+#include <IceTDevPorting.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -60,7 +61,7 @@ static IceTBoolean CheckPixel(const IceTImage image,
         buffer = malloc(4*icetImageGetWidth(image)*icetImageGetHeight(image));
         icetImageCopyColorub(image, buffer, ICET_IMAGE_COLOR_RGBA_UBYTE);
         icetGetIntegerv(ICET_RANK, &rank);
-        sprintf(filename, "FloatingViewport_%d.ppm", rank);
+        icetSnprintf(filename, 255, "FloatingViewport_%d.ppm", rank);
         write_ppm(filename,
                   buffer,
                   icetImageGetWidth(image),

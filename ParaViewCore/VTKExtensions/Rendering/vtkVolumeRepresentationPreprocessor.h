@@ -45,7 +45,7 @@ class VTKPVVTKEXTENSIONSRENDERING_EXPORT vtkVolumeRepresentationPreprocessor
 public:
   static vtkVolumeRepresentationPreprocessor* New();
   vtkTypeMacro(vtkVolumeRepresentationPreprocessor, vtkUnstructuredGridAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -61,8 +61,8 @@ public:
    * Sets which block will be extracted for volume rendering.
    * Ignored if input is not multiblock.  Default is 0.
    */
-  void SetExtractedBlockIndex(int);
-  vtkGetMacro(ExtractedBlockIndex, int);
+  void SetExtractedBlockIndex(unsigned int);
+  vtkGetMacro(ExtractedBlockIndex, unsigned int);
   //@}
 
 protected:
@@ -72,11 +72,11 @@ protected:
   vtkUnstructuredGrid* TriangulateDataSet(vtkDataSet*);
   vtkDataSet* MultiBlockToDataSet(vtkMultiBlockDataSet*);
 
-  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) VTK_OVERRIDE;
-  int FillInputPortInformation(int port, vtkInformation* info) VTK_OVERRIDE;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  int FillInputPortInformation(int port, vtkInformation* info) override;
 
   int TetrahedraOnly;
-  int ExtractedBlockIndex;
+  unsigned int ExtractedBlockIndex;
 
   vtkDataSetTriangleFilter* DataSetTriangleFilter;
   vtkExtractBlock* ExtractBlockFilter;

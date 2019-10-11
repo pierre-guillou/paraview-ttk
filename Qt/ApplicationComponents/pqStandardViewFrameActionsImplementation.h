@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class pqContextView;
 class pqRenderView;
 class pqSpreadSheetView;
+class pqView;
 class QAction;
 class QActionGroup;
 class QShortcut;
@@ -111,12 +112,6 @@ protected slots:
   void aboutToShowConvertMenu();
 
   /**
-  * This slot is called either from an action in the "Convert To" menu, or from
-  * the buttons on an empty frame.
-  */
-  void invoked();
-
-  /**
   * slots for various shortcuts.
   */
   void selectSurfaceCellsTriggered();
@@ -142,6 +137,11 @@ protected slots:
   * A slot called when an interactive selection is toggled
   */
   void interactiveSelectionToggled(bool checked);
+
+  /**
+  * This slot is called when a capture view action is triggered.
+  */
+  void captureViewTriggered();
 
 protected:
   /**
@@ -207,7 +207,13 @@ protected:
   * Called when user clicks "Convert To" or create a view from the empty
   * frame.
   */
-  virtual void handleCreateView(const ViewType& viewType);
+  virtual pqView* handleCreateView(const ViewType& viewType);
+
+  /**
+  * This is called either from an action in the "Convert To" menu, or from
+  * the buttons on an empty frame.
+  */
+  void invoked(pqViewFrame*, const ViewType& type, const QString& command);
 
 private:
   Q_DISABLE_COPY(pqStandardViewFrameActionsImplementation)

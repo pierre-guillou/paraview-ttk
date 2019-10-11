@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -1548,7 +1548,7 @@ const char *NodeTypeName(int e)
 
 NodeTypeEnum GetNodeType(const char *str)
 {
-    for(int i = 1; i < 24; ++i)
+    for(int i = 1; i < MAX_NODE_TYPES; ++i)
     {
         if (strcmp(str, NodeTypeName(i)) == 0)
         {

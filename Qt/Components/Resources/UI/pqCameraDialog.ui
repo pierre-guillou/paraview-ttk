@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>422</width>
-    <height>741</height>
+    <height>781</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -35,9 +35,9 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>0</y>
-        <width>404</width>
-        <height>693</height>
+        <y>-11</y>
+        <width>390</width>
+        <height>704</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
@@ -531,6 +531,49 @@
           </widget>
          </item>
          <item row="3" column="2">
+          <widget class="QLabel" name="label_8">
+           <property name="text">
+            <string>Eye Angle</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="3">
+          <widget class="QDoubleSpinBox" name="eyeAngle">
+           <property name="toolTip">
+            <string>The separation between eyes (in degrees). This is used when rendering in stereo mode.</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>Focal Disk</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QDoubleSpinBox" name="focalDisk">
+           <property name="toolTip">
+             <string> The size of the camera's lens in world coordinates. Affects ray traced depth of field rendering.
+             </string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="2">
+          <widget class="QLabel" name="label_10">
+           <property name="text">
+            <string>Focal Distance</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="3">
+          <widget class="QDoubleSpinBox" name="focalDistance">
+           <property name="toolTip">
+             <string>Depth of field rendering focus distance. Only affects ray traced renderers. 0 (default) disables it.</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
           <widget class="QPushButton" name="loadCameraConfiguration">
            <property name="toolTip">
             <string>Load camera properties.</string>
@@ -540,7 +583,7 @@
            </property>
           </widget>
          </item>
-         <item row="3" column="3">
+         <item row="5" column="1">
           <widget class="QPushButton" name="saveCameraConfiguration">
            <property name="toolTip">
             <string>Save camera properties.</string>

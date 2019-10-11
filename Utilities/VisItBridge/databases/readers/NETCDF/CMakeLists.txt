@@ -29,53 +29,19 @@ SET(SOURCES
   NETCDFFileObject.C
   )
 
-#needed by cmake to properly generate the correct readers in the interface collection
-#for each reader in the interface we need: name, type, and name of header it is defined in
-set(READER_NAMES
-  avtADAPTFileFormat
-  avtLODIFileFormat
-  avtLODIParticleFileFormat
-  avtFVCOM_STSDFileFormat
-  avtFVCOM_MTMDFileFormat
-  avtFVCOM_MTSDFileFormat
-  avtFVCOMParticleFileFormat
-  avtCCSM_MTSD_FileFormat
-  avtCCSM_STSD_FileFormat
-  avtBOUTFileFormat
-  )
-
-set(READER_TYPES
-  STSD
-  MTSD
-  MTSD
-  STSD
-  MTMD
-  MTSD
-  MTSD
-  MTSD
-  STSD
-  MTMD
-  )
-
-set(READER_INCLUDES
-  avtADAPTFileFormat
-  avtLODIFileFormat
-  avtLODIParticleFileFormat
-  avtFVCOM_STSDFileFormat
-  avtFVCOM_MTMDFileFormat
-  avtFVCOM_MTSDFileFormat
-  avtFVCOMParticleFileFormat
-  avtCCSMFileFormat
-  avtCCSMFileFormat
-  avtBOUTFileFormat
-  )
-
 ADD_VISIT_INTERFACE_READER(VisItNETCDF "1.0"
-  VISIT_READER_NAMES ${READER_NAMES}
-  VISIT_READER_TYPES ${READER_TYPES}
-  VISIT_READER_INCLUDES ${READER_INCLUDES}
+  VISIT_READERS
+    NAME avtADAPTFileFormat         TYPE STSD
+    NAME avtLODIFileFormat          TYPE MTSD
+    NAME avtLODIParticleFileFormat  TYPE MTSD
+    NAME avtFVCOM_STSDFileFormat    TYPE STSD
+    NAME avtFVCOM_MTMDFileFormat    TYPE MTMD
+    NAME avtFVCOM_MTSDFileFormat    TYPE MTSD
+    NAME avtFVCOMParticleFileFormat TYPE MTSD
+    NAME avtCCSM_MTSD_FileFormat    TYPE MTSD INCLUDE avtCCSMFileFormat
+    NAME avtCCSM_STSD_FileFormat    TYPE STSD INCLUDE avtCCSMFileFormat
+    NAME avtBOUTFileFormat          TYPE MTM
   VISIT_INTERFACE_CALL ${INTERFACE_MACRO_CALL}
   VISIT_INTERFACE_FILE ${INTERFACE_MACRO_FILE}
-  VISIT_INTERFACE_EXEMPT_CLASSES ${INTERFACE_EXEMPT_CLASSES}
   SERVER_SOURCES ${SOURCES}
   )

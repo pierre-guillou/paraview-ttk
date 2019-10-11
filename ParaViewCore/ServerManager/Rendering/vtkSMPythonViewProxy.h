@@ -37,7 +37,7 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMPythonViewProxy : public vtkSMView
 public:
   static vtkSMPythonViewProxy* New();
   vtkTypeMacro(vtkSMPythonViewProxy, vtkSMViewProxy);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Returns the client-side renderer.
@@ -47,14 +47,14 @@ public:
   /**
    * Returns the client-side render window.
    */
-  vtkRenderWindow* GetRenderWindow() VTK_OVERRIDE;
+  vtkRenderWindow* GetRenderWindow() override;
 
   /**
    * Returns the interactor. Note, that views may not use vtkRenderWindow at all
    * in which case they will not have any interactor and will return NULL.
    * Default implementation returns NULL.
    */
-  vtkRenderWindowInteractor* GetInteractor() VTK_OVERRIDE;
+  vtkRenderWindowInteractor* GetInteractor() override;
 
   /**
    * A client process need to set the interactor to enable interactivity. Use
@@ -65,16 +65,22 @@ public:
    * vtkRenderWindowInteractor should override this method to set the interactor
    * up.
    */
-  void SetupInteractor(vtkRenderWindowInteractor* iren) VTK_OVERRIDE;
+  void SetupInteractor(vtkRenderWindowInteractor* iren) override;
 
 protected:
   vtkSMPythonViewProxy();
   ~vtkSMPythonViewProxy() override;
 
   /**
+   * This view currently only supports rendering on client, even in tile-display
+   * mode. Which means it will not show any results on the tile display.
+   */
+  vtkTypeUInt32 PreRender(bool interactive) override;
+
+  /**
    * Subclasses should override this method to do the actual image capture.
    */
-  vtkImageData* CaptureWindowInternal(int magX, int magY) VTK_OVERRIDE;
+  vtkImageData* CaptureWindowInternal(int magX, int magY) override;
 
 private:
   vtkSMPythonViewProxy(const vtkSMPythonViewProxy&) = delete;

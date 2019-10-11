@@ -32,7 +32,7 @@ extern IceTSizeType SCREEN_HEIGHT;
 
 void initialize_test(int *argcp, char ***argvp, IceTCommunicator comm);
 
-int run_test(int (*test_function)(void));
+int run_test(int (*test_function)());
 
 /* Used like printf but prints status only on process 0 or to independent
    logs. */

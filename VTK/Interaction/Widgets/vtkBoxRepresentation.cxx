@@ -146,6 +146,8 @@ vtkBoxRepresentation::vtkBoxRepresentation()
   for (i=0; i<7; i++)
   {
     this->HandleGeometry[i] = vtkSphereSource::New();
+    this->HandleGeometry[i]->SetOutputPointsPrecision(
+      vtkAlgorithm::DOUBLE_PRECISION);
     this->HandleGeometry[i]->SetThetaResolution(16);
     this->HandleGeometry[i]->SetPhiResolution(8);
     this->HandleMapper[i] = vtkPolyDataMapper::New();
@@ -846,7 +848,7 @@ namespace {
     vtkVector3d axis(0,0,0);
     axis[largest] = 1.0;
     // 3 degrees of sticky
-    if (fabs(in.Dot(axis)) > cos(3.1415926*snapAngle/180.0))
+    if (fabs(in.Dot(axis)) > cos(vtkMath::Pi()*snapAngle/180.0))
     {
       if (in.Dot(axis) < 0)
       {
@@ -1489,6 +1491,10 @@ int vtkBoxRepresentation::RenderOpaqueGeometry(vtkViewport *v)
   int count=0;
   this->BuildRepresentation();
 
+  this->HexActor->SetPropertyKeys(this->GetPropertyKeys());
+  this->HexOutline->SetPropertyKeys(this->GetPropertyKeys());
+  this->HexFace->SetPropertyKeys(this->GetPropertyKeys());
+
   count += this->HexActor->RenderOpaqueGeometry(v);
   count += this->HexOutline->RenderOpaqueGeometry(v);
   count += this->HexFace->RenderOpaqueGeometry(v);
@@ -1496,6 +1502,7 @@ int vtkBoxRepresentation::RenderOpaqueGeometry(vtkViewport *v)
   {
     if(this->Handle[j]->GetVisibility())
     {
+      this->Handle[j]->SetPropertyKeys(this->GetPropertyKeys());
       count += this->Handle[j]->RenderOpaqueGeometry(v);
     }
   }
@@ -1509,6 +1516,10 @@ int vtkBoxRepresentation::RenderTranslucentPolygonalGeometry(vtkViewport *v)
   int count=0;
   this->BuildRepresentation();
 
+  this->HexActor->SetPropertyKeys(this->GetPropertyKeys());
+  this->HexOutline->SetPropertyKeys(this->GetPropertyKeys());
+  this->HexFace->SetPropertyKeys(this->GetPropertyKeys());
+
   count += this->HexActor->RenderTranslucentPolygonalGeometry(v);
   count += this->HexOutline->RenderTranslucentPolygonalGeometry(v);
   count += this->HexFace->RenderTranslucentPolygonalGeometry(v);
@@ -1517,6 +1528,7 @@ int vtkBoxRepresentation::RenderTranslucentPolygonalGeometry(vtkViewport *v)
   {
     if(this->Handle[j]->GetVisibility())
     {
+      this->Handle[j]->SetPropertyKeys(this->GetPropertyKeys());
       count += this->Handle[j]->RenderTranslucentPolygonalGeometry(v);
     }
   }
@@ -1524,7 +1536,7 @@ int vtkBoxRepresentation::RenderTranslucentPolygonalGeometry(vtkViewport *v)
 }
 
 //----------------------------------------------------------------------------
-int vtkBoxRepresentation::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkBoxRepresentation::HasTranslucentPolygonalGeometry()
 {
   int result=0;
   this->BuildRepresentation();

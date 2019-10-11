@@ -40,11 +40,36 @@ struct vtkSMDomainInternals
 };
 
 //---------------------------------------------------------------------------
+vtkSMDomain::DeferDomainModifiedEvents::DeferDomainModifiedEvents(vtkSMDomain* domain)
+  : Self(domain)
+{
+  assert(this->Self != nullptr);
+  ++this->Self->DeferDomainModifiedEventsCount;
+}
+
+//---------------------------------------------------------------------------
+vtkSMDomain::DeferDomainModifiedEvents::~DeferDomainModifiedEvents()
+{
+  assert(this->Self->DeferDomainModifiedEventsCount > 0);
+  if ((--this->Self->DeferDomainModifiedEventsCount) == 0)
+  {
+    if (this->Self->PendingDomainModifiedEvents)
+    {
+      this->Self->PendingDomainModifiedEvents = false;
+      this->Self->DomainModified();
+    }
+  }
+}
+
+//---------------------------------------------------------------------------
 vtkSMDomain::vtkSMDomain()
 {
   this->XMLName = 0;
   this->Internals = new vtkSMDomainInternals;
   this->IsOptional = false;
+
+  this->DeferDomainModifiedEventsCount = 0;
+  this->PendingDomainModifiedEvents = false;
 }
 
 //---------------------------------------------------------------------------
@@ -138,7 +163,20 @@ int vtkSMDomain::ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLElement* element
 }
 
 //---------------------------------------------------------------------------
-vtkPVDataInformation* vtkSMDomain::GetInputDataInformation(const char* function, int /*index=0*/)
+unsigned int vtkSMDomain::GetNumberOfInputConnections(const char* function)
+{
+  vtkSMProperty* inputProperty = this->GetRequiredProperty(function);
+  if (!inputProperty)
+  {
+    return 0;
+  }
+
+  vtkSMUncheckedPropertyHelper helper(inputProperty);
+  return helper.GetNumberOfElements();
+}
+
+//---------------------------------------------------------------------------
+vtkPVDataInformation* vtkSMDomain::GetInputDataInformation(const char* function, unsigned int index)
 {
   vtkSMProperty* inputProperty = this->GetRequiredProperty(function);
   if (!inputProperty)
@@ -147,9 +185,9 @@ vtkPVDataInformation* vtkSMDomain::GetInputDataInformation(const char* function,
   }
 
   vtkSMUncheckedPropertyHelper helper(inputProperty);
-  if (helper.GetNumberOfElements() > 0)
+  if (helper.GetNumberOfElements() > index)
   {
-    vtkSMSourceProxy* sp = vtkSMSourceProxy::SafeDownCast(helper.GetAsProxy(0));
+    vtkSMSourceProxy* sp = vtkSMSourceProxy::SafeDownCast(helper.GetAsProxy(index));
     if (sp)
     {
       return sp->GetDataInformation(helper.GetOutputPort());
@@ -186,7 +224,15 @@ unsigned int vtkSMDomain::GetNumberOfRequiredProperties()
 //---------------------------------------------------------------------------
 void vtkSMDomain::DomainModified()
 {
-  this->InvokeEvent(vtkCommand::DomainModifiedEvent, 0);
+  if (this->DeferDomainModifiedEventsCount == 0)
+  {
+    this->PendingDomainModifiedEvents = false;
+    this->InvokeEvent(vtkCommand::DomainModifiedEvent);
+  }
+  else
+  {
+    this->PendingDomainModifiedEvents = true;
+  }
 }
 
 //---------------------------------------------------------------------------

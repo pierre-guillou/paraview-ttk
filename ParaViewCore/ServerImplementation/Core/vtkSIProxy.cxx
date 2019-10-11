@@ -18,17 +18,22 @@
 #include "vtkAlgorithmOutput.h"
 #include "vtkClientServerInterpreter.h"
 #include "vtkClientServerStream.h"
+#include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVInstantiator.h"
 #include "vtkPVSessionCore.h"
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
+#include "vtkProcessModule.h"
 #include "vtkSIProperty.h"
 #include "vtkSIProxyDefinitionManager.h"
 #include "vtkSMMessage.h"
 #include "vtkSmartPointer.h"
 
+#include <vtksys/SystemTools.hxx>
+
+#include <cassert>
 #include <map>
 #include <set>
 #include <sstream>
@@ -85,6 +90,8 @@ vtkSIProxy::vtkSIProxy()
   this->PostPush = 0;
   this->PostCreation = 0;
   this->NumberOfInputPorts = -1;
+
+  this->LogName = nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -101,6 +108,9 @@ vtkSIProxy::~vtkSIProxy()
   this->SetVTKClassName(0);
   this->SetPostPush(0);
   this->SetPostCreation(0);
+
+  delete[] this->LogName;
+  this->LogName = nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -112,11 +122,21 @@ void vtkSIProxy::SetVTKObject(vtkObjectBase* obj)
 //----------------------------------------------------------------------------
 void vtkSIProxy::Push(vtkSMMessage* message)
 {
+  this->Superclass::Push(message);
+
   // Push() is the trigger to get the SIProxy initialized. Let's ensure that
   // it's properly initialized before proceeding further.
   if (!this->InitializeAndCreateVTKObjects(message))
   {
     return;
+  }
+
+  // update log name, if changed.
+  if (message->HasExtension(ProxyState::log_name))
+  {
+    const auto log_name = message->GetExtension(ProxyState::log_name);
+    assert(!log_name.empty());
+    this->SetLogName(log_name.c_str());
   }
 
   // Handle properties
@@ -218,7 +238,25 @@ void vtkSIProxy::Pull(vtkSMMessage* message)
       subproxy->set_global_id(it2->GlobalID);
     }
   }
+
+  // a fixed set of properties were not requested, lets see if there was any
+  // custom data in the pushed state. it may be worthwhile to send that back
+  // too. This is essential to ensure that odd proxies like
+  // vtkSMViewLayoutProxy's state gets correctly pull in collaboration mode
+  // otherwise the non-master client will not get correct layout state on
+  // initial pull.
+  if (prop_names.size() == 0 && this->LastPushedMessage &&
+    this->LastPushedMessage->ExtensionSize(ProxyState::user_data) > 0)
+  {
+    const int count = this->LastPushedMessage->ExtensionSize(ProxyState::user_data);
+    for (int cc = 0; cc < count; ++cc)
+    {
+      *message->AddExtension(ProxyState::user_data) =
+        this->LastPushedMessage->GetExtension(ProxyState::user_data, cc);
+    }
+  }
 }
+
 //----------------------------------------------------------------------------
 vtkSIProxyDefinitionManager* vtkSIProxy::GetProxyDefinitionManager()
 {
@@ -645,4 +683,44 @@ void vtkSIProxy::AboutToDelete()
 {
   // Remove all proxy/input property that still old other SIProxy reference...
   this->Internals->ClearDependencies();
+}
+
+//----------------------------------------------------------------------------
+void vtkSIProxy::SetLogName(const char* name)
+{
+  delete[] this->LogName;
+  this->LogName = vtksys::SystemTools::DuplicateString(name);
+
+  assert(name != nullptr);
+
+  // certain VTK objects, e.g. vtkPVDataRepresentation, may support API to
+  // provide log name.
+  vtkClientServerStream stream;
+  stream << vtkClientServerStream::Invoke << this->GetVTKObject() << "SetLogName" << this->LogName
+         << vtkClientServerStream::End;
+  vtkProcessModule::GetProcessModule()->ReportInterpreterErrorsOff();
+  this->Interpreter->ProcessStream(stream);
+  vtkProcessModule::GetProcessModule()->ReportInterpreterErrorsOn();
+}
+
+//---------------------------------------------------------------------------
+const char* vtkSIProxy::GetLogNameOrDefault()
+{
+  if (this->LogName && this->LogName[0] != '\0')
+  {
+    return this->LogName;
+  }
+
+  if (this->DefaultLogName.empty())
+  {
+    std::ostringstream stream;
+    stream << vtkLogger::GetIdentifier(this);
+    if (this->XMLName && this->XMLGroup)
+    {
+      stream << "[" << this->XMLGroup << ", " << this->XMLName << "]";
+    }
+    this->DefaultLogName = stream.str();
+  }
+
+  return this->DefaultLogName.c_str();
 }

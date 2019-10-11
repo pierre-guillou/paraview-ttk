@@ -48,7 +48,7 @@ IF(NOT DEFINED QT_TESTING_EVENT_PLAYBACK_DELAY)
   MARK_AS_ADVANCED(QT_TESTING_EVENT_PLAYBACK_DELAY)
 ENDIF()
 
-IF(NOT QT_TESTING_INSTALL_EXPORT_NAME)
+IF(NOT DEFINED QT_TESTING_INSTALL_EXPORT_NAME)
   SET(QT_TESTING_INSTALL_EXPORT_NAME QtTestingTargets)
 ENDIF()
 
@@ -83,10 +83,6 @@ IF(QT_TESTING_WITH_PYTHON)
   INCLUDE_DIRECTORIES(
     ${PYTHON_INCLUDE_PATH}
   )
-  SET(PYTHON_MOCS
-    pqPythonEventObserver.h
-    pqPythonEventSource.h
-  )
   SET(PYTHON_SRCS
     pqPythonEventObserver.cxx
     pqPythonEventObserver.h
@@ -95,103 +91,15 @@ IF(QT_TESTING_WITH_PYTHON)
   )
 ENDIF(QT_TESTING_WITH_PYTHON)
 
-INCLUDE_DIRECTORIES(
-  ${QtTesting_BINARY_DIR}
-  ${QtTesting_SOURCE_DIR}
-)
+set(ui_files
+  pqPlayBackEventsDialog.ui
+  pqRecordEventsDialog.ui)
+set(rc_files
+  Resources/QtTesting.qrc)
 
-# Reduce the number of dirs that get included on moc command line
-# since it causes issues on Windows 2000.
-GET_DIRECTORY_PROPERTY(include_dirs_tmp INCLUDE_DIRECTORIES)
-SET_DIRECTORY_PROPERTIES(PROPERTIES INCLUDE_DIRECTORIES "${MOC_INCLUDE_DIRS}")
-
-SET(MOC_SRCS
-  pq3DViewEventPlayer.h
-  pq3DViewEventTranslator.h
-  pqAbstractActivateEventPlayer.h
-  pqAbstractBooleanEventPlayer.h
-  pqAbstractButtonEventTranslator.h
-  pqAbstractDoubleEventPlayer.h
-  pqAbstractIntEventPlayer.h
-  pqAbstractItemViewEventPlayer.h
-  pqAbstractItemViewEventPlayerBase.h
-  pqAbstractItemViewEventTranslator.h
-  pqAbstractItemViewEventTranslatorBase.h
-  pqAbstractMiscellaneousEventPlayer.h
-  pqAbstractSliderEventTranslator.h
-  pqAbstractStringEventPlayer.h
-  pqBasicWidgetEventPlayer.h
-  pqBasicWidgetEventTranslator.h
-  pqCheckEventOverlay.h
-  pqComboBoxEventTranslator.h
-  pqComboBoxEventPlayer.h
-  pqCommentEventPlayer.h
-  pqDoubleSpinBoxEventTranslator.h
-  pqEventComment.h
-  pqEventDispatcher.h
-  pqEventObserver.h
-  pqEventPlayer.h
-  pqEventRecorder.h
-  pqEventSource.h
-  pqEventTranslator.h
-  pqLineEditEventTranslator.h
-  pqListViewEventPlayer.h
-  pqListViewEventTranslator.h
-  pqMenuEventTranslator.h
-  pqNativeFileDialogEventPlayer.h
-  pqNativeFileDialogEventTranslator.h
-  pqPlayBackEventsDialog.h
-  pqRecordEventsDialog.h
-  pqSpinBoxEventTranslator.h
-  pqStdoutEventObserver.h
-  pqTabBarEventPlayer.h
-  pqTabBarEventTranslator.h
-  pqTableViewEventPlayer.h
-  pqTableViewEventTranslator.h
-  pqTestUtility.h
-  pqThreadedEventSource.h
-  pqTimer.h
-  pqTreeViewEventPlayer.h
-  pqTreeViewEventTranslator.h
-  pqWidgetEventPlayer.h
-  pqWidgetEventTranslator.h
-)
-
-IF(QtTesting_QT_VERSION VERSION_GREATER "4")
-  QT5_WRAP_CPP(MOC_BUILT_SOURCES
-    ${MOC_SRCS}
-    ${PYTHON_MOCS}
-  )
-ELSE()
-  QT4_WRAP_CPP(MOC_BUILT_SOURCES
-    ${MOC_SRCS}
-    ${PYTHON_MOCS}
-  )
-ENDIF()
-
-SET_DIRECTORY_PROPERTIES(PROPERTIES INCLUDE_DIRECTORIES "${include_dirs_tmp}")
-
-IF(QtTesting_QT_VERSION VERSION_GREATER "4")
-  QT5_WRAP_UI(UI_BUILT_SOURCES
-    pqPlayBackEventsDialog.ui
-    pqRecordEventsDialog.ui
-  )
-ELSE()
-  QT4_WRAP_UI(UI_BUILT_SOURCES
-    pqPlayBackEventsDialog.ui
-    pqRecordEventsDialog.ui
-  )
-ENDIF()
-
-IF(QtTesting_QT_VERSION VERSION_GREATER "4")
-  QT5_ADD_RESOURCES(QRC_BUILT_SOURCES
-    Resources/QtTesting.qrc
-  )
-ELSE()
-  QT4_ADD_RESOURCES(QRC_BUILT_SOURCES
-    Resources/QtTesting.qrc
-  )
-ENDIF()
+set(CMAKE_AUTOMOC 1)
+set(CMAKE_AUTOUIC 1)
+set(CMAKE_AUTORCC 1)
 
 SET(QtTesting_SOURCES
   pq3DViewEventPlayer.cxx
@@ -301,31 +209,38 @@ SET(QtTesting_DEVEL_HEADERS
   ${QtTesting_BINARY_DIR}/QtTestingConfigure.h
 )
 
-ADD_LIBRARY(QtTesting
-  ${QtTesting_SOURCES}
-  ${MOC_BUILT_SOURCES}
-  ${UI_BUILT_SOURCES}
-  ${QRC_BUILT_SOURCES}
-  ${PYTHON_SRCS}
+vtk_module_add_module(ParaView::qttesting
+  SOURCES
+    ${QtTesting_SOURCES}
+    ${ui_files}
+    ${rc_files}
+    ${PYTHON_SRCS}
+  HEADERS
+    ${QtTesting_DEVEL_HEADERS}
+  HEADERS_SUBDIR
+    "vtkqttesting"
 )
+set_target_properties(qttesting
+  PROPERTIES
+    DEFINE_SYMBOL QtTesting_EXPORTS)
+add_library(ParaView::qttesting ALIAS qttesting)
+target_include_directories(qttesting
+  PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+    "$<INSTALL_INTERFACE:${_vtk_build_HEADERS_DESTINATION}/vtkqttesting>")
 
 # Set library name to include custom prefixes/suffixes.
-set_property(TARGET QtTesting
+set_property(TARGET qttesting
   PROPERTY OUTPUT_NAME ${QT_TESTING_CUSTOM_LIBRARY_PREFIX}QtTesting${QT_TESTING_CUSTOM_LIBRARY_SUFFIX})
 
-SOURCE_GROUP("Generated" FILES
-  ${MOC_BUILT_SOURCES}
-  ${UI_BUILT_SOURCES}
-)
-
-TARGET_LINK_LIBRARIES(QtTesting
+TARGET_LINK_LIBRARIES(qttesting
   ${qt_imported_targets}
 )
 
 IF(QT_TESTING_WITH_PYTHON)
-  TARGET_LINK_LIBRARIES(QtTesting
-    ${PYTHON_LIBRARIES}
-    ${PYTHON_UTIL_LIBRARY_LIB}
+  TARGET_LINK_LIBRARIES(qttesting
+    VTK::Python
   )
 ENDIF()
 
@@ -333,21 +248,26 @@ SET(QTTESTING_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 CONFIGURE_FILE(${QtTesting_SOURCE_DIR}/QtTestingConfigure.h.in
                ${QtTesting_BINARY_DIR}/QtTestingConfigure.h)
 
-INSTALL(TARGETS QtTesting
+if (FALSE)
+INSTALL(TARGETS qttesting
   EXPORT ${QT_TESTING_INSTALL_EXPORT_NAME}
   RUNTIME DESTINATION ${QtTesting_INSTALL_BIN_DIR} COMPONENT Runtime
   LIBRARY DESTINATION ${QtTesting_INSTALL_LIB_DIR} COMPONENT Runtime
   ARCHIVE DESTINATION ${QtTesting_INSTALL_LIB_DIR} COMPONENT Development)
+endif ()
 
 
-add_subdirectory(Examples)
+option(BUILD_EXAMPLES "Build examples" OFF)
+if (BUILD_EXAMPLES)
+  add_subdirectory(Examples)
+endif ()
 
 include(CTest)
 IF(BUILD_TESTING)
   add_subdirectory(Testing)
 ENDIF()
 
-export(TARGETS QtTesting FILE ${QtTesting_BINARY_DIR}/QtTestingExports.cmake)
+export(TARGETS qttesting FILE ${QtTesting_BINARY_DIR}/QtTestingExports.cmake)
 
 # Set up the build export configuration
 set(QtTesting_EXPORT_FILE "${QtTesting_BINARY_DIR}/QtTestingConfig.cmake")

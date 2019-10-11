@@ -41,13 +41,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QComboBox>
 #include <QVBoxLayout>
 
+#include <cassert>
+
 //-----------------------------------------------------------------------------
 pqColorPaletteSelectorWidget::pqColorPaletteSelectorWidget(
   vtkSMProxy* smproxy, vtkSMProperty* smproperty, QWidget* parentObject)
   : Superclass(smproxy, parentObject)
 {
-  PV_DEBUG_PANELS() << "pqColorPaletteSelectorWidget for a property with "
-                       "the panel_widget=\"color_palette_selector\" attribute.";
   // this->setShowLabel(false);
 
   QVBoxLayout* vbox = new QVBoxLayout(this);
@@ -57,7 +57,7 @@ pqColorPaletteSelectorWidget::pqColorPaletteSelectorWidget(
   vtkSMSessionProxyManager* pxm = smproxy->GetSessionProxyManager();
   vtkSMProxyDefinitionManager* pdmgr = pxm->GetProxyDefinitionManager();
 
-  Q_ASSERT(pdmgr);
+  assert(pdmgr);
   vtkSmartPointer<vtkPVProxyDefinitionIterator> iter;
   iter.TakeReference(pdmgr->NewSingleGroupIterator("palettes"));
 
@@ -125,8 +125,8 @@ void pqColorPaletteSelectorWidget::setPaletteName(const QString& pname)
 void pqColorPaletteSelectorWidget::loadPalette(int index)
 {
   vtkSMProxy* smproxy = this->proxy();
-  Q_ASSERT(this->ComboBox);
-  Q_ASSERT(smproxy);
+  assert(this->ComboBox);
+  assert(smproxy);
 
   if (index <= 0)
   {
@@ -136,7 +136,7 @@ void pqColorPaletteSelectorWidget::loadPalette(int index)
 
   vtkSMSessionProxyManager* pxm = smproxy->GetSessionProxyManager();
   vtkSMProxy* paletteProxy = pxm->GetPrototypeProxy("palettes", name.toLocal8Bit().data());
-  Q_ASSERT(paletteProxy);
+  assert(paletteProxy);
 
   smproxy->Copy(paletteProxy);
 

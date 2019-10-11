@@ -66,9 +66,7 @@ pqFileNamePropertyWidget::pqFileNamePropertyWidget(
   }
 
   // find the domain
-  vtkSmartPointer<vtkSMInputFileNameDomain> domain =
-    vtkSMInputFileNameDomain::SafeDownCast(svp->FindDomain("vtkSMInputFileNameDomain"));
-
+  vtkSmartPointer<vtkSMInputFileNameDomain> domain = svp->FindDomain<vtkSMInputFileNameDomain>();
   if (!domain)
   {
     domain = vtkSmartPointer<vtkSMInputFileNameDomain>::New();
@@ -85,13 +83,6 @@ pqFileNamePropertyWidget::pqFileNamePropertyWidget(
   this->setChangeAvailableAsChangeFinished(false);
 
   layoutLocal->addWidget(lineEdit);
-
-  PV_DEBUG_PANELS() << "LineEdit for a "
-                    << "StringVectorProperty with a InputFileNameDomain ("
-                    << pqPropertyWidget::getXMLName(vtkSMInputFileNameDomain::SafeDownCast(domain))
-                    << ") ";
-
-  PV_DEBUG_PANELS() << "Adding \"Reset\" button since the domain is dynamically allocated";
 
   // add a "reset" button.
   pqHighlightableToolButton* resetButton = new pqHighlightableToolButton(this);
@@ -131,8 +122,7 @@ void pqFileNamePropertyWidget::resetButtonClicked()
   vtkSMProperty* smproperty = this->property();
 
   const char* fileName = "";
-  if (vtkSMInputFileNameDomain* domain =
-        vtkSMInputFileNameDomain::SafeDownCast(smproperty->GetDomain("filename")))
+  if (auto domain = smproperty->FindDomain<vtkSMInputFileNameDomain>())
   {
     if (domain->GetFileName() != "")
     {

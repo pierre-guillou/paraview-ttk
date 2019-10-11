@@ -85,6 +85,8 @@
 
 #include <vector> // Needed for protected API
 
+class vtkInformationIntegerKey;
+class vtkInformationStringKey;
 class vtkStringArray;
 
 struct vtkFileSeriesReaderInternals;
@@ -94,7 +96,7 @@ class VTKPVVTKEXTENSIONSCORE_EXPORT vtkFileSeriesReader : public vtkMetaReader
 public:
   static vtkFileSeriesReader* New();
   vtkTypeMacro(vtkFileSeriesReader, vtkMetaReader);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * All pipeline passes are forwarded to the internal reader. The
@@ -102,7 +104,7 @@ public:
    * updated the file name of the internal in RequestUpdateExtent based
    * on the time step request.
    */
-  int ProcessRequest(vtkInformation*, vtkInformationVector**, vtkInformationVector*) VTK_OVERRIDE;
+  int ProcessRequest(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   /**
    * CanReadFile is forwarded to the internal reader if it supports it.
@@ -151,14 +153,19 @@ public:
   vtkBooleanMacro(IgnoreReaderTime, bool);
   //@}
 
+  // Expose number of files, first filename and current file number as
+  // information keys for potential use in the internal reader
+  static vtkInformationIntegerKey* FILE_SERIES_NUMBER_OF_FILES();
+  static vtkInformationIntegerKey* FILE_SERIES_CURRENT_FILE_NUMBER();
+  static vtkInformationStringKey* FILE_SERIES_FIRST_FILENAME();
+
 protected:
   vtkFileSeriesReader();
   ~vtkFileSeriesReader() override;
 
   int RequestInformation(vtkInformation* request, vtkInformationVector** inputVector,
-    vtkInformationVector* outputVector) VTK_OVERRIDE;
-  int RequestUpdateExtent(
-    vtkInformation*, vtkInformationVector**, vtkInformationVector*) VTK_OVERRIDE;
+    vtkInformationVector* outputVector) override;
+  int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
   {
@@ -170,9 +177,9 @@ protected:
     return 1;
   };
   int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
-    vtkInformationVector* outputVector) VTK_OVERRIDE;
+    vtkInformationVector* outputVector) override;
 
-  int FillOutputPortInformation(int port, vtkInformation* info) VTK_OVERRIDE;
+  int FillOutputPortInformation(int port, vtkInformation* info) override;
 
   /**
    * Make sure the reader's output is set to the given index and, if it changed,
@@ -208,9 +215,21 @@ protected:
    */
   void ResetTimeRanges();
 
-  // Add/Remove filenames without changing the MTime.
+  /**
+   * Add/Remove filenames without changing the MTime.
+   */
   void RemoveAllFileNamesInternal();
   void AddFileNameInternal(const char*);
+
+  /**
+   * Remove all real file names.
+   */
+  virtual void RemoveAllRealFileNamesInternal();
+
+  /**
+   * Set the real filenames to those in the internal FileNames.
+   */
+  void CopyRealFileNamesFromFileNames();
 
   bool IgnoreReaderTime;
 

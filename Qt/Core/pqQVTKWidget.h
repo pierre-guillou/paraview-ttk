@@ -87,11 +87,16 @@ public:
 public slots:
   void paintMousePointer(int x, int y);
 
+private slots:
+  void prepareContextForRendering();
+
 protected:
+  bool renderVTK();
   bool canRender();
 
-private slots:
-  void updateSizeProperties();
+#if PARAVIEW_USING_QVTKOPENGLWIDGET
+  void resizeEvent(QResizeEvent* evt) override;
+#endif
 
 private:
   Q_DISABLE_COPY(pqQVTKWidget)

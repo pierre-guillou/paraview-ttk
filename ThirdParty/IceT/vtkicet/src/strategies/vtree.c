@@ -378,8 +378,8 @@ static void do_send_receive(const struct node_info *my_info, int tile_held,
     IceTSizeType package_size;
 
     if (my_info->tile_sending != -1) {
-        icetRaiseDebug2("Sending tile %d to node %d.", my_info->tile_sending,
-                        my_info->send_dest);
+        icetRaiseDebug("Sending tile %d to node %d.", my_info->tile_sending,
+                       my_info->send_dest);
         if (tile_held == my_info->tile_sending) {
             icetCompressImage(image, outSparseImage);
             tile_held = -1;
@@ -392,8 +392,8 @@ static void do_send_receive(const struct node_info *my_info, int tile_held,
     }
 
     if (my_info->tile_receiving != -1) {
-        icetRaiseDebug2("Receiving tile %d from node %d.",
-                        my_info->tile_receiving, my_info->recv_src);
+        icetRaiseDebug("Receiving tile %d from node %d.",
+                       my_info->tile_receiving, my_info->recv_src);
         if (   (tile_held != my_info->tile_receiving)
             && all_contained_tmasks[my_info->rank*num_tiles
                                    +my_info->tile_receiving])

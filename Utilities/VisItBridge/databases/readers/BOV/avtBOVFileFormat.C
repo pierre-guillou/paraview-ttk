@@ -83,9 +83,13 @@
 #include <cstring>
 #include <cerrno>
 
+#include <avtBOVOptions.h>
+#include <DBOptionsAttributes.h>
+
 #ifdef _WIN32
 #define FSEEK _fseeki64
 #define strcasecmp stricmp
+#include <Shlwapi.h> // for PathIsRelative
 #else
 #define FSEEK fseek
 #endif
@@ -135,9 +139,13 @@ static bool fillSpace = true;
 //    Hank Childs, Tue Nov 30 11:41:44 PST 2010
 //    Initialize members for whether or not the time or cycle is accurate.
 //
+//    Alister Maguire, Thu Sep  7 09:02:03 PDT 2017
+//    Added DBOptionsAttributes as a constructor argument. 
+//
 // ****************************************************************************
-
-avtBOVFileFormat::avtBOVFileFormat(const char *fname)
+ 
+avtBOVFileFormat::avtBOVFileFormat(const char *fname, 
+    DBOptionsAttributes *opts)
     : avtSTMDFileFormat(&fname, 1)
 {
     //
@@ -953,7 +961,11 @@ avtBOVFileFormat::GetVar(int dom, const char *var)
     char filename[1024];
     sprintf(filename, file_pattern.c_str(), dom);
     char qual_filename[1024];
+#ifdef WIN32
+    if (PathIsRelative(filename))
+#else
     if (filename[0] != '/')
+#endif
         sprintf(qual_filename, "%s%s", path, filename);
     else
         strcpy(qual_filename, filename);
@@ -1489,6 +1501,10 @@ avtBOVFileFormat::GetAuxiliaryData(const char *var, int domain,
 //    Hank Childs, Tue Nov 30 11:41:44 PST 2010
 //    Only overset the time if we know if it is accurate.
 //
+//    Eric Brugger, Tue Dec 11 10:18:16 PST 2018
+//    Corrected a bug generating ghost nodes for Nek5000 files where all the
+//    nodes were marked as ghost when the mesh was 2D.
+//
 // ****************************************************************************
 
 void
@@ -1588,7 +1604,7 @@ avtBOVFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
             bs[0] = (int)bricklet_size[0];
             bs[1] = (int)bricklet_size[1];
             bs[2] = (int)bricklet_size[2];
-            db->SetDomainInfo(nb, bs);
+            db->SetDomainInfo(nb, dim, bs);
 
             void_ref_ptr vr = void_ref_ptr(db, avtNekDomainBoundaries::Destruct);
             cache->CacheVoidRef("any_mesh",

@@ -55,9 +55,9 @@
 
     _num_pixels = icetSparseImageGetNumPixels(CCC_FRONT_COMPRESSED_IMAGE);
     if (_num_pixels != icetSparseImageGetNumPixels(CCC_BACK_COMPRESSED_IMAGE)) {
-        icetRaiseError("Input buffers do not agree for compressed-compressed"
-                       " composite.",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Input buffers do not agree for compressed-compressed"
+                       " composite.");
     }
     icetSparseImageSetDimensions(
                            CCC_DEST_COMPRESSED_IMAGE,
@@ -161,7 +161,7 @@
     }
 
     if (_pixel != _num_pixels) {
-        icetRaiseError("Corrupt compressed image.", ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE, "Corrupt compressed image.");
     }
 
     {

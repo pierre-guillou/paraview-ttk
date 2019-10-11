@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -63,6 +63,10 @@
 
 #include <string>
 #include <vector>
+
+#ifdef FECHECKS
+#include <fenv.h>
+#endif
 
 using std::string;
 using std::vector;
@@ -219,6 +223,8 @@ avtFilter::UpdateProgress(int current, int total)
 //    Take memory measurements on BGQ so we can get an idea of how much 
 //    memory is used/left.
 //
+//    Mark C. Miller, Thu Apr 27 18:08:19 PDT 2017
+//    Capture floating point exception (FE) logic for future use.
 // ****************************************************************************
 
 bool
@@ -288,9 +294,28 @@ avtFilter::Update(avtContract_p contract)
                 DumpDataObject(GetInput(), "input");
             numInExecute++;
 
+#ifdef FECHECKS
+            feclearexcept(FE_ALL_EXCEPT);
+#endif
+
             PreExecute();
             Execute();
             PostExecute();
+
+#ifdef FECHECKS
+            int feerr = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
+            if (feerr)
+            {
+                feclearexcept(FE_ALL_EXCEPT);
+                debug1 << "FPE(s) encountered in " << GetType() << " ";
+                if (feerr & FE_INVALID) debug1 << "FE_INVALID ";
+                if (feerr & FE_DIVBYZERO) debug1 << "FE_DIVBYZERO ";
+                if (feerr & FE_OVERFLOW) debug1 << "FE_OVERFLOW ";
+                if (feerr & FE_UNDERFLOW) debug1 << "FE_UNDERFLOW ";
+                debug1 << endl;
+            }
+#endif
+
             if (debug_dump)
                 DumpDataObject(GetOutput(), "output");
             UpdateProgress(1, 0);
@@ -916,7 +941,7 @@ avtFilter::GetDataExtents(double *outexts, const char *varname)
     avtExtents *e = NULL;
     TRY
     {
-        e = GetInput()->GetInfo().GetAttributes().GetOriginalDataExtents(varname);
+        e = atts.GetOriginalDataExtents(varname);
     }
     CATCH(ImproperUseException)
     {
@@ -1825,4 +1850,23 @@ avtFilter::CanCacheConnectivityItem(void)
     return true;
 }
 
+
+// ****************************************************************************
+//  Method: avtFilter::ResetAllExtents
+//
+//  Purpose:
+//      Walks up a pipeline resetting extents.
+//
+//  Programmer: Kathleen Biagas
+//  Creation:   June 5, 2017
+//
+//  Modifications:
+//
+// ****************************************************************************
+
+void
+avtFilter::ResetAllExtents()
+{
+    avtDataObjectSink::ResetAllExtents();
+}
 

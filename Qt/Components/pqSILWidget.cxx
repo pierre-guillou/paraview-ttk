@@ -134,6 +134,7 @@ void pqSILWidget::onModelReset()
   // First add the active-tree.
   pqTreeView* activeTree = new pqTreeView(this, /*use_pqHeaderView=*/true);
   activeTree->header()->setStretchLastSection(true);
+  activeTree->setUniformRowHeights(true);
   activeTree->setRootIsDecorated(false);
   activeTree->setModel(this->SortModel);
   activeTree->expandAll();
@@ -152,6 +153,7 @@ void pqSILWidget::onModelReset()
     }
 
     pqTreeView* tree = new pqTreeView(this, /*use_pqHeaderView=*/true);
+    tree->setUniformRowHeights(true);
     tree->header()->setStretchLastSection(true);
     tree->setRootIsDecorated(false);
 
@@ -167,10 +169,12 @@ void pqSILWidget::onModelReset()
     tree->setModel(sortModel);
     tree->expandAll();
 
-    auto helper = new pqTreeViewSelectionHelper(tree);
-#if (QT_VERSION < QT_VERSION_CHECK(5, 10, 0))
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
+    new pqTreeViewSelectionHelper(tree);
+#else
     // disable filtering for older Qt version where recursive filtering
     // on a tree is not supported.
+    auto helper = new pqTreeViewSelectionHelper(tree);
     helper->setFilterable(false);
 #endif
 

@@ -145,15 +145,10 @@ public:
     for (piter->Begin(); !piter->IsAtEnd(); piter->Next())
     {
       vtkSMProperty* property = piter->GetProperty();
-      vtkSMDomainIterator* diter = property->NewDomainIterator();
-      for (diter->Begin(); !diter->IsAtEnd(); diter->Next())
+      if (property->FindDomain<vtkSMFileListDomain>() != nullptr)
       {
-        if (vtkSMFileListDomain::SafeDownCast(diter->GetDomain()))
-        {
-          fileNameProperties.insert(piter->GetKey());
-        }
+        fileNameProperties.insert(piter->GetKey());
       }
-      diter->Delete();
     }
     piter->Delete();
     return fileNameProperties;
@@ -222,6 +217,7 @@ bool vtkSMLoadStateOptionsProxy::PrepareToLoad(const char* statefilename)
     newReaderProxy.TakeReference(
       pxm->NewProxy(proxyXML.attribute("group").value(), proxyXML.attribute("type").value()));
     newReaderProxy->PrototypeOn();
+    newReaderProxy->SetLocation(0);
 
     // Property group to group properties by source
     pugi::xml_document propertyGroup;
@@ -303,6 +299,11 @@ bool vtkSMLoadStateOptionsProxy::LocateFilesInDirectory(
   std::vector<std::string>::iterator fIter;
   for (fIter = filepaths.begin(); fIter != filepaths.end(); ++fIter)
   {
+    if (fIter->empty())
+    {
+      // don't attempt to fix empty strings (see paraview/paraview#19137).
+      continue;
+    }
     // TODO: Inefficient - need vtkPVInfomation class to bundle file paths
     if (numOfPathMatches < this->PathMatchingThreshold)
     {
@@ -357,10 +358,9 @@ bool vtkSMLoadStateOptionsProxy::LocateFilesInDirectory(
 bool vtkSMLoadStateOptionsProxy::Load()
 {
   SM_SCOPED_TRACE(LoadState).arg("filename", this->StateFileName).arg("options", this);
-
-  this->SetDataFileOptions(vtkSMPropertyHelper(this, "LoadStateDataFileOptions").GetAsInt());
-  this->SetOnlyUseFilesInDataDirectory(
-    vtkSMPropertyHelper(this, "OnlyUseFilesInDataDirectory").GetAsInt() == 1);
+  this->DataFileOptions = vtkSMPropertyHelper(this, "LoadStateDataFileOptions").GetAsInt();
+  this->OnlyUseFilesInDataDirectory =
+    (vtkSMPropertyHelper(this, "OnlyUseFilesInDataDirectory").GetAsInt() == 1);
   switch (this->DataFileOptions)
   {
     case USE_FILES_FROM_STATE:

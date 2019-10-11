@@ -47,6 +47,9 @@ vtkStandardNewMacro(vtkMoleculeRepresentation)
   // initialize cache:
   this->CacheKeeper->SetInputData(this->DummyMolecule.Get());
 
+  static const char* defaultRadiiArrayName = "radii";
+  this->SetAtomicRadiusArray(defaultRadiiArrayName);
+
   vtkMath::UninitializeBounds(this->DataBounds);
 }
 
@@ -243,6 +246,66 @@ void vtkMoleculeRepresentation::SyncMapper()
 }
 
 //------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetAtomicRadiusType(int type)
+{
+  this->Mapper->SetAtomicRadiusType(type);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetAtomicRadiusScaleFactor(double factor)
+{
+  this->Mapper->SetAtomicRadiusScaleFactor(factor);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetBondRadius(double radius)
+{
+  this->Mapper->SetBondRadius(radius);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetUseMultiCylindersForBonds(bool use)
+{
+  this->Mapper->SetUseMultiCylindersForBonds(use);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetRenderAtoms(bool render)
+{
+  this->Mapper->SetRenderAtoms(render);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetRenderBonds(bool render)
+{
+  this->Mapper->SetRenderBonds(render);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetAtomicRadiusArray(const char* name)
+{
+  this->Mapper->SetAtomicRadiusArrayName(name);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetBondColorMode(int mode)
+{
+  this->Mapper->SetBondColorMode(mode);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetBondColor(double r, double g, double b)
+{
+  this->Mapper->SetBondColor(r * 255, g * 255, b * 255);
+}
+
+//------------------------------------------------------------------------------
+void vtkMoleculeRepresentation::SetBondColor(double color[3])
+{
+  this->SetBondColor(color[0], color[1], color[2]);
+}
+
+//------------------------------------------------------------------------------
 void vtkMoleculeRepresentation::UpdateColoringParameters()
 {
   vtkInformation* info = this->GetInputArrayInformation(0);
@@ -260,3 +323,8 @@ void vtkMoleculeRepresentation::UpdateColoringParameters()
   }
 
 vtkForwardPropertyCallMacro(SetOpacity, value, double);
+
+void vtkMoleculeRepresentation::SetMapScalars(bool map)
+{
+  this->Mapper->SetMapScalars(map);
+}

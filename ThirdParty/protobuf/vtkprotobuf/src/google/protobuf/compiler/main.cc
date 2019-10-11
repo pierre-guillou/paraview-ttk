@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -30,19 +30,37 @@
 
 // Author: kenton@google.com (Kenton Varda)
 
-#include <google/protobuf/compiler/command_line_interface.h>
 #include <google/protobuf/compiler/cpp/cpp_generator.h>
+#include <google/protobuf/compiler/command_line_interface.h>
 
+#include <google/protobuf/port_def.inc>
 
-int main(int argc, char* argv[]) {
+namespace google {
+namespace protobuf {
+namespace compiler {
 
-  google::protobuf::compiler::CommandLineInterface cli;
+int ProtobufMain(int argc, char* argv[]) {
+
+  CommandLineInterface cli;
   cli.AllowPlugins("protoc-");
 
   // Proto2 C++
-  google::protobuf::compiler::cpp::CppGenerator cpp_generator;
-  cli.RegisterGenerator("--cpp_out", &cpp_generator,
+  cpp::CppGenerator cpp_generator;
+  cli.RegisterGenerator("--cpp_out", "--cpp_opt", &cpp_generator,
                         "Generate C++ header and source.");
 
+#ifdef GOOGLE_PROTOBUF_RUNTIME_INCLUDE_BASE
+  cpp_generator.set_opensource_runtime(true);
+  cpp_generator.set_runtime_include_base(GOOGLE_PROTOBUF_RUNTIME_INCLUDE_BASE);
+#endif
+
   return cli.Run(argc, argv);
+}
+
+}  // namespace compiler
+}  // namespace protobuf
+}  // namespace google
+
+int main(int argc, char* argv[]) {
+  return PROTOBUF_NAMESPACE_ID::compiler::ProtobufMain(argc, argv);
 }

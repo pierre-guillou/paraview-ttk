@@ -39,6 +39,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMProperty.h"
 #include "vtkSMUncheckedPropertyHelper.h"
 
+#include <cassert>
+
 class pqCameraManipulatorWidget::PropertyLinksConnection : public pqPropertyLinksConnection
 {
   typedef pqPropertyLinksConnection Superclass;
@@ -59,7 +61,7 @@ protected:
   {
     QList<QVariant> list = value.toList();
 
-    Q_ASSERT(list.size() == 9);
+    assert(list.size() == 9);
     int values[9];
     for (int cc = 0; cc < 9; cc++)
     {
@@ -131,8 +133,7 @@ pqCameraManipulatorWidget::pqCameraManipulatorWidget(
   boxes[7] = ui.comboBox_8;
   boxes[8] = ui.comboBox_9;
 
-  vtkSMEnumerationDomain* domain =
-    vtkSMEnumerationDomain::SafeDownCast(smproperty->FindDomain("vtkSMEnumerationDomain"));
+  auto domain = smproperty->FindDomain<vtkSMEnumerationDomain>();
   if (!domain)
   {
     qCritical("Developer error: pqCameraManipulatorWidget needs vtkSMEnumerationDomain.");

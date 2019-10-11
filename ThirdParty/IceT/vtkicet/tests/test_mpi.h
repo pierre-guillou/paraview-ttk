@@ -13,7 +13,7 @@
 #include "test_util.h"
 #include <IceTMPI.h>
 
-extern int run_test_base(int (*test_function)(void));
+extern int run_test_base(int (*test_function)());
 
 void init_mpi(int *argcp, char ***argvp)
 {

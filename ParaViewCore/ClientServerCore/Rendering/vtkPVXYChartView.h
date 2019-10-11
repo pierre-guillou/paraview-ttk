@@ -67,7 +67,7 @@ class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkPVXYChartView : public vtkPVConte
 public:
   static vtkPVXYChartView* New();
   vtkTypeMacro(vtkPVXYChartView, vtkPVContextView);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Set the chart type, defaults to line chart
@@ -82,44 +82,46 @@ public:
   void SetChartTypeToFunctionalBag() { this->SetChartType("FunctionalBag"); }
   void SetChartTypeToParallelCoordinates() { this->SetChartType("ParallelCoordinates"); }
 
+  //@{
   /**
-   * Set the title of the chart.
+   * Set the font of the title.
    * These methods should not be called directly. They are made public only so
    * that the client-server-stream-interpreter can invoke them. Use the
    * corresponding properties to change these values.
    */
-  void SetTitle(const char* title);
+  void SetTitleFont(const char* family, int pointSize, bool bold, bool italic) override;
+  void SetTitleFontFamily(const char* family) override;
+  void SetTitleFontSize(int pointSize) override;
+  void SetTitleBold(bool bold) override;
+  void SetTitleItalic(bool italic) override;
+  void SetTitleFontFile(const char* file) override;
+  const char* GetTitleFontFamily() override;
+  int GetTitleFontSize() override;
+  int GetTitleFontBold() override;
+  int GetTitleFontItalic() override;
+  //@}
 
   //@{
   /**
-   * Set the chart title's font.
+   * Set the color of the title.
    * These methods should not be called directly. They are made public only so
    * that the client-server-stream-interpreter can invoke them. Use the
    * corresponding properties to change these values.
    */
-  void SetTitleFont(const char* family, int pointSize, bool bold, bool italic);
-  void SetTitleFontFamily(const char* family);
-  void SetTitleFontFile(const char* file);
-  void SetTitleFontSize(int pointSize);
-  void SetTitleBold(bool bold);
-  void SetTitleItalic(bool bold);
+  void SetTitleColor(double red, double green, double blue) override;
+  double* GetTitleColor() override;
   //@}
 
+  //@{
   /**
-   * Set the chart title's color.
+   * Set the alignement of the title.
    * These methods should not be called directly. They are made public only so
    * that the client-server-stream-interpreter can invoke them. Use the
    * corresponding properties to change these values.
    */
-  void SetTitleColor(double red, double green, double blue);
-
-  /**
-   * Set the chart title's alignment.
-   * These methods should not be called directly. They are made public only so
-   * that the client-server-stream-interpreter can invoke them. Use the
-   * corresponding properties to change these values.
-   */
-  void SetTitleAlignment(int alignment);
+  void SetTitleAlignment(int alignment) override;
+  int GetTitleAlignment() override;
+  //@}
 
   /**
    * Set the legend visibility.
@@ -479,7 +481,7 @@ public:
   /**
    * Get the context item.
    */
-  vtkAbstractContextItem* GetContextItem() VTK_OVERRIDE;
+  vtkAbstractContextItem* GetContextItem() override;
 
   /**
    * Representations can use this method to set the selection for a particular
@@ -488,12 +490,12 @@ public:
    * the local process alone. The view does not manage data movement for the
    * selection.
    */
-  void SetSelection(vtkChartRepresentation* repr, vtkSelection* selection) VTK_OVERRIDE;
+  void SetSelection(vtkChartRepresentation* repr, vtkSelection* selection) override;
 
   /**
    * Overridden to rescale axes range on every update.
    */
-  void Update() VTK_OVERRIDE;
+  void Update() override;
 
 protected:
   vtkPVXYChartView();
@@ -505,19 +507,7 @@ protected:
   /**
    * Actual rendering implementation.
    */
-  void Render(bool interactive) VTK_OVERRIDE;
-
-  //@{
-  /**
-   * Set the internal title, for managing time replacement in the chart title.
-   */
-  vtkSetStringMacro(InternalTitle);
-  //@}
-
-  /**
-   * Store the unreplaced chart title in the case where ${TIME} is used...
-   */
-  char* InternalTitle;
+  void Render(bool interactive) override;
 
   //@{
   /**

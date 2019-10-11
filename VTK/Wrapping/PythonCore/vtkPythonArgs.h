@@ -30,6 +30,7 @@ resulting in wrapper code that is faster and more compact.
 
 #include "vtkWrappingPythonCoreModule.h" // For export macro
 #include "vtkPythonUtil.h"
+#include "PyVTKEnum.h"
 #include "PyVTKObject.h"
 #include "PyVTKTemplate.h"
 
@@ -95,12 +96,12 @@ public:
   /**
    * Verify the arg count for a method with optional arguments.
    */
-  bool CheckArgCount(int nmin, int nmax);
+  bool CheckArgCount(Py_ssize_t nmin, Py_ssize_t nmax);
 
   /**
    * Verify the arg count.  Sets a python exception on failure.
    */
-  bool CheckArgCount(int n);
+  bool CheckArgCount(Py_ssize_t n);
 
   /**
    * Verify preconditions.  Sets a python exception on failure.
@@ -376,6 +377,8 @@ public:
   bool GetArray(unsigned long *v, size_t n);
   bool GetArray(long long *v, size_t n);
   bool GetArray(unsigned long long *v, size_t n);
+  bool GetArray(std::string *v, size_t n);
+  bool GetArray(vtkUnicodeString *v, size_t n);
   //@}
 
   //@{
@@ -474,6 +477,12 @@ public:
   //@}
 
   /**
+   * Set the contents of the specified argument from a sequence,
+   * the same as doing "arg[:] = seq" in Python.
+   */
+  bool SetContents(int i, PyObject *seq);
+
+  /**
    * Build a value of None.
    */
   static PyObject *BuildNone();
@@ -493,6 +502,9 @@ public:
    * Build an enum value object of the specified type.
    */
   static PyObject *BuildEnumValue(int v, const char *enumname);
+  template<class T>
+  static PyObject *BuildEnumValue(T v, const char *enumname) {
+    return vtkPythonArgs::BuildEnumValue(static_cast<int>(v), enumname); }
 
   /**
    * Create a mangled string containing a memory address.
@@ -550,6 +562,8 @@ public:
   static PyObject *BuildTuple(const unsigned long *v, size_t n);
   static PyObject *BuildTuple(const long long *v, size_t n);
   static PyObject *BuildTuple(const unsigned long long *v, size_t n);
+  static PyObject *BuildTuple(const std::string *v, size_t n);
+  static PyObject *BuildTuple(const vtkUnicodeString *v, size_t n);
   //@}
 
   /**
@@ -582,7 +596,7 @@ public:
   /**
    * Raise a type error just saying that the arg count is wrong.
    */
-  static bool ArgCountError(int n, const char *name);
+  static bool ArgCountError(Py_ssize_t n, const char *name);
 
   /**
    * Raise an error that says that a precondition failed.
@@ -659,21 +673,21 @@ protected:
   /**
    * Raise an TypeError stating that the arg count is incorrect.
    */
-  bool ArgCountError(int m, int n);
+  bool ArgCountError(Py_ssize_t m, Py_ssize_t n);
 
   /**
    * Prefix a TypeError that has occurred with the arg number.
    */
-  bool RefineArgTypeError(int i);
+  bool RefineArgTypeError(Py_ssize_t i);
 
 private:
 
   PyObject *Args;
   const char *MethodName;
 
-  int N; // size of args tuple
+  Py_ssize_t N; // size of args tuple
   int M; // 1 if Self is a PyVTKClass and first arg is the PyVTKObject
-  int I; // the arg counter, starts at M
+  Py_ssize_t I; // the arg counter, starts at M
 };
 
 //--------------------------------------------------------------------
@@ -713,9 +727,9 @@ void *vtkPythonArgs::GetSelfSpecialPointer(PyObject *self)
 
 // Verify the arg count for a method with optional arguments.
 inline
-bool vtkPythonArgs::CheckArgCount(int nmin, int nmax)
+bool vtkPythonArgs::CheckArgCount(Py_ssize_t nmin, Py_ssize_t nmax)
 {
-  int nargs = this->N - this->M;
+  Py_ssize_t nargs = this->N - this->M;
   if (nargs >= nmin && nargs <= nmax)
   {
     return true;
@@ -726,9 +740,9 @@ bool vtkPythonArgs::CheckArgCount(int nmin, int nmax)
 
 // Verify the arg count for a method with optional arguments.
 inline
-bool vtkPythonArgs::CheckArgCount(int n)
+bool vtkPythonArgs::CheckArgCount(Py_ssize_t n)
 {
-  int nargs = this->N - this->M;
+  Py_ssize_t nargs = this->N - this->M;
   if (nargs == n)
   {
     return true;
@@ -795,13 +809,6 @@ PyObject *vtkPythonArgs::BuildSpecialObject(const void *v,
                                             const char *classname)
 {
   return PyVTKSpecialObject_CopyNew(classname, v);
-}
-
-inline
-PyObject *vtkPythonArgs::BuildEnumValue(int, const char *)
-{
-  /* not implemented */
-  return nullptr;
 }
 
 inline
@@ -967,3 +974,4 @@ vtkPythonArgsTemplateMacro(
 #endif
 
 #endif
+// VTK-HeaderTest-Exclude: vtkPythonArgs.h

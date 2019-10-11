@@ -49,12 +49,11 @@ int  icetAddTile(IceTInt x, IceTInt y, IceTSizeType width, IceTSizeType height,
     IceTInt *display_nodes;
     IceTInt rank;
     IceTInt num_processors;
-    char msg[256];
     int i;
 
     if ((width < 1) || (height < 1)) {
-        icetRaiseError("Attempted to create a tile with no pixels.",
-                       ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE,
+                       "Attempted to create a tile with no pixels.");
         return -1;
     }
 
@@ -69,17 +68,18 @@ int  icetAddTile(IceTInt x, IceTInt y, IceTSizeType width, IceTSizeType height,
 
   /* Check and update display ranks. */
     if (display_rank >= num_processors) {
-        sprintf(msg, "icetDisplayNodes: Invalid rank for tile %d.",
-                (int)num_tiles);
-        icetRaiseError(msg, ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE,
+                       "icetDisplayNodes: Invalid rank for tile %d.",
+                       (int)num_tiles);
         free(display_nodes);
         return -1;
     }
     for (i = 0; i < num_tiles; i++) {
         if (display_nodes[i] == display_rank) {
-            sprintf(msg, "icetDisplayNodes: Rank %d used for tiles %d and %d.",
-                    display_rank, i, (int)num_tiles);
-            icetRaiseError(msg, ICET_INVALID_VALUE);
+            icetRaiseError(
+                ICET_INVALID_VALUE,
+                "icetDisplayNodes: Rank %d used for tiles %d and %d.",
+                display_rank, i, (int)num_tiles);
             free(display_nodes);
             return -1;
         }
@@ -131,6 +131,7 @@ int  icetAddTile(IceTInt x, IceTInt y, IceTSizeType width, IceTSizeType height,
 
   /* Return index to tile. */
     return num_tiles;
+#undef MSG_LEN
 }
 
 void icetPhysicalRenderSize(IceTInt width, IceTInt height)
@@ -142,8 +143,9 @@ void icetPhysicalRenderSize(IceTInt width, IceTInt height)
     icetGetIntegerv(ICET_TILE_MAX_WIDTH, &max_width);
     icetGetIntegerv(ICET_TILE_MAX_HEIGHT, &max_height);
     if ((width < max_width) || (height < max_height)) {
-        icetRaiseWarning("Physical render dimensions not large enough"
-                         " to render all tiles.", ICET_INVALID_VALUE);
+        icetRaiseWarning(ICET_INVALID_VALUE,
+                         "Physical render dimensions not large enough"
+                         " to render all tiles.");
     }
 
     icetStateSetInteger(ICET_PHYSICAL_RENDER_WIDTH, width);
@@ -216,8 +218,8 @@ void icetBoundingVertices(IceTInt size, IceTEnum type, IceTSizeType stride,
               case ICET_DOUBLE:
                   castcopy(IceTDouble);
               default:
-                  icetRaiseError("Bad type to icetBoundingVertices.",
-                                 ICET_INVALID_ENUM);
+                  icetRaiseError(ICET_INVALID_ENUM,
+                                 "Bad type to icetBoundingVertices.");
                   free(verts);
                   return;
             }

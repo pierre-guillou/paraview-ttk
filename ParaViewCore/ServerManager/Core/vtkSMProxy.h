@@ -154,7 +154,7 @@ class VTKPVSERVERMANAGERCORE_EXPORT vtkSMProxy : public vtkSMRemoteObject
 public:
   static vtkSMProxy* New();
   vtkTypeMacro(vtkSMProxy, vtkSMRemoteObject);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Set or override a key/value pair as annotation to that proxy.
@@ -196,7 +196,7 @@ public:
    * Get/Set the location where the underlying VTK-objects are created. The
    * value can be constructed by or-ing vtkSMSession::ServerFlags
    */
-  void SetLocation(vtkTypeUInt32) VTK_OVERRIDE;
+  void SetLocation(vtkTypeUInt32) override;
 
   /**
    * Return the property with the given name. If no property is found
@@ -517,9 +517,9 @@ public:
    * action. By default, any remote object is Undoable.
    * This override the RemoteObject ones to propagate the flag to the sub-proxy
    */
-  void PrototypeOn() VTK_OVERRIDE;
-  void PrototypeOff() VTK_OVERRIDE;
-  void SetPrototype(bool undo) VTK_OVERRIDE;
+  void PrototypeOn() override;
+  void PrototypeOff() override;
+  void SetPrototype(bool undo) override;
   //@}
 
   /**
@@ -555,13 +555,13 @@ public:
    * particular case, the server is already aware of that new state, so we keep
    * those changes local.
    */
-  void EnableLocalPushOnly() VTK_OVERRIDE;
+  void EnableLocalPushOnly() override;
 
   /**
    * Enable the given remote object to communicate its state normally to the
    * server location.
    */
-  void DisableLocalPushOnly() VTK_OVERRIDE;
+  void DisableLocalPushOnly() override;
 
   /**
    * This method return the full object state that can be used to create that
@@ -569,7 +569,7 @@ public:
    * This method will be used to fill the undo stack.
    * If not overridden this will return NULL.
    */
-  const vtkSMMessage* GetFullState() VTK_OVERRIDE;
+  const vtkSMMessage* GetFullState() override;
 
   /**
    * This method is used to initialise the object to the given state
@@ -578,7 +578,7 @@ public:
    * globalID set. This allow to split the load process in 2 step to prevent
    * invalid state when property refere to a sub-proxy that does not exist yet.
    */
-  void LoadState(const vtkSMMessage* msg, vtkSMProxyLocator* locator) VTK_OVERRIDE;
+  void LoadState(const vtkSMMessage* msg, vtkSMProxyLocator* locator) override;
 
   /**
    * Returns the property group at \p index for the proxy.
@@ -589,6 +589,31 @@ public:
    * Returns the number of property groups that the proxy contains.
    */
   size_t GetNumberOfPropertyGroups() const;
+
+  //@{
+  /**
+   * Log name is a name for this proxy that will be used when logging status
+   * messages. This helps make the log more user friendly by making sure it uses
+   * names that the user can easily map to objects shown in the user interface.
+   *
+   * This method will set the log name for this proxy and iterate over all
+   * subproxies and set log name for each using the provided `name` as prefix.
+   *
+   * Furthermore, for all properties with vtkSMProxyListDomain, it will set log
+   * name for proxies in those domains to use the provided `name` as prefix as
+   * well.
+   *
+   * @note The use of this name for any other purpose than logging is strictly
+   * discouraged.
+   */
+  void SetLogName(const char* name);
+  vtkGetStringMacro(LogName);
+  //@}
+
+  /**
+   * A helper that makes up an default name if none is provided.
+   */
+  const char* GetLogNameOrDefault();
 
 protected:
   vtkSMProxy();
@@ -663,6 +688,7 @@ protected:
   friend class vtkSMDeserializerProtobuf;
   friend class vtkSMStateLocator;
   friend class vtkSMMultiServerSourceProxy;
+  friend class vtkSMStateLoader;
   //@}
 
   //@{
@@ -897,6 +923,12 @@ protected:
   */
   void RebuildStateForProperties();
 
+  /**
+   * Internal method used by `SetLogName`
+   */
+  virtual void SetLogNameInternal(
+    const char* name, bool propagate_to_subproxies, bool propagate_to_proxylistdomains);
+
   //@{
   /**
    * SIClassName identifies the classname for the helper on the server side.
@@ -961,6 +993,9 @@ private:
   vtkSMProperty* SetupExposedProperty(vtkPVXMLElement* propertyElement, const char* subproxy_name);
 
   friend class vtkSMProxyInfo;
+
+  char* LogName;
+  std::string DefaultLogName;
 };
 
 /// This defines a stream manipulator for the vtkClientServerStream that can be used

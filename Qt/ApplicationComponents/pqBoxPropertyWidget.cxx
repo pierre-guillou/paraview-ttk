@@ -32,14 +32,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqBoxPropertyWidget.h"
 #include "ui_pqBoxPropertyWidget.h"
 
+#include "pqUndoStack.h"
 #include "vtkSMNewWidgetRepresentationProxy.h"
 #include "vtkSMPropertyGroup.h"
-#include "vtkSMPropertyHelper.h"
+#include "vtkSMUncheckedPropertyHelper.h"
 
 //-----------------------------------------------------------------------------
 pqBoxPropertyWidget::pqBoxPropertyWidget(
   vtkSMProxy* smproxy, vtkSMPropertyGroup* smgroup, QWidget* parentObject)
   : Superclass("representations", "BoxWidgetRepresentation", smproxy, smgroup, parentObject)
+  , BoxIsRelativeToInput(false)
 {
   Ui::BoxPropertyWidget ui;
   ui.setupUi(this);
@@ -60,12 +62,12 @@ pqBoxPropertyWidget::pqBoxPropertyWidget(
 
   if (vtkSMProperty* position = smgroup->GetProperty("Position"))
   {
-    this->addPropertyLink(ui.translateX, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), position, 0);
-    this->addPropertyLink(ui.translateY, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), position, 1);
-    this->addPropertyLink(ui.translateZ, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), position, 2);
+    this->addPropertyLink(
+      ui.translateX, "text2", SIGNAL(textChangedAndEditingFinished()), position, 0);
+    this->addPropertyLink(
+      ui.translateY, "text2", SIGNAL(textChangedAndEditingFinished()), position, 1);
+    this->addPropertyLink(
+      ui.translateZ, "text2", SIGNAL(textChangedAndEditingFinished()), position, 2);
     ui.labelTranslate->setText(position->GetXMLLabel());
     QString tooltip = this->getTooltip(position);
     ui.translateX->setToolTip(tooltip);
@@ -87,12 +89,12 @@ pqBoxPropertyWidget::pqBoxPropertyWidget(
 
   if (vtkSMProperty* rotation = smgroup->GetProperty("Rotation"))
   {
-    this->addPropertyLink(ui.rotateX, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), rotation, 0);
-    this->addPropertyLink(ui.rotateY, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), rotation, 1);
-    this->addPropertyLink(ui.rotateZ, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), rotation, 2);
+    this->addPropertyLink(
+      ui.rotateX, "text2", SIGNAL(textChangedAndEditingFinished()), rotation, 0);
+    this->addPropertyLink(
+      ui.rotateY, "text2", SIGNAL(textChangedAndEditingFinished()), rotation, 1);
+    this->addPropertyLink(
+      ui.rotateZ, "text2", SIGNAL(textChangedAndEditingFinished()), rotation, 2);
     ui.labelRotate->setText(rotation->GetXMLLabel());
     QString tooltip = this->getTooltip(rotation);
     ui.rotateX->setToolTip(tooltip);
@@ -114,12 +116,9 @@ pqBoxPropertyWidget::pqBoxPropertyWidget(
 
   if (vtkSMProperty* scale = smgroup->GetProperty("Scale"))
   {
-    this->addPropertyLink(ui.scaleX, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), scale, 0);
-    this->addPropertyLink(ui.scaleY, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), scale, 1);
-    this->addPropertyLink(ui.scaleZ, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), scale, 2);
+    this->addPropertyLink(ui.scaleX, "text2", SIGNAL(textChangedAndEditingFinished()), scale, 0);
+    this->addPropertyLink(ui.scaleY, "text2", SIGNAL(textChangedAndEditingFinished()), scale, 1);
+    this->addPropertyLink(ui.scaleZ, "text2", SIGNAL(textChangedAndEditingFinished()), scale, 2);
     ui.labelScale->setText(scale->GetXMLLabel());
     QString tooltip = this->getTooltip(scale);
     ui.scaleX->setToolTip(tooltip);
@@ -141,6 +140,39 @@ pqBoxPropertyWidget::pqBoxPropertyWidget(
     ui.enableMoveFaces->hide();
   }
 
+  auto useRefBounds = smgroup->GetProperty("UseReferenceBounds");
+  auto refBounds = smgroup->GetProperty("ReferenceBounds");
+  if (useRefBounds && refBounds)
+  {
+    this->addPropertyLink(ui.useReferenceBounds, "checked", SIGNAL(toggled(bool)), useRefBounds);
+    this->addPropertyLink(ui.xmin, "text2", SIGNAL(textChangedAndEditingFinished()), refBounds, 0);
+    this->addPropertyLink(ui.xmax, "text2", SIGNAL(textChangedAndEditingFinished()), refBounds, 1);
+    this->addPropertyLink(ui.ymin, "text2", SIGNAL(textChangedAndEditingFinished()), refBounds, 2);
+    this->addPropertyLink(ui.ymax, "text2", SIGNAL(textChangedAndEditingFinished()), refBounds, 3);
+    this->addPropertyLink(ui.zmin, "text2", SIGNAL(textChangedAndEditingFinished()), refBounds, 4);
+    this->addPropertyLink(ui.zmax, "text2", SIGNAL(textChangedAndEditingFinished()), refBounds, 5);
+  }
+  else
+  {
+    ui.referenceBoundsLabel->hide();
+    ui.referenceBoundsHLine->hide();
+    ui.useReferenceBounds->hide();
+    ui.xmin->hide();
+    ui.xmax->hide();
+    ui.ymin->hide();
+    ui.ymax->hide();
+    ui.zmin->hide();
+    ui.zmax->hide();
+
+    // if `ReferenceBounds` or `UseReferenceBounds` is not present, which is the
+    // case for `Transform`, the box is providing params relative to the input
+    // bounds.
+    vtkSMPropertyHelper(wdgProxy, "UseReferenceBounds").Set(0);
+    wdgProxy->UpdateVTKObjects();
+
+    this->BoxIsRelativeToInput = true;
+  }
+
   this->connect(&this->WidgetLinks, SIGNAL(qtWidgetChanged()), SLOT(render()));
 
   // link show3DWidget checkbox
@@ -148,9 +180,46 @@ pqBoxPropertyWidget::pqBoxPropertyWidget(
   ui.show3DWidget->connect(this, SIGNAL(widgetVisibilityToggled(bool)), SLOT(setChecked(bool)));
   this->setWidgetVisible(ui.show3DWidget->isChecked());
 
-  // hiding this since this is not connected to anything currently. Need to
-  // figure out what exactly should it do.
-  ui.resetBounds->hide();
+  QObject::connect(ui.resetBounds, &QAbstractButton::clicked, [this, wdgProxy](bool) {
+    auto bbox = this->dataBounds();
+    if (!bbox.IsValid())
+    {
+      return;
+    }
+    if (this->BoxIsRelativeToInput ||
+      vtkSMUncheckedPropertyHelper(wdgProxy, "UseReferenceBounds").GetAsInt() == 1)
+    {
+      double bds[6];
+      bbox.GetBounds(bds);
+      vtkSMPropertyHelper(wdgProxy, "ReferenceBounds").Set(bds, 6);
+
+      const double scale[3] = { 1, 1, 1 };
+      vtkSMPropertyHelper(wdgProxy, "Scale").Set(scale, 3);
+
+      const double pos[3] = { 0, 0, 0 };
+      vtkSMPropertyHelper(wdgProxy, "Position").Set(pos, 3);
+
+      const double orient[3] = { 0, 0, 0 };
+      vtkSMPropertyHelper(wdgProxy, "Rotation").Set(orient, 3);
+    }
+    else
+    {
+      double bds[6] = { 0, 1, 0, 1, 0, 1 };
+      vtkSMPropertyHelper(wdgProxy, "ReferenceBounds").Set(bds, 6);
+
+      double lengths[3];
+      bbox.GetLengths(lengths);
+      vtkSMPropertyHelper(wdgProxy, "Scale").Set(lengths, 3);
+
+      const double orient[3] = { 0, 0, 0 };
+      vtkSMPropertyHelper(wdgProxy, "Rotation").Set(orient, 3);
+
+      vtkSMPropertyHelper(wdgProxy, "Position").Set(bbox.GetMinPoint(), 3);
+    }
+    wdgProxy->UpdateVTKObjects();
+    emit this->changeAvailable();
+    this->render();
+  });
 }
 
 //-----------------------------------------------------------------------------
@@ -161,23 +230,23 @@ pqBoxPropertyWidget::~pqBoxPropertyWidget()
 //-----------------------------------------------------------------------------
 void pqBoxPropertyWidget::placeWidget()
 {
-  vtkBoundingBox bbox = this->dataBounds();
-  if (!bbox.IsValid())
+  auto wdgProxy = this->widgetProxy();
+  if (this->BoxIsRelativeToInput || vtkSMPropertyHelper(wdgProxy, "UseReferenceBounds").GetAsInt())
   {
-    bbox = vtkBoundingBox(0, 1, 0, 1, 0, 1);
+    auto bbox = this->dataBounds();
+    if (bbox.IsValid())
+    {
+      double bds[6];
+      bbox.GetBounds(bds);
+
+      vtkSMPropertyHelper(wdgProxy, "PlaceWidget").Set(bds, 6);
+      wdgProxy->UpdateVTKObjects();
+    }
   }
-
-  vtkSMNewWidgetRepresentationProxy* wdgProxy = this->widgetProxy();
-
-  double bds[6];
-  bbox.GetBounds(bds);
-  vtkSMPropertyHelper(wdgProxy, "PlaceWidget").Set(bds, 6);
-  wdgProxy->UpdateVTKObjects();
-
-  // This is incorrect. We should never be changing properties on the proxy like
-  // this. The way we are letting users set the box without explicitly setting
-  // the bounds is wrong. We'll have revisit that. For now, I am letting this
-  // be. Please don't follow this pattern in your code.
-  vtkSMPropertyHelper(this->proxy(), "Bounds", /*quiet*/ true).Set(bds, 6);
-  this->proxy()->UpdateVTKObjects();
+  else
+  {
+    double bds[6] = { 0, 1, 0, 1, 0, 1 };
+    vtkSMPropertyHelper(wdgProxy, "PlaceWidget").Set(bds, 6);
+    wdgProxy->UpdateVTKObjects();
+  }
 }

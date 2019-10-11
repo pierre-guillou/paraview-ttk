@@ -1,10 +1,10 @@
 <?xml version="1.0" ?>
 <pqevents>
   <pqevent object="pqClientMainWindow/MainControlsToolbar/actionOpenData" command="activate" arguments="" />
-  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/FileSeries/blow..vtk" />
+  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/Testing/Data/FileSeries/blow..vtk" />
   <pqevent object="pqClientMainWindow/propertiesDock/propertiesPanel/Accept" command="activate" arguments="" />
   <pqevent object="pqClientMainWindow/MainControlsToolbar/actionOpenData" command="activate" arguments="" />
-  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/FileSeries/wavelet_..vti" />
+  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/Testing/Data/FileSeries/wavelet_..vti" />
   <pqevent object="pqClientMainWindow/propertiesDock/propertiesPanel/Accept" command="activate" arguments="" />
   <pqevent object="pqClientMainWindow/menubar" command="activate" arguments="menu_View" />
   <pqevent object="pqClientMainWindow/menubar/menu_View" command="activate" arguments="Time Inspector" />
@@ -47,7 +47,7 @@
   <pqevent object="pqClientMainWindow/ApplicationSettings/stackedWidget/ScrollAreaGeneralSettings/qt_scrollarea_viewport/Container/ProxyWidget/AnimationTimeNotation/ComboBox" command="activated" arguments="Scientific" />
   <pqevent object="pqClientMainWindow/ApplicationSettings/stackedWidget/ScrollAreaGeneralSettings/qt_scrollarea_viewport/Container/ProxyWidget/AnimationTimePrecision/LineEdit0" command="set_string" arguments="4" />
   <pqevent object="pqClientMainWindow/ApplicationSettings/buttonBox/1QPushButton0" command="activate" arguments="" />
-  <pqcheck object="pqClientMainWindow/currentTimeToolbar/AnimationTimeWidget/timeValueComboBox" property="currentText" arguments="2.0000e+0" />
+  <pqcheck object="pqClientMainWindow/currentTimeToolbar/AnimationTimeWidget/timeValueComboBox" property="currentText" arguments="2.0000e+00" />
   <pqevent object="pqClientMainWindow/menubar" command="activate" arguments="menu_Edit" />
   <pqevent object="pqClientMainWindow/menubar/menu_Edit" command="activate" arguments="actionEditSettings" />
   <pqevent object="pqClientMainWindow/ApplicationSettings/stackedWidget/ScrollAreaGeneralSettings/qt_scrollarea_viewport/Container/ProxyWidget/AnimationTimeNotation/ComboBox" command="activated" arguments="Mixed" />

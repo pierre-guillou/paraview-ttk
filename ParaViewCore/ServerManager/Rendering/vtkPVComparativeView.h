@@ -38,7 +38,7 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkPVComparativeView : public vtkObject
 public:
   static vtkPVComparativeView* New();
   vtkTypeMacro(vtkPVComparativeView, vtkObject);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Provides empty handlers to simulate the vtkPVView API.
@@ -140,6 +140,17 @@ public:
     this->ViewPosition[1] = y;
     this->UpdateViewLayout();
   }
+  //@}
+
+  //@{
+  /**
+   * When saving screenshots with tiling, these methods get called.
+   * Not to be confused with tile scale and viewport setup on tile display.
+   *
+   * @sa vtkViewLayout::UpdateLayoutForTileDisplay
+   */
+  void SetTileScale(int x, int y);
+  void SetTileViewport(double x0, double y0, double x1, double y1);
   //@}
 
   /**

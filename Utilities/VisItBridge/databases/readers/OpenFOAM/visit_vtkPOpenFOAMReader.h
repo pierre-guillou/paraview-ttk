@@ -40,7 +40,7 @@ public:
   static visit_vtkPOpenFOAMReader *New();
   vtkTypeMacro(visit_vtkPOpenFOAMReader, visit_vtkOpenFOAMReader);
 
-  void PrintSelf(ostream &os, vtkIndent indent);
+  void PrintSelf(ostream &os, vtkIndent indent) override;
 
   // Description:
   // Set and get case type. 0 = decomposed case, 1 = reconstructed case.
@@ -52,14 +52,13 @@ protected:
   ~visit_vtkPOpenFOAMReader();
 
   int RequestInformation(vtkInformation *, vtkInformationVector **,
-    vtkInformationVector *);
+    vtkInformationVector *) override;
   int RequestData(vtkInformation *, vtkInformationVector **,
-    vtkInformationVector *);
+    vtkInformationVector *) override;
 
 private:
   caseType CaseType;
   vtkMTimeType MTimeOld;
-  int MaximumNumberOfPieces;
   int NumProcesses;
   int ProcessId;
 

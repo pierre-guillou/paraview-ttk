@@ -56,7 +56,7 @@ std::ostream& PrintCoords(const std::string &label,
 
 // Used to convert WorldCoords <--> DisplayCoords.
 // Required because vtkCoordinate doesn't support depth values for DC.
-// Here, we use homogenous 3D coordinates. This is so a DC's x/y values may be
+// Here, we use homogeneous 3D coordinates. This is so a DC's x/y values may be
 // modified and passed back to DisplayToWorld to produce an World-space point
 // at the same view depth as another.
 class FastDepthAwareCoordinateConverter
@@ -303,7 +303,7 @@ void vtkBillboardTextActor3D::ForceTranslucentOff()
 }
 
 //------------------------------------------------------------------------------
-int vtkBillboardTextActor3D::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkBillboardTextActor3D::HasTranslucentPolygonalGeometry()
 {
   return this->QuadActor->HasTranslucentPolygonalGeometry();
 }

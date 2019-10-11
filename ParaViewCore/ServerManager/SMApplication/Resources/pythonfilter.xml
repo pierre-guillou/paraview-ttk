@@ -15,9 +15,12 @@
                      to write expressions by defining certain variables. The
                      filter tries to assign each array to a variable of the
                      same name. If the name of the array is not a valid Python
-                     variable, it has to be accessed through a dictionary
-                     called arrays (i.e. arrays['array_name']). The points can
-                     be accessed using the points variable.</Documentation>
+                     variable, it may be accessed through a variable with a
+                     sanitized version of that array name consisting of only
+                     '_' and the alphanumeric characters in the name joined
+                     together with no spaces. Point coordinates from datasets
+                     that explicitly define them can be accessed using the variable
+                     named 'points'.</Documentation>
       <InputProperty clean_command="RemoveAllInputs"
                      command="AddInputConnection"
                      multiple_input="1"
@@ -41,12 +44,12 @@
                          default_values="0"
                          name="ArrayAssociation"
                          number_of_elements="1">
-        <EnumerationDomain name="enum">
-          <Entry text="Point Data"
-                 value="0" />
-          <Entry text="Cell Data"
-                 value="1" />
-        </EnumerationDomain>
+        <FieldDataDomain name="enum">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input" />
+          </RequiredProperties>
+        </FieldDataDomain>
         <Documentation>This property controls the association of the output
         array as well as which arrays are defined as variables.</Documentation>
       </IntVectorProperty>
@@ -106,15 +109,15 @@ timestep.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <Documentation>Choose arrays that is going to be
-        displayed</Documentation>
+        <Documentation>Choose array that is going to be
+        displayed.</Documentation>
       </StringVectorProperty>
       <StringVectorProperty command="SetPrefix"
                             default_values="Value is: "
                             name="Prefix"
                             number_of_elements="1">
         <Documentation>Text that is used as a prefix to the field
-        value</Documentation>
+        value.</Documentation>
       </StringVectorProperty>
       <StringVectorProperty command="SetFormat"
                             default_values="%7.5g"
@@ -129,7 +132,7 @@ timestep.
                             name="Suffix"
                             number_of_elements="1">
         <Documentation>Text that is used as a suffix to the field
-        value</Documentation>
+        value.</Documentation>
       </StringVectorProperty>
       <Hints>
         <Visibility replace_input="0" />
@@ -142,7 +145,7 @@ timestep.
     <SourceProxy class="vtkAnnotateAttributeDataFilter"
                  label="Annotate Attribute Data"
                  name="AnnotateAttributeData">
-      <Documentation short_help="Adds a text annotation to a Rander View">
+      <Documentation short_help="Adds a text annotation to a Render View">
 This filter can be used to add a text annotation to a Render View (or
 similar) using a tuple from any attribute array (point/cell/field/row
 etc.) from a specific rank (when running in parallel). Use **ArrayName**
@@ -184,14 +187,8 @@ annotation text.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property indicates the name of the array from which
-        to compute the histogram.</Documentation>
+        to obtain the annotation value.</Documentation>
       </StringVectorProperty>
       <IntVectorProperty name="ElementId"
                          command="SetElementId"
@@ -229,7 +226,8 @@ annotation text.
                  name="PythonAnnotation">
       <Documentation long_help="This filter evaluates a Python expression for a text annotation"
                      short_help="Evaluates a Python expression for a text annotation">
-                     This filter uses Python to calculate an expression. It
+                     This filter uses Python to calculate an expression and display
+                     the result as an annotation in the render view. It
                      depends heavily on the numpy and paraview.vtk modules. To
                      use the parallel functions, mpi4py is also necessary. The
                      expression is evaluated and the resulting scalar value or
@@ -239,11 +237,15 @@ annotation text.
                      to write expressions by defining certain variables. The
                      filter tries to assign each array to a variable of the
                      same name. If the name of the array is not a valid Python
-                     variable, it has to be accessed through a dictionary
-                     called arrays (i.e. arrays['array_name']).</Documentation>
+                     variable, it may be accessed through a variable with a
+                     sanitized version of that array name consisting of only
+                     '_' and the alphanumeric characters in the name joined
+                     together with no spaces. Point coordinates from datasets
+                     that explicitly define them can be accessed using the variable
+                     named 'points'.</Documentation>
       <InputProperty clean_command="RemoveAllInputs"
                      command="AddInputConnection"
-                     multiple_input="1"
+                     multiple_input="0"
                      name="Input">
         <ProxyGroupDomain name="groups">
           <Group name="sources" />
@@ -258,19 +260,20 @@ annotation text.
                          default_values="2"
                          name="ArrayAssociation"
                          number_of_elements="1">
-        <Documentation>Select the attribute to use to popular array names from.</Documentation>
-        <EnumerationDomain name="enum">
-          <Entry text="Point Data" value="0" />
-          <Entry text="Cell Data" value="1" />
-          <Entry text="Field Data" value="2" />
-          <Entry text="Row Data" value="6" />
-        </EnumerationDomain>
+        <Documentation>Select the attribute to use to populate array names.</Documentation>
+        <FieldDataDomain enable_field_data="1"
+                         name="enum">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input" />
+          </RequiredProperties>
+        </FieldDataDomain>
       </IntVectorProperty>
       <StringVectorProperty command="SetExpression"
                             name="Expression"
                             number_of_elements="1">
         <Documentation>The Python expression evaluated during execution.
-        FieldData arrays are direclty available through their name. Set of
+        FieldData arrays are directly available through their name. Set of
         provided variables [input, t_value, t_steps, t_range, t_index,
         FieldData, PointData, CellData] (i.e.: "Momentum: (%f, %f, %f)" %
         (XMOM[t_index,0], YMOM[t_index,0], ZMOM[t_index,0]) )</Documentation>
@@ -553,6 +556,12 @@ annotation text.
           outside of ParaView.
         </Documentation>
       </StringVectorProperty>
+
+      <Property name="PauseLiveSource" panel_widget="pause_livesource">
+        <Documentation>
+          Pause live source.
+        </Documentation>
+      </Property>
       <Hints>
         <LiveSource />
       </Hints>
@@ -603,49 +612,5 @@ annotation text.
       </StringVectorProperty>
       <!-- end of PythonAnimationCue -->
     </Proxy>
-  </ProxyGroup>
-  <ProxyGroup name="exporters">
-    <!-- Proxy group for exporters used to export views.  -->
-    <RenderViewExporterProxy class="vtkCinemaExporter"
-                             name="CinemaExporter">
-      <Documentation long_help="Export view to a Cinema Database"
-                     short_help="Cinema Database">CinemaExporter is a render window
-                     exporter which writes out the renderered scene as a
-                     Cinema database.</Documentation>
-      <StringVectorProperty name="FileName"
-                            command="SetFileName"
-                            number_of_elements="1">
-        <Documentation>Name of the file to be written.</Documentation>
-      </StringVectorProperty>
-
-      <StringVectorProperty name="ViewSelection"
-                            command="SetViewSelection"
-                            number_of_elements="1">
-        <Documentation>Script string defining the view selection.</Documentation>
-      </StringVectorProperty>
-
-      <StringVectorProperty name="TrackSelection"
-                            command="SetTrackSelection"
-                            number_of_elements="1">
-        <Documentation>Script string defining the track selection.</Documentation>
-      </StringVectorProperty>
-
-      <StringVectorProperty name="ArraySelection"
-                            command="SetArraySelection"
-                            number_of_elements="1">
-        <Documentation>Script string defining the arrays selected in an item.</Documentation>
-      </StringVectorProperty>
-
-      <PropertyGroup label="Cinema Configuration"
-                     panel_widget="cinema_export_selector">
-        <Property name="ViewSelection"/>
-        <Property name="TrackSelection"/>
-        <Property name="ArraySelection"/>
-      </PropertyGroup>
-      <Hints>
-        <ExporterFactory extensions="cdb" />
-      </Hints>
-      <!-- End of Cinema Exporter -->
-    </RenderViewExporterProxy>
   </ProxyGroup>
 </ServerManagerConfiguration>

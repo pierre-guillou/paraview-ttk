@@ -269,7 +269,7 @@ int vtkAxesActor::RenderTranslucentPolygonalGeometry(vtkViewport *vp)
 //-----------------------------------------------------------------------------
 // Description:
 // Does this prop have some translucent polygonal geometry?
-int vtkAxesActor::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkAxesActor::HasTranslucentPolygonalGeometry()
 {
   int result = 0;
 
@@ -382,16 +382,6 @@ double *vtkAxesActor::GetBounds()
   {
     this->Bounds[2*i+1] =
       (bounds[2*i+1]>this->Bounds[2*i+1])?(bounds[2*i+1]):(this->Bounds[2*i+1]);
-  }
-
-  double dbounds[6];
-  (vtkPolyDataMapper::SafeDownCast(this->YAxisShaft->GetMapper()))->
-    GetInput()->GetBounds( dbounds );
-
-  for ( i = 0; i < 3; ++i )
-  {
-    this->Bounds[2*i+1] =
-      (dbounds[2*i+1]>this->Bounds[2*i+1])?(dbounds[2*i+1]):(this->Bounds[2*i+1]);
   }
 
   // We want this actor to rotate / re-center about the origin, so give it

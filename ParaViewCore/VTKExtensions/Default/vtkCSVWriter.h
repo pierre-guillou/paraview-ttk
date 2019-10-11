@@ -24,6 +24,7 @@
 #include "vtkPVVTKExtensionsDefaultModule.h" //needed for exports
 #include "vtkWriter.h"
 
+class vtkMultiProcessController;
 class vtkStdString;
 class vtkTable;
 
@@ -32,7 +33,16 @@ class VTKPVVTKEXTENSIONSDEFAULT_EXPORT vtkCSVWriter : public vtkWriter
 public:
   static vtkCSVWriter* New();
   vtkTypeMacro(vtkCSVWriter, vtkWriter);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  //@{
+  /**
+   * Get/Set the controller to use. By default,
+   * `vtkMultiProcessController::GetGlobalController` will be used.
+   */
+  void SetController(vtkMultiProcessController*);
+  vtkGetObjectMacro(Controller, vtkMultiProcessController);
+  //@}
 
   //@{
   /**
@@ -88,24 +98,48 @@ public:
 
   //@{
   /**
-   * Internal method: decortes the "string" with the "StringDelimiter" if
+   * Get/set the attribute data to write if the input is either
+   * a vtkDataSet or composite of vtkDataSets. 0 is for point data (vtkDataObject::POINT),
+   * 1 is for cell data (vtkDataObject::CELL) and 2 is for field data (vtkDataObject::FIELD).
+   * Default is 0.
+   */
+  vtkSetClampMacro(FieldAssociation, int, 0, 2);
+  vtkGetMacro(FieldAssociation, int);
+  //@}
+
+  //@{
+  /**
+   * Get/Set whether to add additional meta-data to the field data such as
+   * point coordinates (when point attributes are selected and input is pointset)
+   * or structured coordinates etc. if the input is either a vtkDataSet or composite
+   * of vtkDataSets.
+   */
+  vtkSetMacro(AddMetaData, bool);
+  vtkGetMacro(AddMetaData, bool);
+  vtkBooleanMacro(AddMetaData, bool);
+  //@}
+
+  //@{
+  /**
+   * Internal method: decorates the "string" with the "StringDelimiter" if
    * UseStringDelimiter is true.
    */
   vtkStdString GetString(vtkStdString string);
+  //@}
 
 protected:
   vtkCSVWriter();
   ~vtkCSVWriter() override;
-  //@}
 
-  bool OpenFile();
-
-  void WriteData() VTK_OVERRIDE;
-  virtual void WriteTable(vtkTable* rectilinearGrid);
+  void WriteData() override;
 
   // see algorithm for more info.
-  // This writer takes in vtkTable.
-  int FillInputPortInformation(int port, vtkInformation* info) VTK_OVERRIDE;
+  // This writer takes in vtkTable, vtkDataSet or vtkCompositeDataSet.
+  int FillInputPortInformation(int port, vtkInformation* info) override;
+
+  // see algorithm for more info. needed here so we can request pieces.
+  int ProcessRequest(vtkInformation* request, vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override;
 
   char* FileName;
   char* FieldDelimiter;
@@ -113,12 +147,16 @@ protected:
   bool UseStringDelimiter;
   int Precision;
   bool UseScientificNotation;
+  int FieldAssociation;
+  bool AddMetaData;
 
-  ofstream* Stream;
+  vtkMultiProcessController* Controller;
 
 private:
   vtkCSVWriter(const vtkCSVWriter&) = delete;
   void operator=(const vtkCSVWriter&) = delete;
+
+  class CSVFile;
 };
 
 #endif

@@ -36,7 +36,7 @@ class VTKPVCLIENTSERVERCORECORE_EXPORT vtkPVServerOptions : public vtkPVOptions
 public:
   static vtkPVServerOptions* New();
   vtkTypeMacro(vtkPVServerOptions, vtkPVOptions);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -58,29 +58,32 @@ public:
    * Pass in the name and the attributes for all tags that are not Options.
    * If it returns 1, then it is successful, and 0 if it failed.
    */
-  int ParseExtraXMLTag(const char* name, const char** atts) VTK_OVERRIDE;
+  int ParseExtraXMLTag(const char* name, const char** atts) override;
 
   //@{
   /**
    * Get information about machines used in a data or render server.
    */
-  double GetEyeSeparation();
-  unsigned int GetNumberOfMachines();
-  const char* GetMachineName(unsigned int idx);
-  const char* GetDisplayName(unsigned int idx);
-  int* GetGeometry(unsigned int idx);
-  bool GetFullScreen(unsigned int idx);
-  bool GetShowBorders(unsigned int idx);
-  double* GetLowerLeft(unsigned int idx);
-  double* GetLowerRight(unsigned int idx);
-  double* GetUpperRight(unsigned int idx);
-  bool GetCaveBoundsSet(unsigned int idx);
+  double GetEyeSeparation() const;
+  unsigned int GetNumberOfMachines() const;
+  const char* GetMachineName(unsigned int idx) const;
+  const char* GetDisplayName(unsigned int idx) const;
+  int* GetGeometry(unsigned int idx) const;
+  bool GetFullScreen(unsigned int idx) const;
+  bool GetShowBorders(unsigned int idx) const;
+  double* GetLowerLeft(unsigned int idx) const;
+  double* GetLowerRight(unsigned int idx) const;
+  double* GetUpperRight(unsigned int idx) const;
+  bool GetCaveBoundsSet(unsigned int idx) const;
   //@}
 
   // Returns -1 to indicate not stereo type was specified. 0 indicate no stereo
   // is to be used.
-  int GetStereoType(unsigned int idx);
-  char* GetStereoType() VTK_OVERRIDE { return this->Superclass::GetStereoType(); }
+  int GetStereoType(unsigned int idx) const;
+  char* GetStereoType() override { return this->Superclass::GetStereoType(); }
+
+  bool GetIsInCave() const override;
+
 protected:
   /**
    * Add machine information from the xml tag <Machine ....>
@@ -102,7 +105,7 @@ protected:
    */
   ~vtkPVServerOptions() override;
 
-  void Initialize() VTK_OVERRIDE;
+  void Initialize() override;
 
   vtkSetStringMacro(ClientHostName);
   char* ClientHostName;

@@ -413,7 +413,7 @@ void vtkPointHandleRepresentation3D::WidgetInteraction(double eventPos[2])
       {
         vtkDebugMacro( << "Processing widget interaction for Select mode" );
 
-        // If we are doing axis constrained motion, igonore the placer.
+        // If we are doing axis constrained motion, ignore the placer.
         // Can't have both the placer and an axis constraint dictating
         // handle placement.
         if (this->ConstraintAxis >= 0 || this->Constrained || !this->PointPlacer)
@@ -467,7 +467,7 @@ void vtkPointHandleRepresentation3D::WidgetInteraction(double eventPos[2])
       {
         vtkDebugMacro( << "Processing widget interaction for translate" );
 
-        // If we are doing axis constrained motion, igonore the placer.
+        // If we are doing axis constrained motion, ignore the placer.
         // Can't have both the placer and the axis constraint dictating
         // handle placement.
         if (this->ConstraintAxis >= 0 || this->Constrained || !this->PointPlacer)
@@ -780,6 +780,14 @@ void vtkPointHandleRepresentation3D::CreateDefaultProperties()
 }
 
 //----------------------------------------------------------------------
+void vtkPointHandleRepresentation3D::SetVisibility(vtkTypeBool visible)
+{
+  this->Actor->SetVisibility(visible);
+  // Forward to superclass
+  this->Superclass::SetVisibility(visible);
+}
+
+//----------------------------------------------------------------------
 void vtkPointHandleRepresentation3D::BuildRepresentation()
 {
   // The net effect is to resize the handle
@@ -884,7 +892,7 @@ int vtkPointHandleRepresentation3D::RenderTranslucentPolygonalGeometry(
   return this->Actor->RenderTranslucentPolygonalGeometry(viewport);
 }
 //-----------------------------------------------------------------------------
-int vtkPointHandleRepresentation3D::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkPointHandleRepresentation3D::HasTranslucentPolygonalGeometry()
 {
   this->BuildRepresentation();
   return this->Actor->HasTranslucentPolygonalGeometry();

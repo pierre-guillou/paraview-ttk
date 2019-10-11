@@ -534,7 +534,7 @@ int vtkSphereHandleRepresentation
 }
 
 //-----------------------------------------------------------------------------
-int vtkSphereHandleRepresentation::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkSphereHandleRepresentation::HasTranslucentPolygonalGeometry()
 {
   return 0; //this->Actor->HasTranslucentPolygonalGeometry();
 }
@@ -547,6 +547,14 @@ void vtkSphereHandleRepresentation::SetProperty(vtkProperty * p)
   {
     this->Actor->SetProperty( p );
   }
+}
+
+//----------------------------------------------------------------------
+void vtkSphereHandleRepresentation::SetVisibility(vtkTypeBool visible)
+{
+  this->Actor->SetVisibility(visible);
+  // Forward to superclass
+  this->Superclass::SetVisibility(visible);
 }
 
 //----------------------------------------------------------------------

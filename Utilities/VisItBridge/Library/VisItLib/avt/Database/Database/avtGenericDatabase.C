@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -52,6 +52,7 @@
 #include <vtkCellData.h>
 #include <vtkCSGGrid.h>
 #include <vtkDataSet.h>
+#include <vtkDataSetWriter.h>
 #include <vtkDoubleArray.h>
 #include <vtkEnumThreshold.h>
 #include <vtkFloatArray.h>
@@ -75,12 +76,14 @@
 #include <vtkVisItUtility.h>
 
 #include <snprintf.h>
+#include <visitstream.h>
 
 #include <avtCallback.h>
 #include <avtCommonDataFunctions.h>
 #include <avtDatabaseMetaData.h>
 #include <avtDatasetCollection.h>
 #include <avtDatasetVerifier.h>
+#include <avtDebugDumpOptions.h>
 #include <avtDomainBoundaries.h>
 #include <avtDomainNesting.h>
 #include <avtFileFormatInterface.h>
@@ -278,6 +281,43 @@ avtGenericDatabase::SetCycleTimeInDatabaseMetaData(avtDatabaseMetaData *md, int 
 }
 
 // ****************************************************************************
+//  Function: DebugDumpDatasetCollection
+//
+//  Purpose: Utility to include various phases of generic database operations
+//      during a -dump run.
+//
+//  Created: Mark C. Miller, Wed Dec 12 04:58:26 PST 2018
+// ****************************************************************************
+static void
+DebugDumpDatasetCollection(avtDatasetCollection &dsc, int ndoms,
+    string phaseName)
+
+{
+    static int call_count = 0;
+    std::ostringstream oss;
+
+    if (!avtDebugDumpOptions::DumpEnabled())
+        return;
+
+    string dumpDir = avtDebugDumpOptions::GetDumpDirectory();
+    if (dumpDir == "")
+        dumpDir = ".";
+    oss << dumpDir << "/gdb." << std::setfill('0') << std::setw(4) << call_count << "." << phaseName << ".vtk";
+    string dumpFile = oss.str();
+    vtkDataSetWriter *dsw = vtkDataSetWriter::New();
+    dsw->SetFileTypeToASCII();
+    dsw->SetFileName(dumpFile.c_str());
+    for (int i = 0 ; i < ndoms; i++)
+    {
+        vtkDataSet *ds = dsc.GetDataset(i, 0);
+        dsw->SetInputData(i, ds);
+    }
+    dsw->Write();
+    dsw->Delete();
+    call_count++;
+}
+
+// ****************************************************************************
 //  Method: avtGenericDatabase::GetOutput
 //
 //  Purpose:
@@ -467,6 +507,8 @@ avtGenericDatabase::SetCycleTimeInDatabaseMetaData(avtDatabaseMetaData *md, int 
 //    I modified the multi-pass discretizion of CSG meshes to only process
 //    a portion of the mesh on each processor instead of the entire mesh.
 //
+//    Mark C. Miller, Wed Dec 12 04:58:53 PST 2018
+//    Add judicious calls to DebugDumpDatasetCollection
 // ****************************************************************************
 
 avtDataTree_p
@@ -542,6 +584,7 @@ avtGenericDatabase::GetOutput(avtDataRequest_p spec,
         // This is the primary routine that reads things in from disk.
         //
         ReadDataset(datasetCollection, domains, spec, src, selectionsApplied);
+        DebugDumpDatasetCollection(datasetCollection, nDomains, "output.ReadDataset");
 
         //
         // Now that we have read things in from disk, verify that the dataset
@@ -797,6 +840,7 @@ avtGenericDatabase::GetOutput(avtDataRequest_p spec,
 
     if (ghostDataIsNeeded && !alreadyDidGhosts)
     {
+        DebugDumpDatasetCollection(datasetCollection, nDomains, "input.CommunicateGhost");
         didGhosts = CommunicateGhosts(ghostType, datasetCollection, domains,
                                       spec, src, allDomains,
                                       canDoCollectiveCommunication);
@@ -831,6 +875,8 @@ avtGenericDatabase::GetOutput(avtDataRequest_p spec,
 
     ManageMemoryForNonCachableVar(NULL);
     ManageMemoryForNonCachableMesh(NULL);
+
+    DebugDumpDatasetCollection(datasetCollection, nDomains, "output.GetOutput");
 
     return rv;
 }
@@ -3762,6 +3808,9 @@ avtGenericDatabase::AddOriginalNodesArray(vtkDataSet *ds, const int domain)
 //    Fix problem with subset plot with a material removed (labels weren't
 //    being passed back correctly).
 //
+//    Alister Maguire, Mon Nov 27 15:31:54 PST 2017
+//    If materialLabelsForced is true, then create material labels. 
+//
 // ****************************************************************************
 
 avtDataTree_p
@@ -3774,6 +3823,7 @@ avtGenericDatabase::MaterialSelect(vtkDataSet *ds, avtMaterial *mat,
                         bool needSmoothMaterialInterfaces,
                         bool needCleanZonesOnly,
                         bool reconstructionForced,
+                        bool materialLabelsForced,
                         bool simplifyHeavilyMixedZones,
                         int  maxMatsPerZone,
                         int  mirAlgorithm,
@@ -3992,7 +4042,7 @@ avtGenericDatabase::MaterialSelect(vtkDataSet *ds, avtMaterial *mat,
     //
     stringVector labelStrings;
 
-    if (type == AVT_MATERIAL)
+    if (type == AVT_MATERIAL || materialLabelsForced) 
     {
         if (needInternalSurfaces)
         {
@@ -4068,7 +4118,6 @@ avtGenericDatabase::MaterialSelect(vtkDataSet *ds, avtMaterial *mat,
             }
         }
     }
-
     avtDataTree_p outDT = new avtDataTree(numOutput, out_ds, dom, labelStrings);
     for (int i = 0 ; i < numOutput ; i++)
     {
@@ -5155,6 +5204,12 @@ avtGenericDatabase::ActivateTimestep(int stateIndex)
 //    Mark C. Miller, Thu Dec 18 12:55:50 PST 2014
 //    Incorporated changes from Jeremy to properly pass along labels for
 //    enum scalars. Thanks Jeremy!
+//
+//    Alister Maguire, Mon Nov 27 15:31:54 PST 2017
+//    When preparing labels, check to see if we're forcing material 
+//    labels to be created. Also, if the dataset doesn't contain 
+//    any materials, don't try and look for them.  
+//
 // ****************************************************************************
 
 void
@@ -5300,7 +5355,12 @@ avtGenericDatabase::ReadDataset(avtDatasetCollection &ds, intVector &domains,
         int nmats = (int)matnames.size();
         vtkDataSet *single_ds = NULL;
 
-        if (!doSelect || !Interface->PerformsMaterialSelection())
+        if (nmats <= 0)
+        {
+            doSelect = false;
+        }
+
+        if (!doSelect || !Interface->PerformsMaterialSelection()) 
         {
             // We know we want the dataset as a whole
             if (md->GetFormatCanDoDomainDecomposition())
@@ -5343,7 +5403,11 @@ avtGenericDatabase::ReadDataset(avtDatasetCollection &ds, intVector &domains,
         //
         //  Prepare labels; we need nmats labels.
         //
-        if (subT == AVT_DOMAIN_SUBSET)
+        if (spec->ForceConstructMaterialLabels() && nmats > 0) 
+        {
+            labels = matnames;
+        }
+        else if (subT == AVT_DOMAIN_SUBSET)
         {
             if (blockNames.empty())
             {
@@ -7925,6 +7989,12 @@ avtGenericDatabase::ApplyGhostForDomainNesting(avtDatasetCollection &ds,
 //    Jeremy Meredith, Fri Feb 13 11:22:39 EST 2009
 //    Added MIR iteration capability.
 //
+//    Alister Maguire, Mon Nov 27 15:31:54 PST 2017
+//    Added ForceConstructMaterialLabels argument to 
+//    MaterialSelect. 
+//
+//    Mark C. Miller, Wed Dec 12 04:59:12 PST 2018
+//    Add a call to DebugDumpDatasetCollection
 // ****************************************************************************
 
 void
@@ -7950,6 +8020,7 @@ avtGenericDatabase::MaterialSelect(avtDatasetCollection &ds,
                                            "select data");
         return;
     }
+    DebugDumpDatasetCollection(ds, ds.GetNDomains(), "input.MaterialSelect");
 
     bool subdivisionOccurred   = false;
     bool notAllCellsSubdivided = false;
@@ -7996,6 +8067,7 @@ avtGenericDatabase::MaterialSelect(avtDatasetCollection &ds,
                                 spec->NeedSmoothMaterialInterfaces(),
                                 spec->NeedCleanZonesOnly(),
                                 spec->MustDoMaterialInterfaceReconstruction(),
+                                spec->ForceConstructMaterialLabels(),
                                 spec->SimplifyHeavilyMixedZones(),
                                 spec->MaxMaterialsPerZone(),
                                 spec->MIRAlgorithm(),

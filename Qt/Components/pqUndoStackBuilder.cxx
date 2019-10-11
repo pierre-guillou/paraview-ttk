@@ -79,22 +79,17 @@ bool pqUndoStackBuilder::Filter(vtkSMSession* session, vtkTypeUInt32 globalId)
   // The property themselves are already filtered based on a flag in the XML.
   // XML Flag: state_ignored="1"
   if (!remoteObj ||
-    (proxy && (proxy->IsA("vtkSMCameraProxy") ||
-
-                // we no longer skip TimeKeeper. We need to record the changes to
-                // TimeSources, SuppressedTimeSources properties.
-                // proxy->IsA("vtkSMTimeKeeperProxy") ||
-                //
-                proxy->IsA("vtkSMAnimationScene") || proxy->IsA("vtkSMAnimationSceneProxy") ||
-                proxy->IsA("vtkSMNewWidgetRepresentationProxy") ||
+    (proxy && (proxy->IsA("vtkSMCameraProxy") || proxy->IsA("vtkSMNewWidgetRepresentationProxy") ||
                 proxy->IsA("vtkSMScalarBarWidgetRepresentationProxy") ||
                 !strcmp(proxy->GetXMLName(), "FileInformationHelper"))))
   {
     return true;
   }
 
-  // We do not keep track of ProxySelectionModel in Undo/redo
-  if (remoteObj->IsA("vtkSMProxySelectionModel"))
+  // We do not keep track of ProxySelectionModel in Undo/Redo except if we're
+  // already with in begin/end. In that case, it makes sense to track how the
+  // active source/view is changed so it can restored after undo/redo.
+  if (remoteObj->IsA("vtkSMProxySelectionModel") && !this->HandleChangeEvents())
   {
     return true;
   }

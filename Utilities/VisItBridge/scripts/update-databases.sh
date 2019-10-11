@@ -8,7 +8,7 @@ readonly name="visit-databases"
 readonly ownership="VisIt Upstream <kwrobot@kitware.com>"
 readonly subtree="databases/readers"
 readonly repo="https://gitlab.kitware.com/third-party/visit.git"
-readonly tag="for/paraview"
+readonly tag="for/paraview-20190715-trunk-r34006"
 
 readonly paths="
 COPYRIGHT
@@ -87,7 +87,7 @@ database_cleanup () {
         Chombo|FLASH|GGCM|M3DC1|MFIXCDF|MFIX|Miranda|NASTRAN|Nek5000|OpenFOAM|paraDIS|Pixie|PLOT3D|ProteinDataBank|Vs)
             kind="reader_options"
             ;;
-        ExtrudedVol|Image|Silo|Tecplot|Xmdv)
+        BOV|Curve2D|ExtrudedVol|Image|Silo|Tecplot|Xmdv)
             kind="writer"
             ;;
         *)
@@ -157,8 +157,8 @@ extract_source () {
     git_archive
     pushd "$extractdir/$name-reduced"
     mv --target-directory=. databases/*
-    find -name "*.code" -delete
-    find -name "*.xml" -delete
+    find . -name "*.code" -delete
+    find . -name "*.xml" -delete
     for reader in *; do
         [ -d "$reader" ] || continue
         pushd "$reader"

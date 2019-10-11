@@ -20,6 +20,7 @@
 #include "vtkDataObjectTreeIterator.h"
 #include "vtkFieldData.h"
 #include "vtkInformation.h"
+#include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -29,6 +30,7 @@ vtkCompositeDataToUnstructuredGridFilter::vtkCompositeDataToUnstructuredGridFilt
 {
   this->SubTreeCompositeIndex = 0;
   this->MergePoints = true;
+  this->Tolerance = 0.;
 }
 
 //----------------------------------------------------------------------------
@@ -51,8 +53,12 @@ int vtkCompositeDataToUnstructuredGridFilter::RequestData(vtkInformation* vtkNot
     return 1;
   }
 
-  vtkAppendFilter* appender = vtkAppendFilter::New();
+  vtkNew<vtkAppendFilter> appender;
   appender->SetMergePoints(this->MergePoints ? 1 : 0);
+  if (this->MergePoints)
+  {
+    appender->SetTolerance(this->Tolerance);
+  }
   if (ds)
   {
     this->AddDataSet(ds, appender);
@@ -106,10 +112,16 @@ int vtkCompositeDataToUnstructuredGridFilter::RequestData(vtkInformation* vtkNot
     // this will override field data the vtkAppendFilter passed from the first
     // block. It seems like a reasonable approach, if global field data is
     // present.
-    output->GetFieldData()->PassData(cd->GetFieldData());
+    if (ds)
+    {
+      output->GetFieldData()->PassData(ds->GetFieldData());
+    }
+    else if (cd)
+    {
+      output->GetFieldData()->PassData(cd->GetFieldData());
+    }
   }
 
-  appender->Delete();
   this->RemovePartialArrays(output);
   return 1;
 }
@@ -167,4 +179,6 @@ void vtkCompositeDataToUnstructuredGridFilter::PrintSelf(ostream& os, vtkIndent 
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "SubTreeCompositeIndex: " << this->SubTreeCompositeIndex << endl;
+  os << indent << "MergePoints: " << this->MergePoints << endl;
+  os << indent << "Tolerance: " << this->Tolerance << endl;
 }

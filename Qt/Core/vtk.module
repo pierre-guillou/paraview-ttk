@@ -1,0 +1,22 @@
+NAME
+  ParaView::pqCore
+LIBRARY_NAME
+  pqCore
+GROUPS
+  ParaViewQt
+DEPENDS
+  ParaView::ClientServerCoreDefault
+  ParaView::pqWidgets
+  ParaView::qttesting
+  VTK::GUISupportQt
+PRIVATE_DEPENDS
+  ParaView::Animation
+  ParaView::ServerManagerApplication
+  ParaView::ServerManagerDefault
+  VTK::TestingRendering
+  VTK::vtksys
+TEST_DEPENDS
+  ParaView::ServerManagerRendering
+TEST_LABELS
+  ParaView
+EXCLUDE_WRAP

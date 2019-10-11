@@ -64,8 +64,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqIntMaskPropertyWidget.h"
 #include "pqLinePropertyWidget.h"
 #include "pqListPropertyWidget.h"
+#include "pqMoleculePropertyWidget.h"
 #include "pqMultiComponentsDecorator.h"
 #include "pqOSPRayHidingDecorator.h"
+#include "pqPauseLiveSourcePropertyWidget.h"
 #include "pqPropertyGroupButton.h"
 #include "pqProxyEditorPropertyWidget.h"
 #include "pqSeriesEditorPropertyWidget.h"
@@ -82,7 +84,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyGroup.h"
 
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
 #include "pqCinemaConfiguration.h"
 #endif
 
@@ -133,7 +135,7 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForProperty(
   }
   else if (name == "texture_selector")
   {
-    return new pqTextureSelectorPropertyWidget(smProxy, parentWidget);
+    return new pqTextureSelectorPropertyWidget(smProxy, smProperty, parentWidget);
   }
   else if (name == "shader_replacements_selector")
   {
@@ -199,6 +201,10 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForProperty(
   {
     return new pqViewResolutionPropertyWidget(smProxy, smProperty, parentWidget);
   }
+  else if (name == "pause_livesource")
+  {
+    return new pqPauseLiveSourcePropertyWidget(smProxy, smProperty, parentWidget);
+  }
 
   // *** NOTE: When adding new types, please update the header documentation ***
   return NULL;
@@ -243,6 +249,10 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForPropertyGrou
   {
     return new pqSeriesEditorPropertyWidget(proxy, group, parentWidget);
   }
+  else if (panelWidget == "MoleculeParameters")
+  {
+    return new pqMoleculePropertyWidget(proxy, group, parentWidget);
+  }
   else if (panelWidget == "TextLocationEditor")
   {
     return new pqTextLocationWidget(proxy, group, parentWidget);
@@ -285,7 +295,7 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForPropertyGrou
   }
   else if (panelWidget == "cinema_export_selector")
   {
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
     return new pqCinemaConfiguration(proxy, group, parentWidget);
 #else
     return NULL;

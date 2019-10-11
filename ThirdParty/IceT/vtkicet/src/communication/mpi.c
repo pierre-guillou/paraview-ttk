@@ -111,8 +111,8 @@ static MPI_Request getMPIRequest(IceTCommRequest icet_request)
     }
 
     if (icet_request->magic_number != ICET_MPI_REQUEST_MAGIC_NUMBER) {
-        icetRaiseError("Request object is not from the MPI communicator.",
-                       ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE,
+                       "Request object is not from the MPI communicator.");
         return MPI_REQUEST_NULL;
     }
 
@@ -122,14 +122,14 @@ static MPI_Request getMPIRequest(IceTCommRequest icet_request)
 static void setMPIRequest(IceTCommRequest icet_request, MPI_Request mpi_request)
 {
     if (icet_request == ICET_COMM_REQUEST_NULL) {
-        icetRaiseError("Cannot set MPI request in null request.",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Cannot set MPI request in null request.");
         return;
     }
 
     if (icet_request->magic_number != ICET_MPI_REQUEST_MAGIC_NUMBER) {
-        icetRaiseError("Request object is not from the MPI communicator.",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Request object is not from the MPI communicator.");
         return;
     }
 
@@ -143,8 +143,8 @@ static IceTCommRequest create_request(void)
 
     request = (IceTCommRequest)malloc(sizeof(struct IceTCommRequestStruct));
     if (request == NULL) {
-        icetRaiseError("Could not allocate memory for IceTCommRequest",
-                       ICET_OUT_OF_MEMORY);
+        icetRaiseError(ICET_OUT_OF_MEMORY,
+                       "Could not allocate memory for IceTCommRequest");
         return NULL;
     }
 
@@ -152,8 +152,8 @@ static IceTCommRequest create_request(void)
     request->internals=malloc(sizeof(struct IceTMPICommRequestInternalsStruct));
     if (request->internals == NULL) {
         free(request);
-        icetRaiseError("Could not allocate memory for IceTCommRequest",
-                       ICET_OUT_OF_MEMORY);
+        icetRaiseError(ICET_OUT_OF_MEMORY,
+                       "Could not allocate memory for IceTCommRequest");
         return NULL;
     }
 
@@ -166,9 +166,9 @@ static void destroy_request(IceTCommRequest request)
 {
     MPI_Request mpi_request = getMPIRequest(request);
     if (mpi_request != MPI_REQUEST_NULL) {
-        icetRaiseError("Destroying MPI request that is not NULL."
-                       " Probably leaking MPI requests.",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Destroying MPI request that is not NULL."
+                       " Probably leaking MPI requests.");
     }
 
     free(request->internals);
@@ -178,14 +178,13 @@ static void destroy_request(IceTCommRequest request)
 #ifdef BREAK_ON_MPI_ERROR
 static void ErrorHandler(MPI_Comm *comm, int *errorno, ...)
 {
-    char error_msg[MPI_MAX_ERROR_STRING+16];
+    char error_msg[MPI_MAX_ERROR_STRING];
     int mpi_error_len;
     (void)comm;
 
-    strcpy(error_msg, "MPI ERROR:\n");
-    MPI_Error_string(*errorno, error_msg + strlen(error_msg), &mpi_error_len);
+    MPI_Error_string(*errorno, error_msg, &mpi_error_len);
 
-    icetRaiseError(error_msg, ICET_INVALID_OPERATION);
+    icetRaiseError(ICET_INVALID_OPERATION, "MPI ERROR:\n%s", error_msg);
     icetDebugBreak();
 }
 #endif
@@ -203,8 +202,8 @@ IceTCommunicator icetCreateMPICommunicator(MPI_Comm mpi_comm)
 
     comm = malloc(sizeof(struct IceTCommunicatorStruct));
     if (comm == NULL) {
-        icetRaiseError("Could not allocate memory for IceTCommunicator.",
-                       ICET_OUT_OF_MEMORY);
+        icetRaiseError(ICET_OUT_OF_MEMORY,
+                       "Could not allocate memory for IceTCommunicator.");
         return NULL;
     }
 
@@ -229,8 +228,8 @@ IceTCommunicator icetCreateMPICommunicator(MPI_Comm mpi_comm)
     comm->data = malloc(sizeof(MPI_Comm));
     if (comm->data == NULL) {
         free(comm);
-        icetRaiseError("Could not allocate memory for IceTCommunicator.",
-                       ICET_OUT_OF_MEMORY);
+        icetRaiseError(ICET_OUT_OF_MEMORY,
+                       "Could not allocate memory for IceTCommunicator.");
         return NULL;
     }
     MPI_Comm_dup(mpi_comm, (MPI_Comm *)comm->data);
@@ -315,8 +314,9 @@ static void MPIBarrier(IceTCommunicator self)
       case ICET_FLOAT:  mpi_type = MPI_FLOAT;   break;                       \
       case ICET_DOUBLE: mpi_type = MPI_DOUBLE;  break;                       \
       default:                                                               \
-          icetRaiseError("MPI Communicator received bad data type.",         \
-                         ICET_INVALID_ENUM);                                 \
+          icetRaiseError(ICET_INVALID_ENUM,                                  \
+                         "MPI Communicator received bad data type 0x%X.",    \
+                         icet_type);                                         \
           mpi_type = MPI_BYTE;                                               \
           break;                                                             \
     }
@@ -540,8 +540,8 @@ static int  MPIWaitany(IceTCommunicator self,
 
     mpi_requests = malloc(sizeof(MPI_Request)*count);
     if (mpi_requests == NULL) {
-        icetRaiseError("Could not allocate array for MPI requests.",
-                       ICET_OUT_OF_MEMORY);
+        icetRaiseError(ICET_OUT_OF_MEMORY,
+                       "Could not allocate array for MPI requests.");
         return -1;
     }
 

@@ -22,6 +22,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPVXMLElement.h"
 #include "vtkRect.h"
+#include "vtkSMComparativeViewProxy.h"
 #include "vtkSMMessage.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxyIterator.h"
@@ -35,10 +36,12 @@
 #include "vtkSmartPointer.h"
 #include "vtkVector.h"
 #include "vtkVectorOperators.h"
+#include "vtkViewLayout.h"
 #include "vtkWeakPointer.h"
 
 #include <algorithm>
-#include <assert.h>
+#include <cassert>
+#include <queue>
 
 class vtkSMViewLayoutProxy::vtkInternals
 {
@@ -47,11 +50,13 @@ public:
   {
     vtkSMViewLayoutProxy::Direction Direction;
     double SplitFraction;
+    vtkVector4d Viewport;
     vtkWeakPointer<vtkSMViewProxy> ViewProxy;
 
     Cell()
       : Direction(vtkSMViewLayoutProxy::NONE)
       , SplitFraction(0.5)
+      , Viewport(0, 0, 0, 0)
     {
     }
   };
@@ -96,11 +101,37 @@ public:
       return;
     }
 
-    Cell source_cell = this->KDTree[source];
-    this->KDTree[source] = Cell();
-    this->MoveSubtree(2 * destination + 1, 2 * source + 1);
-    this->MoveSubtree(2 * destination + 2, 2 * source + 2);
-    this->KDTree[destination] = source_cell;
+    // Do a breadth-first traversal of source and destination. This is to ensure that
+    // we swap elements in the KDTree in the proper order (moving from lower elements
+    // in the tree up) when moving the subtree up the tree.
+    std::queue<int> sourceQueue;
+    std::queue<int> destQueue;
+
+    sourceQueue.push(source);
+    destQueue.push(destination);
+
+    int kdtreeSize = static_cast<int>(this->KDTree.size());
+
+    while (!sourceQueue.empty())
+    {
+      int currentSource = sourceQueue.front();
+      sourceQueue.pop();
+      int currentDest = destQueue.front();
+      destQueue.pop();
+
+      // Copy source to destination.
+      if (currentSource < kdtreeSize && currentDest < kdtreeSize)
+      {
+        this->KDTree[currentDest] = this->KDTree[currentSource];
+        this->KDTree[currentSource] = Cell();
+
+        // Push children onto queue
+        sourceQueue.push(GetFirstChild(currentSource));
+        sourceQueue.push(GetSecondChild(currentSource));
+        destQueue.push(GetFirstChild(currentDest));
+        destQueue.push(GetSecondChild(currentDest));
+      }
+    }
   }
 
   void Shrink()
@@ -110,7 +141,28 @@ public:
     this->KDTree.resize(max_index + 1);
   }
 
-  void UpdateViewPositions(int root = 0, int posx = 0, int posy = 0)
+  void UpdateViewports(int index = 0, const vtkVector4d& parentViewport = vtkVector4d(0, 0, 1, 1))
+  {
+    Cell& cell = this->KDTree[index];
+    cell.Viewport = parentViewport;
+    if (cell.Direction != vtkSMViewLayoutProxy::NONE)
+    {
+      cell.Viewport = parentViewport;
+
+      const int dim = cell.Direction == vtkSMViewLayoutProxy::HORIZONTAL ? 0 : 1;
+      const double delta1 = (parentViewport[2 + dim] - parentViewport[dim]) * cell.SplitFraction;
+      const double delta2 = (parentViewport[2 + dim] - parentViewport[dim]) - delta1;
+
+      vtkVector4d vp1(parentViewport), vp2(parentViewport);
+      vp1[2 + dim] = vp1[dim] + delta1;
+      vp2[dim] = vp1[2 + dim];
+      vp2[2 + dim] = vp2[dim] + delta2;
+      this->UpdateViewports(vtkSMViewLayoutProxy::GetFirstChild(index), vp1);
+      this->UpdateViewports(vtkSMViewLayoutProxy::GetSecondChild(index), vp2);
+    }
+  }
+
+  void UpdateViewPositions(int spacing, int root = 0, int posx = 0, int posy = 0)
   {
     if (root == 0)
     {
@@ -137,18 +189,18 @@ public:
 
       if (cell.Direction == vtkSMViewLayoutProxy::HORIZONTAL)
       {
-        this->UpdateViewPositions(2 * root + 1, posx, posy);
-        this->UpdateViewPositions(2 * root + 2, posx + size[0], posy);
+        this->UpdateViewPositions(spacing, 2 * root + 1, posx, posy);
+        this->UpdateViewPositions(spacing, 2 * root + 2, posx + size[0] + spacing, posy);
       }
       else // cell.Direction == VERTICAL
       {
-        this->UpdateViewPositions(2 * root + 1, posx, posy);
-        this->UpdateViewPositions(2 * root + 2, posx, posy + size[1]);
+        this->UpdateViewPositions(spacing, 2 * root + 1, posx, posy);
+        this->UpdateViewPositions(spacing, 2 * root + 2, posx, posy + size[1] + spacing);
       }
     }
   }
 
-  void ResizeCell(int root, const vtkVector2i& new_size)
+  void ResizeCell(int spacing, int root, const vtkVector2i& new_size)
   {
     if (root >= static_cast<int>(this->KDTree.size()))
     {
@@ -167,12 +219,17 @@ public:
     else
     {
       // distribute size by fraction.
+      const int lspacing = spacing / 2;
+      const int rspacing = spacing - lspacing;
+
       vtkVector2i size_1(new_size), size_2(new_size);
       const int index = cell.Direction == vtkSMViewLayoutProxy::HORIZONTAL ? 0 : 1;
-      size_1[index] = std::ceil(new_size[index] * cell.SplitFraction);
-      size_2[index] = new_size[index] - size_1[index];
-      this->ResizeCell(vtkSMViewLayoutProxy::GetFirstChild(root), size_1);
-      this->ResizeCell(vtkSMViewLayoutProxy::GetSecondChild(root), size_2);
+      const auto delta0 = std::ceil(new_size[index] * cell.SplitFraction);
+      const auto delta1 = new_size[index] - delta0;
+      size_1[index] = delta0 - lspacing;
+      size_2[index] = delta1 - rspacing;
+      this->ResizeCell(spacing, vtkSMViewLayoutProxy::GetFirstChild(root), size_1);
+      this->ResizeCell(spacing, vtkSMViewLayoutProxy::GetSecondChild(root), size_2);
     }
   }
 
@@ -237,13 +294,10 @@ vtkStandardNewMacro(vtkSMViewLayoutProxy);
 //----------------------------------------------------------------------------
 vtkSMViewLayoutProxy::vtkSMViewLayoutProxy()
   : MaximizedCell(-1)
-  , SeparatorWidth(0)
   , Internals(new vtkInternals())
   , BlockUpdate(false)
   , BlockUpdateViewPositions(false)
 {
-  this->SeparatorColor[0] = this->SeparatorColor[1] = this->SeparatorColor[2] = 0;
-
   this->Internals->Observer =
     vtkMakeMemberFunctionCommand(*this, &vtkSMViewLayoutProxy::UpdateViewPositions);
 
@@ -259,13 +313,6 @@ vtkSMViewLayoutProxy::~vtkSMViewLayoutProxy()
   this->Internals->Observer = NULL;
   delete this->Internals;
   this->Internals = NULL;
-}
-
-//----------------------------------------------------------------------------
-void vtkSMViewLayoutProxy::SetSeparatorColor(unsigned char r, unsigned char g, unsigned char b)
-{
-  double rgb[3] = { r / 255.0, g / 255.0, b / 255.0 };
-  this->SetSeparatorColor(rgb);
 }
 
 //----------------------------------------------------------------------------
@@ -323,7 +370,7 @@ void vtkSMViewLayoutProxy::LoadState(const vtkSMMessage* message, vtkSMProxyLoca
 
     if (locator && vtkSMProxyProperty::CanCreateProxy())
     {
-      cell.ViewProxy = locator->LocateProxy(value.proxy_global_id(0));
+      cell.ViewProxy = vtkSMViewProxy::SafeDownCast(locator->LocateProxy(value.proxy_global_id(0)));
     }
     else
     {
@@ -375,8 +422,25 @@ void vtkSMViewLayoutProxy::UpdateState()
 
   this->PushState(this->State);
   this->InvokeEvent(vtkCommand::ConfigureEvent);
-
   this->UpdateViewPositions();
+
+  vtkClientServerStream stream;
+  stream << vtkClientServerStream::Invoke << VTKOBJECT(this) << "RemoveAllViews"
+         << vtkClientServerStream::End;
+
+  for (vtkInternals::KDTreeType::iterator iter = this->Internals->KDTree.begin();
+       iter != this->Internals->KDTree.end(); ++iter)
+  {
+    if (iter->ViewProxy != nullptr &&
+      vtkSMComparativeViewProxy::SafeDownCast(iter->ViewProxy) == nullptr)
+    {
+      stream << vtkClientServerStream::Invoke << VTKOBJECT(this) << "AddView"
+             << VTKOBJECT(iter->ViewProxy)
+             << vtkClientServerStream::InsertArray(iter->Viewport.GetData(), 4)
+             << vtkClientServerStream::End;
+    }
+  }
+  this->ExecuteStream(stream);
 }
 
 //----------------------------------------------------------------------------
@@ -465,7 +529,7 @@ int vtkSMViewLayoutProxy::LoadXMLState(vtkPVXMLElement* element, vtkSMProxyLocat
     cell.SplitFraction = fraction;
     if (viewid)
     {
-      cell.ViewProxy = locator->LocateProxy(viewid);
+      cell.ViewProxy = vtkSMViewProxy::SafeDownCast(locator->LocateProxy(viewid));
     }
     else
     {
@@ -480,6 +544,7 @@ int vtkSMViewLayoutProxy::LoadXMLState(vtkPVXMLElement* element, vtkSMProxyLocat
   }
 
   this->UpdateViewPositions();
+  this->UpdateState();
   return 1;
 }
 
@@ -570,12 +635,12 @@ bool vtkSMViewLayoutProxy::AssignView(int location, vtkSMViewProxy* view)
     return false;
   }
 
-  SM_SCOPED_TRACE(CallMethod)
-    .arg(this)
-    .arg("AssignView")
-    .arg(location)
-    .arg(view)
-    .arg("assign view to a particular cell in the layout");
+  SM_SCOPED_TRACE(CallFunction)
+    .arg("AssignViewToLayout")
+    .arg("view", view)
+    .arg("layout", this)
+    .arg("hint", location)
+    .arg("comment", "assign view to a particular cell in the layout");
 
   if (cell.ViewProxy == view)
   {
@@ -923,7 +988,11 @@ void vtkSMViewLayoutProxy::UpdateViewPositions()
 
   if (this->MaximizedCell == -1)
   {
-    this->Internals->UpdateViewPositions();
+    auto vlayout = vtkViewLayout::SafeDownCast(this->GetClientSideObject());
+    assert(vlayout);
+
+    this->Internals->UpdateViewPositions(vlayout->GetSeparatorWidth());
+    this->Internals->UpdateViewports();
   }
   else
   {
@@ -936,6 +1005,7 @@ void vtkSMViewLayoutProxy::UpdateViewPositions()
         int pos[2] = { 0, 0 };
         vtkSMPropertyHelper(iter->ViewProxy, "ViewPosition").Set(pos, 2);
         iter->ViewProxy->UpdateProperty("ViewPosition");
+        iter->Viewport = vtkVector4d(0, 0, 1, 1);
       }
     }
   }
@@ -980,7 +1050,9 @@ void vtkSMViewLayoutProxy::SetSize(const int size[2])
   const bool prev = this->SetBlockUpdateViewPositions(true);
 
   // recursively distribute space available among views.
-  this->Internals->ResizeCell(0, vtkVector2i(size));
+  auto vlayout = vtkViewLayout::SafeDownCast(this->GetClientSideObject());
+  assert(vlayout);
+  this->Internals->ResizeCell(vlayout->GetSeparatorWidth(), 0, vtkVector2i(size));
   this->SetBlockUpdateViewPositions(prev);
 
   this->UpdateViewPositions();
@@ -990,25 +1062,10 @@ void vtkSMViewLayoutProxy::SetSize(const int size[2])
 void vtkSMViewLayoutProxy::ShowViewsOnTileDisplay()
 {
   this->CreateVTKObjects();
-
-  vtkSMProxy* proxy = this->GetSessionProxyManager()->NewProxy("misc", "InternalViewLayoutHelper");
-  proxy->UpdateVTKObjects();
-
   vtkClientServerStream stream;
-  stream << vtkClientServerStream::Invoke << VTKOBJECT(proxy) << "ResetTileDisplay"
+  stream << vtkClientServerStream::Invoke << VTKOBJECT(this) << "ShowOnTileDisplay"
          << vtkClientServerStream::End;
-  for (vtkInternals::KDTreeType::iterator iter = this->Internals->KDTree.begin();
-       iter != this->Internals->KDTree.end(); ++iter)
-  {
-    if (iter->ViewProxy.GetPointer() != NULL)
-    {
-      stream << vtkClientServerStream::Invoke << VTKOBJECT(proxy) << "ShowOnTileDisplay"
-             << static_cast<unsigned int>(iter->ViewProxy->GetGlobalID())
-             << vtkClientServerStream::End;
-    }
-  }
-  this->GetSession()->ExecuteStream(proxy->GetLocation(), stream, false);
-  proxy->Delete();
+  this->ExecuteStream(stream);
 }
 
 //----------------------------------------------------------------------------
@@ -1069,11 +1126,18 @@ vtkImageData* vtkSMViewLayoutProxy::CaptureWindow(int magX, int magY)
     return NULL;
   }
 
-  unsigned char separatorColor[3] = { static_cast<unsigned char>(255 * this->SeparatorColor[0]),
-    static_cast<unsigned char>(255 * this->SeparatorColor[1]),
-    static_cast<unsigned char>(255 * this->SeparatorColor[2]) };
-  vtkSmartPointer<vtkImageData> img =
-    vtkSMUtilities::MergeImages(images, this->SeparatorWidth, separatorColor);
+  auto vlayout = vtkViewLayout::SafeDownCast(this->GetClientSideObject());
+  assert(vlayout);
+
+  double dcolor[3];
+  vlayout->GetSeparatorColor(dcolor);
+
+  unsigned char uccolor[3] = { static_cast<unsigned char>(255 * dcolor[0]),
+    static_cast<unsigned char>(255 * dcolor[1]), static_cast<unsigned char>(255 * dcolor[2]) };
+
+  // note, we pass separator width as 0 to MergeImages since the individual
+  // images already have spacing/separator width taken into consideration.
+  auto img = vtkSMUtilities::MergeImages(images, 0, uccolor);
   if (img)
   {
     img->Register(this);
@@ -1130,10 +1194,18 @@ std::vector<vtkSMViewProxy*> vtkSMViewLayoutProxy::GetViews()
 }
 
 //----------------------------------------------------------------------------
+void vtkSMViewLayoutProxy::SaveAsPNG(int rank, const char* fname)
+{
+  vtkClientServerStream stream;
+  stream << vtkClientServerStream::Invoke << VTKOBJECT(this) << "SaveAsPNG" << rank << fname
+         << vtkClientServerStream::End;
+  this->ExecuteStream(stream, false, vtkPVSession::RENDER_SERVER);
+  // ensure that the server is done saving the image before proceeding.
+  this->GetLastResult(vtkPVSession::RENDER_SERVER_ROOT);
+}
+
+//----------------------------------------------------------------------------
 void vtkSMViewLayoutProxy::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  os << indent << "SeparatorColor: " << this->SeparatorColor[0] << ", " << this->SeparatorColor[1]
-     << ", " << this->SeparatorColor[2] << endl;
-  os << indent << "SeparatorWidth: " << this->SeparatorWidth << endl;
 }

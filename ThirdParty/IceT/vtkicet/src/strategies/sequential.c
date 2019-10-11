@@ -41,9 +41,9 @@ IceTImage icetSequentialCompose(void)
     image_collect = icetIsEnabled(ICET_COLLECT_IMAGES);
 
     if (!image_collect && (num_tiles > 1)) {
-        icetRaiseWarning("Sequential strategy must collect images with more"
-                         " than one tile.",
-                         ICET_INVALID_OPERATION);
+        icetRaiseWarning(ICET_INVALID_OPERATION,
+                         "Sequential strategy must collect images with more"
+                         " than one tile.");
         image_collect = ICET_TRUE;
     }
 

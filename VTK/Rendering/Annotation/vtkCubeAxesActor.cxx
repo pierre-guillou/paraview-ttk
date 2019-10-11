@@ -577,7 +577,7 @@ int vtkCubeAxesActor::RenderOverlay(vtkViewport *viewport)
 }
 
 // --------------------------------------------------------------------------
-int vtkCubeAxesActor::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkCubeAxesActor::HasTranslucentPolygonalGeometry()
 {
   if ((this->NumberOfAxesX > 0 &&
        this->XAxes[0]->HasTranslucentPolygonalGeometry()) ||
@@ -1372,13 +1372,13 @@ int vtkCubeAxesActor::Digits(double min, double max )
   long digitsPastDecimal;
 
   double range = max - min;
-  double pow10 = log10(range);
-  if (!vtkMath::IsFinite(pow10))
+  if (max == min)
   {
     digitsPastDecimal = 0;
   }
   else
   {
+    double pow10 = log10(range);
     long ipow10 = static_cast<long>(floor(pow10));
     digitsPastDecimal = -ipow10;
 
@@ -2268,8 +2268,14 @@ void vtkCubeAxesActor::BuildLabels(vtkAxisActor *axes[NUMBER_OF_ALIGNED_AXIS])
   if (customizedLabels == nullptr)
   {
     // Convert deltaMajor from world coord to range scale
-    deltaMajor = extents * deltaMajor/axisLength;
-
+    if (axisLength != 0.0)
+    {
+      deltaMajor = extents * deltaMajor/axisLength;
+    }
+    else
+    {
+      deltaMajor = extents;
+    }
     double scaleFactor = 1.;
     if (lastPow != 0)
     {
@@ -2781,21 +2787,27 @@ int vtkCubeAxesActor::RenderGeometry(
     this->DetermineRenderAxes(viewport);
   }
 
+  // pass keys to sub props
+  vtkInformation *propKeys = this->GetPropertyKeys();
+
   // Render the axes
   for (i = 0; i < this->NumberOfAxesX; i++)
   {
+    this->XAxes[this->RenderAxesX[i]]->SetPropertyKeys(propKeys);
     renderedSomething +=
         (this->XAxes[this->RenderAxesX[i]]->*renderMethod)(viewport);
   }
 
   for (i = 0; i < this->NumberOfAxesY; i++)
   {
+    this->YAxes[this->RenderAxesY[i]]->SetPropertyKeys(propKeys);
     renderedSomething +=
         (this->YAxes[this->RenderAxesY[i]]->*renderMethod)(viewport);
   }
 
   for (i = 0; i < this->NumberOfAxesZ; i++)
   {
+    this->ZAxes[this->RenderAxesZ[i]]->SetPropertyKeys(propKeys);
     renderedSomething +=
         (this->ZAxes[this->RenderAxesZ[i]]->*renderMethod)(viewport);
   }

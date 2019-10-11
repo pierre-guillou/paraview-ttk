@@ -14,12 +14,6 @@ PURPOSE.  See the above copyright notice for more information.
 =========================================================================*/
 #include "vtkPVConfig.h"
 
-#ifdef PARAVIEW_ENABLE_PYTHON
-extern "C" {
-void vtkPVInitializePythonModules();
-}
-#endif
-
 #include "vtkInitializationHelper.h"
 #include "vtkMultiProcessController.h"
 #include "vtkNetworkAccessManager.h"
@@ -27,9 +21,13 @@ void vtkPVInitializePythonModules();
 #include "vtkPVSessionServer.h"
 #include "vtkProcessModule.h"
 
-#ifndef BUILD_SHARED_LIBS
-#include "pvStaticPluginsInit.h"
+#ifdef PARAVIEW_ENABLE_PYTHON
+extern "C" {
+void vtkPVInitializePythonModules();
+}
 #endif
+
+#include "paraview_plugins.h"
 
 static bool RealMain(int argc, char* argv[], vtkProcessModule::ProcessTypes type)
 {
@@ -54,10 +52,8 @@ static bool RealMain(int argc, char* argv[], vtkProcessModule::ProcessTypes type
   vtkPVInitializePythonModules();
 #endif
 
-#ifndef BUILD_SHARED_LIBS
   // load static plugins
-  paraview_static_plugins_init();
-#endif
+  paraview_plugins_initialize();
 
   vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
   vtkMultiProcessController* controller = pm->GetGlobalController();

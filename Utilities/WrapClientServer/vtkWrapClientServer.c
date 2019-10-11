@@ -37,11 +37,14 @@ static int class_is_wrapped(const char* classname)
     if (entry)
     {
       /* only allow non-excluded vtkObjects as args */
-      if (vtkParseHierarchy_GetProperty(entry, "WRAP_EXCLUDE_PYTHON") ||
+      if (vtkParseHierarchy_GetProperty(entry, "WRAPEXCLUDE") ||
         !vtkParseHierarchy_IsTypeOf(hierarchyInfo, entry, "vtkObjectBase"))
       {
         return 0;
       }
+
+      /* the primary class is the one the header is named after */
+      return vtkParseHierarchy_IsPrimary(entry);
     }
   }
 
@@ -572,7 +575,7 @@ typedef struct _NewClassInfo
 int notWrappable(FunctionInfo* curFunction)
 {
   return (curFunction->IsOperator || curFunction->ArrayFailure || !curFunction->IsPublic ||
-    !curFunction->Name || curFunction->Template);
+    !curFunction->Name || curFunction->Template || curFunction->IsExcluded);
 }
 
 //--------------------------------------------------------------------------nix
@@ -1196,7 +1199,7 @@ int main(int argc, char* argv[])
   size_t nspos;
   FILE* fp;
   NewClassInfo* classData;
-  int i;
+  int i, j;
 
   /* pre-define a macro to identify the language */
   vtkParse_DefineMacro("__VTK_WRAP_CLIENTSERVER__", 0);
@@ -1208,9 +1211,10 @@ int main(int argc, char* argv[])
   options = vtkParse_GetCommandLineOptions();
 
   /* get the hierarchy info for accurate typing */
-  if (options->HierarchyFileName)
+  if (options->HierarchyFileNames)
   {
-    hierarchyInfo = vtkParseHierarchy_ReadFile(options->HierarchyFileName);
+    hierarchyInfo =
+      vtkParseHierarchy_ReadFiles(options->NumberOfHierarchyFileNames, options->HierarchyFileNames);
   }
 
   /* get the output file */
@@ -1292,8 +1296,19 @@ int main(int argc, char* argv[])
 
   for (i = 0; i < data->NumberOfSuperClasses; ++i)
   {
-    if (strchr(data->SuperClasses[i], '<'))
+    if (strncmp(data->SuperClasses[i], "vtk", 3) == 0 && strchr(data->SuperClasses[i], '<'))
     {
+      fprintf(fp, "// This automatically generated file contains only a stub,\n");
+      fprintf(fp, "// bacause the class %s is based on a templated VTK class.\n", data->Name);
+      fprintf(fp, "// Wrapping such classes is not currently supported.\n");
+      fprintf(fp, "// Here follows the list of detected superclasses "
+                  "(first offending one marked by !):\n");
+
+      for (j = 0; j < data->NumberOfSuperClasses; ++j)
+      {
+        fprintf(fp, "// %c %s\n", i == j ? '!' : ' ', data->SuperClasses[j]);
+      }
+
       output_DummyInitFunction(fp, fileInfo->FileName);
       fclose(fp);
       exit(0);

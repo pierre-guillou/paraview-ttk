@@ -1,15 +1,16 @@
-INCLUDE(ParaViewTestingMacros)
+set(module_tests
+  AnalyzeReaderWriterPlugin.xml
+  NiftiReaderWriterPlugin.xml)
 
-set(MODULE_TESTS
-  ${CMAKE_CURRENT_SOURCE_DIR}/AnalyzeReaderWriterPlugin.xml
-)
+if (PARAVIEW_BUILD_QT_GUI AND BUILD_SHARED_LIBS)
+  set(_paraview_add_tests_default_test_data_target ParaViewData)
+  ExternalData_Expand_Arguments(ParaViewData _
+    "DATA{${CMAKE_CURRENT_SOURCE_DIR}/Data/ANALYZE/,REGEX:.*}"
+    "DATA{${CMAKE_CURRENT_SOURCE_DIR}/Data/minimal.nii}")
 
-IF (PARAVIEW_BUILD_QT_GUI AND BUILD_SHARED_LIBS)
-
-  add_client_tests("pv"
-    LOAD_PLUGIN "AnalyzeNIfTIIO"
-    BASELINE_DIR ${PARAVIEW_TEST_BASELINE_DIR}
-    TEST_SCRIPTS ${MODULE_TESTS}
-  )
-
-ENDIF ()
+  paraview_add_client_tests(
+    LOAD_PLUGIN   "AnalyzeNIfTIReaderWriter"
+    BASELINE_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Data/Baseline"
+    TEST_DATA_TARGET ParaViewData
+    TEST_SCRIPTS  ${module_tests})
+endif ()

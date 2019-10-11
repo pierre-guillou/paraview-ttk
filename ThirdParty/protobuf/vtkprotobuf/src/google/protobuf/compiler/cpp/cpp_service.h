@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -35,18 +35,24 @@
 #ifndef GOOGLE_PROTOBUF_COMPILER_CPP_SERVICE_H__
 #define GOOGLE_PROTOBUF_COMPILER_CPP_SERVICE_H__
 
+#ifndef protobuf
+#define protobuf vtkprotobuf
+#endif
+
 #include <map>
 #include <string>
-#include <google/protobuf/stubs/common.h>
+#include <google/protobuf/compiler/cpp/cpp_options.h>
 #include <google/protobuf/descriptor.h>
 
 namespace google {
 namespace protobuf {
-  namespace io {
-    class Printer;             // printer.h
-  }
+namespace io {
+class Printer;  // printer.h
 }
+}  // namespace protobuf
+}  // namespace google
 
+namespace google {
 namespace protobuf {
 namespace compiler {
 namespace cpp {
@@ -55,7 +61,8 @@ class ServiceGenerator {
  public:
   // See generator.cc for the meaning of dllexport_decl.
   explicit ServiceGenerator(const ServiceDescriptor* descriptor,
-                            const string& dllexport_decl);
+                            const std::map<std::string, std::string>& vars,
+                            const Options& options);
   ~ServiceGenerator();
 
   // Header stuff.
@@ -66,11 +73,8 @@ class ServiceGenerator {
 
   // Source file stuff.
 
-  // Generate code that initializes the global variable storing the service's
-  // descriptor.
-  void GenerateDescriptorInitializer(io::Printer* printer, int index);
-
-  // Generate implementations of everything declared by GenerateDeclarations().
+  // Generate implementations of everything declared by
+  // GenerateDeclarations().
   void GenerateImplementation(io::Printer* printer);
 
  private:
@@ -105,14 +109,18 @@ class ServiceGenerator {
   void GenerateStubMethods(io::Printer* printer);
 
   const ServiceDescriptor* descriptor_;
-  map<string, string> vars_;
+  std::map<std::string, std::string> vars_;
+  const Options& options_;
 
+  int index_in_metadata_;
+
+  friend class FileGenerator;
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ServiceGenerator);
 };
 
 }  // namespace cpp
 }  // namespace compiler
 }  // namespace protobuf
-
 }  // namespace google
+
 #endif  // GOOGLE_PROTOBUF_COMPILER_CPP_SERVICE_H__

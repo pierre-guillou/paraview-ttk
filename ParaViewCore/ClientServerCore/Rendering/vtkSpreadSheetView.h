@@ -27,6 +27,8 @@
 #include "vtkPVClientServerCoreRenderingModule.h" //needed for exports
 #include "vtkPVView.h"
 
+#include <string> // for std::string
+
 class vtkCSVExporter;
 class vtkClientServerMoveData;
 class vtkMarkSelectedRows;
@@ -41,6 +43,15 @@ public:
   static vtkSpreadSheetView* New();
   vtkTypeMacro(vtkSpreadSheetView, vtkPVView);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  //@{
+  /**
+   * A unique identifier for this vtkSpreadSheetView across all processes.
+   *
+   */
+  vtkSetMacro(Identifier, vtkTypeUInt32);
+  vtkGetMacro(Identifier, vtkTypeUInt32);
+  //@}
 
   /**
    * Triggers a high-resolution render.
@@ -99,7 +110,7 @@ public:
   void ClearHiddenColumnsByName();
 
   void HideColumnByLabel(const char* columnLabel);
-  bool IsColumnHiddenByLabel(const char* columnLabel);
+  bool IsColumnHiddenByLabel(const std::string& columnLabel);
   void ClearHiddenColumnsByLabel();
   //@}
 
@@ -107,26 +118,26 @@ public:
    * Get the number of columns.
    * \note CallOnClient
    */
-  vtkIdType GetNumberOfColumns();
+  virtual vtkIdType GetNumberOfColumns();
 
   /**
    * Get the number of rows.
    * \note CallOnClient
    */
-  vtkIdType GetNumberOfRows();
+  virtual vtkIdType GetNumberOfRows();
 
   /**
    * Returns the name for the column.
    * \note CallOnClient
    */
-  const char* GetColumnName(vtkIdType index);
+  virtual const char* GetColumnName(vtkIdType index);
 
   //@{
   /**
    * Returns true if the column is internal.
    */
-  bool IsColumnInternal(vtkIdType index);
-  bool IsColumnInternal(const char* columnName);
+  virtual bool IsColumnInternal(vtkIdType index);
+  virtual bool IsColumnInternal(const char* columnName);
   //@}
 
   //@{
@@ -139,14 +150,14 @@ public:
    *
    * \note CallOnClient
    */
-  const char* GetColumnLabel(vtkIdType index);
-  const char* GetColumnLabel(const char* columnName);
+  virtual std::string GetColumnLabel(vtkIdType index);
+  virtual std::string GetColumnLabel(const char* columnName);
   //@}
 
   /**
    * Returns the visibility for the column at the given index.
    */
-  bool GetColumnVisibility(vtkIdType index);
+  virtual bool GetColumnVisibility(vtkIdType index);
 
   //@{
   /**
@@ -155,19 +166,19 @@ public:
    * on the CLIENT process for now.
    * \note CallOnClient
    */
-  vtkVariant GetValue(vtkIdType row, vtkIdType col);
-  vtkVariant GetValueByName(vtkIdType row, const char* columnName);
+  virtual vtkVariant GetValue(vtkIdType row, vtkIdType col);
+  virtual vtkVariant GetValueByName(vtkIdType row, const char* columnName);
   //@}
 
   /**
    * Returns true if the row is selected.
    */
-  bool IsRowSelected(vtkIdType row);
+  virtual bool IsRowSelected(vtkIdType row);
 
   /**
    * Returns true is the data for the particular row is locally available.
    */
-  bool IsAvailable(vtkIdType row);
+  virtual bool IsAvailable(vtkIdType row);
 
   //***************************************************************************
   // Forwarded to vtkSortedTableStreamer.
@@ -177,12 +188,6 @@ public:
    */
   void SetColumnNameToSort(const char*);
   void SetColumnNameToSort() { this->SetColumnNameToSort(NULL); }
-
-  /**
-   * Get/Set the component to sort with. Use -1 (default) for magnitude.
-   * \note CallOnAllProcesses
-   */
-  void SetComponentToSort(int val);
 
   /**
    * Get/Set whether the sort order must be Max to Min rather than Min to Max.
@@ -199,7 +204,7 @@ public:
   /**
    * Export the contents of this view using the exporter.
    */
-  bool Export(vtkCSVExporter* exporter);
+  virtual bool Export(vtkCSVExporter* exporter);
 
   /**
    * Allow user to clear the cache if he needs to.
@@ -223,7 +228,7 @@ protected:
 
   void OnRepresentationUpdated();
 
-  vtkTable* FetchBlock(vtkIdType blockindex, bool skipCache = false);
+  vtkTable* FetchBlock(vtkIdType blockindex);
 
   bool ShowExtractedSelection;
   bool GenerateCellConnectivity;
@@ -246,9 +251,11 @@ private:
   friend class vtkInternals;
   vtkInternals* Internals;
   bool SomethingUpdated;
-  unsigned long RMICallbackTag;
+  unsigned long CRMICallbackTag;
+  unsigned long PRMICallbackTag;
 
   int FieldAssociation;
+  vtkTypeUInt32 Identifier;
 };
 
 #endif

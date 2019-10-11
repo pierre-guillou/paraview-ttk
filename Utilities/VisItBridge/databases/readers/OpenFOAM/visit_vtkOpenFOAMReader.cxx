@@ -435,17 +435,6 @@ private:
   typedef vtkStdString Superclass;
 
 public:
-  vtkFoamError() :
-    vtkStdString()
-  {
-  }
-  vtkFoamError(const vtkFoamError& e) :
-    vtkStdString(e)
-  {
-  }
-  ~vtkFoamError()
-  {
-  }
   // a super-easy way to make use of operator<<()'s defined in
   // std::ostringstream class
   template <class T> vtkFoamError& operator<<(const T& t)
@@ -524,9 +513,16 @@ protected:
       case IDENTIFIER:
         this->String = new vtkStdString(*value.String);
         break;
-        // required to suppress the 'enumeration value not handled' warning by
-        // g++ when compiled with -Wall
-      default:
+      case UNDEFINED:
+      case STRINGLIST:
+      case LABELLIST:
+      case SCALARLIST:
+      case VECTORLIST:
+      case LABELLISTLIST:
+      case ENTRYVALUELIST:
+      case EMPTYLIST:
+      case DICTIONARY:
+      case TOKEN_ERROR:
         break;
       }
   }
@@ -673,9 +669,15 @@ public:
       case IDENTIFIER:
         str << *value.String;
         break;
-        // required to suppress the 'enumeration value not handled' warning by
-        // g++ when compiled with -Wall
-      default:
+      case UNDEFINED:
+      case STRINGLIST:
+      case LABELLIST:
+      case SCALARLIST:
+      case VECTORLIST:
+      case LABELLISTLIST:
+      case ENTRYVALUELIST:
+      case EMPTYLIST:
+      case DICTIONARY:
         break;
       }
     return str;
@@ -1087,7 +1089,7 @@ public:
             isExpanded = true;
             break;
             }
-          // fall through
+          VTK_FALLTHROUGH;
         default:
           wasPathSeparator = (c == '/' || c == '\\');
           expandedPath += c;
@@ -1182,7 +1184,7 @@ public:
           this->PutBack(c);
           return true;
           }
-        // fall through
+        VTK_FALLTHROUGH;
       case '.':
         // scalar token
         if (c == '.' && charI < MAXLEN)
@@ -3128,8 +3130,13 @@ vtkFoamEntryValue::vtkFoamEntryValue(
       break;
     case EMPTYLIST:
       break;
-      // required to suppress the 'enumeration value not handled' warning by
-      // g++ when compiled with -Wall
+    case UNDEFINED:
+    case PUNCTUATION:
+    case LABEL:
+    case SCALAR:
+    case STRING:
+    case IDENTIFIER:
+    case TOKEN_ERROR:
     default:
       break;
     }
@@ -3160,8 +3167,14 @@ void vtkFoamEntryValue::Clear()
       case DICTIONARY:
         delete this->DictPtr;
         break;
-        // required to suppress the 'enumeration value not handled' warning by
-        // g++ when compiled with -Wall
+      case UNDEFINED:
+      case PUNCTUATION:
+      case LABEL:
+      case SCALAR:
+      case STRING:
+      case IDENTIFIER:
+      case TOKEN_ERROR:
+      case EMPTYLIST:
       default:
         break;
       }

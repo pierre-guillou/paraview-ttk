@@ -103,8 +103,8 @@ static void icetCollectImage(IceTImage imageFragment,
                 IceTInt node;
                 for (node = tile_groups[tile_displayed];
                      node < tile_groups[tile_displayed+1]; node++) {
-                    icetRaiseDebug1("Getting final color fragment from %d",
-                                    node);
+                    icetRaiseDebug("Getting final color fragment from %d",
+                                   node);
                     icetCommRecv(cb, pixel_size*displayed_fragment_size,
                                  ICET_BYTE, node, COLOR_DATA);
                     cb += pixel_size*displayed_fragment_size;
@@ -116,8 +116,8 @@ static void icetCollectImage(IceTImage imageFragment,
                 IceTInt node;
                 for (node = tile_groups[tile_displayed];
                      node < tile_groups[tile_displayed+1]; node++) {
-                    icetRaiseDebug1("Getting final depth fragment from %d",
-                                    node);
+                    icetRaiseDebug("Getting final depth fragment from %d",
+                                   node);
                     icetCommRecv(db, pixel_size*displayed_fragment_size,
                                  ICET_INT, node, DEPTH_DATA);
                     db += pixel_size*displayed_fragment_size;
@@ -242,8 +242,8 @@ IceTImage icetSplitCompose(void)
         }
 #ifdef DEBUG
         if (min_id < 0) {
-            icetRaiseError("Could not find candidate to add tile.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Could not find candidate to add tile.");
         }
 #endif
         tile_groups[min_id+1]++;
@@ -266,8 +266,7 @@ IceTImage icetSplitCompose(void)
         }
 #ifdef DEBUG
         if (max_id < 0) {
-            icetRaiseError("Could not find candidate to remove tile.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL, "Could not find candidate to remove tile.");
         }
 #endif
         tile_groups[max_id+1]--;
@@ -287,7 +286,7 @@ IceTImage icetSplitCompose(void)
     for (my_tile = 0; rank >= tile_groups[my_tile+1]; my_tile++) {
       /* Nothing to do.  Just drop out of loop when my_tile is correct. */
     }
-    icetRaiseDebug1("My tile is %d", my_tile);
+    icetRaiseDebug("My tile is %d", my_tile);
 
     group_size = tile_groups[my_tile+1] - tile_groups[my_tile];
     my_width = tile_viewports[4*my_tile + 2];
@@ -315,7 +314,7 @@ IceTImage icetSplitCompose(void)
                                 fragmentSparseImageSize*tile_contribs[my_tile]);
     for (image = 0, node = 0; image < tile_contribs[my_tile]; node++) {
         if (all_contained_tiles_masks[node*num_tiles + my_tile]) {
-            icetRaiseDebug1("Setting up receive from node %d", node);
+            icetRaiseDebug("Setting up receive from node %d", node);
             incomingBuffers[image] = nextInBuf;
             requests[image] =
                 icetCommIrecv(incomingBuffers[image],
@@ -333,7 +332,7 @@ IceTImage icetSplitCompose(void)
 
         tile = contained_tiles_list[image];
         icetGetTileImage(tile, fullImage);
-        icetRaiseDebug1("Rendered image for tile %d", tile);
+        icetRaiseDebug("Rendered image for tile %d", tile);
         offset = 0;
         sending_frag_size = FRAG_SIZE(icetImageGetNumPixels(fullImage),
                                       tile_groups[tile+1]-tile_groups[tile]);
@@ -345,9 +344,9 @@ IceTImage icetSplitCompose(void)
             truncated_size = MIN(sending_frag_size,
                                  icetImageGetNumPixels(fullImage) - offset);
 
-            icetRaiseDebug2("Sending tile %d to node %d", tile, node);
-            icetRaiseDebug2("Pixels %d to %d",
-                            (int)offset, (int)truncated_size-1);
+            icetRaiseDebug("Sending tile %d to node %d", tile, node);
+            icetRaiseDebug("Pixels %d to %d",
+                           (int)offset, (int)truncated_size-1);
             icetCompressSubImage(fullImage, offset,
                                  truncated_size, outgoing);
             icetSparseImagePackageForSend(outgoing,
@@ -365,11 +364,11 @@ IceTImage icetSplitCompose(void)
         idx = icetCommWaitany(tile_contribs[my_tile], requests);
         incoming = icetSparseImageUnpackageFromReceive(incomingBuffers[idx]);
         if (first_incoming) {
-            icetRaiseDebug1("Got first image (%d).", idx);
+            icetRaiseDebug("Got first image (%d).", idx);
             icetDecompressImage(incoming, imageFragment);
             first_incoming = 0;
         } else {
-            icetRaiseDebug1("Got subsequent image (%d).", idx);
+            icetRaiseDebug("Got subsequent image (%d).", idx);
             icetCompressedComposite(imageFragment, incoming, 1);
         }
     }

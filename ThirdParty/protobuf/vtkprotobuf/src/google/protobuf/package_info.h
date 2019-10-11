@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -36,8 +36,6 @@
 // It is not compiled into anything, but it may be read by an automated
 // documentation generator.
 
-namespace google {
-
 // Core components of the Protocol Buffers runtime library.
 //
 // The files in this package represent the core of the Protocol Buffer
@@ -60,5 +58,9 @@ namespace google {
 // The implementation does contain some "const" methods which actually modify
 // the object behind the scenes -- e.g., to cache results -- but in these cases
 // mutex locking is used to make the access thread-safe.
-namespace protobuf {}
+namespace google {
+namespace protobuf {
+// TODO(gerbens) remove this comment, we need it to prevent clang-format
+// from combining the brackets. Which would mess with extract script
+}  // namespace protobuf
 }  // namespace google

@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -46,6 +46,8 @@
 
 #include <vector>
 #include <map>
+#include <fstream>
+#include <vtkUnstructuredGrid.h>
 
 #include <avtSTSDFileFormat.h>
 
@@ -97,6 +99,14 @@ protected:
     std::map<int,int>      uniqMatIds;
 
     virtual void           PopulateDatabaseMetaData(avtDatabaseMetaData *);
+    
+private:
+    bool ReadLine(ifstream&, char *);
+    void ParseLine(vtkIdType *, char *, int, int);
+    int CheckBuildable(const vtkIdType *, int);
+    int CheckBuildable(const vtkIdType *, int, int);
+    int ParseField(char *, int);
+
 };
 
 

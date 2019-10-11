@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QtDebug>
 
 #include <algorithm>
+#include <cassert>
 
 //=============================================================================
 namespace rfm
@@ -144,10 +145,18 @@ void pqRecentFilesMenu::buildMenu()
     QString key;
     if (this->SortByServers)
     {
-      pqServerResource hostResource = (resource.scheme() == "session")
-        ? resource.sessionServer().schemeHostsPorts()
-        : resource.schemeHostsPorts();
-      key = hostResource.toURI();
+      pqServerConfiguration config = resource.configuration();
+      if (config.isNameDefault())
+      {
+        pqServerResource hostResource = (resource.scheme() == "session")
+          ? resource.sessionServer().schemeHostsPorts()
+          : resource.schemeHostsPorts();
+        key = hostResource.toURI();
+      }
+      else
+      {
+        key = resource.configuration().URI();
+      }
     }
     clusteredResources[key].push_back(resource);
   }
@@ -158,7 +167,7 @@ void pqRecentFilesMenu::buildMenu()
   {
     if (!criter.key().isEmpty())
     {
-      Q_ASSERT(this->SortByServers == true);
+      assert(this->SortByServers == true);
 
       // Add a separator for the server.
       QAction* const action = new QAction(criter.key(), this->Menu);

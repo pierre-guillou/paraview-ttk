@@ -220,7 +220,7 @@ int TestOrderStatistics( int, char *[] )
       std::map<int,int> histoQuantiles;
       for ( vtkIdType r = 0; r < dataQuantArr->GetNumberOfTuples(); ++ r )
       {
-        int qIdx = static_cast<int>( vtkMath::Round( dataQuantArr->GetTuple1( r ) ) );
+        long qIdx = std::lround( dataQuantArr->GetTuple1( r ) );
         ++ histoQuantiles[qIdx];
       }
 
@@ -503,17 +503,17 @@ int TestOrderStatistics( int, char *[] )
     int frequVal = it->second;
     sum12 += frequVal;
 
-    const char* lowerVal = outputQuantiles2->GetValueByName( prevqIdx, "Text" ).ToString();
-    const char* upperVal = outputQuantiles2->GetValueByName( quantIdx, "Text" ).ToString();
-    char midVal = ( *lowerVal + *upperVal + 1 ) / 2 ;
+    std::string lowerVal = outputQuantiles2->GetValueByName( prevqIdx, "Text" ).ToString();
+    std::string upperVal = outputQuantiles2->GetValueByName( quantIdx, "Text" ).ToString();
+    char midVal = ( lowerVal[0] + upperVal[0] + 1 ) / 2 ;
     histo12Repr[quantIdx] = midVal;
 
     cout << "   interval "
          << quantIdx
          << ( quantIdx > 1 ? ": ]" : ": [" )
-         << *lowerVal
+         << lowerVal[0]
          << " - "
-         << *upperVal
+         << upperVal[0]
          << "] represented by "
          << midVal
          << " with frequency "

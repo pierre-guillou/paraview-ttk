@@ -42,7 +42,7 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMTransferFunctionPresets : public v
 public:
   static vtkSMTransferFunctionPresets* New();
   vtkTypeMacro(vtkSMTransferFunctionPresets, vtkSMObject);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Returns the number of presets current available (including builtin and
@@ -84,6 +84,11 @@ public:
    * Returns the name for a preset at the given index.
    */
   vtkStdString GetPresetName(unsigned int index);
+
+  /**
+   * Returns true if a present with given name exists.
+   */
+  bool HasPreset(const char* name);
 
   /**
    * Returns true if the preset has opacities i.e. values for a piecewise function.

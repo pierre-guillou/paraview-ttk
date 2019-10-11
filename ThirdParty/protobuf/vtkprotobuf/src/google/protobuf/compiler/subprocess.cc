@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -32,13 +32,18 @@
 
 #include <google/protobuf/compiler/subprocess.h>
 
+#include <algorithm>
+#include <cstring>
+#include <iostream>
+
 #ifndef _WIN32
 #include <errno.h>
-#include <sys/wait.h>
 #include <signal.h>
+#include <sys/select.h>
+#include <sys/wait.h>
 #endif
 
-#include <algorithm>
+#include <google/protobuf/stubs/logging.h>
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/stubs/substitute.h>
@@ -46,6 +51,16 @@
 namespace google {
 namespace protobuf {
 namespace compiler {
+
+namespace {
+char* portable_strdup(const char* s) {
+  char* ns = (char*)malloc(strlen(s) + 1);
+  if (ns != NULL) {
+    strcpy(ns, s);
+  }
+  return ns;
+}
+}  // namespace
 
 #ifdef _WIN32
 
@@ -58,7 +73,9 @@ static void CloseHandleOrDie(HANDLE handle) {
 
 Subprocess::Subprocess()
     : process_start_error_(ERROR_SUCCESS),
-      child_handle_(NULL), child_stdin_(NULL), child_stdout_(NULL) {}
+      child_handle_(NULL),
+      child_stdin_(NULL),
+      child_stdout_(NULL) {}
 
 Subprocess::~Subprocess() {
   if (child_stdin_ != NULL) {
@@ -69,7 +86,7 @@ Subprocess::~Subprocess() {
   }
 }
 
-void Subprocess::Start(const string& program, SearchMode search_mode) {
+void Subprocess::Start(const std::string& program, SearchMode search_mode) {
   // Create the pipes.
   HANDLE stdin_pipe_read;
   HANDLE stdin_pipe_write;
@@ -84,19 +101,19 @@ void Subprocess::Start(const string& program, SearchMode search_mode) {
   }
 
   // Make child side of the pipes inheritable.
-  if (!SetHandleInformation(stdin_pipe_read,
-                            HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT)) {
+  if (!SetHandleInformation(stdin_pipe_read, HANDLE_FLAG_INHERIT,
+                            HANDLE_FLAG_INHERIT)) {
     GOOGLE_LOG(FATAL) << "SetHandleInformation: "
                       << Win32ErrorMessage(GetLastError());
   }
-  if (!SetHandleInformation(stdout_pipe_write,
-                            HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT)) {
+  if (!SetHandleInformation(stdout_pipe_write, HANDLE_FLAG_INHERIT,
+                            HANDLE_FLAG_INHERIT)) {
     GOOGLE_LOG(FATAL) << "SetHandleInformation: "
                       << Win32ErrorMessage(GetLastError());
   }
 
   // Setup STARTUPINFO to redirect handles.
-  STARTUPINFO startup_info;
+  STARTUPINFOA startup_info;
   ZeroMemory(&startup_info, sizeof(startup_info));
   startup_info.cb = sizeof(startup_info);
   startup_info.dwFlags = STARTF_USESTDHANDLES;
@@ -105,26 +122,27 @@ void Subprocess::Start(const string& program, SearchMode search_mode) {
   startup_info.hStdError = GetStdHandle(STD_ERROR_HANDLE);
 
   if (startup_info.hStdError == INVALID_HANDLE_VALUE) {
-    GOOGLE_LOG(FATAL) << "GetStdHandle: "
-                      << Win32ErrorMessage(GetLastError());
+    GOOGLE_LOG(FATAL) << "GetStdHandle: " << Win32ErrorMessage(GetLastError());
   }
 
-  // CreateProcess() mutates its second parameter.  WTF?
-  char* name_copy = strdup(program.c_str());
+  // Invoking cmd.exe allows for '.bat' files from the path as well as '.exe'.
+  // Using a malloc'ed string because CreateProcess() can mutate its second
+  // parameter.
+  char* command_line =
+      portable_strdup(("cmd.exe /c \"" + program + "\"").c_str());
 
   // Create the process.
   PROCESS_INFORMATION process_info;
 
-  if (CreateProcess((search_mode == SEARCH_PATH) ? NULL : program.c_str(),
-                    (search_mode == SEARCH_PATH) ? name_copy : NULL,
-                    NULL,  // process security attributes
-                    NULL,  // thread security attributes
-                    TRUE,  // inherit handles?
-                    0,     // obscure creation flags
-                    NULL,  // environment (inherit from parent)
-                    NULL,  // current directory (inherit from parent)
-                    &startup_info,
-                    &process_info)) {
+  if (CreateProcessA((search_mode == SEARCH_PATH) ? NULL : program.c_str(),
+                     (search_mode == SEARCH_PATH) ? command_line : NULL,
+                     NULL,  // process security attributes
+                     NULL,  // thread security attributes
+                     TRUE,  // inherit handles?
+                     0,     // obscure creation flags
+                     NULL,  // environment (inherit from parent)
+                     NULL,  // current directory (inherit from parent)
+                     &startup_info, &process_info)) {
     child_handle_ = process_info.hProcess;
     CloseHandleOrDie(process_info.hThread);
     child_stdin_ = stdin_pipe_write;
@@ -137,11 +155,11 @@ void Subprocess::Start(const string& program, SearchMode search_mode) {
 
   CloseHandleOrDie(stdin_pipe_read);
   CloseHandleOrDie(stdout_pipe_write);
-  free(name_copy);
+  free(command_line);
 }
 
 bool Subprocess::Communicate(const Message& input, Message* output,
-                             string* error) {
+                             std::string* error) {
   if (process_start_error_ != ERROR_SUCCESS) {
     *error = Win32ErrorMessage(process_start_error_);
     return false;
@@ -149,8 +167,8 @@ bool Subprocess::Communicate(const Message& input, Message* output,
 
   GOOGLE_CHECK(child_handle_ != NULL) << "Must call Start() first.";
 
-  string input_data = input.SerializeAsString();
-  string output_data;
+  std::string input_data = input.SerializeAsString();
+  std::string output_data;
 
   int input_pos = 0;
 
@@ -168,7 +186,7 @@ bool Subprocess::Communicate(const Message& input, Message* output,
     DWORD wait_result =
         WaitForMultipleObjects(handle_count, handles, FALSE, INFINITE);
 
-    HANDLE signaled_handle;
+    HANDLE signaled_handle = NULL;
     if (wait_result >= WAIT_OBJECT_0 &&
         wait_result < WAIT_OBJECT_0 + handle_count) {
       signaled_handle = handles[wait_result - WAIT_OBJECT_0];
@@ -182,10 +200,8 @@ bool Subprocess::Communicate(const Message& input, Message* output,
 
     if (signaled_handle == child_stdin_) {
       DWORD n;
-      if (!WriteFile(child_stdin_,
-                     input_data.data() + input_pos,
-                     input_data.size() - input_pos,
-                     &n, NULL)) {
+      if (!WriteFile(child_stdin_, input_data.data() + input_pos,
+                     input_data.size() - input_pos, &n, NULL)) {
         // Child closed pipe.  Presumably it will report an error later.
         // Pretend we're done for now.
         input_pos = input_data.size();
@@ -239,8 +255,8 @@ bool Subprocess::Communicate(const Message& input, Message* output,
   child_handle_ = NULL;
 
   if (exit_code != 0) {
-    *error = strings::Substitute(
-        "Plugin failed with status code $0.", exit_code);
+    *error =
+        strings::Substitute("Plugin failed with status code $0.", exit_code);
     return false;
   }
 
@@ -252,18 +268,17 @@ bool Subprocess::Communicate(const Message& input, Message* output,
   return true;
 }
 
-string Subprocess::Win32ErrorMessage(DWORD error_code) {
+std::string Subprocess::Win32ErrorMessage(DWORD error_code) {
   char* message;
 
   // WTF?
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                FORMAT_MESSAGE_FROM_SYSTEM |
-                FORMAT_MESSAGE_IGNORE_INSERTS,
-                NULL, error_code, 0,
-                (LPTSTR)&message,  // NOT A BUG!
-                0, NULL);
+  FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+                     FORMAT_MESSAGE_IGNORE_INSERTS,
+                 NULL, error_code, 0,
+                 (LPSTR)&message,  // NOT A BUG!
+                 0, NULL);
 
-  string result = message;
+  std::string result = message;
   LocalFree(message);
   return result;
 }
@@ -284,7 +299,7 @@ Subprocess::~Subprocess() {
   }
 }
 
-void Subprocess::Start(const string& program, SearchMode search_mode) {
+void Subprocess::Start(const std::string& program, SearchMode search_mode) {
   // Note that we assume that there are no other threads, thus we don't have to
   // do crazy stuff like using socket pairs or avoiding libc locks.
 
@@ -292,10 +307,10 @@ void Subprocess::Start(const string& program, SearchMode search_mode) {
   int stdin_pipe[2];
   int stdout_pipe[2];
 
-  pipe(stdin_pipe);
-  pipe(stdout_pipe);
+  GOOGLE_CHECK(pipe(stdin_pipe) != -1);
+  GOOGLE_CHECK(pipe(stdout_pipe) != -1);
 
-  char* argv[2] = { strdup(program.c_str()), NULL };
+  char* argv[2] = {portable_strdup(program.c_str()), NULL};
 
   child_pid_ = fork();
   if (child_pid_ == -1) {
@@ -321,9 +336,11 @@ void Subprocess::Start(const string& program, SearchMode search_mode) {
 
     // Write directly to STDERR_FILENO to avoid stdio code paths that may do
     // stuff that is unsafe here.
-    write(STDERR_FILENO, argv[0], strlen(argv[0]));
+    int ignored;
+    ignored = write(STDERR_FILENO, argv[0], strlen(argv[0]));
     const char* message = ": program not found or is not executable\n";
-    write(STDERR_FILENO, message, strlen(message));
+    ignored = write(STDERR_FILENO, message, strlen(message));
+    (void)ignored;
 
     // Must use _exit() rather than exit() to avoid flushing output buffers
     // that will also be flushed by the parent.
@@ -340,8 +357,7 @@ void Subprocess::Start(const string& program, SearchMode search_mode) {
 }
 
 bool Subprocess::Communicate(const Message& input, Message* output,
-                             string* error) {
-
+                             std::string* error) {
   GOOGLE_CHECK_NE(child_stdin_, -1) << "Must call Start() first.";
 
   // The "sighandler_t" typedef is GNU-specific, so define our own.
@@ -350,11 +366,11 @@ bool Subprocess::Communicate(const Message& input, Message* output,
   // Make sure SIGPIPE is disabled so that if the child dies it doesn't kill us.
   SignalHandler* old_pipe_handler = signal(SIGPIPE, SIG_IGN);
 
-  string input_data = input.SerializeAsString();
-  string output_data;
+  std::string input_data = input.SerializeAsString();
+  std::string output_data;
 
   int input_pos = 0;
-  int max_fd = max(child_stdin_, child_stdout_);
+  int max_fd = std::max(child_stdin_, child_stdout_);
 
   while (child_stdout_ != -1) {
     fd_set read_fds;
@@ -379,7 +395,7 @@ bool Subprocess::Communicate(const Message& input, Message* output,
 
     if (child_stdin_ != -1 && FD_ISSET(child_stdin_, &write_fds)) {
       int n = write(child_stdin_, input_data.data() + input_pos,
-                                  input_data.size() - input_pos);
+                    input_data.size() - input_pos);
       if (n < 0) {
         // Child closed pipe.  Presumably it will report an error later.
         // Pretend we're done for now.
@@ -429,14 +445,13 @@ bool Subprocess::Communicate(const Message& input, Message* output,
   if (WIFEXITED(status)) {
     if (WEXITSTATUS(status) != 0) {
       int error_code = WEXITSTATUS(status);
-      *error = strings::Substitute(
-          "Plugin failed with status code $0.", error_code);
+      *error =
+          strings::Substitute("Plugin failed with status code $0.", error_code);
       return false;
     }
   } else if (WIFSIGNALED(status)) {
     int signal = WTERMSIG(status);
-    *error = strings::Substitute(
-        "Plugin killed by signal $0.", signal);
+    *error = strings::Substitute("Plugin killed by signal $0.", signal);
     return false;
   } else {
     *error = "Neither WEXITSTATUS nor WTERMSIG is true?";
@@ -444,7 +459,7 @@ bool Subprocess::Communicate(const Message& input, Message* output,
   }
 
   if (!output->ParseFromString(output_data)) {
-    *error = "Plugin output is unparseable.";
+    *error = "Plugin output is unparseable: " + CEscape(output_data);
     return false;
   }
 

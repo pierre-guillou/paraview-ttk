@@ -188,7 +188,7 @@ void vtkOpenGLStickMapper::ReplaceShaderValues(
   vtkShaderProgram::Substitute(FSSource,"//VTK::Normal::Impl", "");
 
   vtkHardwareSelector* selector = ren->GetSelector();
-  bool picking = (ren->GetRenderWindow()->GetIsPicking() || selector != nullptr);
+  bool picking = (selector != nullptr);
   if (picking)
   {
     if (!selector ||
@@ -398,12 +398,10 @@ void vtkOpenGLStickMapperCreateVBO(vtkPolyData *poly, vtkIdType numPts,
 
 //-------------------------------------------------------------------------
 bool vtkOpenGLStickMapper::GetNeedToRebuildBufferObjects(
-  vtkRenderer *vtkNotUsed(ren),
+  vtkRenderer *ren,
   vtkActor *act)
 {
-  if (this->VBOBuildTime < this->GetMTime() ||
-      this->VBOBuildTime < act->GetMTime() ||
-      this->VBOBuildTime < this->CurrentInput->GetMTime() ||
+  if (this->Superclass::GetNeedToRebuildBufferObjects(ren, act) ||
       this->VBOBuildTime < this->SelectionStateChanged)
   {
     return true;
@@ -431,7 +429,7 @@ void vtkOpenGLStickMapper::BuildBufferObjects(vtkRenderer *ren,
   this->MapScalars(1.0);
 
   vtkHardwareSelector* selector = ren->GetSelector();
-  bool picking = (ren->GetRenderWindow()->GetIsPicking() || selector != nullptr);
+  bool picking = (selector != nullptr);
 
   vtkOpenGLStickMapperCreateVBO(
     poly,

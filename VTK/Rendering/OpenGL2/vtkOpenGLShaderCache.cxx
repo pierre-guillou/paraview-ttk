@@ -126,7 +126,7 @@ unsigned int vtkOpenGLShaderCache::ReplaceShaderValues(
     vtkShaderProgram::Substitute(FSSource,"VSOut","GSOut");
   }
 
-#if GL_ES_VERSION_3_0 == 1
+#ifdef GL_ES_VERSION_3_0
   std::string version = "#version 300 es\n";
 #else
   if (!this->OpenGLMajorVersion)
@@ -214,7 +214,7 @@ unsigned int vtkOpenGLShaderCache::ReplaceShaderValues(
     done = !vtkShaderProgram::Substitute(FSSource, src.str(),dst.str());
     if (!done)
     {
-#if GL_ES_VERSION_3_0
+#ifdef GL_ES_VERSION_3_0
       src.str("");
       src.clear();
       src << count;
@@ -254,7 +254,7 @@ vtkShaderProgram *vtkOpenGLShaderCache::ReadyShaderProgram(
   vtkTransformFeedback *cap)
 {
   // perform system wide shader replacements
-  // desktops to not use percision statements
+  // desktops to not use precision statements
   std::string VSSource = vertexCode;
   std::string FSSource = fragmentCode;
   std::string GSSource = geometryCode;

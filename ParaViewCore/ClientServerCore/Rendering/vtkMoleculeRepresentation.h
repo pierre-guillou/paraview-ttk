@@ -13,6 +13,10 @@
 
 =========================================================================*/
 
+/**
+ * @class vtkMoleculeRepresentation
+ * @brief representation for showing vtkMolecules
+ */
 #ifndef vtkMoleculeRepresentation_h
 #define vtkMoleculeRepresentation_h
 
@@ -33,12 +37,12 @@ class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkMoleculeRepresentation
 public:
   static vtkMoleculeRepresentation* New();
   vtkTypeMacro(vtkMoleculeRepresentation, vtkPVDataRepresentation);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   int ProcessViewRequest(vtkInformationRequestKey* requestType, vtkInformation* inputInfo,
-    vtkInformation* outputInfo) VTK_OVERRIDE;
+    vtkInformation* outputInfo) override;
 
-  void SetVisibility(bool value) VTK_OVERRIDE;
+  void SetVisibility(bool value) override;
 
   vtkGetMacro(MoleculeRenderMode, int) void SetMoleculeRenderMode(int mode);
 
@@ -46,31 +50,56 @@ public:
 
   void SetLookupTable(vtkScalarsToColors* lut);
 
-  //***************************************************************************
-  // Forwarded to Actor->GetProperty()
+  /**
+   * Set the opacity on the corresponding actor property.
+   */
   virtual void SetOpacity(double val);
 
-  // Description:
-  // No-op. For compatibility with vtkPVCompositeRepresentation, which calls
-  // SetRepresentation on it's subproxies.
+  /**
+   * Set if scalars are mapped through a color-map or are used directly as colors.
+   * @see vtkScalarsToColors::MapScalars
+   */
+  void SetMapScalars(bool map);
+
+  /**
+   * No-op. For compatibility with vtkPVCompositeRepresentation, which calls
+   * SetRepresentation on it's subproxies.
+   */
   void SetRepresentation(const char*) {}
 
-  // Description:
-  // Returns the data object that is rendered from the given input port.
-  vtkDataObject* GetRenderedDataObject(int port) VTK_OVERRIDE;
+  /**
+   * Return the data object that is rendered from the given input port.
+   */
+  vtkDataObject* GetRenderedDataObject(int port) override;
 
-  void MarkModified() VTK_OVERRIDE;
+  void MarkModified() override;
+
+  //@{
+  /**
+   * Forward custom atom/bonds rendering parameters to the mapper.
+   */
+  void SetAtomicRadiusType(int type);
+  void SetAtomicRadiusScaleFactor(double factor);
+  void SetBondRadius(double factor);
+  void SetBondColorMode(int mode);
+  void SetBondColor(double color[3]);
+  void SetBondColor(double r, double g, double b);
+  void SetUseMultiCylindersForBonds(bool use);
+  void SetRenderAtoms(bool render);
+  void SetRenderBonds(bool render);
+  void SetAtomicRadiusArray(const char* name);
+  //@}
 
 protected:
   vtkMoleculeRepresentation();
   ~vtkMoleculeRepresentation() override;
 
-  int FillInputPortInformation(int port, vtkInformation* info) VTK_OVERRIDE;
-  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) VTK_OVERRIDE;
-  bool AddToView(vtkView* view) VTK_OVERRIDE;
-  bool RemoveFromView(vtkView* view) VTK_OVERRIDE;
+  int FillInputPortInformation(int port, vtkInformation* info) override;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  bool AddToView(vtkView* view) override;
+  bool RemoveFromView(vtkView* view) override;
 
-  bool IsCached(double cache_key) VTK_OVERRIDE;
+  bool IsCached(double cache_key) override;
 
   void SyncMapper();
   void UpdateColoringParameters();

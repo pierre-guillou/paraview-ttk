@@ -36,8 +36,10 @@
 #include "vtkOpenGLContextDevice2D.h"
 
 #include "vtkAbstractMapper.h"
+#include "vtkCellIterator.h"
 #include "vtkColor.h"
 #include "vtkFreeTypeTools.h"
+#include "vtkGenericCell.h"
 #include "vtkTextProperty.h"
 #include "vtkTextRenderer.h"
 #include "vtkTexture.h"
@@ -553,12 +555,18 @@ public:
   , Colors(nullptr)
   , NumPointsCell(0)
   {
+    this->cache = new PolyDataCache();
   };
+
+  ~CellArrayHelper()
+  {
+    delete this->cache;
+  }
 
   /**
    *  Draw primitives as specified by cellType.
    */
-  void Draw (int cellType, vtkCellArray* cellArray, vtkPoints* points, float x,
+  void Draw (int cellType, vtkPolyData* polyData, vtkPoints* points, float x,
     float y, float scale, int scalarMode, vtkUnsignedCharArray* colors = nullptr)
   {
     this->Points = points;
@@ -568,18 +576,105 @@ public:
       switch (cellType)
       {
         case LINE:
-          this->DrawLines(cellArray, scalarMode, x, y, scale);
+          this->DrawLines(polyData, scalarMode, x, y, scale);
           break;
 
         case POLYGON:
-          this->DrawPolygons(cellArray, scalarMode, x, y, scale);
+          this->DrawPolygons(polyData, scalarMode, x, y, scale);
           break;
       }
   };
 
+  void HandleEndFrame()
+  {
+    this->cache->SwapCaches();
+  }
+
 private:
   CellArrayHelper(const CellArrayHelper&) = delete;
   void operator=(const CellArrayHelper&) = delete;
+
+  struct PolyDataCacheItem
+  {
+    // Each polydata may have lines as well as polys which must be cached
+    // separately
+    std::vector<float> PolyTri;
+    vtkSmartPointer<vtkUnsignedCharArray> PolyColors;
+    vtkTimeStamp PolygonsLoadingTime;
+
+    std::vector<float> Lines;
+    vtkSmartPointer<vtkUnsignedCharArray> LineColors;
+    vtkTimeStamp LinesLoadingTime;
+  };
+
+  struct PolyDataCache
+  {
+    ~PolyDataCache()
+    {
+      std::map<vtkPolyData*, PolyDataCacheItem*>::iterator itPrev =
+        this->PrevFrameCache.begin();
+      for (; itPrev != this->PrevFrameCache.end();  ++itPrev)
+      {
+        delete itPrev->second;
+      }
+
+      std::map<vtkPolyData*, PolyDataCacheItem*>::iterator it =
+        this->CurrentFrameCache.begin();
+      for (; it != this->CurrentFrameCache.end();  ++it)
+      {
+        delete it->second;
+      }
+    }
+
+    PolyDataCacheItem* GetCacheEntry(vtkPolyData* key)
+    {
+      PolyDataCacheItem* cacheItem = this->CurrentFrameCache[key];
+      if (cacheItem == nullptr)
+      {
+        cacheItem = this->PrevFrameCache[key];
+        if (cacheItem == nullptr)
+        {
+          cacheItem = new PolyDataCacheItem();
+          cacheItem->PolyColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+          cacheItem->LineColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+        }
+        else
+        {
+          // Move the item to the current frame, since we were asked for it
+          this->PrevFrameCache.erase(key);
+        }
+
+        // Add the cache item to the current frame's cache
+        this->CurrentFrameCache[key] = cacheItem;
+      }
+
+      return cacheItem;
+    }
+
+    void SwapCaches()
+    {
+      // Delete any objects stored in the previous frame's cache, as
+      // if they had been used in this frame, we would have moved them
+      // into the current frame cache already.
+      std::map<vtkPolyData*, PolyDataCacheItem*>::iterator itPrev =
+        this->PrevFrameCache.begin();
+      for (; itPrev != this->PrevFrameCache.end();  ++itPrev)
+      {
+        delete itPrev->second;
+      }
+
+      // Clear the entries in the previous frame's cache
+      this->PrevFrameCache.clear();
+
+      // Now swap the caches
+      std::swap(this->PrevFrameCache, this->CurrentFrameCache);
+    }
+
+    // Last two frames worth of cached polygon/line primitives for each drawn
+    // polydata.
+    std::map<vtkPolyData*, PolyDataCacheItem*> PrevFrameCache;
+    std::map<vtkPolyData*, PolyDataCacheItem*> CurrentFrameCache;
+  };
 
   /**
    * Cache points and colors of the current cell in arrays.
@@ -624,65 +719,97 @@ private:
    * ContextDevice2D::DrawLines. The batched array is cached and only reloaded if
    * the vtkCellArray has changed.
    */
-  void DrawLines(vtkCellArray* cellArray, int scalarMode, float const x,
+  void DrawLines(vtkPolyData* polyData, int scalarMode, float const x,
     float const y, float const scale)
   {
-    if (cellArray->GetMTime() > this->LinesLoadingTime)
+    PolyDataCacheItem* cacheItem = this->cache->GetCacheEntry(polyData);
+
+    if (polyData->GetMTime() > cacheItem->LinesLoadingTime)
     {
-      this->Lines.clear();
-      this->LineColors->Reset();
+      vtkNew<vtkGenericCell> genericCell;
+      cacheItem->Lines.clear();
+      cacheItem->LineColors->Reset();
 
       // Pre-allocate batched array
-      vtkIdType const numVertices = cellArray->GetNumberOfCells() * 2;// points/line
-      this->Lines.reserve(numVertices * 2); // components
-      this->LineColors->SetNumberOfComponents(this->Colors->GetNumberOfComponents());
-      this->LineColors->SetNumberOfTuples(numVertices);
+      vtkIdType const numVertices = polyData->GetNumberOfCells() * 2;// points/line
+      cacheItem->Lines.reserve(numVertices * 2); // components
+      cacheItem->LineColors->SetNumberOfComponents(this->Colors->GetNumberOfComponents());
+      cacheItem->LineColors->SetNumberOfTuples(numVertices);
 
       vtkIdType cellId = 0;
       vtkIdType vertOffset = 0;
-      for (cellArray->InitTraversal(); cellArray->GetNextCell(this->NumPointsCell,
-        this->PointIds); cellId++)
+      vtkCellIterator* cellIter = nullptr;
+
+      for (cellIter = polyData->NewCellIterator();
+           !cellIter->IsDoneWithTraversal();
+           cellIter->GoToNextCell(), cellId++)
       {
-        this->MapCurrentCell(x, y, scale, cellId, scalarMode);
-
-        // Accumulate the current cell in the batched array
-        for (int i = 0; i < this->NumPointsCell; i++)
+        polyData->GetCell(cellIter->GetCellId(), genericCell);
+        if (genericCell->GetCellType() == VTK_LINE ||
+            genericCell->GetCellType() == VTK_POLY_LINE)
         {
-          this->Lines.push_back(this->CellPoints[2 * i]);
-          this->Lines.push_back(this->CellPoints[2 * i + 1]);
+          vtkIdType actualNumPointsCell = genericCell->GetNumberOfPoints();
 
-          double* color4 = this->CellColors->GetTuple(i);
-          this->LineColors->InsertTuple4(vertOffset + i, color4[0], color4[1], color4[2],
-            color4[3]);
+          for (int i = 0; i < actualNumPointsCell - 1; ++i)
+          {
+            this->NumPointsCell = 2;
+            this->PointIds = genericCell->GetPointIds()->GetPointer(i);
+
+            this->MapCurrentCell(x, y, scale, cellId, scalarMode);
+
+            // Accumulate the current cell in the batched array
+            for (int j = 0; j < this->NumPointsCell; j++)
+            {
+              cacheItem->Lines.push_back(this->CellPoints[2 * j]);
+              cacheItem->Lines.push_back(this->CellPoints[2 * j + 1]);
+
+              double* color4 = this->CellColors->GetTuple(j);
+              cacheItem->LineColors->InsertTuple4(vertOffset + j, color4[0], color4[1], color4[2],
+                color4[3]);
+            }
+
+            vertOffset += this->NumPointsCell;
+            this->CellColors->Reset();
+            this->CellPoints.clear();
+          }
         }
-
-        vertOffset += this->NumPointsCell;
-        this->CellColors->Reset();
-        this->CellPoints.clear();
       }
 
-      this->LinesLoadingTime.Modified();
+      cacheItem->LinesLoadingTime.Modified();
+      cellIter->Delete();
     }
 
-    this->Device->DrawLines(&this->Lines[0], this->Lines.size() / 2,
-      static_cast<unsigned char*>(this->LineColors->GetVoidPointer(0)),
-      this->LineColors->GetNumberOfComponents());
+    if (cacheItem->Lines.size() > 0)
+    {
+      this->Device->DrawLines(&cacheItem->Lines[0],
+        static_cast<int>(cacheItem->Lines.size() / 2),
+        static_cast<unsigned char*>(cacheItem->LineColors->GetVoidPointer(0)),
+        cacheItem->LineColors->GetNumberOfComponents());
+    }
   };
 
   /**
    * Pre-computes the total number of polygon vertices after converted into triangles.
    * vertices to pre-allocate the batch arrays.
    */
-  vtkIdType GetCountTriangleVertices(vtkCellArray* cellArray)
+  vtkIdType GetCountTriangleVertices(vtkPolyData* polyData)
   {
     vtkIdType cellId = 0;
     vtkIdType numTriVert = 0;
-    for (cellArray->InitTraversal(); cellArray->GetNextCell(this->NumPointsCell,
-      this->PointIds); cellId++)
-    {
-      numTriVert += 3 * (this->NumPointsCell - 2);
-    };
+    vtkNew<vtkGenericCell> genericCell;
+    vtkCellIterator* cellIter = nullptr;
 
+    for (cellIter = polyData->NewCellIterator();
+        !cellIter->IsDoneWithTraversal();
+        cellIter->GoToNextCell(), cellId++)
+    {
+      polyData->GetCell(cellIter->GetCellId(), genericCell);
+      this->NumPointsCell = genericCell->GetNumberOfPoints();
+      this->PointIds = genericCell->GetPointIds()->GetPointer(0);
+      numTriVert += 3 * (this->NumPointsCell - 2);
+    }
+
+    cellIter->Delete();
     return numTriVert;
   };
 
@@ -691,64 +818,84 @@ private:
    * ContextDevice2D::DrawTriangles. The batched array is cached and only reloaded if
    * the vtkCellArray has changed.
    */
-  void DrawPolygons(vtkCellArray* cellArray, int scalarMode, float const x,
+  void DrawPolygons(vtkPolyData* polyData, int scalarMode, float const x,
     float const y, float const scale)
   {
-    if (cellArray->GetMTime() > this->PolygonsLoadingTime)
+    PolyDataCacheItem* cacheItem = this->cache->GetCacheEntry(polyData);
+
+    if (polyData->GetMTime() > cacheItem->PolygonsLoadingTime)
     {
-      this->PolyTri.clear();
-      this->PolyColors->Reset();
+      cacheItem->PolyTri.clear();
+      cacheItem->PolyColors->Reset();
 
       // Pre-allocate batched array
-      vtkIdType const totalTriVert = this->GetCountTriangleVertices(cellArray);
-      this->PolyTri.reserve(totalTriVert * 2); // components
-      this->PolyColors->SetNumberOfComponents(this->Colors->GetNumberOfComponents());
-      this->PolyColors->SetNumberOfTuples(totalTriVert);
+      vtkIdType const totalTriVert = this->GetCountTriangleVertices(polyData);
+      cacheItem->PolyTri.reserve(totalTriVert * 2); // components
+      cacheItem->PolyColors->SetNumberOfComponents(this->Colors->GetNumberOfComponents());
+      cacheItem->PolyColors->SetNumberOfTuples(totalTriVert);
 
       // Traverse polygons and convert to triangles
       vtkIdType cellId = 0;
       vtkIdType vertOffset = 0;
-      this->PolyColors->SetNumberOfComponents(this->Colors->GetNumberOfComponents());
-      for (cellArray->InitTraversal(); cellArray->GetNextCell(this->NumPointsCell,
-        this->PointIds); cellId++)
+      cacheItem->PolyColors->SetNumberOfComponents(this->Colors->GetNumberOfComponents());
+
+      vtkNew<vtkGenericCell> genericCell;
+      vtkCellIterator* cellIter = nullptr;
+
+      for (cellIter = polyData->NewCellIterator();
+           !cellIter->IsDoneWithTraversal();
+           cellIter->GoToNextCell(), cellId++)
       {
-        this->MapCurrentCell(x, y, scale, cellId, scalarMode);
-
-        // Convert current cell (polygon) to triangles
-        for (int i = 0; i < this->NumPointsCell - 2; i++)
+        polyData->GetCell(cellIter->GetCellId(), genericCell);
+        if (genericCell->GetCellType() == VTK_TRIANGLE ||
+            genericCell->GetCellType() == VTK_QUAD ||
+            genericCell->GetCellType() == VTK_POLYGON)
         {
-          this->PolyTri.push_back(this->CellPoints[0]);
-          this->PolyTri.push_back(this->CellPoints[1]);
-          this->PolyTri.push_back(this->CellPoints[i * 2 + 2]);
-          this->PolyTri.push_back(this->CellPoints[i * 2 + 3]);
-          this->PolyTri.push_back(this->CellPoints[i * 2 + 4]);
-          this->PolyTri.push_back(this->CellPoints[i * 2 + 5]);
+          this->NumPointsCell = genericCell->GetNumberOfPoints();
+          this->PointIds = genericCell->GetPointIds()->GetPointer(0);
 
-          // Insert triangle vertex color
-          vtkIdType const triangOffset = vertOffset + 3 * i;
-          double* color4 = this->CellColors->GetTuple(0);
-          this->PolyColors->InsertTuple4(triangOffset, color4[0], color4[1],
-            color4[2], color4[3]);
+          this->MapCurrentCell(x, y, scale, cellId, scalarMode);
 
-          color4 = this->CellColors->GetTuple(i + 1);
-          this->PolyColors->InsertTuple4(triangOffset + 1, color4[0], color4[1],
-            color4[2], color4[3]);
+          // Convert current cell (polygon) to triangles
+          for (int i = 0; i < this->NumPointsCell - 2; i++)
+          {
+            cacheItem->PolyTri.push_back(this->CellPoints[0]);
+            cacheItem->PolyTri.push_back(this->CellPoints[1]);
+            cacheItem->PolyTri.push_back(this->CellPoints[i * 2 + 2]);
+            cacheItem->PolyTri.push_back(this->CellPoints[i * 2 + 3]);
+            cacheItem->PolyTri.push_back(this->CellPoints[i * 2 + 4]);
+            cacheItem->PolyTri.push_back(this->CellPoints[i * 2 + 5]);
 
-          color4 = this->CellColors->GetTuple(i + 2);
-          this->PolyColors->InsertTuple4(triangOffset + 2, color4[0], color4[1],
-            color4[2], color4[3]);
+            // Insert triangle vertex color
+            vtkIdType const triangOffset = vertOffset + 3 * i;
+            double* color4 = this->CellColors->GetTuple(0);
+            cacheItem->PolyColors->InsertTuple4(triangOffset, color4[0], color4[1],
+              color4[2], color4[3]);
+
+            color4 = this->CellColors->GetTuple(i + 1);
+            cacheItem->PolyColors->InsertTuple4(triangOffset + 1, color4[0], color4[1],
+              color4[2], color4[3]);
+
+            color4 = this->CellColors->GetTuple(i + 2);
+            cacheItem->PolyColors->InsertTuple4(triangOffset + 2, color4[0], color4[1],
+              color4[2], color4[3]);
+          }
+
+          vertOffset += 3 * (this->NumPointsCell - 2); // Triangle verts current cell
+          this->CellColors->Reset();
+          this->CellPoints.clear();
         }
-
-        vertOffset += 3 * (this->NumPointsCell - 2); // Triangle verts current cell
-        this->CellColors->Reset();
-        this->CellPoints.clear();
       }
 
-      this->PolygonsLoadingTime.Modified();
+      cacheItem->PolygonsLoadingTime.Modified();
+      cellIter->Delete();
     }
 
-    this->Device->CoreDrawTriangles(this->PolyTri,
-      static_cast<unsigned char*>(this->PolyColors->GetVoidPointer(0)), 4);
+    if (cacheItem->PolyTri.size() > 0)
+    {
+      this->Device->CoreDrawTriangles(cacheItem->PolyTri,
+        static_cast<unsigned char*>(cacheItem->PolyColors->GetVoidPointer(0)), 4);
+    }
   };
 
   vtkOpenGLContextDevice2D* Device;
@@ -766,23 +913,7 @@ private:
   vtkNew<vtkUnsignedCharArray> CellColors;
   //@}
 
-  //@{
-  /**
-   *  Cached polygon primitives (as triangles).
-   */
-  std::vector<float> PolyTri;
-  vtkNew<vtkUnsignedCharArray> PolyColors;
-  vtkTimeStamp PolygonsLoadingTime;
-  //@}
-
-  //@{
-  /**
-   *  Cached line primitives.
-   */
-  std::vector<float> Lines;
-  vtkNew<vtkUnsignedCharArray> LineColors;
-  vtkTimeStamp LinesLoadingTime;
-  //@}
+  PolyDataCache* cache;
 };
 #endif // VTKOPENGLCONTEXTDEVICE2DPRIVATE_H
 // VTK-HeaderTest-Exclude: vtkOpenGLContextDevice2DPrivate.h

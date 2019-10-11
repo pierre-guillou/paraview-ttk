@@ -1,10 +1,5 @@
-include_directories(
-  ${VTK_INCLUDE_DIRS})
-
-add_paraview_plugin(ArrowGlyph "1.0" 
-
-  SERVER_MANAGER_XML 
-    vtkArrowGlyphFilter.xml
-  SERVER_MANAGER_SOURCES
-    vtkArrowGlyphFilter.cxx
-)
+paraview_add_plugin(ArrowGlyph
+  REQUIRED_ON_SERVER
+  VERSION "1.0"
+  MODULES ArrowGlyph::ArrowGlyphFilter
+  MODULE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/Filter/vtk.module")

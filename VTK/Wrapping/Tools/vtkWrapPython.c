@@ -27,7 +27,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
+#ifdef _WIN32
+/* for Sleep() */
+#include <windows.h>
+#endif
 
 /* -------------------------------------------------------------------- */
 /* the main entry method, called by vtkParse.y */
@@ -180,6 +185,7 @@ static void vtkWrapPython_GenerateSpecialHeaders(
     {
       currentFunction = data->Functions[i];
       if (currentFunction->Access == VTK_ACCESS_PUBLIC &&
+          !currentFunction->IsExcluded &&
           strcmp(currentFunction->Class, data->Name) == 0)
       {
         classname = "void";
@@ -282,7 +288,10 @@ static void vtkWrapPython_GenerateSpecialHeaders(
   {
     fprintf(fp,
       "#include \"vtkSOADataArrayTemplate.h\"\n"
-      "#include \"vtkAOSDataArrayTemplate.h\"\n");
+      "#include \"vtkAOSDataArrayTemplate.h\"\n"
+      "#ifdef VTK_USE_SCALED_SOA_ARRAYS\n"
+      "#include \"vtkScaledSOADataArrayTemplate.h\"\n"
+      "#endif\n");
   }
 
   free((char **)types);
@@ -333,9 +342,27 @@ int main(int argc, char *argv[])
   /* get the output file */
   fp = fopen(options->OutputFileName, "w");
 
+#ifdef _WIN32
   if (!fp)
   {
-    fprintf(stderr, "Error opening output file %s\n", options->OutputFileName);
+    /* repeatedly try to open output file in case of access/sharing error */
+    /* (for example, antivirus software might be scanning the output file) */
+    int tries;
+    for (tries = 0; !fp && tries < 5 && errno == EACCES; tries++)
+    {
+      Sleep(1000);
+      fp = fopen(options->OutputFileName, "w");
+    }
+  }
+#endif
+
+  if (!fp)
+  {
+    int e = errno;
+    char *etext = strerror(e);
+    etext = (etext ? etext : "Unknown error");
+    fprintf(stderr, "Error %d opening output file %s: %s\n",
+            e, options->OutputFileName, etext);
     exit(1);
   }
 
@@ -482,6 +509,11 @@ int main(int argc, char *argv[])
   for (i = 0; i < contents->NumberOfClasses; i++)
   {
     data = contents->Classes[i];
+    if (data->IsExcluded)
+    {
+      continue;
+    }
+
     is_vtkobject = wrapAsVTKObject[i];
 
     /* if "hinfo" is present, wrap everything, else just the main class */
@@ -560,12 +592,9 @@ int main(int argc, char *argv[])
              "      {\n"
              "        nt = ((PyTypeObject *)ot)->tp_name;\n"
              "      }\n"
-             "      else if (PyCFunction_Check(ot))\n"
-             "      {\n"
-             "        nt = ((PyCFunctionObject *)ot)->m_ml->ml_name;\n"
-             "      }\n"
              "      if (nt)\n"
              "      {\n"
+             "        nt = vtkPythonUtil::StripModule(nt);\n"
              "        PyDict_SetItemString(dict, nt, ot);\n"
              "      }\n"
              "    }\n"
@@ -608,6 +637,8 @@ int main(int argc, char *argv[])
   /* close the AddFile function */
   fprintf(fp,
           "}\n\n");
+
+  fclose(fp);
 
   free(name_from_file);
 

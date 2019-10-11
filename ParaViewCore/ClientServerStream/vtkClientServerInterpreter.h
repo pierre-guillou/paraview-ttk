@@ -29,7 +29,6 @@
 #include "vtkClientServerID.h" // Needed for vtkClientServerID.
 
 class vtkClientServerInterpreter;
-class vtkClientServerInterpreterCommand;
 class vtkClientServerInterpreterInternals;
 class vtkClientServerStream;
 
@@ -66,7 +65,7 @@ class VTKCLIENTSERVER_EXPORT vtkClientServerInterpreter : public vtkObject
 public:
   static vtkClientServerInterpreter* New();
   vtkTypeMacro(vtkClientServerInterpreter, vtkObject);
-  void PrintSelf(ostream&, vtkIndent) VTK_OVERRIDE;
+  void PrintSelf(ostream&, vtkIndent) override;
 
   //@{
   /**
@@ -221,8 +220,6 @@ private:
 
   // Internal implementation details.
   vtkClientServerInterpreterInternals* Internal;
-
-  friend class vtkClientServerInterpreterCommand;
 
 private:
   vtkClientServerInterpreter(const vtkClientServerInterpreter&) = delete;

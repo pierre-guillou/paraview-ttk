@@ -3,6 +3,7 @@
 #include "BasicApp.h"
 
 #include <QApplication>
+#include <QSurfaceFormat>
 #include <QTimer>
 
 #include "pqApplicationCore.h"
@@ -13,6 +14,8 @@
 #include "pqRenderView.h"
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
+
+#include "QVTKRenderWindowAdapter.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkProcessModule.h"
@@ -22,6 +25,8 @@
 #include "vtkSMSourceProxy.h"
 #include "vtkSMViewProxy.h"
 #include "vtkSmartPointer.h"
+
+#include <cassert>
 
 MainWindow::MainWindow()
 {
@@ -37,13 +42,13 @@ MainWindow::MainWindow()
   // create a graphics window and put it in our main window
   vtkSmartPointer<vtkSMProxy> viewProxy;
   viewProxy.TakeReference(pxm->NewProxy("views", "RenderView"));
-  Q_ASSERT(viewProxy);
+  assert(viewProxy);
 
   controller->InitializeProxy(viewProxy);
   controller->RegisterViewProxy(viewProxy);
 
   this->RenderView = smmodel->findItem<pqRenderView*>(viewProxy);
-  Q_ASSERT(this->RenderView);
+  assert(this->RenderView);
   this->setCentralWidget(this->RenderView->widget());
 
   // create source and elevation filter
@@ -118,6 +123,9 @@ bool MainWindow::compareView(
 
 int main(int argc, char** argv)
 {
+  QSurfaceFormat::setDefaultFormat(
+    QVTKRenderWindowAdapter::defaultFormat(/*supports_stereo=*/false));
+
   QApplication app(argc, argv);
   pqApplicationCore appCore(argc, argv);
   MainWindow window;

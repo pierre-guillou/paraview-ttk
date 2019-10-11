@@ -28,6 +28,10 @@
 #include "vtkCommandOptions.h"
 #include "vtkPVClientServerCoreCoreModule.h" //needed for exports
 
+#include <string>  // used for ivar
+#include <utility> // needed for pair
+#include <vector>  // needed for vector
+
 class vtkPVOptionsInternal;
 
 class VTKPVCLIENTSERVERCORECORE_EXPORT vtkPVOptions : public vtkCommandOptions
@@ -38,7 +42,7 @@ protected:
 public:
   static vtkPVOptions* New();
   vtkTypeMacro(vtkPVOptions, vtkCommandOptions);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -57,14 +61,19 @@ public:
   vtkGetVector2Macro(TileMullions, int);
 
   /**
+   * Returns true if the tile display configuration is requested.
+   */
+  virtual bool GetIsInTileDisplay() const;
+
+  /**
+   * Returns true of CAVE configuration is requested.
+   */
+  virtual bool GetIsInCave() const;
+
+  /**
    * Returns the egl device index. -1 indicates that no value was specified.
    */
   vtkGetMacro(EGLDeviceIndex, int);
-
-  /**
-   * @deprecated in ParaView 5.5. Use `GetForceOnscreenRendering()` instead.
-   */
-  VTK_LEGACY(int GetUseOffscreenRendering());
 
   //@{
   /**
@@ -105,15 +114,6 @@ public:
    */
   vtkSetStringMacro(LogFileName);
   vtkGetStringMacro(LogFileName);
-  //@}
-
-  //@{
-  /**
-   * vtkPVProcessModule needs to set this.
-   */
-  vtkSetVector2Macro(TileDimensions, int);
-  vtkSetVector2Macro(TileMullions, int);
-  vtkSetMacro(UseOffscreenRendering, int);
   //@}
 
   /**
@@ -262,6 +262,14 @@ public:
   vtkBooleanMacro(ForceMPIInitOnClient, int);
   //@}
 
+  //@{
+  /**
+   * Returns the verbosity level for stderr output chosen.
+   * Is set to vtkLogger::VERBOSITY_INVALID if not specified.
+   */
+  vtkGetMacro(LogStdErrVerbosity, int);
+  //@}
+
   enum ProcessTypeEnum
   {
     PARAVIEW = 0x2,
@@ -287,24 +295,24 @@ protected:
   /**
    * Initialize arguments.
    */
-  void Initialize() VTK_OVERRIDE;
+  void Initialize() override;
 
   /**
    * After parsing, process extra option dependencies.
    */
-  int PostProcess(int argc, const char* const* argv) VTK_OVERRIDE;
+  int PostProcess(int argc, const char* const* argv) override;
 
   /**
    * This method is called when wrong argument is found. If it returns 0, then
    * the parsing will fail.
    */
-  int WrongArgument(const char* argument) VTK_OVERRIDE;
+  int WrongArgument(const char* argument) override;
 
   /**
    * This method is called when a deprecated argument is found. If it returns 0, then
    * the parsing will fail.
    */
-  int DeprecatedArgument(const char* argument) VTK_OVERRIDE;
+  int DeprecatedArgument(const char* argument) override;
 
   //@{
   /**
@@ -367,6 +375,12 @@ private:
 
   vtkSetStringMacro(HostName);
   char* HostName;
+  int LogStdErrVerbosity;
+
+  std::vector<std::pair<std::string, int> > LogFiles;
+
+  static int VerbosityArgumentHandler(const char* argument, const char* value, void* call_data);
+  static int LogArgumentHandler(const char* argument, const char* value, void* call_data);
 };
 
 #endif

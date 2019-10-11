@@ -44,8 +44,6 @@ class vtkObject;
 #include <QPair>
 #include <QVariant>
 
-Q_DECLARE_METATYPE(QList<QList<QVariant> >)
-
 /**
 * Translates server manager events into Qt-compatible slots and signals
 */
@@ -55,9 +53,6 @@ protected:
   // class not instantiated
   pqSMAdaptor();
   ~pqSMAdaptor();
-
-private:
-  static const int metaId;
 
 public:
   /**
@@ -74,7 +69,6 @@ public:
     SINGLE_ELEMENT,
     MULTIPLE_ELEMENTS,
     FILE_LIST,
-    FIELD_SELECTION,
     COMPOSITE_TREE,
     SIL,
   };
@@ -225,29 +219,6 @@ public:
   */
   static void setFileListProperty(
     vtkSMProperty* Property, QStringList Value, PropertyValueType Type = CHECKED);
-
-  // get/set the field selection
-  static QStringList getFieldSelection(vtkSMProperty* Property, PropertyValueType Type = CHECKED);
-  static void setFieldSelection(
-    vtkSMProperty* Property, const QStringList& Value, PropertyValueType Type = CHECKED);
-
-  /**
-  * get/set the field selection mode (point, cell, ...)
-  */
-  static QString getFieldSelectionMode(vtkSMProperty* prop, PropertyValueType Type = CHECKED);
-  static void setFieldSelectionMode(
-    vtkSMProperty* Property, const QString& Value, PropertyValueType Type = CHECKED);
-  static QList<QString> getFieldSelectionModeDomain(vtkSMProperty*);
-
-  /**
-  * get/set the field selection scalar
-  */
-  static QString getFieldSelectionScalar(vtkSMProperty* Property, PropertyValueType Type = CHECKED);
-  static void setFieldSelectionScalar(
-    vtkSMProperty* Property, const QString& Value, PropertyValueType Type = CHECKED);
-  static QList<QString> getFieldSelectionScalarDomain(vtkSMProperty*);
-  static QList<QPair<QString, bool> > getFieldSelectionScalarDomainWithPartialArrays(
-    vtkSMProperty*);
 
   /**
   * Returns a list of domains types for the property. eg.

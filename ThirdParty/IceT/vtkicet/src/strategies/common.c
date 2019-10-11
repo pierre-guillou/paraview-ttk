@@ -49,9 +49,9 @@ static void rtfi_handleDataFunc(void *inSparseImageBuffer, IceTInt src) {
     if (inSparseImageBuffer == NULL) {
       /* Superfluous call from send to self. */
         if (!rtfi_first) {
-            icetRaiseError("Unexpected callback order"
-                           " in icetRenderTransferFullImages.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Unexpected callback order"
+                           " in icetRenderTransferFullImages.");
         }
     } else {
         IceTSparseImage inSparseImage
@@ -136,9 +136,9 @@ static void rtsi_handleDataFunc(void *inSparseImageBuffer, IceTInt src) {
     if (inSparseImageBuffer == NULL) {
       /* Superfluous call from send to self. */
         if (!rtsi_first) {
-            icetRaiseError("Unexpected callback order"
-                           " in icetRenderTransferSparseImages.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Unexpected callback order"
+                           " in icetRenderTransferSparseImages.");
         }
     } else {
         IceTSparseImage inSparseImage
@@ -312,8 +312,8 @@ static void icetSendRecvLargePostReceive(const IceTBoolean *mySrcMask,
         }
         if (*recv_order_idx_p == order_rank) {
             if (messagesInOrder) {
-                icetRaiseError("Somehow flipped rank in ordered messages.",
-                               ICET_SANITY_CHECK_FAIL);
+                icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                               "Somehow flipped rank in ordered messages.");
             }
             *recv_iter_state_p = ICET_SEND_RECV_LARGE_ITER_DONE;
             break;
@@ -331,8 +331,8 @@ static void icetSendRecvLargePostReceive(const IceTBoolean *mySrcMask,
         (*recv_order_idx_p)++;
         if (*recv_order_idx_p >= comm_size) {
             if (!messagesInOrder) {
-                icetRaiseError("Reversed iteration in unordered messages.",
-                               ICET_SANITY_CHECK_FAIL);
+                icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                               "Reversed iteration in unordered messages.");
             }
             /* We have iterated over everything at this point. */
             *recv_iter_state_p = ICET_SEND_RECV_LARGE_ITER_DONE;
@@ -347,7 +347,7 @@ static void icetSendRecvLargePostReceive(const IceTBoolean *mySrcMask,
     /* If we have not finished, then we must be ready to send a message. */
     if (*recv_iter_state_p != ICET_SEND_RECV_LARGE_ITER_DONE) {
         if (src_rank < 0) {
-            icetRaiseError("Computed invalid src_rank", ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL, "Computed invalid src_rank");
         }
         *recv_request_p = icetCommIrecv(incomingBuffer,
                                         bufferSize,
@@ -401,8 +401,8 @@ static void icetSendRecvLargePostSend(const IceTInt *sendIds,
         }
         if (*send_order_idx_p == order_rank) {
             if (messagesInOrder) {
-                icetRaiseError("Somehow flipped rank in ordered messages.",
-                               ICET_SANITY_CHECK_FAIL);
+                icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                               "Somehow flipped rank in ordered messages.");
             }
             *send_iter_state_p = ICET_SEND_RECV_LARGE_ITER_DONE;
             break;
@@ -420,8 +420,8 @@ static void icetSendRecvLargePostSend(const IceTInt *sendIds,
         (*send_order_idx_p)--;
         if (*send_order_idx_p < 0) {
             if (!messagesInOrder) {
-                icetRaiseError("Reversed iteration in unordered messages.",
-                               ICET_SANITY_CHECK_FAIL);
+                icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                               "Reversed iteration in unordered messages.");
             }
             /* We have iterated over everything at this point. */
             *send_iter_state_p = ICET_SEND_RECV_LARGE_ITER_DONE;
@@ -438,7 +438,7 @@ static void icetSendRecvLargePostSend(const IceTInt *sendIds,
         IceTSizeType data_size;
         IceTVoid *data;
         if (dest_rank < 0) {
-            icetRaiseError("Computed invalid dest_rank",ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,"Computed invalid dest_rank");
         }
         data = (*generateDataFunc)(sendIds[dest_rank], dest_rank, &data_size);
         *send_request_p = icetCommIsend(data,
@@ -682,8 +682,8 @@ void icetSingleImageCollect(const IceTSparseImage input_image,
            is neither sending or receiving data, just allocate a dummy buffer to
            satisfy the following code. */
         if (DUMMY_BUFFER_SIZE < icetImageBufferSize(0, 0)) {
-            icetRaiseError("Oops.  My dummy buffer is not big enough.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Oops.  My dummy buffer is not big enough.");
             return;
         }
         result_image = icetImageAssignBuffer(dummy_buffer, 0, 0);

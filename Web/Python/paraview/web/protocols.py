@@ -24,14 +24,14 @@ from vtkmodules.web import iteritems
 from vtkmodules.web.render_window_serializer import SynchronizationContext, initializeSerializers, serializeInstance, getReferenceId
 from paraview.web.decorators import *
 
-from vtkmodules.vtkCommonDataModel             import vtkImageData
-from vtkmodules.vtkCommonCore                  import vtkUnsignedCharArray, vtkCollection
-from vtkmodules.vtkWebCore                     import vtkDataEncoder, vtkWebInteractionEvent
-from vtkmodules.vtkPVServerManagerRendering    import vtkSMPVRepresentationProxy, vtkSMTransferFunctionProxy, vtkSMTransferFunctionManager
-from vtkmodules.vtkPVServerManagerCore         import vtkSMProxyManager
-from vtkmodules.vtkCommonDataModel             import vtkDataObject
-from vtkmodules.vtkPVClientServerCoreCore      import vtkProcessModule
-from vtkmodules.vtkPVClientServerCoreRendering import vtkPVRenderView
+from vtkmodules.vtkCommonDataModel import vtkImageData, vtkDataObject
+from vtkmodules.vtkCommonCore      import vtkUnsignedCharArray, vtkCollection
+from vtkmodules.vtkWebCore         import vtkDataEncoder, vtkWebInteractionEvent
+
+from paraview.modules.vtkPVServerManagerRendering    import vtkSMPVRepresentationProxy, vtkSMTransferFunctionProxy, vtkSMTransferFunctionManager
+from paraview.modules.vtkPVServerManagerCore         import vtkSMProxyManager
+from paraview.modules.vtkPVClientServerCoreCore      import vtkProcessModule
+from paraview.modules.vtkPVClientServerCoreRendering import vtkPVRenderView
 
 if sys.version_info >= (3,):
     xrange = range
@@ -429,8 +429,8 @@ class ParaViewWebPublishImageDelivery(ParaViewWebProtocol):
     def __init__(self, decode=True, **kwargs):
         ParaViewWebProtocol.__init__(self)
         self.trackingViews = {}
-        self.lastStaleTime = 0
-        self.staleHandlerCount = 0
+        self.lastStaleTime = {}
+        self.staleHandlerCount = {}
         self.deltaStaleTimeBeforeRender = 0.5 # 0.5s
         self.decode = decode
         self.viewsInAnimations = []
@@ -476,24 +476,25 @@ class ParaViewWebPublishImageDelivery(ParaViewWebProtocol):
             reply["id"] = vId
             self.publish('viewport.image.push.subscription', reply)
         if stale:
-            self.lastStaleTime = time.time()
-            if self.staleHandlerCount == 0:
-                self.staleHandlerCount += 1
+            self.lastStaleTime[vId] = time.time()
+            if self.staleHandlerCount[vId] == 0:
+                self.staleHandlerCount[vId] += 1
                 reactor.callLater(self.deltaStaleTimeBeforeRender, lambda: self.renderStaleImage(vId))
         else:
-            self.lastStaleTime = 0
+            self.lastStaleTime[vId] = 0
 
 
     def renderStaleImage(self, vId):
-        self.staleHandlerCount -= 1
+        if vId in self.staleHandlerCount:
+            self.staleHandlerCount[vId] -= 1
 
-        if self.lastStaleTime != 0:
-            delta = (time.time() - self.lastStaleTime)
-            if delta >= self.deltaStaleTimeBeforeRender:
-                self.pushRender(vId)
-            else:
-                self.staleHandlerCount += 1
-                reactor.callLater(self.deltaStaleTimeBeforeRender - delta + 0.001, lambda: self.renderStaleImage(vId))
+            if self.lastStaleTime[vId] != 0:
+                delta = (time.time() - self.lastStaleTime[vId])
+                if delta >= self.deltaStaleTimeBeforeRender:
+                    self.pushRender(vId)
+                else:
+                    self.staleHandlerCount[vId] += 1
+                    reactor.callLater(self.deltaStaleTimeBeforeRender - delta + 0.001, lambda: self.renderStaleImage(vId))
 
 
     def animate(self):
@@ -547,7 +548,27 @@ class ParaViewWebPublishImageDelivery(ParaViewWebProtocol):
         realViewId = sView.GetGlobalIDAsString()
 
         if realViewId in self.viewsInAnimations:
+            progressRendering = self.trackingViews[realViewId]['streaming']
             self.viewsInAnimations.remove(realViewId)
+            if progressRendering:
+                self.progressiveRender(realViewId)
+
+
+    def progressiveRender(self, viewId = '-1'):
+        sView = self.getView(viewId)
+        realViewId = sView.GetGlobalIDAsString()
+
+        if realViewId in self.viewsInAnimations:
+            return
+
+        if sView.GetSession().GetPendingProgress():
+            reactor.callLater(self.deltaStaleTimeBeforeRender, lambda: self.progressiveRender(viewId))
+        else:
+            again = sView.StreamingUpdate(True)
+            self.pushRender(realViewId, True)
+
+            if again:
+                reactor.callLater(0.001, lambda: self.progressiveRender(viewId))
 
 
     @exportRpc("viewport.image.push")
@@ -642,7 +663,8 @@ class ParaViewWebPublishImageDelivery(ParaViewWebProtocol):
             tagStart = self.getApplication().AddObserver('StartInteractionEvent', startCallback)
             tagStop = self.getApplication().AddObserver('EndInteractionEvent', stopCallback)
             # TODO do we need self.getApplication().AddObserver('ResetActiveView', resetActiveView())
-            self.trackingViews[realViewId] = { 'tags': [tag, tagStart, tagStop], 'observerCount': 1, 'mtime': 0, 'enabled': True, 'quality': 100 }
+            self.trackingViews[realViewId] = { 'tags': [tag, tagStart, tagStop], 'observerCount': 1, 'mtime': 0, 'enabled': True, 'quality': 100, 'streaming': sView.GetClientSideObject().GetEnableStreaming() }
+            self.staleHandlerCount[realViewId] = 0
         else:
             # There is an observer on this view already
             self.trackingViews[realViewId]['observerCount'] += 1
@@ -653,11 +675,13 @@ class ParaViewWebPublishImageDelivery(ParaViewWebProtocol):
 
     @exportRpc("viewport.image.push.observer.remove")
     def removeRenderObserver(self, viewId):
-        sView = self.getView(viewId)
-        if not sView:
-            return { 'error': 'Unable to get view with id %s' % viewId }
+        sView = None
+        try:
+            sView = self.getView(viewId)
+        except:
+            print('no view with ID %s available in removeRenderObserver' % viewId)
 
-        realViewId = sView.GetGlobalIDAsString()
+        realViewId = sView.GetGlobalIDAsString() if sView else viewId
 
         observerInfo = None
         if realViewId in self.trackingViews:
@@ -672,6 +696,7 @@ class ParaViewWebPublishImageDelivery(ParaViewWebProtocol):
             for tag in observerInfo['tags']:
                 self.getApplication().RemoveObserver(tag)
             del self.trackingViews[realViewId]
+            del self.staleHandlerCount[realViewId]
 
         return { 'result': 'success' }
 
@@ -1764,10 +1789,9 @@ class ParaViewWebProxyManager(ParaViewWebProtocol):
         foundPLDChild = False
         subProxiesToProcess = []
 
-        pldChild = proxyPropElement.FindNestedElementByName('ProxyListDomain')
+        domain = propInstance.FindDomain("vtkSMProxyListDomain")
 
-        if pldChild:
-            domain = propInstance.GetDomain(pldChild.GetAttribute('name'))
+        if domain:
             foundPLDChild = True
             for j in range(domain.GetNumberOfProxies()):
                 subProxy = domain.GetProxy(j)
@@ -2117,7 +2141,7 @@ class ParaViewWebProxyManager(ParaViewWebProtocol):
             if prop.IsA('vtkSMProxyProperty'):
                 try:
                     if len(prop.Available) and prop.GetNumberOfProxies() == 1:
-                        listdomain = prop.GetDomain('proxy_list')
+                        listdomain = prop.FindDomain("vtkSMProxyListDomain")
                         if listdomain:
                             for i in xrange(listdomain.GetNumberOfProxies()):
                                 internal_proxy = listdomain.GetProxy(i)
@@ -2397,7 +2421,7 @@ class ParaViewWebProxyManager(ParaViewWebProtocol):
                             hmapKey = 'default'
 
                         if hmapKey:
-                            # We're intereseted in decorating based on this hint
+                            # We're interested in decorating based on this hint
                             hintFunction = hmap[hmapKey]
                             hintFunction(prop, uiElt, hint)
 
@@ -3133,7 +3157,7 @@ class ParaViewWebFileListing(ParaViewWebProtocol):
 # Handle Data Selection
 #
 # =============================================================================
-from vtkmodules.vtkPVClientServerCoreRendering import *
+from paraview.modules.vtkPVClientServerCoreRendering import *
 from vtkmodules.vtkCommonCore import *
 
 class ParaViewWebSelectionHandler(ParaViewWebProtocol):

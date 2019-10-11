@@ -25,6 +25,9 @@
 /* Define if you have the netcdf header. */
 #cmakedefine HAVE_NETCDF_H
 
+/* Define if you have the OpenEXR library. */
+#cmakedefine HAVE_LIBOPENEXR
+
 /* Define if you have pdb. */
 #cmakedefine HAVE_LIBPDB
 
@@ -56,20 +59,14 @@
 /* Define if you have the FastQuery library. */
 #cmakedefine HAVE_LIBFASTQUERY
 
-/* Define if you have the GLEW library. */
-#cmakedefine HAVE_LIBGLEW
-
 /* Define to 1 if you have the `m' library (-lm). */
 #cmakedefine HAVE_LIBM 1
 
 /* Define if you have the MFEM library. */
 #cmakedefine HAVE_LIBMFEM
 
-/* Define if you have the R library. */
-#cmakedefine HAVE_LIB_R
-
-/* Define if you have the VTKm library. */
-#cmakedefine HAVE_LIBVTKM
+/* Define if you have the VTKh library. */
+#cmakedefine HAVE_LIBVTKH
 
 /* Define if you have the X11 library */
 #cmakedefine HAVE_LIBX11
@@ -82,6 +79,9 @@
 
 /* Define if you have the OSMESA */
 #cmakedefine HAVE_OSMESA
+
+/* Define if you have the EGL */
+#cmakedefine HAVE_EGL
 
 /*******************************************************************************
  * Header file checks
@@ -285,6 +285,11 @@
 #else
 #define VISIT_PLUGIN_VERSION(NAME, EXPORTMACRO) EXPORTMACRO const char *NAME##VisItPluginVersion = VISIT_VERSION;
 #endif
+
+/* App version check macro. Must check against the hex value.
+   Usage: #if (APP_VERSION_CHECK(4, 4, 0) <= APP_VERSION_HEX )
+*/
+#define VISIT_APP_VERSION_CHECK(major, minor, patch) ((major<<16)|(minor<<8)|(patch))
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */

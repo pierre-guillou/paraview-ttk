@@ -42,6 +42,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <QMap>
 
+#include <cassert>
+
 namespace
 {
 class pqYoungsMaterialPropertyLinksConnection : public pqPropertyLinksConnection
@@ -95,25 +97,25 @@ pqYoungsMaterialPropertyWidget::pqYoungsMaterialPropertyWidget(
   ui.setupUi(frame);
   this->layout()->addWidget(frame);
 
-  Q_ASSERT(smproxy != NULL);
-  Q_ASSERT(smgroup->GetProperty("VolumeFractionArrays"));
-  Q_ASSERT(smgroup->GetProperty("OrderingArrays"));
-  Q_ASSERT(smgroup->GetProperty("NormalArrays"));
+  assert(smproxy != NULL);
+  assert(smgroup->GetProperty("VolumeFractionArrays"));
+  assert(smgroup->GetProperty("OrderingArrays"));
+  assert(smgroup->GetProperty("NormalArrays"));
 
   QTreeWidget* volumeFractionArraysWidget = this->findChild<QTreeWidget*>("ArraySelectionWidget");
-  Q_ASSERT(volumeFractionArraysWidget);
+  assert(volumeFractionArraysWidget);
   internals.VolumeFractionArrays = volumeFractionArraysWidget;
 
   QObject::connect(volumeFractionArraysWidget,
     SIGNAL(currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*)), this, SLOT(updateComboBoxes()));
 
   pqComboBoxDomain* domain1 =
-    new pqComboBoxDomain(ui.OrderingArrays, smgroup->GetProperty("OrderingArrays"), "array_list");
+    new pqComboBoxDomain(ui.OrderingArrays, smgroup->GetProperty("OrderingArrays"));
   domain1->setObjectName("OrderingArraysDomain");
   domain1->addString("None");
 
   pqComboBoxDomain* domain2 =
-    new pqComboBoxDomain(ui.NormalArrays, smproxy->GetProperty("NormalArrays"), "array_list");
+    new pqComboBoxDomain(ui.NormalArrays, smproxy->GetProperty("NormalArrays"));
   domain2->setObjectName("NormalArraysDomain");
   domain2->addString("None");
 

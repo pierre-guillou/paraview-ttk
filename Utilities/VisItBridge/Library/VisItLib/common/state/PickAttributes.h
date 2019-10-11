@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -70,7 +70,9 @@ public:
         CurveZone,
         CurveNode,
         DomainZone,
-        DomainNode
+        DomainNode,
+        ZoneLabel,
+        NodeLabel
     };
     enum CoordinateType
     {
@@ -135,10 +137,15 @@ public:
     void SelectGroupPieceName();
     void SelectGhosts();
     void SelectGlobalIncidentElements();
+    void SelectRangeOutput();
+    void SelectElementLabel();
     void SelectSubsetName();
     void SelectFloatFormat();
     void SelectTimeOptions();
     void SelectPlotRequested();
+    void SelectPickHighlightColor();
+    void SelectRemovedPicks();
+    void SelectForcedPickLabel();
 
     // Property setting methods
     void SetVariables(const stringVector &variables_);
@@ -193,11 +200,15 @@ public:
     void SetElementIsGhost(bool elementIsGhost_);
     void SetRequiresGlyphPick(bool requiresGlyphPick_);
     void SetLocationSuccessful(bool locationSuccessful_);
+    void SetUseLabelAsPickLetter(bool useLabelAsPickLetter_);
     void SetShowGlobalIds(bool showGlobalIds_);
     void SetGlobalElement(int globalElement_);
     void SetGlobalIncidentElements(const intVector &globalIncidentElements_);
     void SetElementIsGlobal(bool elementIsGlobal_);
     void SetShowPickLetter(bool showPickLetter_);
+    void SetHasRangeOutput(bool hasRangeOutput_);
+    void SetRangeOutput(const MapNode &rangeOutput_);
+    void SetElementLabel(const std::string &elementLabel_);
     void SetReusePickLetter(bool reusePickLetter_);
     void SetGhostType(int ghostType_);
     void SetHasMixedGhostTypes(int hasMixedGhostTypes_);
@@ -213,6 +224,12 @@ public:
     void SetTimeCurveType(TimeCurveType timeCurveType_);
     void SetTimeOptions(const MapNode &timeOptions_);
     void SetPlotRequested(const MapNode &plotRequested_);
+    void SetPickHighlightColor(const int *pickHighlightColor_);
+    void SetRemovedPicks(const std::string &removedPicks_);
+    void SetSwivelFocusToPick(bool swivelFocusToPick_);
+    void SetOverridePickLabel(bool overridePickLabel_);
+    void SetForcedPickLabel(const std::string &forcedPickLabel_);
+    void SetRemoveLabelTwins(bool removeLabelTwins_);
 
     // Property getting methods
     const stringVector &GetVariables() const;
@@ -293,12 +310,18 @@ public:
     bool               GetElementIsGhost() const;
     bool               GetRequiresGlyphPick() const;
     bool               GetLocationSuccessful() const;
+    bool               GetUseLabelAsPickLetter() const;
     bool               GetShowGlobalIds() const;
     int                GetGlobalElement() const;
     const intVector    &GetGlobalIncidentElements() const;
           intVector    &GetGlobalIncidentElements();
     bool               GetElementIsGlobal() const;
     bool               GetShowPickLetter() const;
+    bool               GetHasRangeOutput() const;
+    const MapNode      &GetRangeOutput() const;
+          MapNode      &GetRangeOutput();
+    const std::string  &GetElementLabel() const;
+          std::string  &GetElementLabel();
     bool               GetReusePickLetter() const;
     int                GetGhostType() const;
     int                GetHasMixedGhostTypes() const;
@@ -318,6 +341,15 @@ public:
           MapNode      &GetTimeOptions();
     const MapNode      &GetPlotRequested() const;
           MapNode      &GetPlotRequested();
+    const int          *GetPickHighlightColor() const;
+          int          *GetPickHighlightColor();
+    const std::string  &GetRemovedPicks() const;
+          std::string  &GetRemovedPicks();
+    bool               GetSwivelFocusToPick() const;
+    bool               GetOverridePickLabel() const;
+    const std::string  &GetForcedPickLabel() const;
+          std::string  &GetForcedPickLabel();
+    bool               GetRemoveLabelTwins() const;
 
     // Persistence methods
     virtual bool CreateNode(DataNode *node, bool completeSave, bool forceAdd);
@@ -426,11 +458,15 @@ public:
         ID_elementIsGhost,
         ID_requiresGlyphPick,
         ID_locationSuccessful,
+        ID_useLabelAsPickLetter,
         ID_showGlobalIds,
         ID_globalElement,
         ID_globalIncidentElements,
         ID_elementIsGlobal,
         ID_showPickLetter,
+        ID_hasRangeOutput,
+        ID_rangeOutput,
+        ID_elementLabel,
         ID_reusePickLetter,
         ID_ghostType,
         ID_hasMixedGhostTypes,
@@ -446,11 +482,22 @@ public:
         ID_timeCurveType,
         ID_timeOptions,
         ID_plotRequested,
+        ID_pickHighlightColor,
+        ID_removedPicks,
+        ID_swivelFocusToPick,
+        ID_overridePickLabel,
+        ID_forcedPickLabel,
+        ID_removeLabelTwins,
         ID__LAST
     };
 
 protected:
     AttributeGroup *CreateSubAttributeGroup(int index);
+protected:
+    bool                 swivelFocusToPick;
+    bool                 overridePickLabel;
+    std::string          forcedPickLabel;
+    bool                 removeLabelTwins;
 private:
     stringVector         variables;
     bool                 showIncidentElements;
@@ -505,11 +552,15 @@ private:
     bool                 elementIsGhost;
     bool                 requiresGlyphPick;
     bool                 locationSuccessful;
+    bool                 useLabelAsPickLetter;
     bool                 showGlobalIds;
     int                  globalElement;
     intVector            globalIncidentElements;
     bool                 elementIsGlobal;
     bool                 showPickLetter;
+    bool                 hasRangeOutput;
+    MapNode              rangeOutput;
+    std::string          elementLabel;
     bool                 reusePickLetter;
     int                  ghostType;
     int                  hasMixedGhostTypes;
@@ -525,11 +576,13 @@ private:
     int                  timeCurveType;
     MapNode              timeOptions;
     MapNode              plotRequested;
+    int                  pickHighlightColor[3];
+    std::string          removedPicks;
 
     // Static class format string for type map.
     static const char *TypeMapFormatString;
     static const private_tmfs_t TmfsStruct;
 };
-#define PICKATTRIBUTES_TMFS "s*bbbbbbbbbsbiiii*d*iissDDDd*DDsii*s*s*s*s*s*ba*s*bsbbbbbbssi*bbbbbii*bbbiibbbiibssbimm"
+#define PICKATTRIBUTES_TMFS "s*bbbbbbbbbsbiiii*d*iissDDDd*DDsii*s*s*s*s*s*ba*s*bsbbbbbbssi*bbbbbbii*bbbmsbiibbbiibssbimmIsbbsb"
 
 #endif

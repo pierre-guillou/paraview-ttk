@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -46,7 +46,8 @@ namespace cpp {
 
 class PrimitiveFieldGenerator : public FieldGenerator {
  public:
-  explicit PrimitiveFieldGenerator(const FieldDescriptor* descriptor);
+  PrimitiveFieldGenerator(const FieldDescriptor* descriptor,
+                          const Options& options);
   ~PrimitiveFieldGenerator();
 
   // implements FieldGenerator ---------------------------------------
@@ -57,21 +58,37 @@ class PrimitiveFieldGenerator : public FieldGenerator {
   void GenerateMergingCode(io::Printer* printer) const;
   void GenerateSwappingCode(io::Printer* printer) const;
   void GenerateConstructorCode(io::Printer* printer) const;
+  void GenerateCopyConstructorCode(io::Printer* printer) const;
   void GenerateMergeFromCodedStream(io::Printer* printer) const;
   void GenerateSerializeWithCachedSizes(io::Printer* printer) const;
   void GenerateSerializeWithCachedSizesToArray(io::Printer* printer) const;
   void GenerateByteSize(io::Printer* printer) const;
 
  private:
-  const FieldDescriptor* descriptor_;
-  map<string, string> variables_;
-
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(PrimitiveFieldGenerator);
+};
+
+class PrimitiveOneofFieldGenerator : public PrimitiveFieldGenerator {
+ public:
+  PrimitiveOneofFieldGenerator(const FieldDescriptor* descriptor,
+                               const Options& options);
+  ~PrimitiveOneofFieldGenerator();
+
+  // implements FieldGenerator ---------------------------------------
+  void GenerateInlineAccessorDefinitions(io::Printer* printer) const;
+  void GenerateClearingCode(io::Printer* printer) const;
+  void GenerateSwappingCode(io::Printer* printer) const;
+  void GenerateConstructorCode(io::Printer* printer) const;
+  void GenerateMergeFromCodedStream(io::Printer* printer) const;
+
+ private:
+  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(PrimitiveOneofFieldGenerator);
 };
 
 class RepeatedPrimitiveFieldGenerator : public FieldGenerator {
  public:
-  explicit RepeatedPrimitiveFieldGenerator(const FieldDescriptor* descriptor);
+  RepeatedPrimitiveFieldGenerator(const FieldDescriptor* descriptor,
+                                  const Options& options);
   ~RepeatedPrimitiveFieldGenerator();
 
   // implements FieldGenerator ---------------------------------------
@@ -82,6 +99,7 @@ class RepeatedPrimitiveFieldGenerator : public FieldGenerator {
   void GenerateMergingCode(io::Printer* printer) const;
   void GenerateSwappingCode(io::Printer* printer) const;
   void GenerateConstructorCode(io::Printer* printer) const;
+  void GenerateCopyConstructorCode(io::Printer* printer) const;
   void GenerateMergeFromCodedStream(io::Printer* printer) const;
   void GenerateMergeFromCodedStreamWithPacking(io::Printer* printer) const;
   void GenerateSerializeWithCachedSizes(io::Printer* printer) const;
@@ -89,15 +107,12 @@ class RepeatedPrimitiveFieldGenerator : public FieldGenerator {
   void GenerateByteSize(io::Printer* printer) const;
 
  private:
-  const FieldDescriptor* descriptor_;
-  map<string, string> variables_;
-
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(RepeatedPrimitiveFieldGenerator);
 };
 
 }  // namespace cpp
 }  // namespace compiler
 }  // namespace protobuf
-
 }  // namespace google
+
 #endif  // GOOGLE_PROTOBUF_COMPILER_CPP_PRIMITIVE_FIELD_H__

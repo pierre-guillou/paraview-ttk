@@ -27,6 +27,8 @@
 #include "vtkCompositeDataSet.h"
 #include "vtkDataObjectTreeIterator.h"
 #include "vtkDataSetSurfaceFilter.h"
+#include "vtkExplicitStructuredGrid.h"
+#include "vtkExplicitStructuredGridSurfaceFilter.h"
 #include "vtkFeatureEdges.h"
 #include "vtkFloatArray.h"
 #include "vtkGarbageCollector.h"
@@ -509,6 +511,12 @@ void vtkPVGeometryFilter::ExecuteBlock(vtkDataObject* input, vtkPolyData* output
     this->HyperTreeGridExecute(static_cast<vtkHyperTreeGrid*>(input), output, doCommunicate);
     return;
   }
+  if (input->IsA("vtkExplicitStructuredGrid"))
+  {
+    this->ExplicitStructuredGridExecute(
+      static_cast<vtkExplicitStructuredGrid*>(input), output, doCommunicate, wholeExtent);
+    return;
+  }
   if (input->IsA("vtkDataSet"))
   {
     this->DataSetExecute(static_cast<vtkDataSet*>(input), output, doCommunicate);
@@ -536,7 +544,7 @@ int vtkPVGeometryFilter::RequestData(
     }
     else
     {
-      this->RequestCompositeData(request, inputVector, outputVector);
+      this->RequestDataObjectTree(request, inputVector, outputVector);
     }
     vtkTimerLog::MarkStartEvent("vtkPVGeometryFilter::GarbageCollect");
     vtkGarbageCollector::DeferredCollectionPop();
@@ -694,7 +702,7 @@ void vtkPVGeometryFilter::AddCompositeIndex(vtkPolyData* pd, unsigned int index)
 }
 
 //----------------------------------------------------------------------------
-void vtkPVGeometryFilter::AddBlockColors(vtkPolyData* pd, unsigned int index)
+void vtkPVGeometryFilter::AddBlockColors(vtkDataObject* pd, unsigned int index)
 {
   vtkUnsignedIntArray* cindex = vtkUnsignedIntArray::New();
   cindex->SetNumberOfComponents(1);
@@ -884,12 +892,12 @@ int vtkPVGeometryFilter::RequestAMRData(
 }
 
 //----------------------------------------------------------------------------
-int vtkPVGeometryFilter::RequestCompositeData(
+int vtkPVGeometryFilter::RequestDataObjectTree(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
-  vtkTimerLog::MarkStartEvent("vtkPVGeometryFilter::RequestCompositeData");
+  vtkTimerLog::MarkStartEvent("vtkPVGeometryFilter::RequestDataObjectTree");
 
-  vtkCompositeDataSet* output = vtkCompositeDataSet::GetData(outputVector, 0);
+  vtkDataObjectTree* output = vtkDataObjectTree::GetData(outputVector, 0);
   if (!output)
   {
     return 0;
@@ -910,28 +918,24 @@ int vtkPVGeometryFilter::RequestCompositeData(
   vtkTimerLog::MarkEndEvent("vtkPVGeometryFilter::CheckAttributes");
 
   vtkTimerLog::MarkStartEvent("vtkPVGeometryFilter::ExecuteCompositeDataSet");
-  vtkSmartPointer<vtkCompositeDataIterator> iter;
-  iter.TakeReference(input->NewIterator());
+  vtkSmartPointer<vtkDataObjectTreeIterator> inIter;
+  inIter.TakeReference(input->NewTreeIterator());
+  inIter->VisitOnlyLeavesOn();
+  inIter->SkipEmptyNodesOn();
 
+  // get a block count for progress scaling.
   unsigned int totNumBlocks = 0;
-  for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
+  for (inIter->InitTraversal(); !inIter->IsDoneWithTraversal(); inIter->GoToNextItem())
   {
-    // iter skips empty blocks automatically.
-    totNumBlocks++;
+    ++totNumBlocks;
   }
 
-  std::vector<unsigned char> non_null_leaves;
-  non_null_leaves.reserve(totNumBlocks); // just an estimate.
   int* wholeExtent =
     vtkStreamingDemandDrivenPipeline::GetWholeExtent(inputVector[0]->GetInformationObject(0));
   int numInputs = 0;
-
-  unsigned int block_id = 0;
-  iter->SkipEmptyNodesOff(); // since we want to a get an accurate block-id count to
-                             // set vtkBlockColors correctly.
-  for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem(), ++block_id)
+  for (inIter->InitTraversal(); !inIter->IsDoneWithTraversal(); inIter->GoToNextItem())
   {
-    vtkDataObject* block = iter->GetCurrentDataObject();
+    vtkDataObject* block = inIter->GetCurrentDataObject();
     if (!block)
     {
       continue;
@@ -943,14 +947,11 @@ int vtkPVGeometryFilter::RequestCompositeData(
     // skip empty nodes.
     if (tmpOut->GetNumberOfPoints() > 0)
     {
-      unsigned int current_flat_index = iter->GetCurrentFlatIndex();
-      non_null_leaves.resize(current_flat_index + 1);
-      non_null_leaves[current_flat_index] = 1;
-      output->SetDataSet(iter, tmpOut);
+      output->SetDataSet(inIter, tmpOut);
       tmpOut->FastDelete();
 
+      const unsigned int current_flat_index = inIter->GetCurrentFlatIndex();
       this->AddCompositeIndex(tmpOut, current_flat_index);
-      this->AddBlockColors(tmpOut, block_id);
     }
     else
     {
@@ -963,53 +964,46 @@ int vtkPVGeometryFilter::RequestCompositeData(
   }
   vtkTimerLog::MarkEndEvent("vtkPVGeometryFilter::ExecuteCompositeDataSet");
 
-  // Merge multi-pieces to avoid efficiency setbacks when ordered
-  // compositing is employed.
-  iter.TakeReference(output->NewIterator());
-  iter->SkipEmptyNodesOff(); // since we want to a get an accurate block-id count to
-                             // set vtkBlockColors correctly.
-  if (vtkDataObjectTreeIterator* treeIter = vtkDataObjectTreeIterator::SafeDownCast(iter))
-  {
-    treeIter->VisitOnlyLeavesOff();
-  }
+  // Merge multi-pieces to avoid efficiency setbacks since multipieces can have
+  // too many pieces.
+  vtkSmartPointer<vtkDataObjectTreeIterator> outIter;
+  outIter.TakeReference(output->NewTreeIterator());
+  outIter->VisitOnlyLeavesOff();
+  outIter->SkipEmptyNodesOn();
 
   std::vector<vtkMultiPieceDataSet*> pieces_to_merge;
-  std::vector<unsigned int> ids_for_pieces_to_merge;
-  block_id = 0;
-  for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
+  for (outIter->InitTraversal(); !outIter->IsDoneWithTraversal(); outIter->GoToNextItem())
   {
-    vtkDataObject* curNode = iter->GetCurrentDataObject();
-    if (vtkMultiPieceDataSet* piece = vtkMultiPieceDataSet::SafeDownCast(curNode))
+    if (auto piece = vtkMultiPieceDataSet::SafeDownCast(outIter->GetCurrentDataObject()))
     {
       pieces_to_merge.push_back(piece);
-      // save the current leaf node count. this will be used to decide how to
-      // color the merged pieces. This extra-care is taken to ensure that the
-      // ids are generated in a predictable manner. That way, UI can use that
-      // fact, if needed.
-      ids_for_pieces_to_merge.push_back(block_id);
-    }
-    else if (vtkCompositeDataSet::SafeDownCast(curNode) == nullptr)
-    {
-      // leaf node (null or not, doesn't matter).
-      block_id++;
-    }
-  }
-  for (size_t cc = 0; cc < pieces_to_merge.size(); cc++)
-  {
-    if (vtkPolyData* mergedPD = vtkPVGeometryFilterMergePieces(pieces_to_merge[cc]))
-    {
-      // We need to add vtkBlockColors to the merged dataset.
-      this->AddBlockColors(mergedPD, ids_for_pieces_to_merge[cc]);
     }
   }
 
-  // Now, when running in parallel, processes may have NULL-leaf nodes at
-  // different locations. To make our life easier in subsequent filtering such as
-  // vtkAllToNRedistributeCompositePolyData or vtkKdTreeManager we ensure that
-  // all NULL-leafs match up across processes i.e. if any leaf is non-null on
-  // any process, then all other processes add empty polydatas for that leaf.
+  // now merge these pieces (doing it in the above loop confuses the iterator).
+  for (auto piece : pieces_to_merge)
+  {
+    vtkPVGeometryFilterMergePieces(piece);
+  }
+
   if (this->Controller && this->Controller->GetNumberOfProcesses() > 1)
   {
+    // When running in parallel, processes may have NULL-leaf nodes at
+    // different locations. To make our life easier in subsequent filtering such as
+    // vtkAllToNRedistributeCompositePolyData or vtkKdTreeManager we ensure that
+    // all NULL-leafs match up across processes i.e. if any leaf is non-null on
+    // any process, then all other processes add empty polydatas for that leaf.
+
+    std::vector<unsigned char> non_null_leaves;
+    non_null_leaves.reserve(totNumBlocks); // just an estimate.
+    outIter->VisitOnlyLeavesOn();
+    outIter->SkipEmptyNodesOn();
+    for (outIter->InitTraversal(); !outIter->IsDoneWithTraversal(); outIter->GoToNextItem())
+    {
+      non_null_leaves.resize(outIter->GetCurrentFlatIndex() + 1, 0);
+      non_null_leaves[outIter->GetCurrentFlatIndex()] = static_cast<unsigned char>(1);
+    }
+
     int count = static_cast<int>(non_null_leaves.size());
     int reduced_size;
     this->Controller->AllReduce(&count, &reduced_size, 1, vtkCommunicator::MAX_OP);
@@ -1024,27 +1018,40 @@ int vtkPVGeometryFilter::RequestCompositeData(
       this->Controller->AllReduce(
         &non_null_leaves[0], &reduced_non_null_leaves[0], reduced_size, vtkCommunicator::MAX_OP);
 
-      vtkPolyData* trivalInput = vtkPolyData::New();
-      iter->SkipEmptyNodesOff();
-      if (vtkDataObjectTreeIterator* treeIter = vtkDataObjectTreeIterator::SafeDownCast(iter))
+      outIter->SkipEmptyNodesOff();
+      outIter->VisitOnlyLeavesOn();
+      for (outIter->InitTraversal(); !outIter->IsDoneWithTraversal(); outIter->GoToNextItem())
       {
-        treeIter->VisitOnlyLeavesOff();
-      }
-      for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
-      {
-        unsigned int index = iter->GetCurrentFlatIndex();
-        if (iter->GetCurrentDataObject() == NULL &&
+        const unsigned int index = outIter->GetCurrentFlatIndex();
+        if (outIter->GetCurrentDataObject() == nullptr &&
           index < static_cast<unsigned int>(reduced_non_null_leaves.size()) &&
           reduced_non_null_leaves[index] != 0)
         {
-          output->SetDataSet(iter, trivalInput);
+          vtkPolyData* trivalInput = vtkPolyData::New();
+          this->AddCompositeIndex(trivalInput, index);
+          output->SetDataSet(outIter, trivalInput);
+          trivalInput->FastDelete();
         }
       }
-      trivalInput->Delete();
     }
   }
 
-  vtkTimerLog::MarkEndEvent("vtkPVGeometryFilter::RequestCompositeData");
+  // At this point, all ranks have consistent tree structure with leaf nodes
+  // non-null at exactly same locations. This is a good point to assign block
+  // colors.
+  outIter->SkipEmptyNodesOff();
+  outIter->VisitOnlyLeavesOn();
+  unsigned int block_id = 0;
+  for (outIter->InitTraversal(); !outIter->IsDoneWithTraversal();
+       outIter->GoToNextItem(), ++block_id)
+  {
+    if (auto dobj = outIter->GetCurrentDataObject())
+    {
+      this->AddBlockColors(dobj, block_id);
+    }
+  }
+
+  vtkTimerLog::MarkEndEvent("vtkPVGeometryFilter::RequestDataObjectTree");
   return 1;
 }
 
@@ -1627,7 +1634,7 @@ void vtkPVGeometryFilter::PolyDataExecute(
 
 //----------------------------------------------------------------------------
 void vtkPVGeometryFilter::HyperTreeGridExecute(
-  vtkHyperTreeGrid* input, vtkPolyData* out, int doCommunicate)
+  vtkHyperTreeGrid* input, vtkPolyData* output, int doCommunicate)
 {
   if (!this->UseOutline)
   {
@@ -1640,14 +1647,81 @@ void vtkPVGeometryFilter::HyperTreeGridExecute(
     htgCopy->ShallowCopy(input);
     internalFilter->SetInputData(htgCopy);
     internalFilter->Update();
-    out->ShallowCopy(internalFilter->GetOutput());
+    output->ShallowCopy(internalFilter->GetOutput());
     htgCopy->Delete();
     internalFilter->Delete();
     return;
   }
 
   this->OutlineFlag = 1;
-  this->DataSetExecute(input, out, doCommunicate);
+  double bds[6];
+  int procid = 0;
+  if (!doCommunicate && input->GetNumberOfVertices() == 0)
+  {
+    return;
+  }
+
+  if (this->Controller)
+  {
+    procid = this->Controller->GetLocalProcessId();
+  }
+
+  input->GetBounds(bds);
+
+  vtkPVGeometryFilter::BoundsReductionOperation operation;
+  if (procid && doCommunicate)
+  {
+    // Satellite node
+    this->Controller->Reduce(bds, NULL, 6, &operation, 0);
+  }
+  else
+  {
+    if (this->Controller && doCommunicate)
+    {
+      double tmp[6];
+      this->Controller->Reduce(bds, tmp, 6, &operation, 0);
+      memcpy(bds, tmp, 6 * sizeof(double));
+    }
+
+    if (bds[1] >= bds[0] && bds[3] >= bds[2] && bds[5] >= bds[4])
+    {
+      // only output in process 0.
+      this->OutlineSource->SetBounds(bds);
+      this->OutlineSource->Update();
+
+      output->SetPoints(this->OutlineSource->GetOutput()->GetPoints());
+      output->SetLines(this->OutlineSource->GetOutput()->GetLines());
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVGeometryFilter::ExplicitStructuredGridExecute(
+  vtkExplicitStructuredGrid* input, vtkPolyData* out, int doCommunicate, const int* wholeExtent)
+{
+  vtkNew<vtkPVTrivialProducer> producer;
+  producer->SetOutput(input);
+  producer->SetWholeExtent(
+    wholeExtent[0], wholeExtent[1], wholeExtent[2], wholeExtent[3], wholeExtent[4], wholeExtent[5]);
+  producer->Update();
+
+  if (!this->UseOutline)
+  {
+    this->OutlineFlag = 0;
+
+    vtkNew<vtkExplicitStructuredGridSurfaceFilter> internalFilter;
+    internalFilter->SetPassThroughPointIds(this->PassThroughPointIds);
+    internalFilter->SetPassThroughCellIds(this->PassThroughCellIds);
+    internalFilter->SetInputConnection(producer->GetOutputPort());
+    internalFilter->Update();
+    out->ShallowCopy(internalFilter->GetOutput());
+    return;
+  }
+  vtkExplicitStructuredGrid* in =
+    vtkExplicitStructuredGrid::SafeDownCast(producer->GetOutputDataObject(0));
+
+  this->OutlineFlag = 1;
+  this->DataSetExecute(in, out, doCommunicate);
 }
 
 //----------------------------------------------------------------------------
@@ -1661,6 +1735,7 @@ int vtkPVGeometryFilter::FillInputPortInformation(int port, vtkInformation* info
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkGenericDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCompositeDataSet");
+  info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
   return 1;
 }
 

@@ -48,12 +48,12 @@ class VTKPVVTKEXTENSIONSDEFAULT_EXPORT vtkPVGridAxes3DActor : public vtkGridAxes
 public:
   static vtkPVGridAxes3DActor* New();
   vtkTypeMacro(vtkPVGridAxes3DActor, vtkGridAxes3DActor);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Shallow copy from another vtkPVGridAxes3DActor.
    */
-  void ShallowCopy(vtkProp* prop) VTK_OVERRIDE;
+  void ShallowCopy(vtkProp* prop) override;
 
   //@{
   /**
@@ -76,8 +76,34 @@ public:
   //@}
 
   //@{
+  /**
+   * Another way for specifying grid bounds except here the bounds are
+   * considered to be pre-transformed. Using the DataPosition, DataScale, and
+   * DataBoundsScaleFactor, the provided bounds will un-transformed before
+   * calling this->SetGridBounds() and then position and scale are instead
+   * passed on the vtkActor. This results in display scaling rather than data
+   * scaling.
+   */
   vtkSetVector6Macro(TransformedBounds, double);
   vtkGetVector6Macro(TransformedBounds, double);
+  //@}
+
+  //@{
+  /**
+   * If set to true, CustomTransformedBounds are used instead of
+   * TransformedBounds. Default is false.
+   */
+  vtkSetMacro(UseCustomTransformedBounds, bool);
+  vtkGetMacro(UseCustomTransformedBounds, bool);
+  //@}
+
+  //@{
+  /**
+   * Same as TransformedBounds, except used only when UseCustomTransformedBounds
+   * is set.
+   */
+  vtkSetVector6Macro(CustomTransformedBounds, double);
+  vtkGetVector6Macro(CustomTransformedBounds, double);
   //@}
 
   vtkSetMacro(UseModelTransform, bool);
@@ -91,13 +117,13 @@ public:
    * Overridden to ensure that the transform information is passed on the
    * superclass.
    */
-  double* GetBounds() VTK_OVERRIDE;
+  double* GetBounds() override;
 
 protected:
   vtkPVGridAxes3DActor();
   ~vtkPVGridAxes3DActor() override;
 
-  void Update(vtkViewport* viewport) VTK_OVERRIDE;
+  void Update(vtkViewport* viewport) override;
   void UpdateGridBounds();
   void UpdateGridBoundsUsingDataBounds();
   void UpdateGridBoundsUsingModelTransform();
@@ -110,6 +136,9 @@ protected:
   bool UseModelTransform;
   double ModelBounds[6];
   vtkNew<vtkMatrix4x4> ModelTransformMatrix;
+
+  bool UseCustomTransformedBounds;
+  double CustomTransformedBounds[6];
 
 private:
   vtkPVGridAxes3DActor(const vtkPVGridAxes3DActor&) = delete;

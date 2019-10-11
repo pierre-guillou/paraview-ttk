@@ -1,6 +1,6 @@
 #*****************************************************************************
 #
-# Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+# Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 # Produced at the Lawrence Livermore National Laboratory
 # LLNL-CODE-442911
 # All rights reserved.
@@ -50,6 +50,7 @@ avtPolynomial.C
 avtVector.C
 )
 
+if (FALSE)
 INCLUDE_DIRECTORIES(
 ${CMAKE_CURRENT_SOURCE_DIR}
 ${VISIT_COMMON_INCLUDES}
@@ -57,11 +58,14 @@ ${VTK_INCLUDE_DIRS}
 )
 
 # Add link directories
-LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY} ${VTK_LIBRARY_DIRS})
+LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY} )
+endif ()
 
-#ADD_LIBRARY(avtmath ${AVTMATH_SOURCES})
+ADD_LIBRARY(avtmath ${AVTMATH_SOURCES})
 #TARGET_LINK_LIBRARIES(avtmath visitcommon vtkCommonCore)
-VTK_ADD_LIBRARY(avtmath ${AVTMATH_SOURCES})
-TARGET_LINK_LIBRARIES(avtmath LINK_PRIVATE visitcommon vtkCommonCore)
+TARGET_LINK_LIBRARIES(avtmath PRIVATE visitcommon VTK::CommonCore)
+target_include_directories(avtmath
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
 
 VISIT_INSTALL_TARGETS(avtmath)

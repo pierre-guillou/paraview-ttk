@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -44,6 +44,7 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <tuple>
 
 // ****************************************************************************
 //  Method: ostream operator<<
@@ -123,6 +124,14 @@ inline std::ostream& operator<<(std::ostream& out,
                                 const std::pair<S,T> &p)
 {
     out<<"("<<p.first<<", "<<p.second<<")";
+    return out;
+}
+
+template<class S, class T, class U>
+inline std::ostream& operator<<(std::ostream& out,
+                                const std::tuple<S,T,U> &t)
+{
+    out<<"("<<std::get<0>(t)<<", "<<std::get<1>(t)<<", "<<std::get<2>(t)<<")";
     return out;
 }
 

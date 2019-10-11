@@ -17,6 +17,7 @@
 #include "vtkAbstractArray.h"
 #include "vtkCellData.h"
 #include "vtkClientServerStream.h"
+#include "vtkHyperTreeGrid.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMultiProcessController.h"
@@ -25,6 +26,7 @@
 #include "vtkPVArrayInformation.h"
 #include "vtkPointData.h"
 #include "vtkPointSet.h"
+#include "vtkRectilinearGrid.h"
 #include "vtkTable.h"
 
 // this doesn't directly use vtkPVDataSetAttributesInformation since
@@ -150,6 +152,7 @@ int vtkCompleteArrays::FillInputPortInformation(int port, vtkInformation* info)
   if (port == 0)
   {
     info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkTable");
+    info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
   }
   return 1;
 }
@@ -211,6 +214,15 @@ int vtkCompleteArrays::RequestData(
   {
     vtkTable* outputTable = vtkTable::SafeDownCast(output);
     outputTable->ShallowCopy(inputTable);
+    return 1;
+  }
+
+  vtkHyperTreeGrid* inputHTG = vtkHyperTreeGrid::SafeDownCast(input);
+  // let vtkHyperTreeGrid pass-through this filter
+  if (inputHTG)
+  {
+    vtkHyperTreeGrid* outputHTG = vtkHyperTreeGrid::SafeDownCast(output);
+    outputHTG->ShallowCopy(inputHTG);
     return 1;
   }
 
@@ -285,8 +297,7 @@ int vtkCompleteArrays::RequestData(
 
     vtkDeserialize(css, 0, outputDS->GetPointData());
     vtkDeserialize(css, 1, outputDS->GetCellData());
-    vtkPointSet* ps = vtkPointSet::SafeDownCast(outputDS);
-    if (ps)
+    if (vtkPointSet* ps = vtkPointSet::SafeDownCast(outputDS))
     {
       vtkNew<vtkPoints> pts;
       int dataType;
@@ -295,6 +306,39 @@ int vtkCompleteArrays::RequestData(
         pts->SetDataType(dataType);
       }
       ps->SetPoints(pts.Get());
+    }
+    else if (auto rg = vtkRectilinearGrid::SafeDownCast(outputDS))
+    {
+      rg->SetXCoordinates(nullptr);
+      rg->SetYCoordinates(nullptr);
+      rg->SetZCoordinates(nullptr);
+
+      int dataType;
+      if (css.GetArgument(2, 0, &dataType) && dataType != VTK_VOID)
+      {
+        if (auto array = vtkAbstractArray::CreateArray(dataType))
+        {
+          rg->SetXCoordinates(vtkDataArray::SafeDownCast(array));
+          array->FastDelete();
+        }
+      }
+
+      if (css.GetArgument(2, 1, &dataType) && dataType != VTK_VOID)
+      {
+        if (auto array = vtkAbstractArray::CreateArray(dataType))
+        {
+          rg->SetYCoordinates(vtkDataArray::SafeDownCast(array));
+          array->FastDelete();
+        }
+      }
+      if (css.GetArgument(2, 2, &dataType) && dataType != VTK_VOID)
+      {
+        if (auto array = vtkAbstractArray::CreateArray(dataType))
+        {
+          rg->SetZCoordinates(vtkDataArray::SafeDownCast(array));
+          array->FastDelete();
+        }
+      }
     }
   }
   else if (myProcId == infoProc)
@@ -306,6 +350,14 @@ int vtkCompleteArrays::RequestData(
     if (vtkPointSet* ps = vtkPointSet::SafeDownCast(inputDS))
     {
       css << vtkClientServerStream::Reply << ps->GetPoints()->GetDataType()
+          << vtkClientServerStream::End;
+    }
+    else if (auto rg = vtkRectilinearGrid::SafeDownCast(inputDS))
+    {
+      css << vtkClientServerStream::Reply
+          << (rg->GetXCoordinates() ? rg->GetXCoordinates()->GetDataType() : VTK_VOID)
+          << (rg->GetYCoordinates() ? rg->GetYCoordinates()->GetDataType() : VTK_VOID)
+          << (rg->GetZCoordinates() ? rg->GetZCoordinates()->GetDataType() : VTK_VOID)
           << vtkClientServerStream::End;
     }
 

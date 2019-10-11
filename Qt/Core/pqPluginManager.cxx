@@ -34,12 +34,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqApplicationCore.h"
 #include "pqCoreUtilities.h"
-#include "pqDebug.h"
 #include "pqObjectBuilder.h"
 #include "pqServer.h"
 #include "pqServerConfiguration.h"
 #include "pqServerManagerModel.h"
 #include "pqSettings.h"
+#include "vtkPVLogger.h"
 #include "vtkPVPlugin.h"
 #include "vtkPVPluginLoader.h"
 #include "vtkPVPluginsInformation.h"
@@ -57,7 +57,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QSet>
 #include <QTextStream>
 
+#include <cassert>
 #include <sstream>
+
 class pqPluginManager::pqInternals
 {
 public:
@@ -91,7 +93,7 @@ public:
 //=============================================================================
 static QString pqPluginManagerSettingsKeyForRemote(pqServer* server)
 {
-  Q_ASSERT(server && server->isRemote());
+  assert(server && server->isRemote());
   // locate the xml-config from settings associated with this server and ask
   // the server to parse it.
   const pqServerResource& resource = server->getResource();
@@ -159,7 +161,8 @@ void pqPluginManager::loadPluginsFromSettings()
   QString local_plugin_config = settings->value(key).toString();
   if (!local_plugin_config.isEmpty())
   {
-    pqDebug("PV_PLUGIN_DEBUG") << "Loading local Plugin configuration using settings key: " << key;
+    vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
+      "Loading local Plugin configuration using settings key: %s", key.toLocal8Bit().data());
     vtkSMProxyManager::GetProxyManager()->GetPluginManager()->LoadPluginConfigurationXMLFromString(
       local_plugin_config.toUtf8().data(), NULL, false);
   }
@@ -180,8 +183,8 @@ void pqPluginManager::loadPluginsFromSettings(pqServer* server)
     // processes.
     if (!remote_plugin_config.isEmpty())
     {
-      pqDebug("PV_PLUGIN_DEBUG") << "Loading remote Plugin configuration using settings key: "
-                                 << key;
+      vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
+        "Loading remote Plugin configuration using settings key: %s", key.toLocal8Bit().data());
       vtkSMProxyManager::GetProxyManager()
         ->GetPluginManager()
         ->LoadPluginConfigurationXMLFromString(
@@ -215,14 +218,15 @@ void pqPluginManager::onServerDisconnected(pqServer* server)
     // the server to parse it.
     settings->setValue(
       remoteKey, this->Internals->getXML(this->loadedExtensions(server, true), true));
-    pqDebug("PV_PLUGIN_DEBUG") << "Saving remote Plugin configuration using settings key: "
-                               << remoteKey;
+    vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
+      "Saving remote Plugin configuration using settings key: %s", remoteKey.toLocal8Bit().data());
   }
 
   // just save the local plugin info to be on the safer side.
   QString key = pqPluginManagerSettingsKeyForLocal();
   settings->setValue(key, this->Internals->getXML(this->loadedExtensions(server, false), false));
-  pqDebug("PV_PLUGIN_DEBUG") << "Saving local Plugin configuration using settings key: " << key;
+  vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
+    "Saving local Plugin configuration using settings key: %s", key.toLocal8Bit().data());
 
   this->Internals->Servers.removeAll(server);
 }
@@ -309,7 +313,7 @@ bool pqPluginManager::verifyPlugins(pqServer* activeServer)
 //-----------------------------------------------------------------------------
 bool pqPluginManager::confirmEULA(vtkPVPlugin* plugin)
 {
-  Q_ASSERT(plugin->GetEULA() != nullptr);
+  assert(plugin->GetEULA() != nullptr);
 
   pqSettings* settings = pqApplicationCore::instance()->settings();
 

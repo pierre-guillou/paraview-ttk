@@ -13,6 +13,7 @@
 #include <IceTDevContext.h>
 #include <IceTDevImage.h>
 #include <IceTDevMatrix.h>
+#include <IceTDevPorting.h>
 #include "test_util.h"
 #include "test_codes.h"
 
@@ -419,7 +420,7 @@ static void draw(const IceTDouble *projection_matrix,
          * IceT will not recognize as background. */
         background_depth = 0.999f;
         background_alpha
-                = (background_color[3] == 0) ? 0.001 : background_color[3];
+                = (background_color[3] == 0) ? 0.001f : background_color[3];
 
         /* Clear out the the images to background so that pixels outside of
          * the contained viewport have valid values. */
@@ -1112,14 +1113,14 @@ static int SimpleTimingDoRender()
         IceTInt magic_k;
 
         icetGetIntegerv(ICET_MAGIC_K, &magic_k);
-        sprintf(name_buffer, "radix-k %d", (int)magic_k);
+        icetSnprintf(name_buffer, 256, "radix-k %d", (int)magic_k);
         si_strategy_name = name_buffer;
     } else if (g_single_image_strategy == ICET_SINGLE_IMAGE_STRATEGY_RADIXKR) {
             static char name_buffer[256];
             IceTInt magic_k;
 
             icetGetIntegerv(ICET_MAGIC_K, &magic_k);
-            sprintf(name_buffer, "radix-kr %d", (int)magic_k);
+            icetSnprintf(name_buffer, 256, "radix-kr %d", (int)magic_k);
             si_strategy_name = name_buffer;
     } else {
         si_strategy_name = icetGetSingleImageStrategyName();
@@ -1270,7 +1271,7 @@ static int SimpleTimingDoRender()
             IceTUByte *buffer = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4);
             char filename[256];
             icetImageCopyColorub(image, buffer, ICET_IMAGE_COLOR_RGBA_UBYTE);
-            sprintf(filename, "SimpleTiming%02d.ppm", rank);
+            icetSnprintf(filename, 256, "SimpleTiming%02d.ppm", rank);
             write_ppm(filename, buffer, (int)SCREEN_WIDTH, (int)SCREEN_HEIGHT);
             free(buffer);
         }
@@ -1347,13 +1348,8 @@ static int SimpleTimingDoParameterStudies()
             char k_string[64];
             int retval;
 
-#ifdef _WIN32
-            sprintf(k_string, "ICET_MAGIC_K=%d", magic_k);
-            putenv(k_string);
-#else
-            sprintf(k_string, "%d", magic_k);
-            setenv("ICET_MAGIC_K", k_string, ICET_TRUE);
-#endif
+            icetSnprintf(k_string, 64, "%d", magic_k);
+            icetPutEnv("ICET_MAGIC_K", k_string);
 
             /* This is a bit hackish.  The magic k value is set when the IceT
                context is initialized.  Thus, for the environment to take
@@ -1389,13 +1385,8 @@ static int SimpleTimingDoParameterStudies()
             char image_split_string[64];
             int retval;
 
-#ifdef _WIN32
-            sprintf(image_split_string, "ICET_MAX_IMAGE_SPLIT=%d", image_split);
-            putenv(image_split_string);
-#else
-            sprintf(image_split_string, "%d", image_split);
-            setenv("ICET_MAX_IMAGE_SPLIT", image_split_string, ICET_TRUE);
-#endif
+            icetSnprintf(image_split_string, 64, "%d", image_split);
+            icetPutEnv("ICET_MAX_IMAGE_SPLIT", image_split_string);
 
             /* This is a bit hackish.  The max image split value is set when the
                IceT context is initialized.  Thus, for the environment to take

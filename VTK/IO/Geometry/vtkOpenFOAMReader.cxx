@@ -795,11 +795,11 @@ public:
                                : static_cast<float>(this->Double);
   }
 
-  const vtkStdString ToString() const
+  vtkStdString ToString() const
   {
     return *this->String;
   }
-  const vtkStdString ToIdentifier() const
+  vtkStdString ToIdentifier() const
   {
     return *this->String;
   }
@@ -1259,11 +1259,11 @@ public:
   {
     return this->InputMode;
   }
-  const vtkStdString GetCasePath() const
+  vtkStdString GetCasePath() const
   {
     return this->CasePath;
   }
-  const vtkStdString GetFilePath() const
+  vtkStdString GetFilePath() const
   {
     return this->ExtractPath(this->FileName);
   }
@@ -3347,16 +3347,33 @@ public:
   {
     return this->UpperDictPtr;
   }
-  vtkFoamEntry *Lookup(const vtkStdString& keyword) const
+  vtkFoamEntry *Lookup(const vtkStdString& keyword, bool regex = false) const
   {
     if (this->Token.GetType() == vtkFoamToken::UNDEFINED)
     {
+      int lastMatch = -1;
       for (size_t i = 0; i < this->Superclass::size(); i++)
       {
+        vtksys::RegularExpression rex;
         if (this->operator[](i)->GetKeyword() == keyword) // found
         {
           return this->operator[](i);
         }
+        else if
+        (
+            regex &&
+            rex.compile(this->operator[](i)->GetKeyword()) &&
+            rex.find(keyword) &&
+            rex.start(0) == 0 && rex.end(0) == keyword.size()
+        )
+        {
+          // regular expression matches full keyword
+          lastMatch = static_cast<int>(i);
+        }
+      }
+      if (lastMatch >= 0)
+      {
+        return this->operator[](lastMatch);
       }
     }
 
@@ -4320,7 +4337,7 @@ void vtkFoamEntry::Read(vtkFoamIOobject& io)
         // keyword nor list type specifier (i. e. `0()';
         // e. g. simpleEngine/0/polyMesh/pointZones) requires special
         // care (one with nonuniform prefix is treated within
-        // vtkFoamEntryValue::read()). still this causes errornous
+        // vtkFoamEntryValue::read()). still this causes erroneous
         // behavior for `0 nonuniform 0()' but this should be extremely
         // rare
         if (lastValue.GetType() == vtkFoamToken::EMPTYLIST && secondLastValue
@@ -4831,7 +4848,7 @@ int vtkOpenFOAMReaderPrivate::MakeMetaDataAtTimeStep(
         }
         BoundaryEntryI.AllBoundariesStartFace = allBoundariesNextStartFace;
         const vtkStdString typeNameI(typeEntry->ToString());
-        // if the basic type of the patch is one of the followings the
+        // if the basic type of the patch is one of the following the
         // point-filtered values at patches are overridden by patch values
         if (typeNameI == "patch" || typeNameI == "wall")
         {
@@ -7885,7 +7902,7 @@ void vtkOpenFOAMReaderPrivate::GetVolFieldAtTimeStep(
     const vtkFoamBoundaryEntry &beI = this->BoundaryDict[boundaryI];
     const vtkStdString &boundaryNameI = beI.BoundaryName;
 
-    const vtkFoamEntry *bEntryI = bEntry->Dictionary().Lookup(boundaryNameI);
+    const vtkFoamEntry *bEntryI = bEntry->Dictionary().Lookup(boundaryNameI, true);
     if (bEntryI == nullptr)
     {
       vtkWarningMacro(<< "boundaryField " << boundaryNameI.c_str()

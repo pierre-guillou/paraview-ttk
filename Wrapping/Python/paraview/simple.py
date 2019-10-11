@@ -45,6 +45,7 @@ import paraview._backwardscompatibilityhelper
 from paraview.servermanager import OutputPort
 
 import sys
+import warnings
 
 if sys.version_info >= (3,):
     xrange = range
@@ -135,11 +136,16 @@ def SetActiveConnection(connection=None, ns=None):
 #==============================================================================
 # Views and Layout methods
 #==============================================================================
-def CreateView(view_xml_name, detachedFromLayout=False, **params):
+def CreateView(view_xml_name, detachedFromLayout=None, **params):
     """Creates and returns the specified proxy view based on its name/label.
-    If detachedFromLayout is true, the view will no be grabbed by the layout
-    hence not visible unless it is attached after. This also set params keywords
-    arguments as view properties."""
+    Also set params keywords arguments as view properties.
+
+    `detachedFromLayout` has been deprecated in ParaView 5.7 as it is no longer
+    needed. All views are created detached by default.
+    """
+    if detachedFromLayout is not None:
+        warnings.warn("`detachedFromLayout` is deprecated in ParaView 5.7", DeprecationWarning)
+
     view = servermanager._create_view(view_xml_name)
     if not view:
         raise RuntimeError ("Failed to create requested view", view_xml_name)
@@ -158,9 +164,12 @@ def CreateView(view_xml_name, detachedFromLayout=False, **params):
     controller.PreInitializeProxy(view)
     SetProperties(view, **params)
     controller.PostInitializeProxy(view)
-    if detachedFromLayout:
-      view.SMProxy.SetAnnotation("ParaView::DetachedFromLayout", "true")
     controller.RegisterViewProxy(view, registrationName)
+
+    if paraview.compatibility.GetVersion() <= 5.6:
+        # older versions automatically assigned view to a
+        # layout.
+        controller.AssignViewToLayout(view)
 
     # setup an interactor if current process support interaction if an
     # interactor hasn't already been set. This overcomes the problem where VTK
@@ -376,11 +385,8 @@ def GetLayout(view=None):
         view = GetActiveView()
     if not view:
         raise RuntimeError ("No active view was found.")
-    layouts = GetLayouts()
-    for layout in layouts.values():
-        if layout.GetViewLocation(view) != -1:
-            return layout
-    return None
+    lproxy = servermanager.vtkSMViewLayoutProxy.FindLayout(view.SMProxy)
+    return servermanager._getPyProxy(lproxy)
 
 def GetLayoutByName(name):
     """Return the first layout with the given name, if any."""
@@ -398,6 +404,22 @@ def GetViewsInLayout(layout=None):
         raise RuntimeError ("Layout couldn't be determined. Please specify a valid layout.")
     views = GetViews()
     return [x for x in views if layout.GetViewLocation(x) != -1]
+
+def AssignViewToLayout(view=None, layout=None, hint=0):
+    """Assigns the view provided (or active view if None) to the
+    layout provided. If layout is None, then either the active layout or an
+    existing layout on the same server will be used. If no layout exists, then
+    a new layout will be created. Returns True on success.
+
+    It is an error to assign the same view to multiple layouts.
+    """
+    view = view if view else GetActiveView()
+    if not view:
+        raise RuntimeError("No active view was found.")
+
+    layout = layout if layout else GetLayout()
+    controller = servermanager.ParaViewPipelineController()
+    return controller.AssignViewToLayout(view, layout, hint)
 
 # -----------------------------------------------------------------------------
 
@@ -421,14 +443,20 @@ def LoadState(filename, connection=None, **extraArgs):
     RemoveViewsAndLayouts()
 
     pxm = servermanager.ProxyManager()
-    proxy = pxm.NewProxy('options', 'LoadStateOptions')
+    smproxy = pxm.SMProxyManager.NewProxy('options', 'LoadStateOptions')
+    smproxy.UnRegister(None)
 
-    if ((proxy is not None) & proxy.PrepareToLoad(filename)):
-        if (proxy.HasDataFiles() and (extraArgs is not None)):
-            pyproxy = servermanager._getPyProxy(proxy)
+    if (smproxy is not None) and smproxy.PrepareToLoad(filename):
+        if smproxy.HasDataFiles() and (extraArgs is not None):
+            # always create a brand new class since the properties
+            # may change based on the state file being loaded.
+            customclass = servermanager._createClass(smproxy.GetXMLGroup(),
+                    smproxy.GetXMLName(), prototype=smproxy)
+            pyproxy = customclass(proxy=smproxy)
             SetProperties(pyproxy, **extraArgs)
-
-        proxy.Load()
+            del pyproxy
+            del customclass
+        smproxy.Load()
 
     # Try to set the new view active
     if len(GetRenderViews()) > 0:
@@ -472,6 +500,8 @@ def Show(proxy=None, view=None, **params):
     If pipeline object and/or view are not specified, active objects are used."""
     if proxy == None:
         proxy = GetActiveSource()
+    if proxy.GetNumberOfOutputPorts() == 0:
+        raise RuntimeError('Cannot show a sink i.e. algorithm with no output.')
     if proxy == None:
         raise RuntimeError ("Show() needs a proxy argument or that an active source is set.")
     if not view:
@@ -604,9 +634,8 @@ def SetProperties(proxy=None, **params):
         proxy = active_objects.source
     properties = proxy.ListProperties()
     for param in params.keys():
-        if param not in properties:
-            raise AttributeError("object has no property %s" % param)
-        proxy.SetPropertyWithName(param, params[param])
+        pyproxy = servermanager._getPyProxy(proxy)
+        pyproxy.__setattr__(param, params[param])
 
 # -----------------------------------------------------------------------------
 
@@ -938,7 +967,7 @@ def ImportCinema(filename, view=None):
     are shown in that view as indicated in the database.
     """
     try:
-        from vtkmodules.vtkPVCinemaReader import vtkSMCinemaDatabaseImporter
+        from paraview.modules.vtkPVCinemaReader import vtkSMCinemaDatabaseImporter
     except ImportError:
         # cinema not supported in current configuration
         return False
@@ -1304,8 +1333,14 @@ def SaveAnimation(filename, viewOrLayout=None, scene=None, **params):
     formatProperties = formatProxy.ListProperties()
     for prop in formatProperties:
         if prop in params:
-            formatProxy.SetPropertyWithName(prop, params[prop])
-            del params[prop]
+            # see comment at vtkSMSaveAnimationProxy.cxx:327
+            # certain 'prop' (such as FrameRate) are present
+            # in both SaveAnimation and formatProxy (FFMPEG with
+            # panel_visibility="never"). In this case save it only
+            # in SaveAnimation
+            if formatProxy.GetProperty(prop).GetPanelVisibility() != "never":
+                formatProxy.SetPropertyWithName(prop, params[prop])
+                del params[prop]
 
     if "ImageQuality" in params:
         import warnings
@@ -1520,7 +1555,6 @@ def CreatePiecewiseFunction(**params):
     return pfunc
 
 # -----------------------------------------------------------------------------
-
 def GetLookupTableForArray(arrayname, num_components, **params):
     """Used to get an existing lookuptable for a array or to create one if none
     exists. Keyword arguments can be passed in to initialize the LUT if a new
@@ -1528,46 +1562,54 @@ def GetLookupTableForArray(arrayname, num_components, **params):
     *** DEPRECATED ***: Use GetColorTransferFunction instead"""
     return GetColorTransferFunction(arrayname, **params)
 
-# global lookup table reader instance
-# the user can use the simple api below
-# rather than creating a lut reader themself
-_lutReader = None
-def _GetLUTReaderInstance():
-    """ Internal api. Return the lookup table reader singleton. Create
-    it if needed."""
-    global _lutReader
-    if _lutReader is None:
-      import lookuptable
-      _lutReader = lookuptable.vtkPVLUTReader()
-    return _lutReader
-
 # -----------------------------------------------------------------------------
+def AssignLookupTable(arrayInfo, lutName, rangeOveride=[]):
+    """Assign a lookup table to an array by lookup table name.
 
-def AssignLookupTable(arrayObject, LUTName, rangeOveride=[]):
-    """Assign a lookup table to an array by lookup table name. The array
-    may ber obtained from a ParaView source in it's point or cell data.
-    The lookup tables available in ParaView's GUI are loaded by default.
-    To get a list of the available lookup table names see GetLookupTableNames.
-    To load a custom lookup table see LoadLookupTable."""
-    return _GetLUTReaderInstance().GetLUT(arrayObject, LUTName, rangeOveride)
+    `arrayInfo` is the information object for the array. The array name and its
+    range is determined using the info object provided.
 
-# -----------------------------------------------------------------------------
+    `lutName` is the name for the transfer function preset.
 
-def GetLookupTableNames():
-    """Return a list containing the currently available lookup table names.
-    A name maybe used to assign a lookup table to an array. See
-    AssignLookupTable.
+    `rangeOveride` is provided is the range to use instead of the range of the
+    array determined using the `arrayInfo`.
+
+    Example usage::
+
+      track = GetAnimationTrack("Center", 0, sphere) or
+      arrayInfo = source.PointData["Temperature"]
+      AssignLookupTable(arrayInfo, "Cool to Warm")
+
     """
-    return _GetLUTReaderInstance().GetLUTNames()
+    presets = servermanager.vtkSMTransferFunctionPresets()
+    if not presets.HasPreset(lutName):
+        raise RuntimeError("no preset with name `%s` present", lutName)
+
+    lut = GetColorTransferFunction(arrayInfo.Name)
+    if not lut.ApplyPreset(lutName):
+        return False
+
+    if rangeOveride:
+        lut.RescaleTransferFunction(rangeOveride)
+    return True
+
+# -----------------------------------------------------------------------------
+def GetLookupTableNames():
+    """Returns a list containing the currently available transfer function
+    presets."""
+    presets = servermanager.vtkSMTransferFunctionPresets()
+    return [presets.GetPresetName(index) for index in range(presets.GetNumberOfPresets())]
 
 # -----------------------------------------------------------------------------
 
 def LoadLookupTable(fileName):
-    """Read the lookup tables in the named file and append them to the
-    global collection of lookup tables. The newly loaded lookup tables
-    may then be used with AssignLookupTable function.
+    """Load transfer function preset from a file.
+    Both JSON (new) and XML (legacy) preset formats are supported.
+    If the filename ends with a .xml, it's assumed to be a legacy color map XML
+    and will be converted to the new format before processing.
     """
-    return _GetLUTReaderInstance().Read(fileName)
+    presets = servermanager.vtkSMTransferFunctionPresets()
+    return presets.ImportPresets(fileName)
 
 # -----------------------------------------------------------------------------
 
@@ -1656,17 +1698,15 @@ def GetAnimationScene():
 
 # -----------------------------------------------------------------------------
 
-def AnimateReader(reader=None, view=None, filename=None):
+def AnimateReader(reader=None, view=None):
     """This is a utility function that, given a reader and a view
-    animates over all time steps of the reader. If the optional
-    filename is provided, a movie is created (type depends on the
-    extension of the filename."""
+    animates over all time steps of the reader."""
     if not reader:
         reader = active_objects.source
     if not view:
         view = active_objects.view
 
-    return servermanager.AnimateReader(reader, view, filename)
+    return servermanager.AnimateReader(reader, view)
 
 # -----------------------------------------------------------------------------
 
@@ -2037,6 +2077,13 @@ def ResetProperty(propertyName, proxy=None, restoreFromSettings=True):
             settings.GetPropertySetting(propertyToReset)
 
         proxy.SMProxy.UpdateVTKObjects()
+
+def GetOpenGLInformation(location=servermanager.vtkSMSession.CLIENT):
+    """Recover OpenGL information, by default on the client"""
+    openGLInfo = servermanager.vtkPVServerImplementationRendering.vtkPVClientServerCoreRendering.vtkPVOpenGLInformation()
+    session = servermanager.vtkSMProxyManager.GetProxyManager().GetActiveSession()
+    session.GatherInformation(location, openGLInfo, 0)
+    return openGLInfo
 
 #==============================================================================
 # Usage and demo code set

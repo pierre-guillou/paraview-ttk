@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -1580,6 +1580,14 @@ ColorAttribute::SetRgb(int red, int green, int blue)
     color[0] = (unsigned char)red;
     color[1] = (unsigned char)green;
     color[2] = (unsigned char)blue;
+}
+
+void
+ColorAttribute::GetRgb(double c[3]) const
+{
+    c[0] = double(color[0]) / 255.;
+    c[1] = double(color[1]) / 255.;
+    c[2] = double(color[2]) / 255.;
 }
 
 void

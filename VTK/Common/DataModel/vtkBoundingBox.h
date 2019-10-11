@@ -167,7 +167,7 @@ public:
    */
   const double *GetMinPoint() const VTK_SIZEHINT(3);
   void GetMinPoint(double &x, double &y, double &z) const;
-  void GetMinPoint(double x[3]);
+  void GetMinPoint(double x[3]) const;
   //@}
 
   //@{
@@ -176,7 +176,7 @@ public:
    */
   const double *GetMaxPoint() const VTK_SIZEHINT(3);
   void GetMaxPoint(double &x, double &y, double &z) const;
-  void GetMaxPoint(double x[3]);
+  void GetMaxPoint(double x[3]) const;
   //@}
 
   /**
@@ -189,8 +189,8 @@ public:
   /**
    * Returns 1 if the point is contained in the box else 0.
    */
-  int ContainsPoint(double p[3]) const;
-  int ContainsPoint(double px, double py, double pz) const;
+  vtkTypeBool ContainsPoint(double p[3]) const;
+  vtkTypeBool ContainsPoint(double px, double py, double pz) const;
   //@}
 
   /**
@@ -262,8 +262,8 @@ public:
    * cuboid bins. Also note that the returned bounds may be different than
    * the bounds defined in this class, as the bounds in the z-y-z directions
    * can never be <= 0. Note that the total number of divisions
-   * (divs[0]*divs[1]*divs[2]) is guaranteed to be smaller than the target
-   * number of bins.
+   * (divs[0]*divs[1]*divs[2]) should be less than or equal to the target number
+   * of bins, but it may be slightly larger in certain cases.
    */
   vtkIdType ComputeDivisions(vtkIdType totalBins, double bounds[6], int divs[3]) const;
 
@@ -307,7 +307,7 @@ inline const double *vtkBoundingBox::GetMinPoint() const
   return this->MinPnt;
 }
 
-inline void vtkBoundingBox::GetMinPoint(double x[3])
+inline void vtkBoundingBox::GetMinPoint(double x[3]) const
 {
   x[0] = this->MinPnt[0];
   x[1] = this->MinPnt[1];
@@ -319,7 +319,7 @@ inline const double *vtkBoundingBox::GetMaxPoint() const
   return this->MaxPnt;
 }
 
-inline void vtkBoundingBox::GetMaxPoint(double x[3])
+inline void vtkBoundingBox::GetMaxPoint(double x[3]) const
 {
   x[0] = this->MaxPnt[0];
   x[1] = this->MaxPnt[1];
@@ -452,7 +452,7 @@ inline void vtkBoundingBox::GetMaxPoint(double &x, double &y, double &z) const
   z = this->MaxPnt[2];
 }
 
-inline int vtkBoundingBox::ContainsPoint(double px, double py,
+inline vtkTypeBool vtkBoundingBox::ContainsPoint(double px, double py,
                                          double pz) const
 {
   if ((px < this->MinPnt[0]) || (px > this->MaxPnt[0]))
@@ -470,7 +470,7 @@ inline int vtkBoundingBox::ContainsPoint(double px, double py,
   return 1;
 }
 
-inline int vtkBoundingBox::ContainsPoint(double p[3]) const
+inline vtkTypeBool vtkBoundingBox::ContainsPoint(double p[3]) const
 {
   return this->ContainsPoint(p[0], p[1], p[2]);
 }

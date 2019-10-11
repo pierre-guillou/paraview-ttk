@@ -1,6 +1,6 @@
 #*****************************************************************************
 #
-# Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+# Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 # Produced at the Lawrence Livermore National Laboratory
 # LLNL-CODE-442911
 # All rights reserved.
@@ -60,6 +60,13 @@
 #   Eric Brugger, Thu Jan 14 10:44:28 PST 2016
 #   Add linking of vtkm library.
 #
+#   Kathleen Biagas, Tue Feb 6 14:12:32 PST 2018
+#   Removed vtkRendering* from link libs, moved avtLookupTable to avt/Plotter
+#   due to its dependence on vtkRendering.  Removed VTK_DEFINITIONS.
+#
+#   Eric Brugger, Tue Aug 28 14:35:30 PDT 2018
+#   I replaced support for vtkm with vtkh.
+#
 #****************************************************************************/
 
 SET(DATA_SOURCES
@@ -99,7 +106,6 @@ Data/avtIntervalTree.C
 Data/avtIsolevelsSelection.C
 #Data/avtLightingModel.C
 Data/avtLogicalSelection.C
-#Data/avtLookupTable.C
 #Data/avtMIPRangeRF.C
 Data/avtMaterial.C
 #Data/avtMaximumIntensityProjectionRF.C
@@ -229,6 +235,7 @@ ${SINKS_SOURCES}
 ${SOURCES_SOURCES}
 )
 
+if (FALSE)
 INCLUDE_DIRECTORIES(
 ${CMAKE_CURRENT_SOURCE_DIR}
 ${VISIT_COMMON_INCLUDES}
@@ -245,15 +252,17 @@ ${VISIT_SOURCE_DIR}/avt/Pipeline/Sinks
 ${VISIT_SOURCE_DIR}/avt/Pipeline/Sources
 ${VISIT_SOURCE_DIR}/visit_vtk/full
 ${VISIT_SOURCE_DIR}/visit_vtk/lightweight
-${VISIT_SOURCE_DIR}/vtkm
 ${EAVL_INCLUDE_DIR}
-${VTKM_INCLUDE_DIR}
+${VTKh_INCLUDE_DIRS}
+${VTKM_DIR}/include/vtkm-1.2
+${VTKM_DIR}/include/vtkm-1.2/vtkm/thirdparty/taotuple
 ${VTK_INCLUDE_DIRS}
 ${ZLIB_INCLUDE_DIR}
 )
 
 # Add link directories
-LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY} ${EAVL_LIBRARY_DIR} ${VTK_LIBRARY_DIRS})
+LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY} ${EAVL_LIBRARY_DIR} )
+endif ()
 
 # Unless we're doing a VISIT_DBIO_ONLY build then we need avtmath
 IF(NOT VISIT_DBIO_ONLY)
@@ -263,29 +272,44 @@ ENDIF(NOT VISIT_DBIO_ONLY)
 if (NOT VISIT_PARALLEL)
 
 #********************************* SERIAL ************************************
-#ADD_LIBRARY(avtpipeline_ser ${ALL_SOURCES})
-    #TARGET_LINK_LIBRARIES(avtpipeline_ser visitcommon ${AVTMATH} avtdbatts 
-    #                                       visit_vtk lightweight_visit_vtk vtkCommonCore 
-    #                                       vtkCommonDataModel vtkFiltersGeometry 
-    #                                       vtkRenderingOpenGL vtkRenderingFreeType 
-    #                                       vtkRenderingFreeTypeOpenGL vtkInteractionStyle 
-    #                                       ${ZLIB_LIB} ${EAVL_LIB} ${VTKM_LIB})
-VTK_ADD_LIBRARY(avtpipeline_ser ${ALL_SOURCES})
+ADD_LIBRARY(avtpipeline_ser ${ALL_SOURCES})
+#TARGET_LINK_LIBRARIES(avtpipeline_ser
+#                      visitcommon ${AVTMATH} avtdbatts
+#                      visit_vtk lightweight_visit_vtk vtkCommonCore
+#                      vtkCommonDataModel vtkFiltersGeometry
+#                      ${ZLIB_LIB} ${EAVL_LIB})
+#if(VTKH_FOUND)
+#    target_link_libraries(avtpipeline_ser vtkh)
+#endif()
 target_link_libraries(avtpipeline_ser
-    LINK_PUBLIC
+    PUBLIC
         visitcommon
         avtmath
         avtdbatts
-    LINK_PRIVATE
+        VTK::CommonCore
+    PRIVATE
         lightweight_visit_vtk
         visit_vtk
-        vtkFiltersCore
-        vtkInteractionStyle
-        vtkIOLegacy
-        vtkIOXML
-        vtkRendering${VTK_RENDERING_BACKEND}
-        vtkFiltersGeometry
+        VTK::CommonDataModel
+        VTK::CommonExecutionModel
+        VTK::CommonMath
+        VTK::CommonTransforms
+        VTK::FiltersCore
+        VTK::FiltersGeometry
+        VTK::IOLegacy
+        VTK::RenderingCore
         ${ZLIB_LIB})
+target_include_directories(avtpipeline_ser
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/AbstractFilters>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Data>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Pipeline>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Sinks>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Sources>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../VisWindow/VisWindow>"
+    PRIVATE
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../Database/Database>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../Database/Ghost>")
 
 if (FALSE)
 IF(HAVE_LIB_R)
@@ -293,10 +317,6 @@ IF(HAVE_LIB_R)
 ENDIF(HAVE_LIB_R)
 endif ()
 
-# Add vtk defines
-if (FALSE)
-ADD_TARGET_DEFINITIONS(avtpipeline_ser "${VTK_DEFINITIONS}")
-endif ()
 VISIT_INSTALL_TARGETS(avtpipeline_ser)
 
 else ()
@@ -305,38 +325,44 @@ else ()
 #IF(VISIT_PARALLEL)
     ADD_PARALLEL_LIBRARY(avtpipeline_par ${ALL_SOURCES})
     target_link_libraries(avtpipeline_par
-        LINK_PUBLIC
+        PUBLIC
             visitcommon
             avtmath
             avtdbatts
-        LINK_PRIVATE
+            VTK::CommonCore
+        PRIVATE
             lightweight_visit_vtk
             visit_vtk
-            vtkFiltersCore
-            vtkInteractionStyle
-            vtkIOLegacy
-            vtkIOXML
-            vtkRendering${VTK_RENDERING_BACKEND}
-            vtkFiltersGeometry
+            VTK::CommonDataModel
+            VTK::CommonExecutionModel
+            VTK::CommonMath
+            VTK::CommonTransforms
+            VTK::FiltersCore
+            VTK::FiltersGeometry
+            VTK::IOLegacy
+            VTK::RenderingCore
             ${ZLIB_LIB}
     )
+    target_include_directories(avtpipeline_par
+        PUBLIC
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/AbstractFilters>"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Data>"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Pipeline>"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Sinks>"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Sources>"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../VisWindow/VisWindow>"
+        PRIVATE
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../Database/Database>"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../Database/Ghost>")
 
-        #TARGET_LINK_LIBRARIES(avtpipeline_par visitcommon ${AVTMATH} avtdbatts 
-        #                                      visit_vtk lightweight_visit_vtk vtkCommonCore 
-        #                                      vtkCommonDataModel vtkFiltersGeometry 
-        #                                      vtkRenderingOpenGL vtkRenderingFreeType 
-        #                                      vtkRenderingFreeTypeOpenGL 
-        #                                      vtkInteractionStyle ${ZLIB_LIB} 
-        #                                      ${EAVL_LIB} ${VTKM_LIB})
-    if (FALSE)
-    IF(HAVE_LIB_R)
-        TARGET_LINK_LIBRARIES(avtpipeline_par vtkFiltersStatisticsGnuR)
-    ENDIF(HAVE_LIB_R)
-    endif ()
-    # Add vtk defines
-    if (FALSE)
-    ADD_TARGET_DEFINITIONS(avtpipeline_par "${VTK_DEFINITIONS}")
-    endif ()
+    #TARGET_LINK_LIBRARIES(avtpipeline_par
+    #                      visitcommon ${AVTMATH} avtdbatts
+    #                      visit_vtk lightweight_visit_vtk vtkCommonCore
+    #                      vtkCommonDataModel vtkFiltersGeometry
+    #                      ${ZLIB_LIB} ${EAVL_LIB})
+    #if(VTKH_FOUND)
+    #    target_link_libraries(avtpipeline_par vtkh)
+    #endif()
     VISIT_INSTALL_TARGETS(avtpipeline_par)
 #ENDIF(VISIT_PARALLEL)
 

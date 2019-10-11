@@ -166,7 +166,7 @@ protected:
   vtkIdType MaximumNumberOfPoints;
   vtkTypeBool GenerateVertices; //generate polydata verts
   vtkTypeBool SingleVertexPerCell;
-  vtkTypeBool RandomModeType; // choose the random sampling mode
+  int RandomModeType; // choose the random sampling mode
   vtkTypeBool ProportionalMaximumNumberOfPoints;
   int OutputPointsPrecision;
 
@@ -174,6 +174,8 @@ protected:
   virtual void InternalGather(unsigned long*, unsigned long*, int, int) {}
   virtual int InternalGetNumberOfProcesses() { return 1; };
   virtual int InternalGetLocalProcessId() { return 0; };
+  virtual void InternalSplitController(int, int) {}
+  virtual void InternalResetController() {}
   virtual void InternalBarrier() {}
   unsigned long GetLocalSampleSize(vtkIdType, int);
 

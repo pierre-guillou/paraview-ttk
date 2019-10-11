@@ -11,6 +11,7 @@
 #include "test_codes.h"
 
 #include <IceTDevCommunication.h>
+#include <IceTDevPorting.h>
 
 #ifndef __USE_POSIX
 #define __USE_POSIX
@@ -29,6 +30,7 @@
 #include <unistd.h>
 #else
 #include <io.h>
+#include <share.h>
 #define dup(fildes)             _dup(fildes)
 #define dup2(fildes, fildes2)   _dup2(fildes, fildes2)
 #endif
@@ -218,12 +220,23 @@ void initialize_test(int *argcp, char ***argvp, IceTCommunicator comm)
         } else {
             realstdout = NULL;
         }
-        sprintf(filename, "log.%04d", rank);
+        icetSnprintf(filename, 64, "log.%04d", rank);
+#ifndef WIN32
         outfd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
         if (outfd < 0) {
             printf("Could not open %s for writing.\n", filename);
             exit(1);
         }
+#else /*WIN32*/
+        if (_sopen_s(&outfd,
+                     filename,
+                     O_WRONLY | O_CREAT | O_APPEND,
+                     _SH_DENYNO,
+                     0644) != 0) {
+            printf("Could not open %s for writing.\n", filename);
+            exit(1);
+        }
+#endif /*WIN32*/
         dup2(outfd, 1);
     } else {
         realstdout = stdout;
@@ -257,7 +270,7 @@ IceTBoolean strategy_uses_single_image_strategy(IceTEnum strategy)
     }
 }
 
-int run_test_base(int (*test_function)(void))
+int run_test_base(int (*test_function)())
 {
     int result;
 

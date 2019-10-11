@@ -31,7 +31,7 @@ paraview.options.batch = True
 paraview.options.symmetric = True
 
 import paraview.simple as pvsimple
-from paraview.vtk import vtkPVCatalyst, vtkPVCatalystPython, vtkPVPythonCatalystPython
+from paraview.modules import vtkPVCatalyst, vtkPVCatalystPython, vtkPVPythonCatalystPython
 pm = pvsimple.servermanager.vtkProcessModule.GetProcessModule()
 rank = pm.GetPartitionId()
 nranks = pm.GetNumberOfLocalPartitions()
@@ -88,7 +88,7 @@ if rank == 0:
 if hasattr(reader, "TimestepValues"):
     timesteps = reader.TimestepValues
     if not timesteps:
-	timesteps = [0]
+        timesteps = [0]
 else:
     timesteps = [0]
 

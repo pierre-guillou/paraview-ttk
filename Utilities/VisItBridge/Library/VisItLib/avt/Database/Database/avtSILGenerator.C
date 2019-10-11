@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -55,9 +55,13 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <map>
+#include <utility>
 
 using std::string;
 using std::vector;
+using std::map;
+using std::pair;
 
 // Prototypes
 static int GroupSorter(const void *, const void *);
@@ -119,6 +123,8 @@ static int GroupSorter(const void *, const void *);
 //    Kathleen Biagas, Thu Aug 22 10:00:11 PDT 2013
 //    Pass groupNames to AddGroups call.
 //
+//    Mark C. Miller, Tue May 22 18:34:15 PDT 2018
+//    Support curves re-interpreted from multi-block meshes.
 // ****************************************************************************
 
 void
@@ -227,8 +233,39 @@ avtSILGenerator::CreateSIL(avtDatabaseMetaData *md, avtSIL *sil)
     for (i = 0 ; i < md->GetNumCurves() ; i++)
     {
         const avtCurveMetaData *curve = md->GetCurve(i);
-        avtSILSet_p set = new avtSILSet(curve->name, 0);
-        sil->AddWhole(set);
+
+        // Look for telltale signs its a mesh re-interpreted as a curve. If not
+        // it is the simple ole' curve case.
+        if (!(curve->name.substr(0, 14) == "Scalar_Curves/" &&
+            curve->name.substr(14, string::npos) == curve->from1DScalarName))
+        {
+            avtSILSet_p set = new avtSILSet(curve->name, 0);
+            sil->AddWhole(set);
+            continue;
+        }
+
+        // Assume its a mesh re-interpreted as a curve object and get the mesh.
+        // If that fails, treat it like the simple ole' curve case.
+        const avtMeshMetaData *mesh = md->GetMesh(md->MeshForVar(curve->from1DScalarName));
+        if (!mesh)
+        {
+            avtSILSet_p set = new avtSILSet(curve->name, 0);
+            sil->AddWhole(set);
+            continue;
+        }
+
+        // Arriving here, this curve object is a re-interpretation of a 1D
+        // mesh object. So, handle the possibility that it is a multi-block
+        // curve and create its subsets.
+        bool const useArrays = false;
+        int id = -1;
+        avtSILSet_p set = new avtSILSet(curve->name, id);
+        int topIndex = sil->AddWhole(set);
+        vector<int> domainList;
+        if (mesh->numBlocks >= 1)
+            AddSubsets(sil, topIndex, mesh->numBlocks, mesh->blockOrigin,
+                domainList, mesh->blockTitle, mesh->blockPieceName,
+                mesh->blockNames, mesh->blockNameScheme, false);
     }
     
     //
@@ -794,11 +831,18 @@ avtSILGenerator::AddMaterialSubsets(avtSIL *sil, const vector<int> &domList,
 
 static void
 AddEnumScalarSubgraph(avtSIL *sil,
-    int silTop, int enumTop, const string enumTopName,
-    const vector<int> &graphEdges, const vector<int> &setIDs)
+                      int silTop, int enumTop, const string enumTopName,
+                      const vector<int> &graphEdges,
+                      const vector<string> &graphEdgeNames,
+                      const vector<int> &graphEdgeNameIndexs,
+                      const vector<int> &setIDs)
 {
-    vector<int> childSetIDs;
-    vector<int> childEnumIDs;
+    // Map of the children using an edge name so to create a SIL for
+    // each edge name.
+  
+    // Of the pair the first  is vector<int> childSetIDs;
+    // Of the pair the second is vector<int> childEnumIDs;
+    map< string, pair< vector<int>, vector<int> > > children;
 
     //
     // Find all the child sets of the given subgraphTop set.
@@ -817,8 +861,8 @@ AddEnumScalarSubgraph(avtSIL *sil,
         {
             if (isTopEnum[i])
             {
-                childSetIDs.push_back(setIDs[i]);
-                childEnumIDs.push_back(i);
+                children[enumTopName].first.push_back( setIDs[i] );
+                children[enumTopName].second.push_back( i );
             }
         }
     }
@@ -828,8 +872,18 @@ AddEnumScalarSubgraph(avtSIL *sil,
         {
             if (graphEdges[i] == enumTop)
             {
-                childSetIDs.push_back(setIDs[graphEdges[i+1]]);
-                childEnumIDs.push_back(graphEdges[i+1]);
+                string edgeName;
+                int index = graphEdgeNameIndexs[i/2]; // Edge list is 2x 
+
+                // No edge name index so use the top name
+                if( index == -1 )
+                  edgeName = enumTopName;
+                // Have an edge name index edge index so get the name
+                else
+                  edgeName = graphEdgeNames[index];
+
+                children[edgeName].first.push_back( setIDs[graphEdges[i+1]] );
+                children[edgeName].second.push_back( graphEdges[i+1] );
             }
         }
     }
@@ -837,10 +891,14 @@ AddEnumScalarSubgraph(avtSIL *sil,
     //
     // Add this collection of children to the SIL 
     //
-    if (childSetIDs.size() > 0)
+    for( const auto child : children )
     {
+        const string edgeName = child.first;
+        const vector<int> &childSetIDs = child.second.first;
+        const vector<int> &childEnumIDs = child.second.second;
+        
         avtSILEnumeratedNamespace *ns = new avtSILEnumeratedNamespace(childSetIDs);
-        avtSILCollection_p coll = new avtSILCollection(enumTopName, SIL_ENUMERATION,
+        avtSILCollection_p coll = new avtSILCollection(edgeName, SIL_ENUMERATION,
                                                        silTop, ns);
         sil->AddCollection(coll);
 
@@ -851,7 +909,8 @@ AddEnumScalarSubgraph(avtSIL *sil,
         {
             const string name = sil->GetSILSet(childSetIDs[i])->GetName();
             AddEnumScalarSubgraph(sil, childSetIDs[i], childEnumIDs[i], name, 
-                                  graphEdges, setIDs);
+                                  graphEdges, graphEdgeNames, graphEdgeNameIndexs,
+                                  setIDs);
         }
     }
 }
@@ -894,7 +953,11 @@ avtSILGenerator::AddEnumScalars(avtSIL *sil, int top,
 
     if (smd->enumGraphEdges.size() > 0)
     {
-        AddEnumScalarSubgraph(sil, top, -1, smd->name, smd->enumGraphEdges, enumList);
+        AddEnumScalarSubgraph(sil, top, -1, smd->name,
+                              smd->enumGraphEdges,
+                              smd->enumGraphEdgeNames,
+                              smd->enumGraphEdgeNameIndexs,
+                              enumList);
     }
     else
     {

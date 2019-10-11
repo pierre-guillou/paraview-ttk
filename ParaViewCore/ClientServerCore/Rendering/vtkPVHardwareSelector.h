@@ -15,7 +15,7 @@
 /**
  * @class   vtkPVHardwareSelector
  * @brief   vtkHardwareSelector subclass with paraview
- * sepecific logic to avoid recapturing buffers unless needed.
+ * specific logic to avoid recapturing buffers unless needed.
  *
  * vtkHardwareSelector is subclass of vtkHardwareSelector that adds logic to
  * reuse the captured buffers as much as possible. Thus avoiding repeated
@@ -30,15 +30,21 @@
 
 #include "vtkOpenGLHardwareSelector.h"
 #include "vtkPVClientServerCoreRenderingModule.h" //needed for exports
-#include "vtkWeakPointer.h"                       // needed for vtkWeakPointer.
 
-class vtkPVSynchronizedRenderWindows;
+class vtkPVRenderView;
+
 class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkPVHardwareSelector : public vtkOpenGLHardwareSelector
 {
 public:
   static vtkPVHardwareSelector* New();
   vtkTypeMacro(vtkPVHardwareSelector, vtkOpenGLHardwareSelector);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  /**
+   * Set the view that will be used to exchange messages between all processes
+   * involved. Note this does not affect the reference count of the view.
+   */
+  void SetView(vtkPVRenderView* view);
 
   /**
    * Overridden to avoid clearing of captured buffers.
@@ -64,18 +70,12 @@ public:
 
   int AssignUniqueId(vtkProp*);
 
-  /**
-   * Set the vtkPVSynchronizedRenderWindows instance. This is used to
-   * communicate between all active processes.
-   */
-  void SetSynchronizedWindows(vtkPVSynchronizedRenderWindows*);
-
   // Fixes a -Woverloaded-virtual warning.
   using vtkOpenGLHardwareSelector::BeginRenderProp;
   /**
    * Set the local ProcessId.
    */
-  void BeginRenderProp(vtkRenderWindow*) VTK_OVERRIDE;
+  void BeginRenderProp(vtkRenderWindow*) override;
 
 protected:
   vtkPVHardwareSelector();
@@ -84,7 +84,7 @@ protected:
   /**
    * Return a unique ID for the prop.
    */
-  int GetPropID(int idx, vtkProp* prop) VTK_OVERRIDE;
+  int GetPropID(int idx, vtkProp* prop) override;
 
   /**
    * Returns is the pass indicated is needed.
@@ -92,7 +92,7 @@ protected:
    * can be smart about it by only requiring it for sessions with more than 1
    * data-server.
    */
-  bool PassRequired(int pass) VTK_OVERRIDE;
+  bool PassRequired(int pass) override;
 
   /**
    * Prepare for selection.
@@ -100,11 +100,10 @@ protected:
    */
   bool PrepareSelect();
 
-  void SavePixelBuffer(int passNo) VTK_OVERRIDE;
+  void SavePixelBuffer(int passNo) override;
 
   vtkTimeStamp CaptureTime;
   int UniqueId;
-  vtkWeakPointer<vtkPVSynchronizedRenderWindows> SynchronizedWindows;
 
 private:
   vtkPVHardwareSelector(const vtkPVHardwareSelector&) = delete;

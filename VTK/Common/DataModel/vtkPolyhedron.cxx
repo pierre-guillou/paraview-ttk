@@ -30,6 +30,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkMeanValueCoordinatesInterpolator.h"
 #include "vtkCellData.h"
 #include "vtkVector.h"
+#include "vtkMath.h"
 
 #include <map>
 #include <set>
@@ -802,7 +803,7 @@ bool vtkPolyhedron::IsConvex()
 {
   double x[2][3], n[3], c[3], c0[3], c1[3], c0p[3], c1p[3], n0[3], n1[3];
   double n0p[3], n1p[3], np[3], tmp0, tmp1;
-  vtkIdType i, w[2], p0, p1, edgeId, edgeFaces[2], loc, v, *face, r = 0;
+  vtkIdType i, w[2], edgeId, edgeFaces[2], loc, v, *face, r = 0;
   const double eps = FLT_EPSILON;
 
   std::vector<double> p(this->PointIds->GetNumberOfIds());
@@ -818,20 +819,16 @@ bool vtkPolyhedron::IsConvex()
   this->EdgeTable->InitTraversal();
   while ((edgeId = this->EdgeTable->GetNextEdge(w[0], w[1])) >= 0)
   {
-    // get the global point ids
-    p0 = this->PointIds->GetId(w[0]);
-    p1 = this->PointIds->GetId(w[1]);
-
     // get the edge points
-    this->Points->GetPoint(p0, x[0]);
-    this->Points->GetPoint(p1, x[1]);
+    this->Points->GetPoint(w[0], x[0]);
+    this->Points->GetPoint(w[1], x[1]);
 
     // get the local face ids
     this->EdgeFaces->GetTypedTuple(edgeId, edgeFaces);
 
     // get the face vertex ids for the first face
     loc = this->FaceLocations->GetValue(edgeFaces[0]);
-    face = this->GlobalFaces->GetPointer(loc);
+    face = this->Faces->GetPointer(loc);
 
     // compute the centroid and normal for the first face
     vtkPolygon::ComputeCentroid(this->Points, face[0], face + 1, c0);
@@ -839,7 +836,7 @@ bool vtkPolyhedron::IsConvex()
 
     // get the face vertex ids for the second face
     loc = this->FaceLocations->GetValue(edgeFaces[1]);
-    face = this->GlobalFaces->GetPointer(loc);
+    face = this->Faces->GetPointer(loc);
 
     // compute the centroid and normal for the second face
     vtkPolygon::ComputeCentroid(this->Points, face[0], face + 1, c1);
@@ -1488,16 +1485,13 @@ void CalculateAngles(const vtkIdType* tri, vtkPoints* phPoints, const vtkPointId
     right.Set(p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]);
     left.Normalize(); right.Normalize();
 
-#define PI		3.14159265358979323846
-#define TO_DEGREES (180.0/PI);
-
     double dot = left.Dot(right);
     // rounding errors can occur in the vtkVector3d::Dot function,
     // clamp to [-1, 1] (i.e. the input range for the acos function)
     dot = min( 1.0, dot);
     dot = max(-1.0, dot);
 
-    double angle = acos(dot)*TO_DEGREES;
+    double angle = acos(dot)*180.0/vtkMath::Pi();
 
     minAngle = min(angle, minAngle);
     maxAngle = max(angle, maxAngle);

@@ -148,7 +148,6 @@
 #include "vtkSpyPlotUniReader.h"
 #include "vtkSquirtCompressor.h"
 #include "vtkSurfaceVectors.h"
-#include "vtkTileDisplayHelper.h"
 #include "vtkTilesHelper.h"
 #include "vtkTimeToTextConvertor.h"
 #include "vtkTrackballPan.h"
@@ -173,14 +172,14 @@
 #include "vtkXMLPVDWriter.h"
 #include "vtkZlibImageCompressor.h"
 
-#ifdef PARAVIEW_USE_MPI
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkAllToNRedistributeCompositePolyData.h"
 #include "vtkAllToNRedistributePolyData.h"
 #include "vtkBalancedRedistributePolyData.h"
 #include "vtkMPICompositeManager.h"
 #include "vtkRedistributePolyData.h"
 #include "vtkWeightedRedistributePolyData.h"
-#ifdef PARAVIEW_USE_ICE_T
+#if VTK_MODULE_ENABLE_ParaView_icet
 #include "vtkIceTCompositePass.h"
 #include "vtkIceTContext.h"
 #endif
@@ -329,7 +328,6 @@ int ParaViewCoreVTKExtensionsPrintSelf(int, char* [])
   PRINT_SELF(vtkSquirtCompressor);
   PRINT_SELF(vtkSurfaceVectors);
   // PRINT_SELF(vtkTilesHelper);
-  // PRINT_SELF(vtkTileDisplayHelper);
   PRINT_SELF(vtkTimeToTextConvertor);
   PRINT_SELF(vtkTrackballPan);
   PRINT_SELF(vtkTransferFunctionEditorRepresentation);

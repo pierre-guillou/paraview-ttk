@@ -30,7 +30,7 @@
 
 #include <math.h>
 
-#ifdef PARAVIEW_USE_OSPRAY
+#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
 #include "vtkOSPRayActorNode.h"
 #endif
 
@@ -123,6 +123,7 @@ void vtkPVLODActor::Render(vtkRenderer* ren, vtkMapper* vtkNotUsed(m))
     this->Texture->Render(ren);
   }
   this->Device->SetTexture(this->Texture);
+  this->Device->SetShaderProperty(this->ShaderProperty);
 
   // make sure the device has the same matrix
   matrix = this->Device->GetUserMatrix();
@@ -132,6 +133,7 @@ void vtkPVLODActor::Render(vtkRenderer* ren, vtkMapper* vtkNotUsed(m))
   // We might want to estimate time from the number of polygons in mapper.
   vtkInformation* info = this->GetPropertyKeys();
   this->Device->SetPropertyKeys(info);
+  this->Device->SetMapper(mapper);
   this->Device->Render(ren, mapper);
   if (this->Texture)
   {
@@ -320,7 +322,7 @@ void vtkPVLODActor::PrintSelf(ostream& os, vtkIndent indent)
 //----------------------------------------------------------------------------
 void vtkPVLODActor::SetEnableScaling(int val)
 {
-#ifdef PARAVIEW_USE_OSPRAY
+#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
   if (this->Mapper)
   {
     vtkInformation* info = this->Mapper->GetInformation();
@@ -339,7 +341,7 @@ void vtkPVLODActor::SetEnableScaling(int val)
 //----------------------------------------------------------------------------
 void vtkPVLODActor::SetScalingArrayName(const char* val)
 {
-#ifdef PARAVIEW_USE_OSPRAY
+#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
   if (this->Mapper)
   {
     vtkInformation* mapperInfo = this->Mapper->GetInformation();
@@ -358,7 +360,7 @@ void vtkPVLODActor::SetScalingArrayName(const char* val)
 //----------------------------------------------------------------------------
 void vtkPVLODActor::SetScalingFunction(vtkPiecewiseFunction* pwf)
 {
-#ifdef PARAVIEW_USE_OSPRAY
+#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
   if (this->Mapper)
   {
     vtkInformation* mapperInfo = this->Mapper->GetInformation();

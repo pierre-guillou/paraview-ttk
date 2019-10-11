@@ -63,6 +63,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cassert>
 
 namespace
 {
@@ -156,7 +157,7 @@ protected:
 
   void AdjustAxes()
   {
-    this->GetAxis(vtkAxis::BOTTOM)->SetRange(this->XRange[0], this->XRange[1]);
+    this->GetAxis(vtkAxis::BOTTOM)->SetUnscaledRange(this->XRange[0], this->XRange[1]);
     this->GetAxis(vtkAxis::LEFT)->SetRange(0, 1);
 
     // for recalculation of transforms using current axes ranges.
@@ -196,21 +197,18 @@ public:
     this->Timer.setSingleShot(true);
     this->Timer.setInterval(0);
 
-    QSurfaceFormat fmt = QSurfaceFormat::defaultFormat();
-    fmt.setSamples(8);
-    this->Widget->setFormat(fmt);
-    this->Widget->setEnableHiDPI(true);
+    this->Window->SetMultiSamples(8);
 
+    this->Widget->setEnableHiDPI(true);
     this->Widget->setObjectName("1QVTKWidget0");
-    this->Widget->SetRenderWindow(this->Window.Get());
+    this->Widget->setRenderWindow(this->Window.Get());
     this->ContextView->SetRenderWindow(this->Window.Get());
 
     this->ChartXY->SetAutoSize(true);
     this->ChartXY->SetShowLegend(false);
-    this->ChartXY->SetForceAxesToBounds(true);
     this->ChartXY->SetZoomWithMouseWheel(false);
     this->ContextView->GetScene()->AddItem(this->ChartXY.GetPointer());
-    this->ContextView->SetInteractor(this->Widget->GetInteractor());
+    this->ContextView->SetInteractor(this->Widget->interactor());
     this->ContextView->GetRenderWindow()->SetLineSmoothing(true);
 
     this->ChartXY->SetActionToButton(vtkChart::PAN, -1);
@@ -415,7 +413,7 @@ void pqTransferFunctionWidget::onCurrentPointEditEvent()
   }
 
   vtkColorTransferFunction* ctf = cpitem->GetColorTransferFunction();
-  Q_ASSERT(ctf != NULL);
+  assert(ctf != NULL);
 
   double xrgbms[6];
   ctf->GetNodeValue(currentIdx, xrgbms);

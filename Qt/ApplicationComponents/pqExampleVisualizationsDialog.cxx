@@ -4,12 +4,15 @@
 #include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
 #include "pqEventDispatcher.h"
+#include "pqLoadStateReaction.h"
 #include "vtkPVConfig.h"
 #include "vtkPVFileInformation.h"
 
 #include <QFile>
 #include <QFileInfo>
 #include <QMessageBox>
+
+#include <cassert>
 
 //-----------------------------------------------------------------------------
 pqExampleVisualizationsDialog::pqExampleVisualizationsDialog(QWidget* parentObject)
@@ -87,7 +90,7 @@ void pqExampleVisualizationsDialog::onButtonPressed()
     }
 
     this->hide();
-    Q_ASSERT(stateFile != NULL);
+    assert(stateFile != NULL);
 
     QFile qfile(stateFile);
     if (qfile.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -104,6 +107,9 @@ void pqExampleVisualizationsDialog::onButtonPressed()
       xmldata.replace("$PARAVIEW_EXAMPLES_DATA", dataPath);
       pqApplicationCore::instance()->loadStateFromString(
         xmldata.toUtf8().data(), pqActiveObjects::instance().activeServer());
+
+      // This is needed since XML state currently does not save active view.
+      pqLoadStateReaction::activateView();
     }
     else
     {

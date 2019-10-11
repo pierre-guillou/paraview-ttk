@@ -12,7 +12,6 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkPVConfig.h" // needed for PARAVIEW_ENABLE_PYTHON
 #include "vtkPython.h"
 
 #include "vtkCamera.h"
@@ -127,11 +126,11 @@ public:
       vtkPythonInterpreter::Initialize();
       vtkPythonScopeGilEnsurer gilEnsurer;
       this->CinemaReaderModule.TakeReference(
-        PyImport_ImportModule("cinema_python.adaptors.paraview.cinemareader"));
+        PyImport_ImportModule("paraview.tpl.cinema_python.adaptors.paraview.cinemareader"));
       if (!this->CinemaReaderModule)
       {
         vtkGenericWarningMacro(
-          "Failed to import 'cinema_python.adaptors.paraview.cinemareader' module.");
+          "Failed to import 'paraview.tpl.cinema_python.adaptors.paraview.cinemareader' module.");
         if (PyErr_Occurred())
         {
           PyErr_Print();

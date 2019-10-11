@@ -1,6 +1,6 @@
 #*****************************************************************************
 #
-# Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+# Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 # Produced at the Lawrence Livermore National Laboratory
 # LLNL-CODE-442911
 # All rights reserved.
@@ -213,6 +213,7 @@ state/AttributeSubject.C
 #state/AxisTickMarks.C
 #state/AxisTitles.C
 #state/BoxExtents.C
+#state/CinemaAttributes.C
 #state/ClientInformation.C
 #state/ClientInformationList.C
 #state/ClientMethod.C
@@ -340,12 +341,13 @@ IF(WIN32)
         PROPERTIES LANGUAGE CXX)
 ENDIF(WIN32)
 
+if (FALSE)
 INCLUDE_DIRECTORIES(
 ${VISIT_COMMON_INCLUDES}
 )
+endif ()
 
-#ADD_LIBRARY(visitcommon
-VTK_ADD_LIBRARY(visitcommon
+ADD_LIBRARY(visitcommon
     ${COMM_SOURCES} ${COMM_WIN32_SOURCES}
     ${EXCEPTION_SOURCES}
     ${EXPRESSION_SOURCES}
@@ -355,25 +357,32 @@ VTK_ADD_LIBRARY(visitcommon
     ${PROXYBASE_SOURCES}
     ${STATE_SOURCES}
     ${UTILITY_SOURCES} ${UTILITY_WIN32_SOURCES})
+target_link_libraries(visitcommon
+    PUBLIC
+        VTK::CommonCore
+        ${ZLIB_LIB})
+target_include_directories(visitcommon
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
 
 # Specify the libraries to link against on Windows
 IF(WIN32)
     #TARGET_LINK_LIBRARIES(visitcommon ws2_32 shlwapi userenv ${ZLIB_LIB})
-    TARGET_LINK_LIBRARIES(visitcommon LINK_PUBLIC ws2_32 shlwapi userenv ${ZLIB_LIB})
+    TARGET_LINK_LIBRARIES(visitcommon PUBLIC ws2_32 shlwapi userenv ${ZLIB_LIB})
 #ELSE(WIN32)
 ELSEIF (FALSE)
     TARGET_LINK_LIBRARIES(visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
     ADD_EXECUTABLE(StringHelpers_test utility/StringHelpers_test.C)
-    TARGET_LINK_LIBRARIES(StringHelpers_test visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
+    TARGET_LINK_LIBRARIES(StringHelpers_test ${VISIT_EXE_LINKER_FLAGS} visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
     ADD_EXECUTABLE(Utility_test utility/Utility_test.C)
-    TARGET_LINK_LIBRARIES(Utility_test visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
+    TARGET_LINK_LIBRARIES(Utility_test ${VISIT_EXE_LINKER_FLAGS} visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
     ADD_EXECUTABLE(Namescheme_test utility/Namescheme_test.C)
-    TARGET_LINK_LIBRARIES(Namescheme_test visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
+    TARGET_LINK_LIBRARIES(Namescheme_test ${VISIT_EXE_LINKER_FLAGS} visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
     ADD_EXECUTABLE(MRUCache_test utility/MRUCache_test.C)
     ADD_EXECUTABLE(exprconfig expr/ExprConfig.C)
-    TARGET_LINK_LIBRARIES(exprconfig visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
+    TARGET_LINK_LIBRARIES(exprconfig ${VISIT_EXE_LINKER_FLAGS} visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
     ADD_EXECUTABLE(exprtest expr/test.C)
-    TARGET_LINK_LIBRARIES(exprtest visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
+    TARGET_LINK_LIBRARIES(exprtest ${VISIT_EXE_LINKER_FLAGS} visitcommon ${ZLIB_LIB} ${CMAKE_THREAD_LIBS} ${DL_LIB})
     ADD_CUSTOM_TARGET(init)
     ADD_DEPENDENCIES(init exprconfig)
     ADD_CUSTOM_COMMAND(TARGET init POST_BUILD COMMAND exprconfig ExprInit.C

@@ -1,60 +1,95 @@
+find_package(Qt5 REQUIRED COMPONENTS Widgets Network)
 
-# This plugin adds OpenVR support to paraview
-# it requires that your VTK be built with the
-# openVR module
+set(interfaces)
+set(sources
+  pqOpenVRControls.cxx
+  pqOpenVRControls.h
+  pqOpenVRDockPanel.cxx
+  pqOpenVRDockPanel.h
+  vtkPVOpenVRCollaborationClient.cxx
+  vtkPVOpenVRCollaborationClient.h
+  vtkPVOpenVRHelper.cxx
+  vtkPVOpenVRHelper.h)
 
-cmake_minimum_required(VERSION 3.3)
 
-# Find and Include ParaView
-if(NOT ParaView_SOURCE_DIR)
-  FIND_PACKAGE(ParaView REQUIRED)
-  INCLUDE(${PARAVIEW_USE_FILE})
-else()
-  include_directories(${VTK_INCLUDE_DIRS})
+# if we build the openvr plugin then look to add collaboration
+# for collaboration we leverage mineview.
+#-----------------------------------------------------------------------------
+if (WIN32 AND PARAVIEW_PLUGIN_ENABLE_OpenVR AND PARAVIEW_MINEVIEW_SOURCE_DIR)
+  list(APPEND sources "${PARAVIEW_MINEVIEW_SOURCE_DIR}/mvCollaborationClient.cxx")
 endif()
 
-# Set a consistent MACOSX_RPATH default across all CMake versions.
-# When CMake 2.8.12 is required, change this default to 1.
-# When CMake 3.0.0 is required, remove this block (see CMP0042).
-if(NOT DEFINED CMAKE_MACOSX_RPATH)
-  set(CMAKE_MACOSX_RPATH 0)
+paraview_plugin_add_dock_window(
+  CLASS_NAME pqOpenVRDockPanel
+  DOCK_AREA Right
+  INTERFACES dock_interfaces
+  SOURCES dock_sources)
+list(APPEND interfaces
+  ${dock_interfaces})
+list(APPEND sources
+  ${dock_sources})
+
+# paraview_plugin_add_dock_window(
+#   CLASS_NAME pqOpenVRControls
+#   DOCK_AREA Right
+#   INTERFACES main_interfaces
+#   SOURCES main_sources)
+# list(APPEND interfaces
+#   ${main_interfaces})
+# list(APPEND sources
+#   ${main_sources})
+
+  paraview_add_plugin(OpenVR
+  VERSION "1.2"
+  UI_FILES pqOpenVRDockPanel.ui pqOpenVRControls.ui
+  UI_INTERFACES ${interfaces}
+  SERVER_MANAGER_XML OpenVRPointSource.xml
+  SOURCES ${sources}
+#  MODULES ExplicitStructuredGrid::vtkExplicitStructuredGrid
+  )
+
+
+#-----------------------------------------------------------------------------
+if (WIN32 AND PARAVIEW_PLUGIN_ENABLE_OpenVR)
+  option(PARAVIEW_OpenVR_COLLABORATION
+    "Turn on collaboration support for the openVR plugin, requires mineview source tree" OFF)
+  mark_as_advanced(PARAVIEW_OpenVR_COLLABORATION)
 endif()
 
-IF(PARAVIEW_BUILD_QT_GUI)
+if (PARAVIEW_OpenVR_COLLABORATION)
+  find_path(PARAVIEW_MINEVIEW_SOURCE_DIR mvLobby.h
+    DOC "Location of your mineview source tree. See https://gitlab.kitware.com/ken-martin/mineview")
+endif()
 
-  include(ParaViewQt)
-  pv_find_package_qt(qt_targets REQUIRED
-                QT5_COMPONENTS Widgets Network)
-
-  pv_qt_wrap_cpp(MOC_SRCS
-    pvOpenVRDockPanel.h
+if (PARAVIEW_OpenVR_COLLABORATION AND PARAVIEW_MINEVIEW_SOURCE_DIR)
+  set_property(TARGET OpenVR APPEND PROPERTY INCLUDE_DIRECTORIES
+    "${PARAVIEW_MINEVIEW_SOURCE_DIR}/zeromq/release"
+    "${PARAVIEW_MINEVIEW_SOURCE_DIR}"
     )
-
-  pv_qt_wrap_ui(UI_SRCS
-    pvOpenVRDockPanel.ui
+  set_property(TARGET OpenVR APPEND PROPERTY LINK_LIBRARIES
+    "${PARAVIEW_MINEVIEW_SOURCE_DIR}/zeromq/release/libzmq-mt-4_3_1.lib"
     )
-
-  ADD_PARAVIEW_DOCK_WINDOW(
-    OUTIFACES
-    OUTSRCS
-    CLASS_NAME pvOpenVRDockPanel
-    DOCK_AREA Left
+  set_property(SOURCE vtkPVOpenVRCollaborationClient.cxx APPEND PROPERTY
+    COMPILE_DEFINITIONS OPENVR_HAS_COLLABORATION
     )
+endif()
 
-  ADD_PARAVIEW_PLUGIN(OpenVR "1.1"
-    GUI_INTERFACES ${OUTIFACES}
-    GUI_SOURCES ${OUTSRCS} ${MOC_SRCS} ${UI_SRCS} 
-    pvOpenVRDockPanel.cxx 
-    vtkPVOpenVRHelper.cxx
-    )
-
-  target_link_libraries (OpenVR
-    LINK_PRIVATE
-      pqApplicationComponents
-      vtkPVServerManagerRendering
-      vtkRenderingOpenVR
-      ${qt_targets}
-      ${OPENVR_LIBRARY}
-    )
-
-ENDIF()
+target_link_libraries(OpenVR
+  PRIVATE
+    ParaView::ClientServerCoreRendering
+    ParaView::Core
+    ParaView::ServerManagerCore
+    ParaView::ServerManagerRendering
+    ParaView::VTKExtensionsRendering
+    ParaView::pqApplicationComponents
+    VTK::CommonCore
+    VTK::CommonDataModel
+    VTK::IOCore
+    VTK::IOImage
+    VTK::IOXML
+    VTK::IOXMLParser
+    VTK::InteractionWidgets
+    VTK::RenderingCore
+    VTK::RenderingOpenGL2
+    VTK::RenderingOpenVR
+    VTK::ViewsCore)

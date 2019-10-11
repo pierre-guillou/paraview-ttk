@@ -37,6 +37,7 @@
 #include "pqQVTKWidget.h"
 #include "pqServer.h"
 
+#include <cassert>
 #include <string>
 
 class pqPythonView::pqInternal
@@ -92,15 +93,15 @@ QString pqPythonView::getPythonScript()
 QWidget* pqPythonView::createWidget()
 {
   vtkSMViewProxy* viewProxy = this->getViewProxy();
-  Q_ASSERT(viewProxy);
+  assert(viewProxy);
 
   pqQVTKWidget* vtkwidget = new pqQVTKWidget();
   vtkwidget->setViewProxy(viewProxy);
   vtkwidget->setContextMenuPolicy(Qt::NoContextMenu);
   vtkwidget->installEventFilter(this);
 
-  vtkwidget->SetRenderWindow(viewProxy->GetRenderWindow());
-  viewProxy->SetupInteractor(vtkwidget->GetInteractor());
+  vtkwidget->setRenderWindow(viewProxy->GetRenderWindow());
+  viewProxy->SetupInteractor(vtkwidget->interactor());
   return vtkwidget;
 }
 

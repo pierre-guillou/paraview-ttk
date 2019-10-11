@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -1198,6 +1198,10 @@ avtNek5000FileFormat::FreeUpResources(void)
 //    Hank Childs, Mon Mar  4 18:35:27 PST 2013
 //    Add support for duplicating data.
 //
+//    Eric Brugger, Tue Dec 11 09:53:55 PST 2018
+//    Corrected a bug generating ghost nodes for Nek5000 files where all the
+//    nodes were marked as ghost when the mesh was 2D.
+//
 // ****************************************************************************
 
 void
@@ -1238,7 +1242,7 @@ avtNek5000FileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int /*ti
     {
         avtNekDomainBoundaries *db = new avtNekDomainBoundaries;
         bool multipleBlocks = true;
-        db->SetDomainInfo(iNumBlocks, iBlockSize, multipleBlocks);
+        db->SetDomainInfo(iNumBlocks, iDim, iBlockSize, multipleBlocks);
 
         void_ref_ptr vr = void_ref_ptr(db, avtNekDomainBoundaries::Destruct);
         cache->CacheVoidRef("any_mesh",
@@ -1290,6 +1294,10 @@ avtNek5000FileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int /*ti
 //
 //    Hank Childs, Thu Jan  8 10:58:15 CST 2009
 //    Fix a memory leak of non-cachable elements.
+//
+//    Jean Favre, Thu May  3 07:40:01 PDT 2018
+//    Use vtkIdType instead of int, to support domains
+//    with more than 2 billion elements. 
 //
 // ****************************************************************************
 
@@ -1350,8 +1358,8 @@ avtNek5000FileFormat::GetMesh(int /* timestate */, int domain, const char * /*me
     int hexes_per_element = (iBlockSize[0]-1)*(iBlockSize[1]-1);
     if (iDim == 3)
         hexes_per_element *= (iBlockSize[2]-1);
-    int total_hexes = hexes_per_element*num_elements;
-    int total_size = (iDim == 3 ? 9*total_hexes : 5*total_hexes);
+    vtkIdType total_hexes = hexes_per_element*num_elements;
+    vtkIdType total_size = (iDim == 3 ? 9*total_hexes : 5*total_hexes);
 
     vtkIdTypeArray *nlist = vtkIdTypeArray::New();
     nlist->SetNumberOfValues(total_size);
@@ -1365,11 +1373,11 @@ avtNek5000FileFormat::GetMesh(int /* timestate */, int domain, const char * /*me
     cellLocations->SetNumberOfValues(total_hexes);
     vtkIdType *cl = cellLocations->GetPointer(0);
 
-    int hexes_so_far = 0;
-    int elements_so_far = 0;
+    vtkIdType hexes_so_far = 0;
+    vtkIdType elements_so_far = 0;
     for (int i = 0 ; i < num_elements ; i++)
     {
-        int pt_start = pts_per_element * elements_so_far;
+        vtkIdType pt_start = pts_per_element * elements_so_far;
         for (int ii = 0 ; ii < iBlockSize[0]-1 ; ii++)
         {
             for (int jj = 0 ; jj < iBlockSize[1]-1 ; jj++)

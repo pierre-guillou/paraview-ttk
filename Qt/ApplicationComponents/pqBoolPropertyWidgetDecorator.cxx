@@ -38,6 +38,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMProxy.h"
 #include "vtkSMUncheckedPropertyHelper.h"
 
+#include <cassert>
+
 //-----------------------------------------------------------------------------
 pqBoolPropertyWidgetDecorator::pqBoolPropertyWidgetDecorator(
   vtkPVXMLElement* config, pqPropertyWidget* parentObject)
@@ -47,7 +49,7 @@ pqBoolPropertyWidgetDecorator::pqBoolPropertyWidgetDecorator(
   , BoolProperty(true)
 {
   vtkSMProxy* proxy = this->parentWidget()->proxy();
-  Q_ASSERT(proxy != NULL);
+  assert(proxy != NULL);
 
   for (unsigned int cc = 0; cc < config->GetNumberOfNestedElements(); cc++)
   {
@@ -57,16 +59,20 @@ pqBoolPropertyWidgetDecorator::pqBoolPropertyWidgetDecorator(
     {
       const char* name = child->GetAttribute("name");
       const char* function = child->GetAttributeOrDefault("function", "boolean");
+      const char* value = child->GetAttribute("value");
+
       int index = atoi(child->GetAttributeOrDefault("index", "0"));
-      if (strcmp(function, "boolean") != 0 && strcmp(function, "boolean_invert") != 0)
+      if (strcmp(function, "boolean") != 0 && strcmp(function, "boolean_invert") != 0 &&
+        strcmp(function, "greaterthan") != 0 && strcmp(function, "lessthan") != 0)
       {
         qDebug("pqBoolPropertyWidgetDecorator currently only "
-               "supports 'boolean' and 'boolean_invert'.");
+               "supports 'boolean', 'boolean_invert', 'greaterthan', "
+               "and 'lessthan'.");
       }
-
       this->Property = proxy->GetProperty(name);
       this->Index = index;
       this->Function = function;
+      this->Value = value;
 
       if (!this->Property)
       {
@@ -107,6 +113,18 @@ void pqBoolPropertyWidgetDecorator::updateBoolPropertyState()
   {
     bool enabled = vtkSMUncheckedPropertyHelper(this->Property).GetAsInt(this->Index) != 0;
     this->setBoolProperty(!enabled);
+  }
+  if (this->Property && this->Function == "greaterthan")
+  {
+    int number = this->Value.toInt();
+    bool enabled = vtkSMUncheckedPropertyHelper(this->Property).GetAsInt(this->Index) > number;
+    this->setBoolProperty(enabled);
+  }
+  if (this->Property && this->Function == "lessthan")
+  {
+    int number = this->Value.toInt();
+    bool enabled = vtkSMUncheckedPropertyHelper(this->Property).GetAsInt(this->Index) < number;
+    this->setBoolProperty(enabled);
   }
 }
 

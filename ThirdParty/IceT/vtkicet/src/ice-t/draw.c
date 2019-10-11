@@ -39,7 +39,7 @@ void icetStrategy(IceTEnum strategy)
         icetStateSetBoolean(ICET_STRATEGY_SUPPORTS_ORDERING,
                             icetStrategySupportsOrdering(strategy));
     } else {
-        icetRaiseError("Invalid strategy.", ICET_INVALID_ENUM);
+        icetRaiseError(ICET_INVALID_ENUM, "Invalid strategy.");
     }
 }
 
@@ -51,8 +51,9 @@ const char *icetGetStrategyName(void)
     if (strategy != ICET_STRATEGY_UNDEFINED) {
         return icetStrategyNameFromEnum(strategy);
     } else {
-        icetRaiseError("No strategy set. Use icetStrategy to set the strategy.",
-                       ICET_INVALID_ENUM);
+        icetRaiseError(
+            ICET_INVALID_ENUM,
+            "No strategy set. Use icetStrategy to set the strategy.");
         return NULL;
     }
 }
@@ -62,7 +63,7 @@ void icetSingleImageStrategy(IceTEnum strategy)
     if (icetSingleImageStrategyValid(strategy)) {
         icetStateSetInteger(ICET_SINGLE_IMAGE_STRATEGY, strategy);
     } else {
-        icetRaiseError("Invalid single image strategy.", ICET_INVALID_ENUM);
+        icetRaiseError(ICET_INVALID_ENUM, "Invalid single image strategy.");
     }
 }
 
@@ -78,7 +79,7 @@ void icetCompositeMode(IceTEnum mode)
 {
     if (    (mode != ICET_COMPOSITE_MODE_Z_BUFFER)
          && (mode != ICET_COMPOSITE_MODE_BLEND) ) {
-        icetRaiseError("Invalid composite mode.", ICET_INVALID_ENUM);
+        icetRaiseError(ICET_INVALID_ENUM, "Invalid composite mode 0x%x.", mode);
         return;
     }
 
@@ -101,7 +102,7 @@ void icetCompositeOrder(const IceTInt *process_ranks)
     }
     for (i = 0; i < num_proc; i++) {
         if (process_orders[i] == -1) {
-            icetRaiseError("Invalid composite order.", ICET_INVALID_VALUE);
+            icetRaiseError(ICET_INVALID_VALUE, "Invalid composite order.");
             return;
         }
     }
@@ -123,8 +124,8 @@ void icetDataReplicationGroup(IceTInt size, const IceTInt *processes)
     }
 
     if (!found_myself) {
-        icetRaiseError("Local process not part of data replication group.",
-                       ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE,
+                       "Local process not part of data replication group.");
         return;
     }
 
@@ -174,26 +175,26 @@ static void drawUseMatrices(const IceTDouble *projection_matrix,
         if (projection_matrix == NULL) {
             icetStateSetDoublev(ICET_PROJECTION_MATRIX, 16, identity);
         } else {
-            icetRaiseWarning("Drawing with a projection matrix but no "
-                             "modelview matrix. Confused on what to do.",
-                             ICET_INVALID_VALUE);
+            icetRaiseWarning(ICET_INVALID_VALUE,
+                             "Drawing with a projection matrix but no "
+                             "modelview matrix. Confused on what to do.");
             icetStateSetDoublev(ICET_PROJECTION_MATRIX, 16, projection_matrix);
         }
         if (modelview_matrix == NULL) {
             icetStateSetDoublev(ICET_MODELVIEW_MATRIX, 16, identity);
         } else {
-            icetRaiseWarning("Drawing with a modelview matrix but no "
-                             "projection matrix. Confused on what to do.",
-                             ICET_INVALID_VALUE);
+            icetRaiseWarning(ICET_INVALID_VALUE,
+                             "Drawing with a modelview matrix but no "
+                             "projection matrix. Confused on what to do.");
             icetStateSetDoublev(ICET_MODELVIEW_MATRIX, 16, projection_matrix);
         }
         if (*icetUnsafeStateGetInteger(ICET_NUM_BOUNDING_VERTS) != 0) {
             icetRaiseWarning(
-                        "Geometry bounds were given (with icetBoundingBox or icetBoundingVertices)\n"
-                        "but projection matrices not given to icetCompositeImage. Clearing out the\n"
-                        "bounding information. (Use icetBoundingVertices(0, ICET_VOID, 0, 0, NULL)\n"
-                        "to avoid this error.)",
-                        ICET_INVALID_VALUE);
+                ICET_INVALID_VALUE,
+                "Geometry bounds were given (with icetBoundingBox or icetBoundingVertices)\n"
+                "but projection matrices not given to icetCompositeImage. Clearing out the\n"
+                "bounding information. (Use icetBoundingVertices(0, ICET_VOID, 0, 0, NULL)\n"
+                "to avoid this error.)");
             icetBoundingVertices(0, ICET_VOID, 0, 0, NULL);
         }
     }
@@ -650,18 +651,18 @@ static void drawProjectBounds(void)
                                 contained_mask,
                                 &num_contained);
 
-    icetRaiseDebug4("contained_viewport = %d %d %d %d",
-                    (int)contained_viewport[0], (int)contained_viewport[1],
-                    (int)contained_viewport[2], (int)contained_viewport[3]);
+    icetRaiseDebug("contained_viewport = %d %d %d %d",
+                   (int)contained_viewport[0], (int)contained_viewport[1],
+                   (int)contained_viewport[2], (int)contained_viewport[3]);
 
     drawAdjustContainedForDataReplication(contained_viewport,
                                           contained_list,
                                           contained_mask,
                                           &num_contained);
 
-    icetRaiseDebug4("new contained_viewport = %d %d %d %d",
-                    (int)contained_viewport[0], (int)contained_viewport[1],
-                    (int)contained_viewport[2], (int)contained_viewport[3]);
+    icetRaiseDebug("new contained_viewport = %d %d %d %d",
+                   (int)contained_viewport[0], (int)contained_viewport[1],
+                   (int)contained_viewport[2], (int)contained_viewport[3]);
     icetStateSetIntegerv(ICET_CONTAINED_VIEWPORT, 4, contained_viewport);
     icetStateSetDoublev(ICET_NEAR_DEPTH, 1, &znear);
     icetStateSetDoublev(ICET_FAR_DEPTH, 1, &zfar);
@@ -739,8 +740,8 @@ static IceTImage drawInvokeStrategy(void)
     icetGetPointerv(ICET_DRAW_FUNCTION, &value);
     if (   (value == NULL)
         && !icetUnsafeStateGetBoolean(ICET_PRE_RENDERED)[0]) {
-        icetRaiseError("Drawing function not set.  Call icetDrawCallback.",
-                       ICET_INVALID_OPERATION);
+        icetRaiseError(ICET_INVALID_OPERATION,
+                       "Drawing function not set.  Call icetDrawCallback.");
         return icetImageNull();
     }
 
@@ -755,10 +756,10 @@ static IceTImage drawInvokeStrategy(void)
     icetGetIntegerv(ICET_VALID_PIXELS_TILE, &valid_tile);
     icetGetIntegerv(ICET_TILE_DISPLAYED, &display_tile);
     if ((valid_tile != display_tile) && icetIsEnabled(ICET_COLLECT_IMAGES)) {
-        icetRaiseDebug2("Display tile: %d, valid tile: %d",
-                        display_tile, valid_tile);
-        icetRaiseError("Got unexpected tile from strategy.",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Got unexpected tile from strategy."
+                       "Display tile: %d, valid tile: %d",
+                       display_tile, valid_tile);
     }
     if (valid_tile >= 0) {
         const IceTInt *valid_tile_viewport
@@ -767,17 +768,18 @@ static IceTImage drawInvokeStrategy(void)
             || (valid_tile_viewport[3] != icetImageGetHeight(image)) ) {
             IceTInt valid_offset;
             IceTInt valid_num;
-            icetRaiseDebug1("Tile returned from strategy: %d\n", valid_tile);
-            icetRaiseDebug4("Expected size: %d %d.  Returned size: %d %d",
-                            valid_tile_viewport[2], valid_tile_viewport[3],
-                            (int)icetImageGetWidth(image),
-                            (int)icetImageGetHeight(image));
             icetGetIntegerv(ICET_VALID_PIXELS_OFFSET, &valid_offset);
             icetGetIntegerv(ICET_VALID_PIXELS_NUM, &valid_num);
-            icetRaiseDebug2("Reported pixel offset: %d.  Reported pixel count: %d",
-                            valid_offset, valid_num);
-            icetRaiseError("Got unexpected image size from strategy.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Got unexpected image size from strategy.\n"
+                           "Tile returned from strategy: %d\n"
+                           "Expected size: %d %d. Returned size: %d %d\n"
+                           "Reported pixel offset: %d. Reported pixel count: %d",
+                           valid_tile,
+                           valid_tile_viewport[2], valid_tile_viewport[3],
+                           (int)icetImageGetWidth(image),
+                           (int)icetImageGetHeight(image),
+                           valid_offset, valid_num);
         }
     }
 
@@ -801,8 +803,8 @@ static IceTImage drawDoFrame(const IceTDouble *projection_matrix,
         IceTBoolean isDrawing;
         icetGetBooleanv(ICET_IS_DRAWING_FRAME, &isDrawing);
         if (isDrawing) {
-            icetRaiseError("Recursive frame draw detected.",
-                           ICET_INVALID_OPERATION);
+            icetRaiseError(ICET_INVALID_OPERATION,
+                           "Recursive frame draw detected.");
             return icetImageNull();
         }
     }

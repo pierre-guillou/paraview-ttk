@@ -45,6 +45,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkWeakPointer.h"
 
 #include <QtDebug>
+
+#include <cassert>
 #include <sstream>
 
 class pqGenericPropertyWidgetDecorator::pqInternals
@@ -86,7 +88,7 @@ public:
 
     if (vtkSMProxyProperty::SafeDownCast(this->Property))
     {
-      if (vtkSMProxyListDomain::SafeDownCast(this->Property->FindDomain("vtkSMProxyListDomain")))
+      if (this->Property->FindDomain<vtkSMProxyListDomain>())
       {
         bool status = false;
         for (auto it = this->Values.begin(); helper.GetAsProxy(0) && it != this->Values.end(); ++it)
@@ -126,8 +128,7 @@ public:
       }
 
       // Look for array list domain
-      vtkSMArrayListDomain* ald =
-        vtkSMArrayListDomain::SafeDownCast(this->Property->FindDomain("vtkSMArrayListDomain"));
+      auto ald = this->Property->FindDomain<vtkSMArrayListDomain>();
       if (!ald)
       {
         qCritical() << "The NumberOfComponents attribute requires an ArrayListDomain in the "
@@ -176,7 +177,7 @@ pqGenericPropertyWidgetDecorator::pqGenericPropertyWidgetDecorator(
   , Internals(new pqGenericPropertyWidgetDecorator::pqInternals())
 {
   vtkSMProxy* proxy = this->parentWidget()->proxy();
-  Q_ASSERT(proxy != nullptr);
+  assert(proxy != nullptr);
 
   const char* propertyName = config->GetAttribute("property");
   if (propertyName == nullptr || proxy->GetProperty(propertyName) == nullptr)

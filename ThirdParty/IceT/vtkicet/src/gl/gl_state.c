@@ -17,8 +17,8 @@ static void gl_destroy(void);
 void icetGLInitialize(void)
 {
     if (icetGLIsInitialized()) {
-        icetRaiseWarning("icetGLInitialize called multiple times.",
-                         ICET_INVALID_OPERATION);
+        icetRaiseWarning(ICET_INVALID_OPERATION,
+                         "icetGLInitialize called multiple times.");
     }
 
     icetStateSetBoolean(ICET_GL_INITIALIZED, ICET_TRUE);
@@ -51,9 +51,9 @@ IceTBoolean icetGLIsInitialized(void)
 void icetGLSetReadBuffer(GLenum mode)
 {
     if (!icetGLIsInitialized()) {
-        icetRaiseError("IceT OpenGL layer not initialized."
-                       " Call icetGLInitialize.",
-                       ICET_INVALID_OPERATION);
+        icetRaiseError(ICET_INVALID_OPERATION,
+                       "IceT OpenGL layer not initialized."
+                       " Call icetGLInitialize.");
         return;
     }
 
@@ -65,7 +65,7 @@ void icetGLSetReadBuffer(GLenum mode)
     {
         icetStateSetInteger(ICET_GL_READ_BUFFER, GL_BACK);
     } else {
-        icetRaiseError("Invalid OpenGL read buffer.", ICET_INVALID_ENUM);
+        icetRaiseError(ICET_INVALID_ENUM, "Invalid OpenGL read buffer.");
     }
 }
 

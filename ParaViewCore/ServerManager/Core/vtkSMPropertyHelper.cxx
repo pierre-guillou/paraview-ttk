@@ -154,8 +154,7 @@ inline const char* vtkSMPropertyHelper::GetProperty(unsigned int index) const
   else if (this->Type == INT)
   {
     // enumeration domain
-    vtkSMEnumerationDomain* domain =
-      vtkSMEnumerationDomain::SafeDownCast(this->Property->FindDomain("vtkSMEnumerationDomain"));
+    auto domain = this->Property->FindDomain<vtkSMEnumerationDomain>();
     if (domain != NULL)
     {
       const char* entry = domain->GetEntryTextForValue(
@@ -385,8 +384,7 @@ inline void vtkSMPropertyHelper::SetProperty(unsigned int index, const char* val
   else if (this->Type == INT)
   {
     // enumeration domain
-    vtkSMEnumerationDomain* domain =
-      vtkSMEnumerationDomain::SafeDownCast(this->Property->FindDomain("vtkSMEnumerationDomain"));
+    auto domain = this->Property->FindDomain<vtkSMEnumerationDomain>();
     if (domain != NULL && domain->HasEntryText(value))
     {
       int valid; // We already know that the entry exist...
@@ -1382,7 +1380,15 @@ void vtkSMPropertyHelper::SetInputArrayToProcess(int fieldAssociation, const cha
     vals->SetString(3, str.str().c_str());
     vals->SetString(4, (arrayName ? arrayName : ""));
   }
-  svp->SetElements(vals.GetPointer());
+
+  if (this->GetUseUnchecked())
+  {
+    svp->SetUncheckedElements(vals.GetPointer());
+  }
+  else
+  {
+    svp->SetElements(vals.GetPointer());
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -1397,14 +1403,28 @@ int vtkSMPropertyHelper::GetInputArrayAssociation() const
 
   vtkSMStringVectorProperty* svp = vtkSMStringVectorProperty::SafeDownCast(this->Property);
 
-  if (svp->GetNumberOfElements() != 2 && svp->GetNumberOfElements() != 5)
+  if (this->GetUseUnchecked())
   {
-    vtkSMPropertyHelperWarningMacro("We only support 2 or 5 element properties.");
-    return -1;
-  }
+    if (svp->GetNumberOfUncheckedElements() != 2 && svp->GetNumberOfUncheckedElements() != 5)
+    {
+      vtkSMPropertyHelperWarningMacro("We only support 2 or 5 element properties.");
+      return -1;
+    }
 
-  return svp->GetNumberOfElements() == 2 ? std::atoi(svp->GetElement(0))
-                                         : std::atoi(svp->GetElement(3));
+    return svp->GetNumberOfUncheckedElements() == 2 ? std::atoi(svp->GetUncheckedElement(0))
+                                                    : std::atoi(svp->GetUncheckedElement(3));
+  }
+  else
+  {
+    if (svp->GetNumberOfElements() != 2 && svp->GetNumberOfElements() != 5)
+    {
+      vtkSMPropertyHelperWarningMacro("We only support 2 or 5 element properties.");
+      return -1;
+    }
+
+    return svp->GetNumberOfElements() == 2 ? std::atoi(svp->GetElement(0))
+                                           : std::atoi(svp->GetElement(3));
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -1418,19 +1438,32 @@ const char* vtkSMPropertyHelper::GetInputArrayNameToProcess() const
   }
 
   vtkSMStringVectorProperty* svp = vtkSMStringVectorProperty::SafeDownCast(this->Property);
-
-  if (svp->GetNumberOfElements() != 2 && svp->GetNumberOfElements() != 5)
+  if (this->GetUseUnchecked())
   {
-    vtkSMPropertyHelperWarningMacro("We only support 2 or 5 element properties.");
-    return NULL;
-  }
+    if (svp->GetNumberOfUncheckedElements() != 2 && svp->GetNumberOfUncheckedElements() != 5)
+    {
+      vtkSMPropertyHelperWarningMacro("We only support 2 or 5 element properties.");
+      return NULL;
+    }
 
-  return svp->GetNumberOfElements() == 2 ? svp->GetElement(1) : svp->GetElement(4);
+    return svp->GetNumberOfUncheckedElements() == 2 ? svp->GetUncheckedElement(1)
+                                                    : svp->GetUncheckedElement(4);
+  }
+  else
+  {
+    if (svp->GetNumberOfElements() != 2 && svp->GetNumberOfElements() != 5)
+    {
+      vtkSMPropertyHelperWarningMacro("We only support 2 or 5 element properties.");
+      return NULL;
+    }
+
+    return svp->GetNumberOfElements() == 2 ? svp->GetElement(1) : svp->GetElement(4);
+  }
 }
 
 //----------------------------------------------------------------------------
 template <typename T>
-bool vtkSMPropertyHelper::CopyInternal(vtkSMPropertyHelper& source)
+bool vtkSMPropertyHelper::CopyInternal(const vtkSMPropertyHelper& source)
 {
   std::vector<T> values = source.GetPropertyArray<T>();
   this->SetPropertyArray<T>(
@@ -1439,7 +1472,7 @@ bool vtkSMPropertyHelper::CopyInternal(vtkSMPropertyHelper& source)
 }
 
 //----------------------------------------------------------------------------
-bool vtkSMPropertyHelper::Copy(vtkSMPropertyHelper& source)
+bool vtkSMPropertyHelper::Copy(const vtkSMPropertyHelper& source)
 {
   if (this->Type != source.Type)
   {

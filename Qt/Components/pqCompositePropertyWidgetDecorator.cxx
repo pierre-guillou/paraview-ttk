@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqPropertyWidget.h"
 #include "pqPropertyWidgetDecorator.h"
+#include "vtkLogger.h"
 #include "vtkPVXMLElement.h"
 
 #include <QPointer>
@@ -41,7 +42,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <sstream>
 #include <vector>
+
+#include <cassert>
 
 namespace
 {
@@ -57,6 +61,8 @@ struct BaseOperation
 
   virtual bool canShowWidget(bool show_advanced) const = 0;
   virtual bool enableWidget() const = 0;
+
+  virtual ~BaseOperation() {}
 };
 
 template <typename BinaryOperation, bool init_value, bool default_value = init_value>
@@ -169,12 +175,23 @@ pqCompositePropertyWidgetDecorator::pqCompositePropertyWidgetDecorator(
   : Superclass(xmlConfig, parentObject)
   , Internals(new pqCompositePropertyWidgetDecorator::pqInternals())
 {
-  Q_ASSERT(xmlConfig);
-  this->Internals->Expression =
-    this->Internals->Parse(xmlConfig->FindNestedElementByName("Expression"), this);
+  assert(xmlConfig);
+
+  auto expressionXML = xmlConfig->FindNestedElementByName("Expression");
+  this->Internals->Expression = this->Internals->Parse(expressionXML, this);
   if (this->Internals->Expression == nullptr)
   {
-    PV_DEBUG_PANELS() << "pqCompositePropertyWidgetDecorator doesn't have a valid expression.";
+    std::ostringstream stream;
+    if (expressionXML)
+    {
+      expressionXML->PrintXML(stream, vtkIndent());
+    }
+    else
+    {
+      stream << "(null)";
+    }
+    vtkLogIfF(
+      WARNING, (!this->Internals->Expression), "invalid expression `%s`", stream.str().c_str());
   }
 }
 

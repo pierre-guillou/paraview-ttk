@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -178,6 +178,12 @@ struct VisWinTextAttributes
     bool   bold;
     bool   italic;
 };
+
+// Functions to convert WINDOW_MODE to/from string.
+VISWINDOW_API std::string WINDOW_MODE_ToString(WINDOW_MODE);
+VISWINDOW_API std::string WINDOW_MODE_ToString(int);
+VISWINDOW_API bool        WINDOW_MODE_FromString(const std::string &,
+                                                 WINDOW_MODE &);
 
 // Functions to convert INTERACTION_MODE to/from string.
 VISWINDOW_API std::string INTERACTION_MODE_ToString(INTERACTION_MODE);

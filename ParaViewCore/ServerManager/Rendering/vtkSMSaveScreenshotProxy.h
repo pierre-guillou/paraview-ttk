@@ -44,7 +44,7 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMSaveScreenshotProxy : public vtkSM
 public:
   static vtkSMSaveScreenshotProxy* New();
   vtkTypeMacro(vtkSMSaveScreenshotProxy, vtkSMProxy);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Capture image. The properties for this proxy provide all the necessary
@@ -140,7 +140,9 @@ protected:
    */
   vtkSMProxy* GetFormatProxy(const std::string& filename);
 
-  friend class pqCatalystExportReaction; // access to GetView,FormatProxy
+  friend class pqCatalystExportReaction;  // access to GetView,FormatProxy
+  friend class pqImmediateExportReaction; // access to GetView,FormatProxy
+  friend class pqTemporalExportReaction;  // access to GetView,FormatProxy
 private:
   vtkSMSaveScreenshotProxy(const vtkSMSaveScreenshotProxy&) = delete;
   void operator=(const vtkSMSaveScreenshotProxy&) = delete;

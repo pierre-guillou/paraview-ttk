@@ -89,7 +89,7 @@ static void RecursiveTreeCompose(const IceTInt *compose_group,
       /* Hasta la vista, baby. */
         IceTVoid *package_buffer;
         IceTSizeType package_size;
-        icetRaiseDebug1("Sending image to %d", (int)compose_group[pair_proc]);
+        icetRaiseDebug("Sending image to %d", (int)compose_group[pair_proc]);
         icetSparseImagePackageForSend(*imageData,
                                       &package_buffer,
                                       &package_size);
@@ -99,7 +99,7 @@ static void RecursiveTreeCompose(const IceTInt *compose_group,
       /* Get my image. */
         IceTSparseImage inSparseImage;
         IceTSizeType incoming_size;
-        icetRaiseDebug1("Getting image from %d", (int)compose_group[pair_proc]);
+        icetRaiseDebug("Getting image from %d", (int)compose_group[pair_proc]);
         incoming_size = icetSparseImageBufferSizeType(
                                       icetSparseImageGetColorFormat(*imageData),
                                       icetSparseImageGetDepthFormat(*imageData),
@@ -155,8 +155,8 @@ void icetTreeCompose(const IceTInt *compose_group,
 
     group_rank = icetFindMyRankInGroup(compose_group, group_size);
     if (group_rank < 0) {
-        icetRaiseError("Local process not in compose_group?",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Local process not in compose_group?");
         return;
     }
 

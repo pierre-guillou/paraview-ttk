@@ -695,39 +695,8 @@
                       file_description="Xmdv Files" />
      </Hints>
     </Proxy>
-
-#ifdef VISIT_BUILD_READER_Silo
-    <Proxy name="VisItSiloReaderCore" class="vtkVisItSiloReader"
-      base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
-      <Documentation
-        long_help="Reads Silo rectilinear, curvilinear, unstructured, or point meshes">
-        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
-        The default file extension is .silo
-      </Documentation>
-    </Proxy>
-#endif
-
-
-#ifdef VISIT_BUILD_READER_Boxlib3D
-    <Proxy name="VisItBoxlib3DReaderCore" class="vtkVisItBoxlib3DReader"
-      base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
-      <Documentation
-        long_help="Reads Boxlib3D files">
-        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
-        The default file has extension is .boxlib3d or name Header.
-      </Documentation>
-     <Hints>
-       <ReaderFactory extensions="boxlib3d"
-                      file_description="Boxlib3D Files" />
-     </Hints>
-    </Proxy>
-#endif
-
-
   </ProxyGroup>
 
-    <!-- ================================================================= -->
-    <!-- ================================================================= -->
     <!-- ================================================================= -->
 
   <ProxyGroup name="sources">
@@ -866,21 +835,6 @@
                       file_description="MFiX netcdf Files" />
      </Hints>
     </SourceProxy>
-
-#ifdef VISIT_BUILD_READER_Mili
-    <SourceProxy name="VisItMiliReader" class="vtkVisItMiliReader"
-      base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
-      <Documentation
-       long_help="LLNL engineering format reader">
-       Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
-       The default file extensions are .m, and .mili
-      </Documentation>
-     <Hints>
-       <ReaderFactory extensions="m mili"
-                      file_description="Mili Files" />
-     </Hints>
-    </SourceProxy>
-#endif
 
     <SourceProxy name="VisItMirandaReader" class="vtkVisItMirandaReader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
@@ -2513,77 +2467,6 @@
         </ExposedProperties>
       </SubProxy>
     </SourceProxy>
-
-    <!-- ================================================================= -->
-
-#ifdef VISIT_BUILD_READER_Silo
-<SourceProxy name="VisItSiloReader"
-             base_proxygroup="internal_readers"
-             base_proxyname="VisItSeriesReaderBase"
-             class="vtkFileSeriesReader"
-             file_name_method="SetFileName"
-             si_class="vtkSIMetaReaderProxy">
-
-  <Documentation
-        long_help="Reads Silo rectilinear, curvilinear, unstructured, or point meshes">
-        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
-        The default file extension is .silo
-  </Documentation>
-  <Hints>
-       <ReaderFactory extensions="silo pdb silo.series pdb.series"
-                      file_description="Silo Files" />
-  </Hints>
-
-  <SubProxy>
-    <Proxy proxyname="VisItSiloReaderCore" name="Reader" proxygroup="internal_readers"/>
-    <ExposedProperties>
-      <Property name="MeshInfo" />
-      <Property name="MeshStatus" />
-      <Property name="MaterialInfo" />
-      <Property name="MaterialStatus" />
-      <Property name="CellArrayInfo" />
-      <Property name="CellArrayStatus" />
-      <Property name="PointArrayInfo" />
-      <Property name="PointArrayStatus" />
-    </ExposedProperties>
-  </SubProxy>
-</SourceProxy>
-#endif
-
-#ifdef VISIT_BUILD_READER_Boxlib3D
-<SourceProxy name="VisItBoxlib3DReader"
-             base_proxygroup="internal_readers"
-             base_proxyname="VisItSeriesReaderBase"
-             class="vtkFileSeriesReader"
-             file_name_method="SetFileName"
-             si_class="vtkSIMetaReaderProxy">
-
-  <Documentation
-        long_help="Reads Boxlib3D files.">
-        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
-        The default file extension is .boxlib3d and the default file is Header.
-  </Documentation>
-  <Hints>
-       <ReaderFactory extensions="boxlib3d"
-                      file_description="Boxlib3D Files" />
-  </Hints>
-
-  <SubProxy>
-    <Proxy proxyname="VisItBoxlib3DReaderCore" name="Reader" proxygroup="internal_readers"/>
-    <ExposedProperties>
-      <Property name="MeshInfo" />
-      <Property name="MeshStatus" />
-      <Property name="MaterialInfo" />
-      <Property name="MaterialStatus" />
-      <Property name="CellArrayInfo" />
-      <Property name="CellArrayStatus" />
-      <Property name="PointArrayInfo" />
-      <Property name="PointArrayStatus" />
-    </ExposedProperties>
-  </SubProxy>
-</SourceProxy>
-#endif
-
 
   </ProxyGroup>
 </ServerManagerConfiguration>

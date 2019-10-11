@@ -13,9 +13,11 @@
 
 #include <IceTDevCommunication.h>
 #include <IceTDevContext.h>
+#include <IceTDevPorting.h>
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include <signal.h>
@@ -24,23 +26,31 @@
 #include <unistd.h>
 #endif
 
+#define MAX_MESSAGE_LEN 1024
+
 static IceTEnum currentError = ICET_NO_ERROR;
 static IceTEnum currentLevel;
 
-void icetRaiseDiagnostic(const char *msg, IceTEnum type,
-                         IceTBitField level, const char *file, int line)
+void icetRaiseDiagnostic(IceTEnum type,
+                         IceTBitField level,
+                         const char *file,
+                         int line,
+                         const char *format,
+                         ...)
 {
+#define ICET_MESSAGE_SIZE 1024
     static int raisingDiagnostic = 0;
     IceTBitField diagLevel;
-    IceTInt tmpInt;
-    static char full_message[1024];
-    char *m;
+    static char full_message[ICET_MESSAGE_SIZE+1];
+    IceTSizeType offset;
     int rank;
+    va_list format_args;
 
 #define FINISH        raisingDiagnostic = 0; return
 
     if (raisingDiagnostic) {
-        printf("PANIC: diagnostic raised while rasing diagnostic!\n");
+        printf("PANIC:%s:%d: diagnostic raised while rasing diagnostic!\n",
+               file, line);
         icetStateDump();
 #ifdef DEBUG
         icetDebugBreak();
@@ -48,7 +58,8 @@ void icetRaiseDiagnostic(const char *msg, IceTEnum type,
         return;
     }
     if (icetGetState() == NULL) {
-        printf("PANIC: diagnostic raised when no context was current!\n");
+        printf("PANIC:%s:%d: diagnostic raised when no context was current!\n",
+               file, line);
 #ifdef DEBUG
         icetDebugBreak();
 #endif
@@ -56,13 +67,22 @@ void icetRaiseDiagnostic(const char *msg, IceTEnum type,
     }
     raisingDiagnostic = 1;
     full_message[0] = '\0';
-    m = full_message;
+    offset = 0;
+#define ADD_TO_MESSAGE(...)                                                 \
+    offset += icetSnprintf(full_message + offset,                           \
+                      ICET_MESSAGE_SIZE - offset,                           \
+                      __VA_ARGS__);                                         \
+    if (offset > ICET_MESSAGE_SIZE) {                                       \
+        printf("PANIC:%s:%d: Diagnostic message too large!\n", file, line); \
+        icetStateDump();                                                    \
+        return;                                                             \
+    }
+
     if ((currentError == ICET_NO_ERROR) || (level < currentLevel)) {
         currentError = type;
         currentLevel = level;
     }
-    icetGetIntegerv(ICET_DIAGNOSTIC_LEVEL, &tmpInt);
-    diagLevel = tmpInt;
+    diagLevel = icetUnsafeStateGetInteger(ICET_DIAGNOSTIC_LEVEL)[0];
     if ((diagLevel & level) != level) {
       /* Don't do anything if we are not reporting the raised diagnostic. */
         FINISH;
@@ -70,40 +90,39 @@ void icetRaiseDiagnostic(const char *msg, IceTEnum type,
 
     rank = icetCommRank();
     if ((diagLevel & ICET_DIAG_ALL_NODES) != 0) {
-      /* Reporting on all nodes. */
-        sprintf(m, "ICET,%d:", rank);
+        /* Reporting on all nodes. */
+        ADD_TO_MESSAGE("ICET,%d:", rank);
     } else if (rank == 0) {
-      /* Rank 0 is lone reporter. */
-        strcpy(m, "ICET:");
+        /* Rank 0 is lone reporter. */
+        ADD_TO_MESSAGE("ICET:");
     } else {
       /* Not reporting because not rank 0. */
         FINISH;
     }
-    m += strlen(m);
-  /* Add description of diagnostic type. */
+    /* Add description of diagnostic type. */
     switch (level & 0xFF) {
       case ICET_DIAG_ERRORS:
-          strcpy(m, "ERROR:");
+          ADD_TO_MESSAGE("ERROR:");
           break;
       case ICET_DIAG_WARNINGS:
-          strcpy(m, "WARNING:");
+          ADD_TO_MESSAGE("WARNING:");
           break;
       case ICET_DIAG_DEBUG:
-          strcpy(m, "DEBUG:");
+          ADD_TO_MESSAGE("DEBUG:");
           break;
     }
-    m += strlen(m);
 #ifdef DEBUG
-    sprintf(m, "%s:%d:", file, line);
-    m += strlen(m);
+    ADD_TO_MESSAGE("%s:%d:", file, line);
 #else
     /* shut up warnings */
     (void)file;
     (void)line;
 #endif
 
-    sprintf(m, " %s\n", msg);
-    printf("%s", full_message);
+    ADD_TO_MESSAGE(" %s\n", format);
+    va_start(format_args, format);
+    vprintf(full_message, format_args);
+    va_end(format_args);
     fflush(stdout);
 
 #ifdef DEBUG

@@ -2097,7 +2097,7 @@ void vtkBoxClipDataSet::ClipBox(vtkPoints *newPoints,
             if (((v_tetra[i][cutInd] < value) && ((planes % 2) == 0)) ||
                 ((v_tetra[i][cutInd] > value) && ((planes % 2) == 1)))
 
-              // If only one vertex is ouside, so the tetrahedron is outside
+              // If only one vertex is outside, so the tetrahedron is outside
               // because there is not intersection.
             {
               outside = 1;
@@ -2572,7 +2572,7 @@ void vtkBoxClipDataSet::ClipHexahedron(vtkPoints *newPoints,
           {
             if (p[i] > 0)
             {
-              // If only one vertex is ouside, so the tetrahedron is outside
+              // If only one vertex is outside, so the tetrahedron is outside
               // because there is not intersection.
               // some vertex could be on plane, so you need to test all vertex
 
@@ -3049,7 +3049,7 @@ void vtkBoxClipDataSet::ClipBoxInOut(vtkPoints *newPoints,
             if (((v_tetra[i][cutInd] < value) && ((planes % 2) == 0)) ||
                 ((v_tetra[i][cutInd] > value) && ((planes % 2) == 1)))
             {
-              // If only one vertex is ouside, so the tetrahedron is outside
+              // If only one vertex is outside, so the tetrahedron is outside
               // because there is not intersection.
               outside = 1;
               break;
@@ -3606,7 +3606,7 @@ void vtkBoxClipDataSet::ClipHexahedronInOut(vtkPoints *newPoints,
           for(i=0;i<4;i++)
           {
             if (p[i] > 0)
-            {  // If only one vertex is ouside, so the tetrahedron is outside
+            {  // If only one vertex is outside, so the tetrahedron is outside
               outside = 1;   // because there is not intersection.
               break; // some vertex could be on plane, so you need to test all vertex
             }
@@ -4103,7 +4103,7 @@ void vtkBoxClipDataSet::ClipBox2D(vtkPoints *newPoints,
           for(i=0; i<3; i++)
           {
             if (((v_triangle[i][cutInd] < value) && ((planes % 2) == 0)) ||
-                // If only one vertex is ouside, so the triangle is outside
+                // If only one vertex is outside, so the triangle is outside
                 ((v_triangle[i][cutInd] > value) && ((planes % 2) == 1))) // because there is not intersection.
             {
               outside = 1;
@@ -4465,7 +4465,7 @@ void vtkBoxClipDataSet::ClipBoxInOut2D(vtkPoints *newPoints,
             if (((v_triangle[i][cutInd] < value) && ((planes % 2) == 0)) ||
                 ((v_triangle[i][cutInd] > value) && ((planes % 2) == 1)))
             {
-              // If only one vertex is ouside, so the triangle is outside
+              // If only one vertex is outside, so the triangle is outside
               // because there is not intersection.
               outside = 1;
               break;
@@ -4860,7 +4860,7 @@ void vtkBoxClipDataSet::ClipHexahedron2D(vtkPoints *newPoints,
             unsigned int outside = 0;
             for(i=0;i<3;i++)
             {
-              if (p[i] > 0)  // If only one vertex is ouside, so the triangle is outside
+              if (p[i] > 0)  // If only one vertex is outside, so the triangle is outside
               {
                 outside = 1;   // because there is not intersection.
                 break; // some vertex could be on plane, so you need to test all vertex
@@ -5224,7 +5224,7 @@ void vtkBoxClipDataSet::ClipHexahedronInOut2D(vtkPoints *newPoints,
             unsigned int outside = 0;
             for(i=0;i<3;i++)
             {
-              if (p[i] > 0)   // If only one vertex is ouside, so the trianglehedron is outside
+              if (p[i] > 0)   // If only one vertex is outside, so the trianglehedron is outside
               {
                 outside = 1;  // because there is not intersection.
                 break;    // some vertex could be on plane, so you need to test all vertex
@@ -5581,7 +5581,7 @@ void vtkBoxClipDataSet::ClipBox1D(vtkPoints *newPoints,
         // necessary.
         if (locator->InsertUniquePoint(x, p_id))
         {
-          this->InterpolateEdge(outPD, p_id, v_id[0], v_id[0], t);
+          this->InterpolateEdge(outPD, p_id, v_id[0], v_id[1], t);
         }
 
         // Add the clipped line to the output.
@@ -5801,8 +5801,8 @@ void vtkBoxClipDataSet::ClipBoxInOut1D(vtkPoints *newPoints,
         // necessary.
         if (locator->InsertUniquePoint(x, p_id))
         {
-          this->InterpolateEdge(outPD[0], p_id, v_id[0], v_id[0], t);
-          this->InterpolateEdge(outPD[1], p_id, v_id[0], v_id[0], t);
+          this->InterpolateEdge(outPD[0], p_id, v_id[0], v_id[1], t);
+          this->InterpolateEdge(outPD[1], p_id, v_id[0], v_id[1], t);
         }
 
         // Add the clipped line to the output.
@@ -6021,7 +6021,7 @@ void vtkBoxClipDataSet::ClipHexahedron1D(vtkPoints *newPoints,
         // necessary.
         if (locator->InsertUniquePoint(x, p_id))
         {
-          this->InterpolateEdge(outPD, p_id, v_id[0], v_id[0], t);
+          this->InterpolateEdge(outPD, p_id, v_id[0], v_id[1], t);
         }
 
         // Add the clipped line to the output.
@@ -6221,8 +6221,8 @@ void vtkBoxClipDataSet::ClipHexahedronInOut1D(vtkPoints *newPoints,
         // necessary.
         if (locator->InsertUniquePoint(x, p_id))
         {
-          this->InterpolateEdge(outPD[0], p_id, v_id[0], v_id[0], t);
-          this->InterpolateEdge(outPD[1], p_id, v_id[0], v_id[0], t);
+          this->InterpolateEdge(outPD[0], p_id, v_id[0], v_id[1], t);
+          this->InterpolateEdge(outPD[1], p_id, v_id[0], v_id[1], t);
         }
 
         // Add the clipped line to the output.

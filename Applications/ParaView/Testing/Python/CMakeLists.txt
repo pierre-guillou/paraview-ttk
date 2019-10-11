@@ -1,54 +1,52 @@
-include(ParaViewTestingMacros)
-
 # Check that matplotlib is available
 include(FindPythonModules)
 find_python_module(matplotlib matplotlib_found)
 
 # Set variables to make the testing functions.
-set(vtk-module pvpython)
-set(${vtk-module}_TEST_LABELS PARAVIEW)
+set(_vtk_build_test "paraview")
+set(${_vtk_build_test}_TEST_LABELS paraview)
 
-paraview_test_load_data(""
-  can.ex2
-  multicomb_0.vts
+ExternalData_Expand_Arguments(ParaViewData _
+  # data files
+  "DATA{${paraview_test_data_directory_input}/Data/blow.vtk}"
+  "DATA{${paraview_test_data_directory_input}/Data/can.ex2}"
+  "DATA{${paraview_test_data_directory_input}/Data/iron_protein.vtk}"
+  "DATA{${paraview_test_data_directory_input}/Data/multicomb_0.vts}"
+
+  # baselines
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonViewMatplotlibScript.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonViewNumpyScript.png}"
   )
 
 # only enable TestPythonAnnotationFilter test if numpy is available
 find_python_module(numpy numpy_found)
 if (numpy_found)
-  set(PARAVIEW_PYTHON_ARGS
-    --data=${PARAVIEW_TEST_OUTPUT_DATA_DIR}/can.ex2)
-  # Add pvpython tests
   paraview_add_test_python(
-    NO_DATA NO_VALID NO_OUTPUT NO_RT
-    TestPythonAnnotationFilter.py
-    TestPythonAnnotationFilterNoMerge.py
+    NO_DATA NO_VALID NO_RT
     TestAnnotateAttributeData.py
-    CinemaAERTest.py
     )
+
   paraview_add_test_python(
-    NO_VALID NO_OUTPUT NO_RT
-    AppendAttributes.py
-    UnstructuredCellTypePythonCalculator.py
+    NO_DATA NO_RT
+    TestPythonViewNumpyScript.py
     )
+
   paraview_add_test_python(
     NO_VALID NO_RT
+    AppendAttributes.py
     FileSeriesWriterSubTimeSteps.py
+    TestPythonAnnotationFilterNoMerge.py
+    TestPythonAnnotationFilter.py
+    UnstructuredCellTypePythonCalculator.py
     )
-  set(PARAVIEW_PYTHON_ARGS)
 
-  if (PARAVIEW_ENABLE_MATPLOTLIB AND matplotlib_found)
+  if (matplotlib_found)
     # add Matplotlib tests only if matplotlib was found at configure time.
     paraview_add_test_python(
       NO_DATA NO_RT
       TestPythonViewMatplotlibScript.py
       )
   endif()
-
-  paraview_add_test_python(
-    NO_DATA NO_RT
-    TestPythonViewNumpyScript.py
-    )
 endif()
 
 paraview_add_test_python(
@@ -67,13 +65,16 @@ paraview_add_test_python(
 
 paraview_add_test_python(
   NO_DATA NO_VALID NO_OUTPUT NO_RT
-  TestResetProperty.py
+  AppendDatasetsPolyData.py
+  MergeBlocksPolyData.py
   PointPicking.py
+  TestResetProperty.py
 )
 
 paraview_add_test_python(
   NO_VALID NO_RT
   ExportCSV.py
+  LoadStateWithOptions.py
   Plot3DReader.py
 )
 
@@ -95,9 +96,9 @@ foreach (tfile IN LISTS PVBATCH_TESTS)
   set(${test}_ARGS
     --state ${CMAKE_CURRENT_SOURCE_DIR}/${test}.pvsm)
 endforeach ()
-if (PARAVIEW_USE_MPI AND VTK_MPIRUN_EXE)
+if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE)
   # run the tests in parallel
-  set(${vtk-module}_NUMPROCS 3)
+  set(_NUMPROCS 3)
   paraview_add_test_pvbatch_mpi(
     JUST_VALID
     ${PVBATCH_TESTS}
@@ -132,14 +133,13 @@ paraview_add_test_driven(
 # Python Multi-servers test
 # => Only for shared build as we dynamically load plugins
 if(BUILD_SHARED_LIBS)
-  set(vtk-module multi-servers)
   set(TestMultiServersConfig_ARGS
     --test-multi-servers 2
     )
   set(TestMultiServersRemoteProxy_ARGS
     --test-multi-servers 3
     )
-  set(${vtk-module}_TEST_LABELS PARAVIEW)
+  set(${_vtk_build_test}_TEST_LABELS paraview)
 
   paraview_add_test_driven(
     NO_DATA NO_VALID NO_OUTPUT NO_RT
@@ -148,3 +148,26 @@ if(BUILD_SHARED_LIBS)
     TestRemoteProgrammableFilter.py
     )
 endif()
+
+#------------------------------------------------------------------------------
+# add a test for stereo batch (#18974).
+set(paraview_pvbatch_args --stereo --stereo-type=SplitViewportHorizontal)
+paraview_add_test_pvbatch(
+  NO_DATA NO_RT
+  TestStereoSaveScreenshot.py
+)
+if(PARAVIEW_USE_MPI)
+  paraview_add_test_pvbatch_mpi(
+    NO_DATA NO_RT
+    TestStereoSaveScreenshot.py
+  )
+endif()
+unset(paraview_pvbatch_args)
+
+set(paraview_python_args --stereo --stereo-type=SplitViewportHorizontal)
+paraview_add_test_python(
+  NO_DATA NO_RT
+  TestStereoSaveScreenshot.py
+)
+unset(paraview_python_args)
+#------------------------------------------------------------------------------

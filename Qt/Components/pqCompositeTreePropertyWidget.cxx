@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTreeView.h"
 #include "pqTreeViewSelectionHelper.h"
 #include "vtkEventQtSlotConnect.h"
+#include "vtkPVLogger.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMCompositeTreeDomain.h"
 #include "vtkSMIntVectorProperty.h"
@@ -42,6 +43,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QSignalBlocker>
+
+#include <cassert>
 
 namespace
 {
@@ -100,9 +103,8 @@ pqCompositeTreePropertyWidget::pqCompositeTreePropertyWidget(
   this->setShowLabel(false);
   this->setChangeAvailableAsChangeFinished(true);
 
-  vtkSMCompositeTreeDomain* ctd =
-    vtkSMCompositeTreeDomain::SafeDownCast(smproperty->FindDomain("vtkSMCompositeTreeDomain"));
-  Q_ASSERT(ctd);
+  auto ctd = smproperty->FindDomain<vtkSMCompositeTreeDomain>();
+  assert(ctd);
   this->Domain = ctd;
 
   this->VTKConnect->Connect(ctd, vtkCommand::DomainModifiedEvent, &this->Timer, SLOT(start()));
@@ -125,6 +127,11 @@ pqCompositeTreePropertyWidget::pqCompositeTreePropertyWidget(
   // time. If not, then tell the model that it should uncheck other subtrees
   // when a user clicks on an item.
   dmodel->setExclusivity(smproperty->GetRepeatCommand() == 0);
+  if (dmodel->exclusivity())
+  {
+    // if exclusive, are we limiting to selecting 1 leaf node?
+    dmodel->setOnlyLeavesAreUserCheckable(ctd->GetMode() == vtkSMCompositeTreeDomain::LEAVES);
+  }
 
   if (ctd->GetMode() == vtkSMCompositeTreeDomain::AMR &&
     ((smproperty->GetRepeatCommand() == 1 && smproperty->GetNumberOfElementsPerCommand() == 2) ||
@@ -149,6 +156,8 @@ pqCompositeTreePropertyWidget::pqCompositeTreePropertyWidget(
       if (elem->GetScalarAttribute("number_of_rows", &row_count))
       {
         treeView->setMaximumRowCountBeforeScrolling(row_count);
+        vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+          "widget height limited to %d rows using `WidgetHeight` hint.", row_count);
       }
     }
   }
@@ -160,9 +169,6 @@ pqCompositeTreePropertyWidget::pqCompositeTreePropertyWidget(
   this->addPropertyLink(this, "values", SIGNAL(valuesChanged()), smproperty);
   this->connect(
     dmodel, SIGNAL(dataChanged(const QModelIndex&, const QModelIndex&)), SIGNAL(valuesChanged()));
-
-  PV_DEBUG_PANELS() << "pqCompositeTreePropertyWidget for an IntVectorPropertyWidget with a "
-                    << "CompositeTreeDomain";
 }
 
 //-----------------------------------------------------------------------------
@@ -193,7 +199,7 @@ void pqCompositeTreePropertyWidget::domainModified()
 //-----------------------------------------------------------------------------
 QList<QVariant> pqCompositeTreePropertyWidget::values() const
 {
-  Q_ASSERT(this->Model && this->Property && this->Domain);
+  assert(this->Model && this->Property && this->Domain);
   switch (this->Domain->GetMode())
   {
     case vtkSMCompositeTreeDomain::ALL:
@@ -221,7 +227,7 @@ QList<QVariant> pqCompositeTreePropertyWidget::values() const
 //-----------------------------------------------------------------------------
 void pqCompositeTreePropertyWidget::setValues(const QList<QVariant>& values)
 {
-  Q_ASSERT(this->Model && this->Property && this->Domain);
+  assert(this->Model && this->Property && this->Domain);
   switch (this->Domain->GetMode())
   {
     case vtkSMCompositeTreeDomain::ALL:

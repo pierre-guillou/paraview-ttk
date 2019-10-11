@@ -95,6 +95,8 @@ vtkSMProxy* vtkSMTransferFunctionManager::GetColorTransferFunction(
     return NULL;
   }
 
+  proxy->SetLogName((std::string("lut-for-") + std::string(arrayName)).c_str());
+
   vtkNew<vtkSMParaViewPipelineController> controller;
   controller->PreInitializeProxy(proxy);
 
@@ -239,6 +241,10 @@ void vtkSMTransferFunctionManager::ResetAllTransferFunctionRangesUsingCurrentDat
     if (rescaleMode == vtkSMTransferFunctionManager::GROW_ON_APPLY && !animating)
     {
       extend = true;
+    }
+    else if (rescaleMode == vtkSMTransferFunctionManager::RESET_ON_APPLY && !animating)
+    {
+      extend = false;
     }
     else if (rescaleMode == vtkSMTransferFunctionManager::GROW_ON_APPLY_AND_TIMESTEP && animating)
     {

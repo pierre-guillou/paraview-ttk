@@ -17,12 +17,17 @@
  * @brief   Used to load ParaView plugins.
  *
  * vtkPVPluginLoader can be used to load plugins for ParaView. vtkPVPluginLoader
- * loads the plugin on the local process. For verbose details during the process
- * of loading the plugin, try setting the environment variable PV_PLUGIN_DEBUG.
+ * loads the plugin on the local process.
+ *
+ * vtkPVPluginLoader logs plugin related messages using at
+ * `PARAVIEW_LOG_PLUGIN_VERBOSITY` level. See `vtkPVLogger::SetPluginVerbosity`
+ * for information on using environment variables to override or elevate the
+ * verbosity level.
+ *
  * This class only needed when loading plugins from shared libraries
  * dynamically. For statically importing plugins, one directly uses
  * PV_PLUGIN_IMPORT() macro defined in vtkPVPlugin.h.
-*/
+ */
 
 #ifndef vtkPVPluginLoader_h
 #define vtkPVPluginLoader_h
@@ -34,18 +39,12 @@
 
 class vtkPVPlugin;
 
-#if !defined(VTK_LEGACY_REMOVE)
-/// deprecated in ParaView 5.6. Use `vtkPVPluginLoader::PluginLoaderCallback`
-/// instead.
-typedef bool (*vtkPluginLoadFunction)(const char*);
-#endif
-
 class VTKPVCLIENTSERVERCORECORE_EXPORT vtkPVPluginLoader : public vtkObject
 {
 public:
   static vtkPVPluginLoader* New();
   vtkTypeMacro(vtkPVPluginLoader, vtkObject);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Tries to the load the plugin given the path to the plugin file.
@@ -144,13 +143,6 @@ public:
   //@}
 
   /**
-   * Sets the function used to load static plugins.
-   * @deprecated ParaView 5.6. Please use `RegisterLoadPluginCallback` instead
-   * which supports adding multiple callbacks.
-   */
-  VTK_LEGACY(static void SetStaticPluginLoadFunction(vtkPluginLoadFunction function));
-
-  /**
    * Internal method used in pqParaViewPlugin.cxx.in to tell the
    * vtkPVPluginLoader that a library was unloaded so it doesn't try to unload
    * it again.
@@ -180,7 +172,6 @@ protected:
   char* PluginVersion;
   char* FileName;
   char* SearchPaths;
-  bool DebugPlugin;
   bool Loaded;
 
 private:

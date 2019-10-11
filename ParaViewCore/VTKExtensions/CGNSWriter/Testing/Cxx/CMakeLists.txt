@@ -1,7 +1,4 @@
-include(ParaViewTestingMacros)
-
-paraview_add_test_cxx(
-  ${vtk-module}CxxTests tests
+vtk_add_test_cxx(vtkPVVTKExtensionsCGNSWriterCxxTests tests
   NO_VALID NO_DATA
   TestStructuredGrid.cxx
   TestUnstructuredGrid.cxx
@@ -9,4 +6,4 @@ paraview_add_test_cxx(
   TestPolyhedral.cxx
   TestMultiBlockDataSet.cxx
 )
-vtk_test_cxx_executable(${vtk-module}CxxTests tests)
+vtk_test_cxx_executable(vtkPVVTKExtensionsCGNSWriterCxxTests tests)

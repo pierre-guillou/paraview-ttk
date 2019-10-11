@@ -211,10 +211,7 @@ bool vtkImageSincInterpolator::IsSeparable()
 //----------------------------------------------------------------------------
 void vtkImageSincInterpolator::SetWindowHalfWidth(int size)
 {
-  static int minsize = 1;
-  static int maxsize = VTK_SINC_KERNEL_SIZE_MAX/2;
-  size = ((size > minsize) ? size : minsize);
-  size = ((size < maxsize) ? size : maxsize);
+  size = vtkMath::ClampValue(size, 1, VTK_SINC_KERNEL_SIZE_MAX/2);
   if (this->WindowHalfWidth != size)
   {
     this->WindowHalfWidth = size;
@@ -228,10 +225,7 @@ void vtkImageSincInterpolator::SetWindowHalfWidth(int size)
 //----------------------------------------------------------------------------
 void vtkImageSincInterpolator::SetWindowFunction(int mode)
 {
-  static int minmode = VTK_LANCZOS_WINDOW;
-  static int maxmode = VTK_BLACKMAN_NUTTALL4;
-  mode = ((mode > minmode) ? mode : minmode);
-  mode = ((mode < maxmode) ? mode : maxmode);
+  mode = vtkMath::ClampValue(mode, VTK_LANCZOS_WINDOW, VTK_BLACKMAN_NUTTALL4);
   if (this->WindowFunction != mode)
   {
     this->WindowFunction = mode;
@@ -382,11 +376,8 @@ void vtkImageSincInterpolator::InternalUpdate()
   int hsize[3];
   for (int i = 0; i < 3; i++)
   {
-    static int minsize = 1;
-    static int maxsize = VTK_SINC_KERNEL_SIZE_MAX/2;
     int size = this->KernelSize[i]/2;
-    size = ((size > minsize) ? size : minsize);
-    size = ((size < maxsize) ? size : maxsize);
+    size = vtkMath::ClampValue(size, 1, VTK_SINC_KERNEL_SIZE_MAX/2);
     hsize[i] = size;
     blurchange |= (fabs(this->BlurFactors[i] - this->LastBlurFactors[i]) >=
                    VTK_INTERPOLATE_FLOOR_TOL);
@@ -650,7 +641,7 @@ void vtkSincInterpWeights(T *kernel, F *fX, F fx, int m)
 // will always sum to unity.  This renormalization is needed to ensure that
 // the interpolation will not have a DC offset.  For the rationale, see e.g.
 //  NA Thacker, A Jackson, D Moriarty, E Vokurka, "Improved quality of
-//  re-sliced MR images usng re-normalized sinc interpolation," Journal of
+//  re-sliced MR images using re-normalized sinc interpolation," Journal of
 //  Magnetic Resonance Imaging 10:582-588, 1999.
 // Parameters:
 //  kernel = table containing half of a symmetric kernel

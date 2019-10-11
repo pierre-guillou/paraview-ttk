@@ -62,7 +62,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sstream>
 #include <string>
 
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_VTK_PythonInterpreter
 #include "vtkPythonInterpreter.h"
 #endif
 
@@ -100,7 +100,7 @@ pqCatalystExportReaction::~pqCatalystExportReaction()
 //-----------------------------------------------------------------------------
 void pqCatalystExportReaction::onTriggered()
 {
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_VTK_PythonInterpreter
 
   // We populate these from information from the export proxies
   QString live_visualization = "True";
@@ -291,6 +291,13 @@ void pqCatalystExportReaction::onTriggered()
     QString width = QString::fromStdString(std::to_string(targetSize.GetX()));
     QString height = QString::fromStdString(std::to_string(targetSize.GetY()));
 
+    int compression = -1;
+    vtkSMProxy* writerProxy = ssProxy->GetFormatProxy(filename);
+    if (writerProxy)
+    {
+      compression = vtkSMPropertyHelper(writerProxy, "CompressionLevel", true).GetAsInt(0);
+    }
+
     // this is catalyst specific, need to add to SSSProxy
     // but will come from a new CinemaSpecific file format
     QString cinema_options = "{}";
@@ -298,12 +305,11 @@ void pqCatalystExportReaction::onTriggered()
     if (imagefilename.endsWith("cdb"))
     {
       // get the cinema database shape from the CDB subproxy
-      vtkSMProxy* writerProxy = ssProxy->GetFormatProxy(filename);
       if (writerProxy)
       {
         imagefilename = imagefilename.replace("cdb", "png"); // just always use png for normal
                                                              // images
-        int renderingLevel = vtkSMPropertyHelper(writerProxy, "Deferred Rendering").GetAsInt();
+        int renderingLevel = vtkSMPropertyHelper(writerProxy, "DeferredRendering").GetAsInt();
         QString compositeState;
         QString useValues;
         QString valueFormat = "'floatValues':True"; // now that we can rely on float textures
@@ -327,7 +333,7 @@ void pqCatalystExportReaction::onTriggered()
             useValues = "'noValues':False";
             break;
         }
-        int cameraLevel = vtkSMPropertyHelper(writerProxy, "Camera Model").GetAsInt();
+        int cameraLevel = vtkSMPropertyHelper(writerProxy, "CameraModel").GetAsInt();
         if (renderingLevel == 0 && cameraLevel > 1)
         {
           cameraLevel = 1;
@@ -421,7 +427,7 @@ void pqCatalystExportReaction::onTriggered()
           cinema_options += "," + rolls;
         }
 
-        QString trackedObject = vtkSMPropertyHelper(writerProxy, "Track Object").GetAsString();
+        QString trackedObject = vtkSMPropertyHelper(writerProxy, "TrackObject").GetAsString();
         if (trackedObject != "None")
         {
           if (renderingLevel == 0)
@@ -460,7 +466,7 @@ void pqCatalystExportReaction::onTriggered()
       }
     }
 
-    QString viewformat = "'%1' : ['%2', %3, %4, %5, %6, %7, %8]";
+    QString viewformat = "'%1' : ['%2', %3, %4, %5, %6, %7, %8, %9]";
     QString nextview = viewformat.arg(viewname)
                          .arg(imagefilename)
                          .arg(frequency)
@@ -468,14 +474,14 @@ void pqCatalystExportReaction::onTriggered()
                          .arg(magnification)
                          .arg(width)
                          .arg(height)
-                         .arg(cinema_options);
+                         .arg(cinema_options)
+                         .arg(compression);
     rendering_info += nextview + ",";
   }
 
   if (!(exported_any_screenshots || exported_any_writers))
   {
-    qWarning(
-      "Nothing to export, use Catalyst Export Inspector to configure what you want to write.");
+    qWarning("Nothing to export, use Export Inspector to configure what you want to write.");
   }
   else
   {

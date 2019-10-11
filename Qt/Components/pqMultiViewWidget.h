@@ -33,9 +33,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define pqMultiViewWidget_h
 
 #include "pqComponentsModule.h"
-#include <QWidget>
-
 #include "vtkSetGet.h" // for VTK_LEGACY
+#include <QWidget>
 
 class pqProxy;
 class pqView;
@@ -51,13 +50,17 @@ class vtkSMViewProxy;
 * works together with a vtkSMViewLayoutProxy instance to keep track of the layout
 * for the views. It's acceptable to create multiple instances of
 * pqMultiViewWidget in the same application.
+*
+* @sa pqHierarchicalGridLayout, pqHierarchicalGridWidget
+*
 */
 class PQCOMPONENTS_EXPORT pqMultiViewWidget : public QWidget
 {
-  Q_OBJECT
+  Q_OBJECT;
   typedef QWidget Superclass;
-  Q_PROPERTY(bool decorationsVisibility READ isDecorationsVisible WRITE setDecorationsVisible NOTIFY
-      decorationsVisibilityChanged)
+  Q_PROPERTY(bool decorationsVisibility READ decorationsVisibility WRITE setDecorationsVisibility
+      NOTIFY decorationsVisibilityChanged);
+
 public:
   pqMultiViewWidget(QWidget* parent = 0, Qt::WindowFlags f = 0);
   ~pqMultiViewWidget() override;
@@ -72,7 +75,7 @@ public:
   /**
   * Returns whether window decorations and splitter handles are visible.
   */
-  bool isDecorationsVisible() const { return this->DecorationsVisible; }
+  bool decorationsVisibility() const;
 
   /**
   * Returns list of views assigned to frames in this widget.
@@ -112,6 +115,21 @@ public:
    */
   QSize preview(const QSize& previewSize = QSize());
 
+  /**
+   * Returns the location of the active frame, if any, else -1.
+   */
+  int activeFrameLocation() const;
+
+  /**
+   * @deprecated use `decorationsVisibility` instead.
+   */
+  VTK_LEGACY(bool isDecorationsVisible() const);
+
+  /**
+   * @deprecated, use `setDecorationsVisibility` instead.
+   */
+  VTK_LEGACY(void setDecorationsVisible(bool val));
+
 signals:
   /**
   * fired when a frame in this widget becomes active.
@@ -133,26 +151,20 @@ public slots:
   void reload();
 
   /**
-  * Assigns a frame to the view. This assumes that the view not already been
-  * placed in a frame. This will try to locate an empty frame, if possible. If
-  * no empty frames are available, it will split the active frame along its
-  * longest dimension and place the view in the newly created child-frame.
-  */
-  void assignToFrame(pqView*);
-
-  /**
   * In a tabbed setup, when pqMultiViewWidget becomes active, this method
   * should be called to ensure that the first view/frame in this widget is
   * indeed made active, as the user would expect.
   */
   void makeFrameActive();
 
+  //@{
   /**
-  * Set the visibility for frame decorations and splitter handles.
-  */
-  void setDecorationsVisible(bool);
-  void showDecorations() { this->setDecorationsVisible(true); }
-  void hideDecorations() { this->setDecorationsVisible(false); }
+   * Set the visibility for frame decorations and splitter handles.
+   */
+  void setDecorationsVisibility(bool);
+  void showDecorations() { this->setDecorationsVisibility(true); }
+  void hideDecorations() { this->setDecorationsVisibility(false); }
+  //@}
 
   /**
   * Locks the maximum size for each view-frame to the given size.
@@ -179,7 +191,6 @@ protected slots:
   * directly. These result in updating the layoutManager.
   */
   void standardButtonPressed(int);
-  void splitterMoved();
 
   /**
   * Makes a frame active. This also call pqActiveObjects::setActiveView() to
@@ -227,28 +238,14 @@ protected:
   bool eventFilter(QObject* caller, QEvent* evt) override;
 
 private:
-  QWidget* createWidget(int, vtkSMViewLayoutProxy* layout, QWidget* parentWdg, int& maxIndex);
   void layoutPropertyModified(vtkObject*, unsigned long, void*);
-
-  /**
-  * called when the vtkSMViewLayoutProxy is changed in order to synchronize
-  * the separator width and color with the user inputs.
-  */
-  void updateSplitter();
-
-  /**
-   * called when the vtkSMViewLayoutProxy's "PreviewMode" property is changed.
-   */
-  void updatePreviewMode();
 
 private:
   Q_DISABLE_COPY(pqMultiViewWidget)
 
   class pqInternals;
   pqInternals* Internals;
-
-  bool DecorationsVisible;
-  QSize LockViewSize;
+  friend class pqInternals;
 };
 
 #endif

@@ -29,205 +29,96 @@
 #
 #==========================================================================
 
-# Needed to have the Python version numbers available in paraview-config.
-set(extra_modules)
+# TODO: Restore Cray ATP support via a new module.
+# TODO: Support static plugins.
+
+# Set up rpaths
+set(CMAKE_BUILD_RPATH_USE_ORIGIN 1)
+if (UNIX AND NOT APPLE)
+  file(RELATIVE_PATH _paraview_client_relpath
+    "/prefix/${CMAKE_INSTALL_BINDIR}"
+    "/prefix/${CMAKE_INSTALL_LIBDIR}")
+  set(_paraview_client_origin_rpath
+    "$ORIGIN/${_paraview_client_relpath}")
+
+  list(APPEND CMAKE_INSTALL_RPATH
+    "${_paraview_client_origin_rpath}")
+endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/ParaViewCommandLineExecutables.cmake")
+
+set(paraview_tools)
+foreach (exe IN ITEMS pvserver pvdataserver pvrenderserver)
+  paraview_add_executable("${exe}" "${exe}.cxx")
+  list(APPEND paraview_tools
+    "${exe}")
+endforeach ()
+
 if (PARAVIEW_ENABLE_PYTHON)
-  find_package(PythonInterp REQUIRED)
-  set(extra_modules vtkUtilitiesPythonInitializer)
+  foreach (exe IN ITEMS pvbatch pvpython)
+    paraview_add_executable("${exe}" "${exe}.cxx")
+    list(APPEND paraview_tools
+      "${exe}")
+  endforeach ()
 endif ()
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/vtkModules.h"
-"#include \"vtkModuleDependencies.h\"
+if (PARAVIEW_BUILD_QT_GUI)
+  list(APPEND paraview_tools
+    paraview)
+endif ()
 
-struct vtkModuleDependency
-{
-  const char* ModuleName;
-  const char** LibraryNames;
-  const char** Depends;
-  bool Python;
-} vtkModules[] = {
-")
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/vtkModuleDependencies.h"
-"#include <cstdlib>
-
-")
-foreach (vtk_module IN LISTS VTK_MODULES_ENABLED extra_modules)
-  if (NOT vtk_module STREQUAL last_module)
-    set(has_python "false")
-    if (TARGET ${vtk_module}PythonD)
-      set(has_python "true")
-    endif ()
-    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModules.h"
-"  { \"${vtk_module}\", ${vtk_module}Libraries, ${vtk_module}Depends, ${has_python} },
-")
-
-    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModuleDependencies.h"
-"const char* ${vtk_module}Libraries[] = { ")
-    foreach (vtk_module_library IN LISTS "${vtk_module}_LIBRARIES")
-      if (vtk_module_library STREQUAL "optimized" OR
-          vtk_module_library STREQUAL "debug")
-        unset(vtk_module_library_name)
-      elseif (vtk_module_library MATCHES "^-l")
-        string(SUBSTRING "${vtk_module_library}" 2 -1 vtk_module_library)
-        find_library(vtk_module_library_name "${vtk_module_library}")
-      elseif (IS_ABSOLUTE "${vtk_module_library}")
-        set(vtk_module_library_name "${vtk_module_library}")
-      elseif (vtk_module_library)
-        set(type)
-        get_property(type TARGET "${vtk_module_library}" PROPERTY TYPE)
-        if (type STREQUAL "INTERFACE_LIBRARY")
-          # note, this may set vtk_module_library to empty for interface
-          # libraries that have no INTERFACE_LINK_LIBRARIES.
-          get_property(vtk_module_library TARGET "${vtk_module_library}" PROPERTY INTERFACE_LINK_LIBRARIES)
-        endif ()
-        set(vtk_module_library_name)
-        if (vtk_module_library)
-          get_property(vtk_module_library_name TARGET "${vtk_module_library}" PROPERTY OUTPUT_NAME)
-        endif ()
-        if (NOT vtk_module_library_name)
-          set(vtk_module_library_name "${vtk_module_library}")
-        endif ()
-      endif ()
-      if (vtk_module_library_name)
-        file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModuleDependencies.h"
-"\"${vtk_module_library_name}\", ")
-      endif ()
-    endforeach ()
-
-    if (TARGET ${vtk_module}_KIT)
-      file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModuleDependencies.h"
-        "\"${${vtk_module}_KIT}\", ")
-    elseif (TARGET ${vtk_module})
-      get_property(target_type TARGET "${vtk_module}" PROPERTY TYPE)
-      if (target_type MATCHES "_LIBRARY$")
-        if (target_type STREQUAL "INTERFACE_LIBRARY")
-          # note, this may set vtk_module_library to empty for interface
-          # libraries that have no INTERFACE_LINK_LIBRARIES.
-          get_property(vtk_module_library TARGET "${vtk_module}" PROPERTY INTERFACE_LINK_LIBRARIES)
-        else ()
-          set(vtk_module_library "${vtk_module}")
-        endif ()
-        set(vtk_module_library_name)
-        if (vtk_module_library)
-          get_property(vtk_module_library_name TARGET "${vtk_module_library}" PROPERTY OUTPUT_NAME)
-        endif ()
-        if (vtk_module_library_name)
-          file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModuleDependencies.h"
-"\"${vtk_module_library_name}\", ")
-        endif ()
-      endif ()
-    endif ()
-
-    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModuleDependencies.h"
-"NULL };
-const char* ${vtk_module}Depends[] = { ")
-    foreach (vtk_module_depends IN LISTS ${vtk_module}_DEPENDS)
-      file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModuleDependencies.h"
-"\"${vtk_module_depends}\", ")
-    endforeach ()
-    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModuleDependencies.h"
-"NULL };
-")
-    set(last_module ${vtk_module})
+option(PARAVIEW_BUILD_MESA_LAUNCHER "Build a launcher for using Mesa binaries" OFF)
+mark_as_advanced(PARAVIEW_BUILD_MESA_LAUNCHER)
+if (PARAVIEW_BUILD_MESA_LAUNCHER)
+  set(PARAVIEW_MESA_LIBDIR "<LIBDIR>/mesa"
+    CACHE STRING "The directory containing the Mesa libraries (<LIBDIR> is replaced with the runtime library install location)")
+  if (WIN32)
+    set(_paraview_mesa_replacement "${CMAKE_INSTALL_BINDIR}")
+  else ()
+    set(_paraview_mesa_replacement "${CMAKE_INSTALL_LIBDIR}")
   endif ()
-endforeach ()
-file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/vtkModules.h"
-"  { NULL, NULL, NULL, false }
-};
-")
+  string(REPLACE "<LIBDIR>" "${_paraview_mesa_replacement}" _paraview_mesa_libdir "${PARAVIEW_MESA_LIBDIR}")
+  file(RELATIVE_PATH _paraview_mesa_relpath
+    "/prefix/${CMAKE_INSTALL_BINDIR}"
+    "/prefix/${_paraview_mesa_libdir}")
+
+  add_executable(paraview-mesa
+    paraview_mesa.cxx)
+  add_executable(ParaView::paraview-mesa ALIAS paraview-mesa)
+  target_link_libraries(paraview-mesa
+    PRIVATE
+      VTK::vtksys)
+  target_compile_definitions(paraview-mesa
+    PRIVATE
+      "MESA_RELATIVE_LIBDIR=\"${_paraview_mesa_relpath}\"")
+  foreach (paraview_tool IN LISTS paraview_tools)
+    target_compile_definitions(paraview-mesa
+      PRIVATE
+        "HAVE_${paraview_tool}")
+  endforeach ()
+  install(
+    TARGETS     "paraview-mesa"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT   runtime
+    EXPORT      ParaViewTools)
+endif ()
 
 configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/paraview-config.cxx.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/paraview-config.cxx"
-  @ONLY)
-pv_add_executable(paraview-config
-  "${CMAKE_CURRENT_BINARY_DIR}/paraview-config.cxx")
-target_link_libraries(paraview-config
-  vtksys)
+  "${CMAKE_CURRENT_SOURCE_DIR}/paraview-config"
+  "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/paraview-config"
+  COPYONLY)
+install(
+  PROGRAMS    "${CMAKE_CURRENT_SOURCE_DIR}/paraview-config"
+  DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  COMPONENT   development)
 
-if (NOT TARGET vtkPVServerManagerApplication)
-  message(STATUS "vtkPVServerManagerApplication module is not enabled. "
-    "Command line executables will not be built.")
-  return()
-endif()
-
-vtk_module_dep_includes(vtkPVServerManagerApplication)
-include_directories(${vtkPVServerManagerApplication_DEPENDS_INCLUDE_DIRS}
-                    ${vtkPVServerManagerApplication_INCLUDE_DIRS})
-
-set(STATIC_LINK_PLUGINS)
-if (NOT BUILD_SHARED_LIBS)
-  set(STATIC_LINK_PLUGINS vtkPVStaticPluginsInit)
-endif()
-if (PARAVIEW_USE_STATIC_NUMPY)
-  find_library(UTIL_LIB util)
-
-  set(extra_python_libs)
-  foreach (lib "${UTIL_LIB}")
-    if (lib)
-      list(APPEND extra_python_libs
-        "${lib}")
-    endif ()
-  endforeach ()
-
-  find_library(BLAS_LIB blas)
-  find_library(GSL_LIB gsl)
-  find_library(GSLCBLAS_LIB gslcblas)
-  find_library(LAPACK_LIB lapack)
-
-  set(extra_numpy_libs)
-  foreach (libvar BLAS_LIB GSL_LIB GSLCBLAS_LIB LAPACK_LIB)
-    if (${libvar})
-      list(APPEND extra_numpy_libs
-        "${${libvar}}")
-      add_definitions(-DHAVE_NUMPY_${libvar})
-    endif ()
-  endforeach ()
-  add_definitions(-DHAVE_NUMPY_STATIC)
-
-  list(APPEND STATIC_LINK_PLUGINS
-    ${extra_python_libs} "${PYTHON_LIBRARY}"
-    ${extra_numpy_libs} "${STATIC_NUMPY_LIBRARY}")
-endif()
-
-
-# Cray ATP support
-set(PARAVIEW_USE_ATP OFF CACHE BOOL
-  "Link to Cray ATP library to enable debug features on Cray Systems")
-mark_as_advanced(PARAVIEW_USE_ATP)
-if (PARAVIEW_USE_ATP)
-  find_package(ATP)
-endif()
-foreach (name pvserver pvdataserver pvrenderserver)
-  pv_add_executable(${name} ${name}.cxx)
-  target_link_libraries(${name}
-    vtkPVServerManagerApplication
-    ${STATIC_LINK_PLUGINS})
-  if (ATP_FOUND)
-    target_link_libraries(${name} ${ATP_LIBRARIES})
-    set_target_properties(${name} PROPERTIES LINK_FLAGS "${ATP_LINK_FLAGS}")
-  endif()
-endforeach()
-
-if (PARAVIEW_ENABLE_PYTHON)
-  foreach (name pvbatch pvpython)
-    pv_add_executable(${name} ${name}.cxx)
-    target_link_libraries(${name}
-      vtkPVServerManagerApplication
-      vtkUtilitiesPythonInitializer
-      ${VTK_PYTHON_LIBRARIES}
-      ${STATIC_LINK_PLUGINS})
-    if (ATP_FOUND)
-      target_link_libraries(${name} ${ATP_LIBRARIES})
-      set_target_properties(${name} PROPERTIES LINK_FLAGS "${ATP_LINK_FLAGS}")
-    endif()
-    add_dependencies(${name} paraview_python_package)
-  endforeach()
-
-  # add python module dependencies to the server-executables for static builds.
-  foreach (name pvserver pvdataserver pvrenderserver)
-    target_link_libraries(${name}
-        vtkUtilitiesPythonInitializer)
-  endforeach()
-
-endif()
+export(
+  EXPORT      ParaViewTools
+  NAMESPACE   ParaView::
+  FILE        "${CMAKE_BINARY_DIR}/${paraview_cmake_destination}/ParaViewTools-targets.cmake")
+install(
+  EXPORT      ParaViewTools
+  NAMESPACE   ParaView::
+  FILE        "ParaViewTools-targets.cmake"
+  DESTINATION "${paraview_cmake_destination}"
+  COMPONENT   "development")

@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -48,6 +48,7 @@
 #include <vtkCellLinks.h>
 #include <vtkFloatArray.h>
 #include <vtkIdList.h>
+#include <vtkInformation.h>
 #include <vtkIntArray.h>
 #include <vtkPointData.h>
 #include <vtkStreamingDemandDrivenPipeline.h>
@@ -363,6 +364,9 @@ CopyPointer(T *src, T *dest, int components,
 //    Reinstate call to BuildLinks since it does not leak with the new VTK
 //    (and the old workaround did leak with the new VTK).
 //
+//    Kathleen Biagas, Mon Aug 15 14:09:55 PDT 2016
+//    VTK-8, API for updating GhostLevel changed.
+//
 // ****************************************************************************
 
 vector<vtkDataSet*>
@@ -536,6 +540,7 @@ avtUnstructuredDomainBoundaries::ExchangeMeshT(vector<int>       domainNum,
         }
         outm->GetCellData()->AddArray(ghostCells);
         ghostCells->Delete();
+        outm->GetInformation()->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), 0); 
 
         // Rebuild the links now that we've added ghost cells.
         outm->BuildLinks();

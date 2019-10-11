@@ -1,0 +1,13 @@
+NAME
+  CDIReader::vtkCDIReader
+LIBRARY_NAME
+  vtkCDIReader
+DEPENDS
+  ParaView::VTKExtensionsCore
+  VTK::CommonCore
+  VTK::CommonExecutionModel
+PRIVATE_DEPENDS
+  VTK::netcdf
+OPTIONAL_DEPENDS
+  VTK::ParallelCore
+  VTK::ParallelMPI

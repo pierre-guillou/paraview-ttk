@@ -39,6 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqServerConfigurationImporter.h"
 #include "pqServerResource.h"
 #include "pqSettings.h"
+#include "vtkSetGet.h"
 
 #include <QAuthenticator>
 #include <QFormLayout>
@@ -48,6 +49,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QSyntaxHighlighter>
 #include <QTextStream>
 #include <QUrl>
+
+#include <cassert>
 
 namespace
 {
@@ -307,7 +310,7 @@ void pqServerConnectDialog::updateConfigurations()
 //-----------------------------------------------------------------------------
 void pqServerConnectDialog::onServerSelected()
 {
-  Q_ASSERT(this->Internals->servers->rowCount() == this->Internals->Configurations.size());
+  assert(this->Internals->servers->rowCount() == this->Internals->Configurations.size());
   this->updateButtons();
 }
 
@@ -357,12 +360,12 @@ void pqServerConnectDialog::updateButtons()
 void pqServerConnectDialog::editServer()
 {
   int row = this->Internals->servers->currentRow();
-  Q_ASSERT(row >= 0 && row < this->Internals->servers->rowCount());
+  assert(row >= 0 && row < this->Internals->servers->rowCount());
 
   // covert the row number to original index (since servers can be sorted).
   int original_index = this->Internals->servers->item(row, 0)->data(Qt::UserRole).toInt();
 
-  Q_ASSERT(original_index >= 0 && original_index < this->Internals->Configurations.size());
+  assert(original_index >= 0 && original_index < this->Internals->Configurations.size());
 
   this->editConfiguration(this->Internals->Configurations[original_index]);
 }
@@ -371,7 +374,7 @@ void pqServerConnectDialog::editServer()
 void pqServerConnectDialog::editConfiguration(const pqServerConfiguration& configuration)
 {
   // ensure that we are not editing non-mutable configurations by mistake.
-  Q_ASSERT(configuration.isMutable());
+  assert(configuration.isMutable());
 
   this->Internals->ActiveConfiguration = configuration.clone();
   this->Internals->OriginalName = configuration.name();
@@ -401,6 +404,9 @@ void pqServerConnectDialog::editConfiguration(const pqServerConfiguration& confi
   {
     type = CLIENT_SERVER_REVERSE_CONNECT;
     this->Internals->port->setValue(configuration.resource().port(11111));
+
+    // set the host the the remote server name is correct, even if it not used for connecting.
+    this->Internals->host->setText(configuration.resource().host());
   }
   else if (scheme == "cdsrs")
   {
@@ -415,6 +421,10 @@ void pqServerConnectDialog::editConfiguration(const pqServerConfiguration& confi
     type = CLIENT_DATA_SERVER_RENDER_SERVER_REVERSE_CONNECT;
     this->Internals->dataServerPort->setValue(configuration.resource().dataServerPort(11111));
     this->Internals->renderServerPort->setValue(configuration.resource().renderServerPort(22222));
+
+    // set the host the the remote server name is correct, even if it not used for connecting.
+    this->Internals->dataServerHost->setText(configuration.resource().dataServerHost());
+    this->Internals->renderServerHost->setText(configuration.resource().renderServerHost());
   }
   this->Internals->type->setCurrentIndex(type);
   this->updateServerType();
@@ -511,7 +521,7 @@ void pqServerConnectDialog::acceptConfigurationPage1()
 
     case CLIENT_SERVER_REVERSE_CONNECT:
       resource.setScheme("csrc");
-      resource.setHost("localhost");
+      resource.setHost(this->Internals->host->text());
       resource.setPort(this->Internals->port->value());
       break;
 
@@ -525,9 +535,9 @@ void pqServerConnectDialog::acceptConfigurationPage1()
 
     case CLIENT_DATA_SERVER_RENDER_SERVER_REVERSE_CONNECT:
       resource.setScheme("cdsrsrc");
-      resource.setDataServerHost("localhost");
+      resource.setDataServerHost(this->Internals->dataServerHost->text());
       resource.setDataServerPort(this->Internals->dataServerPort->value());
-      resource.setRenderServerHost("localhost");
+      resource.setRenderServerHost(this->Internals->renderServerHost->text());
       resource.setRenderServerPort(this->Internals->renderServerPort->value());
       break;
 
@@ -556,7 +566,7 @@ void pqServerConnectDialog::editServerStartup()
     {
       double delay, timeout;
       this->Internals->startup_type->setCurrentIndex(1);
-      this->Internals->commandLine->setText(config.command(timeout, delay));
+      this->Internals->commandLine->setText(config.execCommand(timeout, delay));
       this->Internals->delay->setValue(delay);
     }
     break;
@@ -615,12 +625,12 @@ void pqServerConnectDialog::goToFirstPage()
 void pqServerConnectDialog::deleteServer()
 {
   int row = this->Internals->servers->currentRow();
-  Q_ASSERT(row >= 0 && row < this->Internals->servers->rowCount());
+  assert(row >= 0 && row < this->Internals->servers->rowCount());
 
   // covert the row number to original index (since servers can be sorted).
   int original_index = this->Internals->servers->item(row, 0)->data(Qt::UserRole).toInt();
 
-  Q_ASSERT(original_index >= 0 && original_index < this->Internals->Configurations.size());
+  assert(original_index >= 0 && original_index < this->Internals->Configurations.size());
 
   const pqServerConfiguration& config = this->Internals->Configurations[original_index];
   if (QMessageBox::question(this, "Delete Server Configuration",
@@ -672,12 +682,12 @@ void pqServerConnectDialog::loadServers()
 void pqServerConnectDialog::connect()
 {
   int row = this->Internals->servers->currentRow();
-  Q_ASSERT(row >= 0 && row < this->Internals->servers->rowCount());
+  assert(row >= 0 && row < this->Internals->servers->rowCount());
 
   // covert the row number to original index (since servers can be sorted).
   int original_index = this->Internals->servers->item(row, 0)->data(Qt::UserRole).toInt();
 
-  Q_ASSERT(original_index >= 0 && original_index < this->Internals->Configurations.size());
+  assert(original_index >= 0 && original_index < this->Internals->Configurations.size());
 
   this->Internals->ToConnect = this->Internals->Configurations[original_index];
   this->Internals->ToConnect.setConnectionTimeout(this->Internals->timeoutSpinBox->value());

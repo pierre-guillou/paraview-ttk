@@ -145,7 +145,9 @@ struct vtkBucketList2D
 // Utility class to store an array of ij values
 struct NeighborBuckets2D
 {
-  // Start with an array to avoid memory allocation overhead
+  // Start with an array to avoid memory allocation overhead.
+  // Initially, P will alias InitialBuffer, but could later
+  // be assigned dynamically allocated memory.
   int InitialBuffer[VTK_INITIAL_BUCKET_SIZE*2];
   int *P;
   vtkIdType Count;
@@ -979,7 +981,6 @@ struct IdTuple
   vtkIdType PtId;
   double    Dist2;
 
-  IdTuple() : PtId(-1), Dist2(0.0) {}
   IdTuple(vtkIdType ptId, double dist2) : PtId(ptId), Dist2(dist2) {}
 
   bool operator< (const IdTuple& tuple) const

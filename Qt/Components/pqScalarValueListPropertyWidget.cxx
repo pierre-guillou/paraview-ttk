@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqScalarValueListPropertyWidget.h"
 #include "ui_pqScalarValueListPropertyWidget.h"
 
+#include <cassert>
 #include <cmath>
 
 #include <QAbstractTableModel>
@@ -76,7 +77,7 @@ public:
     , NumberOfColumns(num_columns)
     , AllowIntegralValuesOnly(integers_only)
   {
-    Q_ASSERT(num_columns > 0);
+    assert(num_columns > 0);
   }
 
   ~pqTableModel() override {}
@@ -197,7 +198,7 @@ public:
       emit this->endInsertRows();
     }
 
-    Q_ASSERT(this->Values.size() == values.size());
+    assert(this->Values.size() == values.size());
 
     // now check which data has changed.
     for (int cc = 0; cc < this->Values.size(); cc++)
@@ -389,7 +390,7 @@ pqScalarValueListPropertyWidget::pqScalarValueListPropertyWidget(
   this->setShowLabel(false);
 
   vtkSMVectorProperty* vp = vtkSMVectorProperty::SafeDownCast(smProperty);
-  Q_ASSERT(vp != NULL);
+  assert(vp != NULL);
 
   this->Internals = new pqInternals(this, vp->GetNumberOfElementsPerCommand());
   QObject::connect(&this->Internals->Model,
@@ -406,6 +407,13 @@ pqScalarValueListPropertyWidget::pqScalarValueListPropertyWidget(
   QObject::connect(ui.Remove, SIGNAL(clicked()), this, SLOT(remove()));
   QObject::connect(ui.RemoveAll, SIGNAL(clicked()), this, SLOT(removeAll()));
   QObject::connect(ui.Table, SIGNAL(editPastLastRow()), this, SLOT(editPastLastRow()));
+
+  // update `Remove` button enabled state based on selection.
+  ui.Remove->setEnabled(false);
+  QObject::connect(ui.Table->selectionModel(), &QItemSelectionModel::selectionChanged,
+    [&ui](const QItemSelection&, const QItemSelection&) {
+      ui.Remove->setEnabled(ui.Table->selectionModel()->selectedIndexes().size() > 0);
+    });
 }
 
 //-----------------------------------------------------------------------------
@@ -472,7 +480,9 @@ void pqScalarValueListPropertyWidget::remove()
 //-----------------------------------------------------------------------------
 void pqScalarValueListPropertyWidget::removeAll()
 {
-  this->Internals->Model.removeAll();
+  auto& internals = (*this->Internals);
+  internals.Ui.Table->selectionModel()->clear();
+  internals.Model.removeAll();
   emit this->scalarsChanged();
 }
 

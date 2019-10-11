@@ -18,6 +18,19 @@ vtk_add_test_cxx(${vtk-modules}ServerFilterTests tests
   TestSpyPlotTracers.cxx
   TestPVAMRDualContour.cxx
   )
+
+if (PARAVIEW_USE_MPI)
+  set_property(SOURCE ParaViewCoreVTKExtensionsPrintSelf.cxx APPEND
+    PROPERTY
+      COMPILE_DEFINITIONS PARAVIEW_USE_MPI)
+endif ()
+
+if (PARAVIEW_USE_ICE_T)
+  set_property(SOURCE ParaViewCoreVTKExtensionsPrintSelf.cxx APPEND
+    PROPERTY
+      COMPILE_DEFINITIONS PARAVIEW_USE_ICE_T)
+endif ()
+
 vtk_test_cxx_executable(${vtk-modules}ServerFilterTests tests)
 target_link_libraries(${vtk-modules}ServerFilterTests
   vtkPVVTKExtensions
@@ -37,7 +50,7 @@ IF(PARAVIEW_USE_ICE_T AND PARAVIEW_USE_MPI)
   ADD_EXECUTABLE(TestIceTCompositePass TestIceTCompositePass.cxx)
   TARGET_LINK_LIBRARIES(TestIceTCompositePass vtkPVVTKExtensions)
 
-  ExternalData_add_test(ParaViewData
+  ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
     NAME    TestIceTCompositePassWithBlurAndOrderedCompositing
     COMMAND TestIceTCompositePassWithBlurAndOrderedCompositing
             ${VTK_MPIRUN_EXE} ${VTK_MPI_PRENUMPROC_FLAGS} ${VTK_MPI_NUMPROC_FLAG} 2 ${VTK_MPI_PREFLAGS}
@@ -51,7 +64,7 @@ IF(PARAVIEW_USE_ICE_T AND PARAVIEW_USE_MPI)
             -V DATA{${PARAVIEW_TEST_BASELINE_DIR}/TestIceTCompositePassWithBlurAndOrderedCompositing.png}
             ${VTK_MPI_POSTFLAGS})
 
-  ExternalData_add_test(ParaViewData
+  ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
     NAME    TestIceTCompositePassWithSobel
     COMMAND TestIceTCompositePassWithSobel
             ${VTK_MPIRUN_EXE} ${VTK_MPI_PRENUMPROC_FLAGS} ${VTK_MPI_NUMPROC_FLAG} 2 ${VTK_MPI_PREFLAGS}
@@ -62,7 +75,7 @@ IF(PARAVIEW_USE_ICE_T AND PARAVIEW_USE_MPI)
             -V DATA{${PARAVIEW_TEST_BASELINE_DIR}/TestIceTCompositePassWithSobel.png}
             ${VTK_MPI_POSTFLAGS})
 
-  ExternalData_add_test(ParaViewData
+  ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
     NAME    TestIceTCompositePassDepthOnly
     COMMAND TestIceTCompositePassDepthOnly
             ${VTK_MPIRUN_EXE} ${VTK_MPI_PRENUMPROC_FLAGS} ${VTK_MPI_NUMPROC_FLAG} 2 ${VTK_MPI_PREFLAGS}
@@ -77,7 +90,7 @@ IF(PARAVIEW_USE_ICE_T AND PARAVIEW_USE_MPI)
   ADD_EXECUTABLE(TestSimpleIceTCompositePass TestSimpleIceTCompositePass.cxx)
   TARGET_LINK_LIBRARIES(TestSimpleIceTCompositePass vtkPVVTKExtensions)
 
-  ExternalData_add_test(ParaViewData
+  ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
     NAME    TestSimpleIceTCompositePass
     COMMAND TestSimpleIceTCompositePass
             ${VTK_MPIRUN_EXE} ${VTK_MPI_PRENUMPROC_FLAGS} ${VTK_MPI_NUMPROC_FLAG} 2 ${VTK_MPI_PREFLAGS}
@@ -90,7 +103,7 @@ IF(PARAVIEW_USE_ICE_T AND PARAVIEW_USE_MPI)
   ADD_EXECUTABLE(TestIceTShadowMapPass TestIceTShadowMapPass.cxx)
   TARGET_LINK_LIBRARIES(TestIceTShadowMapPass vtkPVVTKExtensions)
 
-  ExternalData_add_test(ParaViewData
+  ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
     NAME    TestIceTShadowMapPass-image
     COMMAND TestIceTShadowMapPass-image
             ${VTK_MPIRUN_EXE} ${VTK_MPI_PRENUMPROC_FLAGS} ${VTK_MPI_NUMPROC_FLAG} 2 ${VTK_MPI_PREFLAGS}
@@ -112,7 +125,7 @@ ENDIF()
 
 
 if(Module_vtkRenderingOpenGL2)
-  paraview_add_test_cxx(${vtk-module}CxxTests-Rendering tests
+  vtk_add_test_cxx(${vtk-module}CxxTests-Rendering tests
     TestPVAMRDualClip.cxx
     )
   paraview_test_cxx_executable(${vtk-module}CxxTest-Renderings tests)
@@ -130,7 +143,7 @@ IF (PARAVIEW_USE_MPI)
     ADD_EXECUTABLE(DistributedSubsetSortingTable DistributedSubsetSortingTable.cxx)
     TARGET_LINK_LIBRARIES(DistributedSubsetSortingTable vtkParallelMPI vtkPVVTKExtensions)
 
-    ExternalData_add_test(ParaViewData
+    ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
       NAME    TestDistributedSubsetSortingTable
       COMMAND TestDistributedSubsetSortingTable
               ${VTK_MPIRUN_EXE} ${VTK_MPI_PRENUMPROC_FLAGS} ${VTK_MPI_NUMPROC_FLAG} 2 ${VTK_MPI_PREFLAGS}

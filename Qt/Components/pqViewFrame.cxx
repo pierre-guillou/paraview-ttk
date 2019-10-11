@@ -48,6 +48,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include <cassert>
+
 #include "vtksys/SystemInformation.hxx"
 
 const int ICON_SIZE = 12;
@@ -65,7 +67,7 @@ pqViewFrame::pqViewFrame(QWidget* parentObject)
   , DecorationsVisible(true)
   , TitleBarVisible(true)
   , BorderVisible(false)
-  , Buttons(SplitVertical | SplitHorizontal | Maximize | Close)
+  , Buttons(NoButton)
   , UniqueID(QUuid::createUuid())
   , Internals(new pqViewFrame::pqInternals(this))
 {
@@ -116,6 +118,8 @@ pqViewFrame::pqViewFrame(QWidget* parentObject)
 
   this->setBorderColor(QColor("blue"));
   this->Internals->Ui.TitleLabel->installEventFilter(this);
+
+  this->setStandardButtons(SplitVertical | SplitHorizontal | Maximize | Close);
 }
 
 //-----------------------------------------------------------------------------
@@ -397,7 +401,7 @@ void pqViewFrame::drop(QDropEvent* evt)
 //-----------------------------------------------------------------------------
 void pqViewFrame::finishedDrag(pqViewFrame* source)
 {
-  Q_ASSERT(source != NULL);
+  assert(source != NULL);
   emit this->swapPositions(source->uniqueID().toString());
 }
 

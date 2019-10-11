@@ -40,6 +40,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMRenderViewProxy.h"
 
+#include <cassert>
+
 namespace
 {
 
@@ -72,12 +74,9 @@ pqCylinderPropertyWidget::pqCylinderPropertyWidget(
 
   if (vtkSMProperty* center = smgroup->GetProperty("Center"))
   {
-    this->addPropertyLink(ui.centerX, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), center, 0);
-    this->addPropertyLink(ui.centerY, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), center, 1);
-    this->addPropertyLink(ui.centerZ, "fullPrecisionText",
-      SIGNAL(fullPrecisionTextChangedAndEditingFinished()), center, 2);
+    this->addPropertyLink(ui.centerX, "text2", SIGNAL(textChangedAndEditingFinished()), center, 0);
+    this->addPropertyLink(ui.centerY, "text2", SIGNAL(textChangedAndEditingFinished()), center, 1);
+    this->addPropertyLink(ui.centerZ, "text2", SIGNAL(textChangedAndEditingFinished()), center, 2);
     ui.centerLabel->setText(center->GetXMLLabel());
     QString tooltip = this->getTooltip(center);
     ui.centerX->setToolTip(tooltip);
@@ -92,12 +91,9 @@ pqCylinderPropertyWidget::pqCylinderPropertyWidget(
 
   if (vtkSMProperty* axis = smgroup->GetProperty("Axis"))
   {
-    this->addPropertyLink(
-      ui.axisX, "fullPrecisionText", SIGNAL(fullPrecisionTextChangedAndEditingFinished()), axis, 0);
-    this->addPropertyLink(
-      ui.axisY, "fullPrecisionText", SIGNAL(fullPrecisionTextChangedAndEditingFinished()), axis, 1);
-    this->addPropertyLink(
-      ui.axisZ, "fullPrecisionText", SIGNAL(fullPrecisionTextChangedAndEditingFinished()), axis, 2);
+    this->addPropertyLink(ui.axisX, "text2", SIGNAL(textChangedAndEditingFinished()), axis, 0);
+    this->addPropertyLink(ui.axisY, "text2", SIGNAL(textChangedAndEditingFinished()), axis, 1);
+    this->addPropertyLink(ui.axisZ, "text2", SIGNAL(textChangedAndEditingFinished()), axis, 2);
     ui.axisLabel->setText(axis->GetXMLLabel());
     QString tooltip = this->getTooltip(axis);
     ui.axisX->setToolTip(tooltip);
@@ -112,8 +108,7 @@ pqCylinderPropertyWidget::pqCylinderPropertyWidget(
 
   if (vtkSMProperty* radius = smgroup->GetProperty("Radius"))
   {
-    this->addPropertyLink(
-      ui.radius, "fullPrecisionText", SIGNAL(fullPrecisionTextChangedAndEditingFinished()), radius);
+    this->addPropertyLink(ui.radius, "text2", SIGNAL(textChangedAndEditingFinished()), radius);
     ui.radiusLabel->setText(radius->GetXMLLabel());
     QString tooltip = this->getTooltip(radius);
     ui.radius->setToolTip(tooltip);
@@ -176,7 +171,7 @@ void pqCylinderPropertyWidget::placeWidget()
   }
 
   vtkSMNewWidgetRepresentationProxy* wdgProxy = this->widgetProxy();
-  Q_ASSERT(wdgProxy);
+  assert(wdgProxy);
 
   double scaleFactor = vtkSMPropertyHelper(wdgProxy, "PlaceFactor").GetAsDouble();
   pqAdjustBounds(bbox, scaleFactor);
@@ -190,7 +185,7 @@ void pqCylinderPropertyWidget::placeWidget()
 void pqCylinderPropertyWidget::resetBounds()
 {
   vtkSMNewWidgetRepresentationProxy* wdgProxy = this->widgetProxy();
-  Q_ASSERT(wdgProxy);
+  assert(wdgProxy);
 
   vtkBoundingBox bbox = this->dataBounds();
   if (!bbox.IsValid())

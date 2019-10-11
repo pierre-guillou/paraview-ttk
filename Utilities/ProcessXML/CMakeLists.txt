@@ -28,24 +28,19 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #==========================================================================
-vtk_module_impl()
-vtk_module_export("")
+if (NOT TARGET ParaView::ProcessXML)
+  # Set up rpaths
+  set(CMAKE_BUILD_RPATH_USE_ORIGIN 1)
+  if (UNIX AND NOT APPLE)
+    file(RELATIVE_PATH _paraview_client_relpath
+      "/prefix/${CMAKE_INSTALL_BINDIR}"
+      "/prefix/${CMAKE_INSTALL_LIBDIR}")
+    set(_paraview_client_origin_rpath
+      "$ORIGIN/${_paraview_client_relpath}")
 
-include(vtkForwardingExecutable)
-if (NOT PARAVIEW_COMPILE_TOOLS_IMPORTED)
-  add_executable(kwProcessXML ProcessXML.cxx)
-  target_link_libraries(kwProcessXML vtkCommonCore vtksys)
-
-  if (UNIX)
-    # setup install rpath correctly so that kwProcessXML can file needed libraries
-    # at runtime.
-    set (_temp_prefix "/example-prefix")
-    set (_bin "${_temp_prefix}/${VTK_INSTALL_RUNTIME_DIR}")
-    set (_so "${_temp_prefix}/${VTK_INSTALL_LIBRARY_DIR}")
-    file (RELATIVE_PATH relative_path "${_bin}" "${_so}")
-    set_target_properties(kwProcessXML PROPERTIES
-      INSTALL_RPATH "\$ORIGIN/${relative_path}")
+    list(APPEND CMAKE_INSTALL_RPATH
+      "${_paraview_client_origin_rpath}")
   endif()
 
-  vtk_compile_tools_target(kwProcessXML)
-endif()
+  vtk_module_add_executable(ParaView::ProcessXML ProcessXML.cxx)
+endif ()

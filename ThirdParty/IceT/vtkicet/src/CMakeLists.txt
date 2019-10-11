@@ -7,7 +7,9 @@
 
 ADD_SUBDIRECTORY(ice-t)
 ADD_SUBDIRECTORY(communication)
+if (FALSE) # XXX(kitware): ParaView doesn't need this.
 ADD_SUBDIRECTORY(strategies)
+endif ()
 
 IF (ICET_USE_OPENGL)
   ADD_SUBDIRECTORY(gl)

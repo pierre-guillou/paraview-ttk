@@ -12,20 +12,17 @@
  */
 
 // ************************************************************************* //
-//                            avtVsFileFormat.h                                 //
+//                            avtVsFileFormat.h                              //
 // ************************************************************************* //
 
 #ifndef VS_FILE_FORMAT_H
 #define VS_FILE_FORMAT_H
 
-#include <vtkUnsignedCharArray.h>
-#include <vtkPoints.h>
-#include <VsDataset.h>
-//#include <VsReader.h>
 #include <avtSTMDFileFormat.h>
+#include "HighOrderUnstructuredData.h"
+
 #include <vtk_hdf5.h>
 #include <visit-hdf5.h>
-#include "HighOrderUnstructuredData.h"
 
 #include <string>
 #include <vector>
@@ -155,13 +152,6 @@ class avtVsFileFormat: public avtSTMDFileFormat {
    */
   virtual void ActivateTimestep(void);
   
-  /**
-   * Updates cycles and times in the given database metadata object
-   * Deprecated 06.02.2011 in favor of GetCycle and GetTime
-   * Marc Durant
-   */
-  virtual void UpdateCyclesAndTimes(avtDatabaseMetaData* md);
-  
   protected:
   /**
    * Get the cycle for the associated file
@@ -230,8 +220,15 @@ class avtVsFileFormat: public avtSTMDFileFormat {
    *
    * @param mmd a pointer to the object that needs the axis labels.
    */
-  void setAxisLabels(avtMeshMetaData* mmd);
+  void setAxisLabels(avtMeshMetaData* mmd, bool transform = false);
 
+  /**
+   * Set the global extents for a mesh.
+   *
+   * @param mmd a pointer to the object that needs the axis labels.
+   */
+  void setGlobalExtents(avtMeshMetaData* mmd);
+  
   /**
    * Create various meshes.
    */

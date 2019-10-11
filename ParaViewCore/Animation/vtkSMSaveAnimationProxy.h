@@ -40,31 +40,13 @@ class VTKPVANIMATION_EXPORT vtkSMSaveAnimationProxy : public vtkSMSaveScreenshot
 public:
   static vtkSMSaveAnimationProxy* New();
   vtkTypeMacro(vtkSMSaveAnimationProxy, vtkSMSaveScreenshotProxy);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Save animation as images/video. The properties on this proxy provide all
    * the necessary information to save the animation.
    */
   virtual bool WriteAnimation(const char* filename);
-
-  /**
-   * Returns true if the session can support disconnecting and saving
-   * animations.
-   */
-  VTK_LEGACY(static bool SupportsDisconnectAndSave(vtkSMSession* session));
-
-  /**
-   * Returns true if the session supports AVI file writing.
-   * @deprecated in ParaView 5.5
-   */
-  VTK_LEGACY(static bool SupportsAVI(vtkSMSession* session, bool remote = false));
-
-  /**
-   * Returns true if the session supports OGV file writing.
-   * @deprecated in ParaView 5.5
-   */
-  VTK_LEGACY(static bool SupportsOGV(vtkSMSession* session, bool remote = false));
 
   /**
    * Overridden to update visibility state of "FrameRate" property.
@@ -83,12 +65,12 @@ protected:
   /**
    * Prepares for saving animation.
    */
-  bool Prepare() VTK_OVERRIDE;
+  bool Prepare() override;
 
   /**
    * This restores the state after saving the animation.
    */
-  bool Cleanup() VTK_OVERRIDE;
+  bool Cleanup() override;
 
   /**
    * Change "ImageResolution" property as needed for the file format requested.

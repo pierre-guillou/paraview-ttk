@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -49,21 +49,21 @@
 
 static const char *PickType_strings[] = {
 "Zone", "Node", "CurveZone", 
-"CurveNode", "DomainZone", "DomainNode"
-};
+"CurveNode", "DomainZone", "DomainNode", 
+"ZoneLabel", "NodeLabel"};
 
 std::string
 PickAttributes::PickType_ToString(PickAttributes::PickType t)
 {
     int index = int(t);
-    if(index < 0 || index >= 6) index = 0;
+    if(index < 0 || index >= 8) index = 0;
     return PickType_strings[index];
 }
 
 std::string
 PickAttributes::PickType_ToString(int t)
 {
-    int index = (t < 0 || t >= 6) ? 0 : t;
+    int index = (t < 0 || t >= 8) ? 0 : t;
     return PickType_strings[index];
 }
 
@@ -71,7 +71,7 @@ bool
 PickAttributes::PickType_FromString(const std::string &s, PickAttributes::PickType &val)
 {
     val = PickAttributes::Zone;
-    for(int i = 0; i < 6; ++i)
+    for(int i = 0; i < 8; ++i)
     {
         if(s == PickType_strings[i])
         {
@@ -218,10 +218,12 @@ void PickAttributes::Init()
     elementIsGhost = false;
     requiresGlyphPick = false;
     locationSuccessful = false;
+    useLabelAsPickLetter = false;
     showGlobalIds = false;
     globalElement = -1;
     elementIsGlobal = false;
     showPickLetter = true;
+    hasRangeOutput = false;
     reusePickLetter = false;
     ghostType = 0;
     hasMixedGhostTypes = -1;
@@ -234,6 +236,12 @@ void PickAttributes::Init()
     floatFormat = "%g";
     timePreserveCoord = true;
     timeCurveType = Single_Y_Axis;
+    pickHighlightColor[0] = 255;
+    pickHighlightColor[1] = 0;
+    pickHighlightColor[2] = 0;
+    swivelFocusToPick = false;
+    overridePickLabel = false;
+    removeLabelTwins = false;
 
     PickAttributes::SelectAll();
 }
@@ -339,11 +347,15 @@ void PickAttributes::Copy(const PickAttributes &obj)
     elementIsGhost = obj.elementIsGhost;
     requiresGlyphPick = obj.requiresGlyphPick;
     locationSuccessful = obj.locationSuccessful;
+    useLabelAsPickLetter = obj.useLabelAsPickLetter;
     showGlobalIds = obj.showGlobalIds;
     globalElement = obj.globalElement;
     globalIncidentElements = obj.globalIncidentElements;
     elementIsGlobal = obj.elementIsGlobal;
     showPickLetter = obj.showPickLetter;
+    hasRangeOutput = obj.hasRangeOutput;
+    rangeOutput = obj.rangeOutput;
+    elementLabel = obj.elementLabel;
     reusePickLetter = obj.reusePickLetter;
     ghostType = obj.ghostType;
     hasMixedGhostTypes = obj.hasMixedGhostTypes;
@@ -359,6 +371,15 @@ void PickAttributes::Copy(const PickAttributes &obj)
     timeCurveType = obj.timeCurveType;
     timeOptions = obj.timeOptions;
     plotRequested = obj.plotRequested;
+    pickHighlightColor[0] = obj.pickHighlightColor[0];
+    pickHighlightColor[1] = obj.pickHighlightColor[1];
+    pickHighlightColor[2] = obj.pickHighlightColor[2];
+
+    removedPicks = obj.removedPicks;
+    swivelFocusToPick = obj.swivelFocusToPick;
+    overridePickLabel = obj.overridePickLabel;
+    forcedPickLabel = obj.forcedPickLabel;
+    removeLabelTwins = obj.removeLabelTwins;
 
     PickAttributes::SelectAll();
 }
@@ -553,6 +574,11 @@ PickAttributes::operator == (const PickAttributes &obj) const
         varInfo_equal = (varInfo1 == varInfo2);
     }
 
+    // Compare the pickHighlightColor arrays.
+    bool pickHighlightColor_equal = true;
+    for(int i = 0; i < 3 && pickHighlightColor_equal; ++i)
+        pickHighlightColor_equal = (pickHighlightColor[i] == obj.pickHighlightColor[i]);
+
     // Create the return value
     return ((variables == obj.variables) &&
             (showIncidentElements == obj.showIncidentElements) &&
@@ -607,11 +633,15 @@ PickAttributes::operator == (const PickAttributes &obj) const
             (elementIsGhost == obj.elementIsGhost) &&
             (requiresGlyphPick == obj.requiresGlyphPick) &&
             (locationSuccessful == obj.locationSuccessful) &&
+            (useLabelAsPickLetter == obj.useLabelAsPickLetter) &&
             (showGlobalIds == obj.showGlobalIds) &&
             (globalElement == obj.globalElement) &&
             (globalIncidentElements == obj.globalIncidentElements) &&
             (elementIsGlobal == obj.elementIsGlobal) &&
             (showPickLetter == obj.showPickLetter) &&
+            (hasRangeOutput == obj.hasRangeOutput) &&
+            (rangeOutput == obj.rangeOutput) &&
+            (elementLabel == obj.elementLabel) &&
             (reusePickLetter == obj.reusePickLetter) &&
             (ghostType == obj.ghostType) &&
             (hasMixedGhostTypes == obj.hasMixedGhostTypes) &&
@@ -626,7 +656,13 @@ PickAttributes::operator == (const PickAttributes &obj) const
             (timePreserveCoord == obj.timePreserveCoord) &&
             (timeCurveType == obj.timeCurveType) &&
             (timeOptions == obj.timeOptions) &&
-            (plotRequested == obj.plotRequested));
+            (plotRequested == obj.plotRequested) &&
+            pickHighlightColor_equal &&
+            (removedPicks == obj.removedPicks) &&
+            (swivelFocusToPick == obj.swivelFocusToPick) &&
+            (overridePickLabel == obj.overridePickLabel) &&
+            (forcedPickLabel == obj.forcedPickLabel) &&
+            (removeLabelTwins == obj.removeLabelTwins));
 }
 
 // ****************************************************************************
@@ -823,11 +859,15 @@ PickAttributes::SelectAll()
     Select(ID_elementIsGhost,              (void *)&elementIsGhost);
     Select(ID_requiresGlyphPick,           (void *)&requiresGlyphPick);
     Select(ID_locationSuccessful,          (void *)&locationSuccessful);
+    Select(ID_useLabelAsPickLetter,        (void *)&useLabelAsPickLetter);
     Select(ID_showGlobalIds,               (void *)&showGlobalIds);
     Select(ID_globalElement,               (void *)&globalElement);
     Select(ID_globalIncidentElements,      (void *)&globalIncidentElements);
     Select(ID_elementIsGlobal,             (void *)&elementIsGlobal);
     Select(ID_showPickLetter,              (void *)&showPickLetter);
+    Select(ID_hasRangeOutput,              (void *)&hasRangeOutput);
+    Select(ID_rangeOutput,                 (void *)&rangeOutput);
+    Select(ID_elementLabel,                (void *)&elementLabel);
     Select(ID_reusePickLetter,             (void *)&reusePickLetter);
     Select(ID_ghostType,                   (void *)&ghostType);
     Select(ID_hasMixedGhostTypes,          (void *)&hasMixedGhostTypes);
@@ -843,6 +883,12 @@ PickAttributes::SelectAll()
     Select(ID_timeCurveType,               (void *)&timeCurveType);
     Select(ID_timeOptions,                 (void *)&timeOptions);
     Select(ID_plotRequested,               (void *)&plotRequested);
+    Select(ID_pickHighlightColor,          (void *)pickHighlightColor, 3);
+    Select(ID_removedPicks,                (void *)&removedPicks);
+    Select(ID_swivelFocusToPick,           (void *)&swivelFocusToPick);
+    Select(ID_overridePickLabel,           (void *)&overridePickLabel);
+    Select(ID_forcedPickLabel,             (void *)&forcedPickLabel);
+    Select(ID_removeLabelTwins,            (void *)&removeLabelTwins);
 }
 
 // ****************************************************************************
@@ -1014,6 +1060,12 @@ PickAttributes::CreateNode(DataNode *parentNode, bool completeSave, bool forceAd
     // elementIsGhost is not persistent and should not be saved.
     // requiresGlyphPick is not persistent and should not be saved.
     // locationSuccessful is not persistent and should not be saved.
+    if(completeSave || !FieldsEqual(ID_useLabelAsPickLetter, &defaultObject))
+    {
+        addToParent = true;
+        node->AddNode(new DataNode("useLabelAsPickLetter", useLabelAsPickLetter));
+    }
+
     if(completeSave || !FieldsEqual(ID_showGlobalIds, &defaultObject))
     {
         addToParent = true;
@@ -1027,6 +1079,19 @@ PickAttributes::CreateNode(DataNode *parentNode, bool completeSave, bool forceAd
     {
         addToParent = true;
         node->AddNode(new DataNode("showPickLetter", showPickLetter));
+    }
+
+    if(completeSave || !FieldsEqual(ID_hasRangeOutput, &defaultObject))
+    {
+        addToParent = true;
+        node->AddNode(new DataNode("hasRangeOutput", hasRangeOutput));
+    }
+
+    // rangeOutput is not persistent and should not be saved.
+    if(completeSave || !FieldsEqual(ID_elementLabel, &defaultObject))
+    {
+        addToParent = true;
+        node->AddNode(new DataNode("elementLabel", elementLabel));
     }
 
     // reusePickLetter is not persistent and should not be saved.
@@ -1059,6 +1124,37 @@ PickAttributes::CreateNode(DataNode *parentNode, bool completeSave, bool forceAd
     // timeCurveType is not persistent and should not be saved.
     // timeOptions is not persistent and should not be saved.
     // plotRequested is not persistent and should not be saved.
+    // pickHighlightColor is not persistent and should not be saved.
+    if(completeSave || !FieldsEqual(ID_removedPicks, &defaultObject))
+    {
+        addToParent = true;
+        node->AddNode(new DataNode("removedPicks", removedPicks));
+    }
+
+    if(completeSave || !FieldsEqual(ID_swivelFocusToPick, &defaultObject))
+    {
+        addToParent = true;
+        node->AddNode(new DataNode("swivelFocusToPick", swivelFocusToPick));
+    }
+
+    if(completeSave || !FieldsEqual(ID_overridePickLabel, &defaultObject))
+    {
+        addToParent = true;
+        node->AddNode(new DataNode("overridePickLabel", overridePickLabel));
+    }
+
+    if(completeSave || !FieldsEqual(ID_forcedPickLabel, &defaultObject))
+    {
+        addToParent = true;
+        node->AddNode(new DataNode("forcedPickLabel", forcedPickLabel));
+    }
+
+    if(completeSave || !FieldsEqual(ID_removeLabelTwins, &defaultObject))
+    {
+        addToParent = true;
+        node->AddNode(new DataNode("removeLabelTwins", removeLabelTwins));
+    }
+
 
     // Add the node to the parent node.
     if(addToParent || forceAdd)
@@ -1161,6 +1257,8 @@ PickAttributes::SetFromNode(DataNode *parentNode)
     // elementIsGhost is not persistent and was not saved.
     // requiresGlyphPick is not persistent and was not saved.
     // locationSuccessful is not persistent and was not saved.
+    if((node = searchNode->GetNode("useLabelAsPickLetter")) != 0)
+        SetUseLabelAsPickLetter(node->AsBool());
     if((node = searchNode->GetNode("showGlobalIds")) != 0)
         SetShowGlobalIds(node->AsBool());
     // globalElement is not persistent and was not saved.
@@ -1168,6 +1266,11 @@ PickAttributes::SetFromNode(DataNode *parentNode)
     // elementIsGlobal is not persistent and was not saved.
     if((node = searchNode->GetNode("showPickLetter")) != 0)
         SetShowPickLetter(node->AsBool());
+    if((node = searchNode->GetNode("hasRangeOutput")) != 0)
+        SetHasRangeOutput(node->AsBool());
+    // rangeOutput is not persistent and was not saved.
+    if((node = searchNode->GetNode("elementLabel")) != 0)
+        SetElementLabel(node->AsString());
     // reusePickLetter is not persistent and was not saved.
     // ghostType is not persistent and was not saved.
     // hasMixedGhostTypes is not persistent and was not saved.
@@ -1186,6 +1289,17 @@ PickAttributes::SetFromNode(DataNode *parentNode)
     // timeCurveType is not persistent and was not saved.
     // timeOptions is not persistent and was not saved.
     // plotRequested is not persistent and was not saved.
+    // pickHighlightColor is not persistent and was not saved.
+    if((node = searchNode->GetNode("removedPicks")) != 0)
+        SetRemovedPicks(node->AsString());
+    if((node = searchNode->GetNode("swivelFocusToPick")) != 0)
+        SetSwivelFocusToPick(node->AsBool());
+    if((node = searchNode->GetNode("overridePickLabel")) != 0)
+        SetOverridePickLabel(node->AsBool());
+    if((node = searchNode->GetNode("forcedPickLabel")) != 0)
+        SetForcedPickLabel(node->AsString());
+    if((node = searchNode->GetNode("removeLabelTwins")) != 0)
+        SetRemoveLabelTwins(node->AsBool());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1567,6 +1681,13 @@ PickAttributes::SetLocationSuccessful(bool locationSuccessful_)
 }
 
 void
+PickAttributes::SetUseLabelAsPickLetter(bool useLabelAsPickLetter_)
+{
+    useLabelAsPickLetter = useLabelAsPickLetter_;
+    Select(ID_useLabelAsPickLetter, (void *)&useLabelAsPickLetter);
+}
+
+void
 PickAttributes::SetShowGlobalIds(bool showGlobalIds_)
 {
     showGlobalIds = showGlobalIds_;
@@ -1599,6 +1720,27 @@ PickAttributes::SetShowPickLetter(bool showPickLetter_)
 {
     showPickLetter = showPickLetter_;
     Select(ID_showPickLetter, (void *)&showPickLetter);
+}
+
+void
+PickAttributes::SetHasRangeOutput(bool hasRangeOutput_)
+{
+    hasRangeOutput = hasRangeOutput_;
+    Select(ID_hasRangeOutput, (void *)&hasRangeOutput);
+}
+
+void
+PickAttributes::SetRangeOutput(const MapNode &rangeOutput_)
+{
+    rangeOutput = rangeOutput_;
+    Select(ID_rangeOutput, (void *)&rangeOutput);
+}
+
+void
+PickAttributes::SetElementLabel(const std::string &elementLabel_)
+{
+    elementLabel = elementLabel_;
+    Select(ID_elementLabel, (void *)&elementLabel);
 }
 
 void
@@ -1704,6 +1846,50 @@ PickAttributes::SetPlotRequested(const MapNode &plotRequested_)
 {
     plotRequested = plotRequested_;
     Select(ID_plotRequested, (void *)&plotRequested);
+}
+
+void
+PickAttributes::SetPickHighlightColor(const int *pickHighlightColor_)
+{
+    pickHighlightColor[0] = pickHighlightColor_[0];
+    pickHighlightColor[1] = pickHighlightColor_[1];
+    pickHighlightColor[2] = pickHighlightColor_[2];
+    Select(ID_pickHighlightColor, (void *)pickHighlightColor, 3);
+}
+
+void
+PickAttributes::SetRemovedPicks(const std::string &removedPicks_)
+{
+    removedPicks = removedPicks_;
+    Select(ID_removedPicks, (void *)&removedPicks);
+}
+
+void
+PickAttributes::SetSwivelFocusToPick(bool swivelFocusToPick_)
+{
+    swivelFocusToPick = swivelFocusToPick_;
+    Select(ID_swivelFocusToPick, (void *)&swivelFocusToPick);
+}
+
+void
+PickAttributes::SetOverridePickLabel(bool overridePickLabel_)
+{
+    overridePickLabel = overridePickLabel_;
+    Select(ID_overridePickLabel, (void *)&overridePickLabel);
+}
+
+void
+PickAttributes::SetForcedPickLabel(const std::string &forcedPickLabel_)
+{
+    forcedPickLabel = forcedPickLabel_;
+    Select(ID_forcedPickLabel, (void *)&forcedPickLabel);
+}
+
+void
+PickAttributes::SetRemoveLabelTwins(bool removeLabelTwins_)
+{
+    removeLabelTwins = removeLabelTwins_;
+    Select(ID_removeLabelTwins, (void *)&removeLabelTwins);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2179,6 +2365,12 @@ PickAttributes::GetLocationSuccessful() const
 }
 
 bool
+PickAttributes::GetUseLabelAsPickLetter() const
+{
+    return useLabelAsPickLetter;
+}
+
+bool
 PickAttributes::GetShowGlobalIds() const
 {
     return showGlobalIds;
@@ -2212,6 +2404,36 @@ bool
 PickAttributes::GetShowPickLetter() const
 {
     return showPickLetter;
+}
+
+bool
+PickAttributes::GetHasRangeOutput() const
+{
+    return hasRangeOutput;
+}
+
+const MapNode &
+PickAttributes::GetRangeOutput() const
+{
+    return rangeOutput;
+}
+
+MapNode &
+PickAttributes::GetRangeOutput()
+{
+    return rangeOutput;
+}
+
+const std::string &
+PickAttributes::GetElementLabel() const
+{
+    return elementLabel;
+}
+
+std::string &
+PickAttributes::GetElementLabel()
+{
+    return elementLabel;
 }
 
 bool
@@ -2326,6 +2548,60 @@ MapNode &
 PickAttributes::GetPlotRequested()
 {
     return plotRequested;
+}
+
+const int *
+PickAttributes::GetPickHighlightColor() const
+{
+    return pickHighlightColor;
+}
+
+int *
+PickAttributes::GetPickHighlightColor()
+{
+    return pickHighlightColor;
+}
+
+const std::string &
+PickAttributes::GetRemovedPicks() const
+{
+    return removedPicks;
+}
+
+std::string &
+PickAttributes::GetRemovedPicks()
+{
+    return removedPicks;
+}
+
+bool
+PickAttributes::GetSwivelFocusToPick() const
+{
+    return swivelFocusToPick;
+}
+
+bool
+PickAttributes::GetOverridePickLabel() const
+{
+    return overridePickLabel;
+}
+
+const std::string &
+PickAttributes::GetForcedPickLabel() const
+{
+    return forcedPickLabel;
+}
+
+std::string &
+PickAttributes::GetForcedPickLabel()
+{
+    return forcedPickLabel;
+}
+
+bool
+PickAttributes::GetRemoveLabelTwins() const
+{
+    return removeLabelTwins;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2489,6 +2765,18 @@ PickAttributes::SelectGlobalIncidentElements()
 }
 
 void
+PickAttributes::SelectRangeOutput()
+{
+    Select(ID_rangeOutput, (void *)&rangeOutput);
+}
+
+void
+PickAttributes::SelectElementLabel()
+{
+    Select(ID_elementLabel, (void *)&elementLabel);
+}
+
+void
 PickAttributes::SelectSubsetName()
 {
     Select(ID_subsetName, (void *)&subsetName);
@@ -2510,6 +2798,24 @@ void
 PickAttributes::SelectPlotRequested()
 {
     Select(ID_plotRequested, (void *)&plotRequested);
+}
+
+void
+PickAttributes::SelectPickHighlightColor()
+{
+    Select(ID_pickHighlightColor, (void *)pickHighlightColor, 3);
+}
+
+void
+PickAttributes::SelectRemovedPicks()
+{
+    Select(ID_removedPicks, (void *)&removedPicks);
+}
+
+void
+PickAttributes::SelectForcedPickLabel()
+{
+    Select(ID_forcedPickLabel, (void *)&forcedPickLabel);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2786,11 +3092,15 @@ PickAttributes::GetFieldName(int index) const
     case ID_elementIsGhost:              return "elementIsGhost";
     case ID_requiresGlyphPick:           return "requiresGlyphPick";
     case ID_locationSuccessful:          return "locationSuccessful";
+    case ID_useLabelAsPickLetter:        return "useLabelAsPickLetter";
     case ID_showGlobalIds:               return "showGlobalIds";
     case ID_globalElement:               return "globalElement";
     case ID_globalIncidentElements:      return "globalIncidentElements";
     case ID_elementIsGlobal:             return "elementIsGlobal";
     case ID_showPickLetter:              return "showPickLetter";
+    case ID_hasRangeOutput:              return "hasRangeOutput";
+    case ID_rangeOutput:                 return "rangeOutput";
+    case ID_elementLabel:                return "elementLabel";
     case ID_reusePickLetter:             return "reusePickLetter";
     case ID_ghostType:                   return "ghostType";
     case ID_hasMixedGhostTypes:          return "hasMixedGhostTypes";
@@ -2806,6 +3116,12 @@ PickAttributes::GetFieldName(int index) const
     case ID_timeCurveType:               return "timeCurveType";
     case ID_timeOptions:                 return "timeOptions";
     case ID_plotRequested:               return "plotRequested";
+    case ID_pickHighlightColor:          return "pickHighlightColor";
+    case ID_removedPicks:                return "removedPicks";
+    case ID_swivelFocusToPick:           return "swivelFocusToPick";
+    case ID_overridePickLabel:           return "overridePickLabel";
+    case ID_forcedPickLabel:             return "forcedPickLabel";
+    case ID_removeLabelTwins:            return "removeLabelTwins";
     default:  return "invalid index";
     }
 }
@@ -2883,11 +3199,15 @@ PickAttributes::GetFieldType(int index) const
     case ID_elementIsGhost:              return FieldType_bool;
     case ID_requiresGlyphPick:           return FieldType_bool;
     case ID_locationSuccessful:          return FieldType_bool;
+    case ID_useLabelAsPickLetter:        return FieldType_bool;
     case ID_showGlobalIds:               return FieldType_bool;
     case ID_globalElement:               return FieldType_int;
     case ID_globalIncidentElements:      return FieldType_intVector;
     case ID_elementIsGlobal:             return FieldType_bool;
     case ID_showPickLetter:              return FieldType_bool;
+    case ID_hasRangeOutput:              return FieldType_bool;
+    case ID_rangeOutput:                 return FieldType_MapNode;
+    case ID_elementLabel:                return FieldType_string;
     case ID_reusePickLetter:             return FieldType_bool;
     case ID_ghostType:                   return FieldType_int;
     case ID_hasMixedGhostTypes:          return FieldType_int;
@@ -2903,6 +3223,12 @@ PickAttributes::GetFieldType(int index) const
     case ID_timeCurveType:               return FieldType_enum;
     case ID_timeOptions:                 return FieldType_MapNode;
     case ID_plotRequested:               return FieldType_MapNode;
+    case ID_pickHighlightColor:          return FieldType_intArray;
+    case ID_removedPicks:                return FieldType_string;
+    case ID_swivelFocusToPick:           return FieldType_bool;
+    case ID_overridePickLabel:           return FieldType_bool;
+    case ID_forcedPickLabel:             return FieldType_string;
+    case ID_removeLabelTwins:            return FieldType_bool;
     default:  return FieldType_unknown;
     }
 }
@@ -2980,11 +3306,15 @@ PickAttributes::GetFieldTypeName(int index) const
     case ID_elementIsGhost:              return "bool";
     case ID_requiresGlyphPick:           return "bool";
     case ID_locationSuccessful:          return "bool";
+    case ID_useLabelAsPickLetter:        return "bool";
     case ID_showGlobalIds:               return "bool";
     case ID_globalElement:               return "int";
     case ID_globalIncidentElements:      return "intVector";
     case ID_elementIsGlobal:             return "bool";
     case ID_showPickLetter:              return "bool";
+    case ID_hasRangeOutput:              return "bool";
+    case ID_rangeOutput:                 return "MapNode";
+    case ID_elementLabel:                return "string";
     case ID_reusePickLetter:             return "bool";
     case ID_ghostType:                   return "int";
     case ID_hasMixedGhostTypes:          return "int";
@@ -3000,6 +3330,12 @@ PickAttributes::GetFieldTypeName(int index) const
     case ID_timeCurveType:               return "enum";
     case ID_timeOptions:                 return "MapNode";
     case ID_plotRequested:               return "MapNode";
+    case ID_pickHighlightColor:          return "intArray";
+    case ID_removedPicks:                return "string";
+    case ID_swivelFocusToPick:           return "bool";
+    case ID_overridePickLabel:           return "bool";
+    case ID_forcedPickLabel:             return "string";
+    case ID_removeLabelTwins:            return "bool";
     default:  return "invalid index";
     }
 }
@@ -3325,6 +3661,11 @@ PickAttributes::FieldsEqual(int index_, const AttributeGroup *rhs) const
         retval = (locationSuccessful == obj.locationSuccessful);
         }
         break;
+    case ID_useLabelAsPickLetter:
+        {  // new scope
+        retval = (useLabelAsPickLetter == obj.useLabelAsPickLetter);
+        }
+        break;
     case ID_showGlobalIds:
         {  // new scope
         retval = (showGlobalIds == obj.showGlobalIds);
@@ -3348,6 +3689,21 @@ PickAttributes::FieldsEqual(int index_, const AttributeGroup *rhs) const
     case ID_showPickLetter:
         {  // new scope
         retval = (showPickLetter == obj.showPickLetter);
+        }
+        break;
+    case ID_hasRangeOutput:
+        {  // new scope
+        retval = (hasRangeOutput == obj.hasRangeOutput);
+        }
+        break;
+    case ID_rangeOutput:
+        {  // new scope
+        retval = (rangeOutput == obj.rangeOutput);
+        }
+        break;
+    case ID_elementLabel:
+        {  // new scope
+        retval = (elementLabel == obj.elementLabel);
         }
         break;
     case ID_reusePickLetter:
@@ -3423,6 +3779,41 @@ PickAttributes::FieldsEqual(int index_, const AttributeGroup *rhs) const
     case ID_plotRequested:
         {  // new scope
         retval = (plotRequested == obj.plotRequested);
+        }
+        break;
+    case ID_pickHighlightColor:
+        {  // new scope
+        // Compare the pickHighlightColor arrays.
+        bool pickHighlightColor_equal = true;
+        for(int i = 0; i < 3 && pickHighlightColor_equal; ++i)
+            pickHighlightColor_equal = (pickHighlightColor[i] == obj.pickHighlightColor[i]);
+
+        retval = pickHighlightColor_equal;
+        }
+        break;
+    case ID_removedPicks:
+        {  // new scope
+        retval = (removedPicks == obj.removedPicks);
+        }
+        break;
+    case ID_swivelFocusToPick:
+        {  // new scope
+        retval = (swivelFocusToPick == obj.swivelFocusToPick);
+        }
+        break;
+    case ID_overridePickLabel:
+        {  // new scope
+        retval = (overridePickLabel == obj.overridePickLabel);
+        }
+        break;
+    case ID_forcedPickLabel:
+        {  // new scope
+        retval = (forcedPickLabel == obj.forcedPickLabel);
+        }
+        break;
+    case ID_removeLabelTwins:
+        {  // new scope
+        retval = (removeLabelTwins == obj.removeLabelTwins);
         }
         break;
     default: retval = false;

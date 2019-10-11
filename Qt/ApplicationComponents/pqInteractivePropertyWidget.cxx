@@ -54,11 +54,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <QtDebug>
 
+#include <cassert>
+
 class pqInteractivePropertyWidget::pqInternals
 {
 public:
   vtkSmartPointer<vtkSMNewWidgetRepresentationProxy> WidgetProxy;
   vtkWeakPointer<vtkSMProxy> DataSource;
+  vtkSmartPointer<vtkSMPropertyGroup> SMGroup;
   bool WidgetVisibility;
   unsigned long UserEventObserverId;
 
@@ -76,14 +79,15 @@ pqInteractivePropertyWidget::pqInteractivePropertyWidget(const char* widget_smgr
   : Superclass(smproxy, parentObject)
   , Internals(new pqInteractivePropertyWidget::pqInternals())
 {
-  Q_ASSERT(widget_smgroup);
-  Q_ASSERT(widget_smname);
-  Q_ASSERT(smproxy);
-  Q_ASSERT(smgroup);
+  assert(widget_smgroup);
+  assert(widget_smname);
+  assert(smproxy);
+  assert(smgroup);
 
   BEGIN_UNDO_EXCLUDE();
 
   pqInternals& internals = (*this->Internals);
+  internals.SMGroup = smgroup;
 
   pqServer* server =
     pqApplicationCore::instance()->getServerManagerModel()->findServer(smproxy->GetSession());
@@ -110,7 +114,7 @@ pqInteractivePropertyWidget::pqInteractivePropertyWidget(const char* widget_smgr
                 << aProxy->GetClassName() << "'. Aborting for debugging purposes.";
     abort();
   }
-  Q_ASSERT(wdgProxy);
+  assert(wdgProxy);
 
   internals.WidgetProxy = wdgProxy;
 
@@ -167,6 +171,12 @@ pqInteractivePropertyWidget::~pqInteractivePropertyWidget()
 
   // ensures that the widget proxy is removed from the active view, if any.
   this->setView(NULL);
+}
+
+//-----------------------------------------------------------------------------
+vtkSMPropertyGroup* pqInteractivePropertyWidget::propertyGroup() const
+{
+  return this->Internals->SMGroup;
 }
 
 //-----------------------------------------------------------------------------
@@ -247,7 +257,7 @@ void pqInteractivePropertyWidget::updateWidgetVisibility()
 {
   bool visible = this->isSelected() && this->isWidgetVisible() && this->view();
   vtkSMProxy* wdgProxy = this->widgetProxy();
-  Q_ASSERT(wdgProxy);
+  assert(wdgProxy);
 
   vtkSMPropertyHelper(wdgProxy, "Visibility", true).Set(visible);
   vtkSMPropertyHelper(wdgProxy, "Enabled", true).Set(visible);
@@ -309,8 +319,8 @@ void pqInteractivePropertyWidget::handleUserEvent(
   Q_UNUSED(caller);
   Q_UNUSED(eventid);
 
-  Q_ASSERT(caller == this->proxy());
-  Q_ASSERT(eventid == vtkCommand::UserEvent);
+  assert(caller == this->proxy());
+  assert(eventid == vtkCommand::UserEvent);
 
   const char* message = reinterpret_cast<const char*>(calldata);
   if (message != NULL && strcmp("HideWidget", message) == 0)

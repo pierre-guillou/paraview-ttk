@@ -180,9 +180,8 @@ bool vtkSMParaViewPipelineController::CreateProxiesForProxyListDomains(vtkSMProx
   iter.TakeReference(proxy->NewPropertyIterator());
   for (iter->Begin(); !iter->IsAtEnd(); iter->Next())
   {
-    vtkSMProxyListDomain* pld = iter->GetProperty()
-      ? vtkSMProxyListDomain::SafeDownCast(iter->GetProperty()->FindDomain("vtkSMProxyListDomain"))
-      : NULL;
+    auto pld =
+      iter->GetProperty() ? iter->GetProperty()->FindDomain<vtkSMProxyListDomain>() : nullptr;
     if (pld)
     {
       pld->CreateProxies(proxy->GetSessionProxyManager());
@@ -221,9 +220,8 @@ void vtkSMParaViewPipelineController::RegisterProxiesForProxyListDomains(vtkSMPr
   iter.TakeReference(proxy->NewPropertyIterator());
   for (iter->Begin(); !iter->IsAtEnd(); iter->Next())
   {
-    vtkSMProxyListDomain* pld = iter->GetProperty()
-      ? vtkSMProxyListDomain::SafeDownCast(iter->GetProperty()->FindDomain("vtkSMProxyListDomain"))
-      : NULL;
+    auto pld =
+      iter->GetProperty() ? iter->GetProperty()->FindDomain<vtkSMProxyListDomain>() : nullptr;
     if (!pld)
     {
       continue;
@@ -401,8 +399,7 @@ bool vtkSMParaViewPipelineController::InitializeSession(vtkSMSession* session)
   vtkSmartPointer<vtkSMProxy> materialLib = this->FindMaterialLibrary(session);
   if (!materialLib)
   {
-#ifdef PARAVIEW_USE_OSPRAY
-
+#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
     materialLib.TakeReference(vtkSafeNewProxy(pxm, "materials", "MaterialLibrary"));
     if (materialLib)
     {
@@ -586,12 +583,28 @@ bool vtkSMParaViewPipelineController::RegisterPipelineProxy(
 
   SM_SCOPED_TRACE(RegisterPipelineProxy).arg("proxy", proxy);
 
+  // Register proxies created for proxy list domains.
+  this->RegisterProxiesForProxyListDomains(proxy);
+
   // Create animation helpers for this proxy.
   this->CreateAnimationHelpers(proxy);
 
   // Now register the proxy itself.
-  // If proxyname is NULL, the proxy manager makes up a name.
-  proxy->GetSessionProxyManager()->RegisterProxy("sources", proxyname, proxy);
+  // If proxyname is nullptr, the proxy manager makes up a name.
+  if (proxyname == nullptr)
+  {
+    auto pname = proxy->GetSessionProxyManager()->RegisterProxy("sources", proxy);
+
+    // assign a name for logging
+    proxy->SetLogName(pname.c_str());
+  }
+  else
+  {
+    proxy->GetSessionProxyManager()->RegisterProxy("sources", proxyname, proxy);
+
+    // assign a name for logging
+    proxy->SetLogName(proxyname);
+  }
 
   // Register proxy with TimeKeeper.
   vtkSMProxy* timeKeeper = this->FindTimeKeeper(proxy->GetSession());
@@ -659,8 +672,24 @@ bool vtkSMParaViewPipelineController::RegisterViewProxy(vtkSMProxy* proxy, const
 
   SM_SCOPED_TRACE(RegisterViewProxy).arg("proxy", proxy);
 
+  // Register proxies created for proxy list domains.
+  this->RegisterProxiesForProxyListDomains(proxy);
+
   // Now register the proxy itself.
-  proxy->GetSessionProxyManager()->RegisterProxy("views", proxyname, proxy);
+  if (proxyname == nullptr)
+  {
+    auto pname = proxy->GetSessionProxyManager()->RegisterProxy("views", proxy);
+
+    // assign a name for logging
+    proxy->SetLogName(pname.c_str());
+  }
+  else
+  {
+    proxy->GetSessionProxyManager()->RegisterProxy("views", proxyname, proxy);
+
+    // assign a name for logging
+    proxy->SetLogName(proxyname);
+  }
 
   // Register proxy with TimeKeeper.
   vtkSMProxy* timeKeeper = this->FindTimeKeeper(proxy->GetSession());
@@ -776,9 +805,11 @@ bool vtkSMParaViewPipelineController::RegisterRepresentationProxy(vtkSMProxy* pr
     return false;
   }
 
+  // Register proxies created for proxy list domains.
+  this->RegisterProxiesForProxyListDomains(proxy);
+
   // Register the proxy itself.
   proxy->GetSessionProxyManager()->RegisterProxy("representations", proxy);
-
   return true;
 }
 
@@ -844,6 +875,9 @@ bool vtkSMParaViewPipelineController::RegisterColorTransferFunctionProxy(
     return false;
   }
 
+  // Register proxies created for proxy list domains.
+  this->RegisterProxiesForProxyListDomains(proxy);
+
   proxy->GetSessionProxyManager()->RegisterProxy("lookup_tables", proxyname, proxy);
   return true;
 }
@@ -857,6 +891,9 @@ bool vtkSMParaViewPipelineController::RegisterOpacityTransferFunction(
     return false;
   }
 
+  // Register proxies created for proxy list domains.
+  this->RegisterProxiesForProxyListDomains(proxy);
+
   proxy->GetSessionProxyManager()->RegisterProxy("piecewise_functions", proxyname, proxy);
   return true;
 }
@@ -868,6 +905,9 @@ bool vtkSMParaViewPipelineController::RegisterAnimationProxy(vtkSMProxy* proxy)
   {
     return false;
   }
+
+  // Register proxies created for proxy list domains.
+  this->RegisterProxiesForProxyListDomains(proxy);
 
   proxy->GetSessionProxyManager()->RegisterProxy("animation", proxy);
   return true;
@@ -956,6 +996,9 @@ bool vtkSMParaViewPipelineController::RegisterLightProxy(
   }
 
   SM_SCOPED_TRACE(RegisterLightProxy).arg("proxy", proxy).arg("view", view);
+
+  // Register proxies created for proxy list domains.
+  this->RegisterProxiesForProxyListDomains(proxy);
 
   // we would like the light to be a child of the view, but lights need to be created
   // and registered independently, before the view is created in python state files.
@@ -1120,10 +1163,6 @@ bool vtkSMParaViewPipelineController::PostInitializeProxy(vtkSMProxy* proxy)
     }
     proxy->UpdateVTKObjects();
   }
-
-  // Register proxies created for proxy list domains.
-  this->RegisterProxiesForProxyListDomains(proxy);
-
   return true;
 }
 

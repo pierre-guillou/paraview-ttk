@@ -69,14 +69,14 @@ void vtkOpenGLActor::Render(vtkRenderer *ren, vtkMapper *mapper)
   else
   {
     vtkHardwareSelector* selector = ren->GetSelector();
-    bool picking = (ren->GetRenderWindow()->GetIsPicking() || selector != nullptr);
+    bool picking = (selector != nullptr);
     if (picking)
     {
       ostate->vtkglDepthMask(GL_TRUE);
     }
     else
     {
-      // check for deptgh peeling
+      // check for depth peeling
       vtkInformation *info = this->GetPropertyKeys();
       if (info && info->Has(vtkOpenGLActor::GLDepthMaskOverride()))
       {

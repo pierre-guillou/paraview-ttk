@@ -34,12 +34,7 @@ vtkStandardNewMacro(vtkGraphReader);
 #endif
 
 //----------------------------------------------------------------------------
-vtkGraphReader::vtkGraphReader()
-{
-  // We don't know the output type yet.
-  // It could be vtkDirectedGraph, vtkUndirectedGraph, or vtkMolecule.
-  // We will set it in RequestInformation().
-}
+vtkGraphReader::vtkGraphReader() = default;
 
 //----------------------------------------------------------------------------
 vtkGraphReader::~vtkGraphReader() = default;
@@ -57,52 +52,14 @@ vtkGraph* vtkGraphReader::GetOutput(int idx)
 }
 
 //----------------------------------------------------------------------------
-void vtkGraphReader::SetOutput(vtkGraph *output)
+int vtkGraphReader::ReadMeshSimple(const std::string& fname,
+                                   vtkDataObject* doOutput)
 {
-  this->GetExecutive()->SetOutputData(0, output);
-}
-
-//----------------------------------------------------------------------------
-// I do not think this should be here, but I do not want to remove it now.
-int vtkGraphReader::RequestUpdateExtent(
-  vtkInformation *,
-  vtkInformationVector **,
-  vtkInformationVector *outputVector)
-{
-  vtkInformation *outInfo = outputVector->GetInformationObject(0);
-  int piece, numPieces;
-
-  piece = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
-  numPieces = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
-
-  // make sure piece is valid
-  if (piece < 0 || piece >= numPieces)
-  {
-    return 1;
-  }
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkGraphReader::RequestData(
-  vtkInformation *,
-  vtkInformationVector **,
-  vtkInformationVector *outputVector)
-{
-  vtkInformation *outInfo = outputVector->GetInformationObject(0);
-
-  // Return all data in the first piece ...
-  if(outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER()) > 0)
-  {
-    return 1;
-  }
-
   vtkDebugMacro(<<"Reading vtk graph ...");
   char line[256];
 
   GraphType graphType;
-  if (!this->ReadGraphType(graphType))
+  if (!this->ReadGraphType(fname.c_str(), graphType))
   {
     this->CloseVTKFile();
     return 1;
@@ -125,6 +82,7 @@ int vtkGraphReader::RequestData(
       builder = undir_builder;
       break;
 
+    case vtkGraphReader::UnknownGraph:
     default:
       vtkErrorMacro("ReadGraphType gave invalid result.");
       this->CloseVTKFile();
@@ -159,6 +117,7 @@ int vtkGraphReader::RequestData(
           undir_builder->SetFieldData(field_data);
           break;
 
+        case vtkGraphReader::UnknownGraph:
         default: // Can't happen, would return earlier.
           break;
       }
@@ -177,7 +136,7 @@ int vtkGraphReader::RequestData(
         return 1;
       }
 
-      this->ReadPoints(builder, point_count);
+      this->ReadPointCoordinates(builder, point_count);
       continue;
     }
 
@@ -203,6 +162,7 @@ int vtkGraphReader::RequestData(
             undir_builder->AddVertex();
             break;
 
+          case vtkGraphReader::UnknownGraph:
           default: // Can't happen, would return earlier.
             break;
         }
@@ -241,6 +201,7 @@ int vtkGraphReader::RequestData(
             undir_builder->AddEdge(source, target);
             break;
 
+          case vtkGraphReader::UnknownGraph:
           default: // Can't happen, would return earlier.
             break;
         }
@@ -351,9 +312,7 @@ int vtkGraphReader::RequestData(
   this->CloseVTKFile ();
 
   // Copy builder into output.
-  vtkGraph* const output = vtkGraph::SafeDownCast(
-    outInfo->Get(vtkDataObject::DATA_OBJECT()));
-
+  vtkGraph* output = vtkGraph::SafeDownCast(doOutput);
   bool valid = output->CheckedShallowCopy(builder);
 
   vtkMolecule *mol = vtkMolecule::SafeDownCast(output);
@@ -372,11 +331,11 @@ int vtkGraphReader::RequestData(
 }
 
 //----------------------------------------------------------------------------
-int vtkGraphReader::ReadGraphType(GraphType &type)
+int vtkGraphReader::ReadGraphType(const char* fname, GraphType &type)
 {
   type = UnknownGraph;
 
-  if(!this->OpenVTKFile() || !this->ReadHeader())
+  if(!this->OpenVTKFile(fname) || !this->ReadHeader())
   {
     return 0;
   }
@@ -433,59 +392,44 @@ int vtkGraphReader::FillOutputPortInformation(int, vtkInformation* info)
 }
 
 //----------------------------------------------------------------------------
-int vtkGraphReader::RequestDataObject(vtkInformation *,
-                                      vtkInformationVector **,
-                                      vtkInformationVector *)
+vtkDataObject* vtkGraphReader::CreateOutput(vtkDataObject* currentOutput)
 {
   GraphType graphType;
-  if (!this->ReadGraphType(graphType))
+  if (!this->ReadGraphType(this->GetFileName(), graphType))
   {
     this->CloseVTKFile();
-    return 1;
+    return nullptr;
   }
   this->CloseVTKFile();
 
-  vtkGraph *output = nullptr;
   switch (graphType)
   {
     case vtkGraphReader::DirectedGraph:
-      output = vtkDirectedGraph::New();
-      break;
+      if (currentOutput && currentOutput->IsA("vtkDirectedGraph"))
+      {
+        return currentOutput;
+      }
+      return vtkDirectedGraph::New();
 
     case vtkGraphReader::UndirectedGraph:
-      output = vtkUndirectedGraph::New();
-      break;
+      if (currentOutput && currentOutput->IsA("vtkUndirectedGraph"))
+      {
+        return currentOutput;
+      }
+      return vtkUndirectedGraph::New();
 
     case vtkGraphReader::Molecule:
-      output = vtkMolecule::New();
-      break;
+      if (currentOutput && currentOutput->IsA("vtkMolecule"))
+      {
+        return currentOutput;
+      }
+      return vtkMolecule::New();
 
+    case vtkGraphReader::UnknownGraph:
     default:
       vtkErrorMacro("ReadGraphType returned invalid result.");
-      return 1;
+      return nullptr;
   }
-
-  this->SetOutput(output);
-
-  // Releasing data for pipeline parallism.
-  // Filters will know it is empty.
-  output->ReleaseData();
-  output->Delete();
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkGraphReader::ProcessRequest(vtkInformation* request,
-                                     vtkInformationVector** inputVector,
-                                     vtkInformationVector* outputVector)
-{
-  // generate the data
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
-  {
-    return this->RequestDataObject(request, inputVector, outputVector);
-  }
-  return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
 //----------------------------------------------------------------------------

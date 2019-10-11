@@ -162,7 +162,6 @@
         { "class": "vtkSelectionConverter" },
         { "class": "vtkSortedTableStreamer" },
         { "class": "vtkSquirtCompressor" },
-        { "class": "vtkTileDisplayHelper" },
         { "class": "vtkTilesHelper" },
         { "class": "vtkTrackballPan" },
         { "class": "vtkUpdateSuppressorPipeline" },
@@ -258,7 +257,8 @@
     { "name": "vtkFiltersGeometry",
       "path": "VTK/Filters/Geometry",
       "include": [
-        { "class": "vtkGeometryFilter" }
+        { "class": "vtkGeometryFilter" },
+        { "class": "vtkExplicitStructuredGridSurfaceFilter" }
       ],
       "cswrap": true,
       "pythonwrap": true
@@ -278,7 +278,6 @@
         { "class": "vtkDecimatePro" },
         { "class": "vtkStripper" },
         { "class": "vtkStructuredGridOutlineFilter" },
-        { "class": "vtkTriangleFilter" },
         { "class": "vtkTriangleMeshPointNormals"},
         { "class": "vtkTubeFilter" }
       ],
@@ -306,7 +305,6 @@
         { "class": "vtkAnnotationLink" },
         { "class": "vtkAxes" },
         { "class": "vtkBoxClipDataSet" },
-        { "class": "vtkDataSetTriangleFilter" },
         { "class": "vtkMergeCells" },
         { "class": "vtkMultiBlockDataGroupFilter" },
         { "class": "vtkPassThrough" },
@@ -346,6 +344,7 @@
         { "path": "vtkGPUInfoListArray.h" },
         { "path": "vtkRenderingCoreEnums.h" },
         { "path": "vtkTDxMotionEventInfo.h" },
+        { "class": "vtkAbstractHyperTreeGridMapper" },
         { "class": "vtkAbstractMapper" },
         { "class": "vtkAbstractMapper3D" },
         { "class": "vtkAbstractPicker" },
@@ -681,7 +680,6 @@
         { "class": "vtkPVComparativeAnimationCue" },
         { "class": "vtkPVComparativeView" },
         { "class": "vtkPVRepresentedArrayListSettings" },
-        { "class": "vtkSMBagChartSeriesListDomain" },
         { "class": "vtkSMBoxRepresentationProxy" },
         { "class": "vtkSMCameraLink" },
         { "class": "vtkSMCameraProxy" },
@@ -694,7 +692,6 @@
         { "class": "vtkSMComparativeViewProxy" },
         { "class": "vtkSMContextViewProxy" },
         { "class": "vtkSMDataDeliveryManager" },
-        { "class": "vtkSMFunctionalBagChartSeriesSelectionDomain" },
         { "class": "vtkSMImplicitPlaneRepresentationProxy" },
         { "class": "vtkSMMaterialDomain" },
         { "class": "vtkSMMaterialLibraryProxy" },

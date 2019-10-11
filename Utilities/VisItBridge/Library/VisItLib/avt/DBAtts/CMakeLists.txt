@@ -1,6 +1,6 @@
 #*****************************************************************************
 #
-# Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+# Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 # Produced at the Lawrence Livermore National Laboratory
 # LLNL-CODE-442911
 # All rights reserved.
@@ -74,6 +74,7 @@ SIL/avtSILRestrictionTraverser.C
 SIL/avtSILSet.C
 )
 
+if (FALSE)
 INCLUDE_DIRECTORIES(
 ${VISIT_COMMON_INCLUDES}
 ${VISIT_SOURCE_DIR}/avt/DBAtts/MetaData
@@ -82,11 +83,15 @@ ${VISIT_SOURCE_DIR}/avt/DBAtts/SIL
 
 # Add link directories needed.
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY})
+endif ()
 
-#ADD_LIBRARY(avtdbatts ${METADATA_SOURCES} ${SIL_SOURCES})
-VTK_ADD_LIBRARY(avtdbatts ${METADATA_SOURCES} ${SIL_SOURCES})
+ADD_LIBRARY(avtdbatts ${METADATA_SOURCES} ${SIL_SOURCES})
 
 #TARGET_LINK_LIBRARIES(avtdbatts visitcommon)
-TARGET_LINK_LIBRARIES(avtdbatts LINK_PRIVATE visitcommon)
+TARGET_LINK_LIBRARIES(avtdbatts PRIVATE visitcommon)
+target_include_directories(avtdbatts
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MetaData>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/SIL>")
 
 VISIT_INSTALL_TARGETS(avtdbatts)

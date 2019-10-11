@@ -32,6 +32,7 @@
 #ifndef vtkSMViewProxy_h
 #define vtkSMViewProxy_h
 
+#include "vtkCommand.h"                        // needed for vtkCommand.
 #include "vtkPVServerManagerRenderingModule.h" //needed for exports
 #include "vtkSMProxy.h"
 
@@ -46,6 +47,7 @@ class vtkView;
 namespace vtkSMViewProxyNS
 {
 class WindowToImageFilter;
+class CaptureHelper;
 }
 
 class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMViewProxy : public vtkSMProxy
@@ -53,7 +55,7 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMViewProxy : public vtkSMProxy
 public:
   static vtkSMViewProxy* New();
   vtkTypeMacro(vtkSMViewProxy, vtkSMProxy);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -240,6 +242,21 @@ public:
     }
   }
   //@}
+
+  /**
+   * Helper method to locate a view to which the representation has been added.
+   */
+  static vtkSMViewProxy* FindView(vtkSMProxy* repr, const char* reggroup = "views");
+
+  enum
+  {
+    /**
+     * Fired in `IsContextReadyForRendering` if the context is not already ready
+     * for rendering.
+     */
+    PrepareContextForRendering = vtkCommand::UserEvent + 1,
+  };
+
 protected:
   vtkSMViewProxy();
   ~vtkSMViewProxy() override;
@@ -262,7 +279,18 @@ protected:
    */
   virtual void RenderForImageCapture() { this->StillRender(); }
 
+  /**
+   * This method is called before executing code that could cause a render on
+   * the underlying vtkPVView. This is the method where subclasses can ensure
+   * that the data for rendering is made available ranks that will be doing the
+   * rendering and then return the location where the rendering will happen.
+   *
+   * Thus vtkSMViewProxy can send the render request to only those processes
+   * that will be doing rendering avoiding unnecessary communication to
+   * non-participating ranks.
+   */
   virtual vtkTypeUInt32 PreRender(bool vtkNotUsed(interactive)) { return this->GetLocation(); }
+
   virtual void PostRender(bool vtkNotUsed(interactive)) {}
 
   /**
@@ -279,12 +307,12 @@ protected:
   /**
    * Called at the end of CreateVTKObjects().
    */
-  void CreateVTKObjects() VTK_OVERRIDE;
+  void CreateVTKObjects() override;
 
   /**
    * Read attributes from an XML element.
    */
-  int ReadXMLAttributes(vtkSMSessionProxyManager* pm, vtkPVXMLElement* element) VTK_OVERRIDE;
+  int ReadXMLAttributes(vtkSMSessionProxyManager* pm, vtkPVXMLElement* element) override;
 
   /**
    * Convenience method to call
@@ -310,11 +338,9 @@ private:
 
   // Actual logic for taking a screenshot.
   vtkImageData* CaptureWindowSingle(int magnificationX, int magnificationY);
-  class vtkRendererSaveInfo;
-  vtkRendererSaveInfo* PrepareRendererBackground(vtkRenderer*, double, double, double, bool);
-  void RestoreRendererBackground(vtkRenderer*, vtkRendererSaveInfo*);
 
   friend class vtkSMViewProxyNS::WindowToImageFilter;
+  friend class vtkSMViewProxyNS::CaptureHelper;
 };
 
 #endif

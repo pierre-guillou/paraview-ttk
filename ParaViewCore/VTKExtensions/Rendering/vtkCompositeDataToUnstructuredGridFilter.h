@@ -39,7 +39,7 @@ class VTKPVVTKEXTENSIONSRENDERING_EXPORT vtkCompositeDataToUnstructuredGridFilte
 public:
   static vtkCompositeDataToUnstructuredGridFilter* New();
   vtkTypeMacro(vtkCompositeDataToUnstructuredGridFilter, vtkUnstructuredGridAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -60,6 +60,18 @@ public:
   vtkBooleanMacro(MergePoints, bool);
   //@}
 
+  //@{
+  /**
+   * Get/Set the tolerance to use to find coincident points when `MergePoints`
+   * is `true`. Default is 0.0.
+   *
+   * This is simply passed on to the internal vtkAppendFilter::vtkLocator used to merge points.
+   * @sa `vtkLocator::SetTolerance`.
+   */
+  vtkSetClampMacro(Tolerance, double, 0.0, VTK_DOUBLE_MAX);
+  vtkGetMacro(Tolerance, double);
+  //@}
+
 protected:
   vtkCompositeDataToUnstructuredGridFilter();
   ~vtkCompositeDataToUnstructuredGridFilter() override;
@@ -69,9 +81,9 @@ protected:
    * This is the method you should override.
    */
   int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
-    vtkInformationVector* outputVector) VTK_OVERRIDE;
+    vtkInformationVector* outputVector) override;
 
-  int FillInputPortInformation(int port, vtkInformation* info) VTK_OVERRIDE;
+  int FillInputPortInformation(int port, vtkInformation* info) override;
 
   /**
    * Remove point/cell arrays not present on all processes.
@@ -83,6 +95,7 @@ protected:
   void ExecuteSubTree(vtkCompositeDataSet* cd, vtkAppendFilter* output);
   unsigned int SubTreeCompositeIndex;
   bool MergePoints;
+  double Tolerance;
 
 private:
   vtkCompositeDataToUnstructuredGridFilter(

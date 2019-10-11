@@ -15,7 +15,6 @@
 
 #ifndef vtkSegYIOUtils_h
 #define vtkSegYIOUtils_h
-#ifndef __VTK_WRAP__
 
 #include <fstream>
 
@@ -23,9 +22,9 @@ class vtkSegYIOUtils
 {
 public:
   char readChar(std::ifstream& in);
-  short readShortInteger(int pos, std::ifstream& in);
+  short readShortInteger(std::streamoff pos, std::ifstream& in);
   short readShortInteger(std::ifstream& in);
-  int readLongInteger(int pos, std::ifstream& in);
+  int readLongInteger(std::streamoff pos, std::ifstream& in);
   int readLongInteger(std::ifstream& in);
   float readFloat(std::ifstream& in);
   float readIBMFloat(std::ifstream& in);
@@ -47,6 +46,5 @@ private:
   }
 };
 
-#endif
 #endif // vtkSegYIOUtils_h
 // VTK-HeaderTest-Exclude: vtkSegYIOUtils.h

@@ -289,6 +289,7 @@ void vtkRenderWindowInteractor::UpdateSize(int x,int y)
     this->Size[0] = this->EventSize[0] = x;
     this->Size[1] = this->EventSize[1] = y;
     this->RenderWindow->SetSize(x,y);
+    this->InvokeEvent(vtkCommand::WindowResizeEvent);
   }
 }
 
@@ -710,7 +711,7 @@ void vtkRenderWindowInteractor::RecognizeGesture(vtkCommand::EventIds event)
         thresh = 15.0;
       }
       double pinchDistance = fabs(newDistance - originalDistance);
-      double rotateDistance = newDistance*3.1415926*fabs(angleDeviation)/360.0;
+      double rotateDistance = newDistance*vtkMath::Pi()*fabs(angleDeviation)/360.0;
       double panDistance = sqrt(trans[0]*trans[0] + trans[1]*trans[1]);
       if (pinchDistance > thresh
           && pinchDistance > rotateDistance

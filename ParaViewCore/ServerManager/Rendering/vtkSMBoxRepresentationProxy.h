@@ -18,7 +18,10 @@
  *
  * vtkSMBoxRepresentationProxy is a proxy for vtkBoxRepresentation. A
  * specialization is needed to set the transform on the vtkBoxRepresentation.
-*/
+ * Since `vtkBoxRepresentation::SetTranform` is really akin to `ApplyTransform`,
+ * the transform must be set each time the transform changes or the widget
+ * is placed using PlaceWidget or something like that.
+ */
 
 #ifndef vtkSMBoxRepresentationProxy_h
 #define vtkSMBoxRepresentationProxy_h
@@ -32,11 +35,11 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMBoxRepresentationProxy
 public:
   static vtkSMBoxRepresentationProxy* New();
   vtkTypeMacro(vtkSMBoxRepresentationProxy, vtkSMWidgetRepresentationProxy);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  void UpdateVTKObjects() VTK_OVERRIDE;
-  void UpdatePropertyInformation() VTK_OVERRIDE;
-  void UpdatePropertyInformation(vtkSMProperty* prop) VTK_OVERRIDE
+  void UpdateVTKObjects() override;
+  void UpdatePropertyInformation() override;
+  void UpdatePropertyInformation(vtkSMProperty* prop) override
   {
     this->Superclass::UpdatePropertyInformation(prop);
   }
@@ -46,7 +49,7 @@ protected:
   ~vtkSMBoxRepresentationProxy() override;
 
   // This method is overridden to set the transform on the vtkWidgetRepresentation.
-  void CreateVTKObjects() VTK_OVERRIDE;
+  void CreateVTKObjects() override;
 
 private:
   vtkSMBoxRepresentationProxy(const vtkSMBoxRepresentationProxy&) = delete;

@@ -32,6 +32,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqAnimationModel.h"
 
+#include "assert.h"
+
 #include <QEvent>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
@@ -42,6 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqAnimationTrack.h"
 #include "pqCheckBoxPixMaps.h"
 
+#include <cassert>
 #include <iostream>
 
 pqAnimationModel::pqAnimationModel(QGraphicsView* p)
@@ -274,7 +277,7 @@ double pqAnimationModel::timeFromTick(int tick)
 {
   if (this->Mode == Custom)
   {
-    Q_ASSERT(tick <= this->CustomTicks.size());
+    assert(tick <= this->CustomTicks.size());
     return this->CustomTicks[tick];
   }
 
@@ -352,6 +355,8 @@ void pqAnimationModel::drawForeground(QPainter* painter, const QRectF&)
   num = num == 0 ? 1 : num;
   double w = labelRect.width() / num;
 
+  painter->save();
+  painter->setPen(QColor(0, 0, 0));
   painter->drawText(QRectF(labelRect.left(), labelRect.top(), w / 2.0, rh),
     Qt::AlignLeft | Qt::AlignVCenter,
     QString::number(this->StartTime, this->TimeNotation.toLatin1(), this->TimePrecision));
@@ -367,6 +372,7 @@ void pqAnimationModel::drawForeground(QPainter* painter, const QRectF&)
   painter->drawText(QRectF(labelRect.right() - w / 2.0, labelRect.top(), w / 2.0, rh),
     Qt::AlignRight | Qt::AlignVCenter,
     QString::number(this->EndTime, this->TimeNotation.toLatin1(), this->TimePrecision));
+  painter->restore();
 
   // if sequence, draw a tick mark for each frame
   if ((this->mode() == Sequence || this->mode() == Custom) && this->currentTicks() > 2)

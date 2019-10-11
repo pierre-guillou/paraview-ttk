@@ -40,11 +40,6 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   * Begin the rendering process.
-   */
-  void Start(void) override;
-
-  /**
    * End the rendering process and display the image.
    */
   void Frame(void) override;
@@ -72,12 +67,17 @@ public:
   /**
    * Change the window to fill the entire screen.
    */
-  void SetFullScreen(int) override;
+  void SetFullScreen(vtkTypeBool) override;
 
   /**
    * Remap the window.
    */
   void WindowRemap(void) override;
+
+  /**
+   * Show or not Show the window
+   */
+  void SetShowWindow(bool val) override;
 
   /**
    * Set the preferred window size to full screen.
@@ -196,7 +196,7 @@ public:
    * overrides the superclass method since this class can actually check
    * whether the window has been realized yet.
    */
-  void SetStereoCapableWindow(int capable) override;
+  void SetStereoCapableWindow(vtkTypeBool capable) override;
 
   /**
    * Make this windows OpenGL context the current context.
@@ -259,12 +259,6 @@ public:
 
   bool DetectDPI() override;
 
-  /**
-   * Override the default implementation so that we can actively switch between
-   * on and off screen rendering.
-   */
-  void SetOffScreenRendering(int offscreen) override;
-
   //@{
   /**
    * Ability to push and pop this window's context
@@ -323,8 +317,6 @@ protected:
   void CreateAWindow() override;
   void DestroyWindow() override;
   void InitializeApplication();
-  void CleanUpOffScreenRendering(void);
-  void CreateOffScreenWindow(int width,int height);
   void CleanUpRenderers();
   void VTKRegisterClass();
 

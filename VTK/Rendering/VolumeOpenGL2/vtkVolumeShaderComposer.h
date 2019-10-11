@@ -34,7 +34,8 @@ namespace {
     for (auto& item : inputs)
     {
       vtkVolumeProperty* volProp = item.second.Volume->GetProperty();
-      const bool gradOp = volProp->HasGradientOpacity();
+      const bool gradOp =
+        volProp->HasGradientOpacity() && !volProp->GetDisableGradientOpacity();
       if (gradOp)
         return true;
     }
@@ -49,6 +50,22 @@ namespace {
       const bool lighting = volProp->GetShade() == 1;
       if (lighting)
         return true;
+    }
+    return false;
+  }
+
+  bool UseClippedVoxelIntensity(
+    vtkOpenGLGPUVolumeRayCastMapper::VolumeInputMap& inputs)
+  {
+    for (auto& item : inputs)
+    {
+      vtkVolumeProperty* volProp = item.second.Volume->GetProperty();
+      const bool useClippedVoxelIntensity =
+        volProp->GetUseClippedVoxelIntensity() == 1;
+      if (useClippedVoxelIntensity)
+      {
+        return true;
+      }
     }
     return false;
   }
@@ -308,25 +325,25 @@ namespace vtkvolume
         \n  vec2 fragTexCoord2 = (gl_FragCoord.xy - in_windowLowerLeftCorner) *\
         \n                        in_inverseWindowSize;\
         \n  vec4 depthValue = texture2D(in_depthPassSampler, fragTexCoord2);\
-        \n  vec4 dataPos = WindowToNDC(gl_FragCoord.x, gl_FragCoord.y, depthValue.x);\
+        \n  vec4 rayOrigin = WindowToNDC(gl_FragCoord.x, gl_FragCoord.y, depthValue.x);\
         \n\
         \n  // From normalized device coordinates to eye coordinates.\
         \n  // in_projectionMatrix is inversed because of way VT\
         \n  // From eye coordinates to texture coordinates\
-        \n  dataPos = in_inverseTextureDatasetMatrix[0] *\
-        \n            in_inverseVolumeMatrix[0] *\
-        \n            in_inverseModelViewMatrix *\
-        \n            in_inverseProjectionMatrix *\
-        \n            dataPos;\
-        \n  dataPos /= dataPos.w;\
-        \n  g_dataPos = dataPos.xyz;"
+        \n  rayOrigin = in_inverseTextureDatasetMatrix[0] *\
+        \n              in_inverseVolumeMatrix[0] *\
+        \n              in_inverseModelViewMatrix *\
+        \n              in_inverseProjectionMatrix *\
+        \n              rayOrigin;\
+        \n  rayOrigin /= rayOrigin.w;\
+        \n  g_rayOrigin = rayOrigin.xyz;"
       );
     }
     else
     {
       shaderStr += std::string("\
         \n  // Get the 3D texture coordinates for lookup into the in_volume dataset\
-        \n  g_dataPos = ip_textureCoords.xyz;"
+        \n  g_rayOrigin = ip_textureCoords.xyz;"
       );
     }
 
@@ -362,7 +379,7 @@ namespace vtkvolume
         \n  {\
         \n    g_rayJitter = g_dirStep;\
         \n  }\
-        \n  g_dataPos += g_rayJitter;\
+        \n  g_rayOrigin += g_rayJitter;\
         \n\
         \n  // Flag to deternmine if voxel should be considered for the rendering\
         \n  g_skip = false;");
@@ -450,13 +467,14 @@ namespace vtkvolume
 
   //--------------------------------------------------------------------------
   std::string ComputeGradientDeclaration(
+    vtkOpenGLGPUVolumeRayCastMapper* mapper,
     vtkOpenGLGPUVolumeRayCastMapper::VolumeInputMap& inputs)
   {
     const bool hasLighting = HasLighting(inputs);
     const bool hasGradientOp = HasGradientOpacity(inputs);
 
     std::string shaderStr;
-    if (hasLighting && !hasGradientOp)
+    if (hasLighting || hasGradientOp)
     {
       shaderStr += std::string(
         "// c is short for component\n"
@@ -468,72 +486,105 @@ namespace vtkvolume
         "  vec3 xvec = vec3(in_cellStep[index].x, 0.0, 0.0);\n"
         "  vec3 yvec = vec3(0.0, in_cellStep[index].y, 0.0);\n"
         "  vec3 zvec = vec3(0.0, 0.0, in_cellStep[index].z);\n"
-        "  g1.x = texture3D(volume, vec3(texPos + xvec))[c];\n"
-        "  g1.y = texture3D(volume, vec3(texPos + yvec))[c];\n"
-        "  g1.z = texture3D(volume, vec3(texPos + zvec))[c];\n"
-        "  g2.x = texture3D(volume, vec3(texPos - xvec))[c];\n"
-        "  g2.y = texture3D(volume, vec3(texPos - yvec))[c];\n"
-        "  g2.z = texture3D(volume, vec3(texPos - zvec))[c];\n"
-        "\n"
-        "  // Apply scale and bias to the fetched values.\n"
-        "  g1 = g1 * in_volume_scale[index][c] + in_volume_bias[index][c];\n"
-        "  g2 = g2 * in_volume_scale[index][c] + in_volume_bias[index][c];\n"
-        "\n"
-        "  // Central differences: (F_front - F_back) / 2h\n"
-        "  // This version of computeGradient() is only used for lighting\n"
-        "  // calculations (only direction matters), hence the difference is\n"
-        "  // not scaled by 2h and a dummy gradient mag is returned (-1.).\n"
-        "  return vec4((g1 - g2) / in_cellSpacing[index], -1.0);\n"
-        "}\n");
-    }
-    else if (hasGradientOp)
-    {
+        "  vec3 texPosPvec[3];\n"
+        "  texPosPvec[0] = texPos + xvec;\n"
+        "  texPosPvec[1] = texPos + yvec;\n"
+        "  texPosPvec[2] = texPos + zvec;\n"
+        "  vec3 texPosNvec[3];\n"
+        "  texPosNvec[0] = texPos - xvec;\n"
+        "  texPosNvec[1] = texPos - yvec;\n"
+        "  texPosNvec[2] = texPos - zvec;\n"
+        "  g1.x = texture3D(volume, vec3(texPosPvec[0]))[c];\n"
+        "  g1.y = texture3D(volume, vec3(texPosPvec[1]))[c];\n"
+        "  g1.z = texture3D(volume, vec3(texPosPvec[2]))[c];\n"
+        "  g2.x = texture3D(volume, vec3(texPosNvec[0]))[c];\n"
+        "  g2.y = texture3D(volume, vec3(texPosNvec[1]))[c];\n"
+        "  g2.z = texture3D(volume, vec3(texPosNvec[2]))[c];\n"
+        "\n");
+      if (UseClippedVoxelIntensity(inputs) && mapper->GetClippingPlanes())
+      {
+        shaderStr += std::string(
+          "  vec4 g1ObjDataPos[3], g2ObjDataPos[3];\n"
+          "  for (int i = 0; i < 3; ++i)\n"
+          "  {\n"
+          "    g1ObjDataPos[i] = clip_texToObjMat * vec4(texPosPvec[i], 1.0);\n"
+          "    if (g1ObjDataPos[i].w != 0.0)\n"
+          "    {\n"
+          "      g1ObjDataPos[i] /= g1ObjDataPos[i].w;\n"
+          "    }\n"
+          "    g2ObjDataPos[i] = clip_texToObjMat * vec4(texPosNvec[i], 1.0);\n"
+          "    if (g2ObjDataPos[i].w != 0.0)\n"
+          "    {\n"
+          "      g2ObjDataPos[i] /= g2ObjDataPos[i].w;\n"
+          "    }\n"
+          "  }\n"
+          "\n"
+          "  for (int i = 0; i < clip_numPlanes && !g_skip; i = i + 6)\n"
+          "  {\n"
+          "    vec3 planeOrigin = vec3(in_clippingPlanes[i + 1],\n"
+          "                            in_clippingPlanes[i + 2],\n"
+          "                            in_clippingPlanes[i + 3]);\n"
+          "    vec3 planeNormal = normalize(vec3(in_clippingPlanes[i + 4],\n"
+          "                                      in_clippingPlanes[i + 5],\n"
+          "                                      in_clippingPlanes[i + 6]));\n"
+          "    for (int j = 0; j < 3; ++j)\n"
+          "    {\n"
+          "      if (dot(vec3(planeOrigin - g1ObjDataPos[j].xyz), planeNormal) > 0)\n"
+          "      {\n"
+          "        g1[j] = in_clippedVoxelIntensity;\n"
+          "      }\n"
+          "      if (dot(vec3(planeOrigin - g2ObjDataPos[j].xyz), planeNormal) > 0)\n"
+          "      {\n"
+          "        g2[j] = in_clippedVoxelIntensity;\n"
+          "      }\n"
+          "    }\n"
+          "  }\n"
+          "\n");
+      }
       shaderStr += std::string(
-        "// c is short for component\n"
-        "vec4 computeGradient(in vec3 texPos, in int c, in sampler3D volume, in int index)\n"
-        "{\n"
-        "  // Approximate Nabla(F) derivatives with central differences.\n"
-        "  vec3 g1; // F_front\n"
-        "  vec3 g2; // F_back\n"
-        "  vec3 xvec = vec3(in_cellStep[index].x, 0.0, 0.0);\n"
-        "  vec3 yvec = vec3(0.0, in_cellStep[index].y, 0.0);\n"
-        "  vec3 zvec = vec3(0.0, 0.0, in_cellStep[index].z);\n"
-        "  g1.x = texture3D(volume, vec3(texPos + xvec))[c];\n"
-        "  g1.y = texture3D(volume, vec3(texPos + yvec))[c];\n"
-        "  g1.z = texture3D(volume, vec3(texPos + zvec))[c];\n"
-        "  g2.x = texture3D(volume, vec3(texPos - xvec))[c];\n"
-        "  g2.y = texture3D(volume, vec3(texPos - yvec))[c];\n"
-        "  g2.z = texture3D(volume, vec3(texPos - zvec))[c];\n"
-        "\n"
         "  // Apply scale and bias to the fetched values.\n"
         "  g1 = g1 * in_volume_scale[index][c] + in_volume_bias[index][c];\n"
         "  g2 = g2 * in_volume_scale[index][c] + in_volume_bias[index][c];\n"
-        "\n"
-        "  // Scale values the actual scalar range.\n"
-        "  float range = in_scalarsRange[c][1] - in_scalarsRange[c][0];\n"
-        "  g1 = in_scalarsRange[c][0] + range * g1;\n"
-        "  g2 = in_scalarsRange[c][0] + range * g2;\n"
-        "\n"
-        "  // Central differences: (F_front - F_back) / 2h\n"
-        "  g2 = g1 - g2;\n"
-        "\n"
-        "  float avgSpacing = (in_cellSpacing[index].x +\n"
-        "   in_cellSpacing[index].y + in_cellSpacing[index].z) / 3.0;\n"
-        "  vec3 aspect = in_cellSpacing[index] * 2.0 / avgSpacing;\n"
-        "  g2 /= aspect;\n"
-        "  float grad_mag = length(g2);\n"
-        "\n"
-        "  // Handle normalizing with grad_mag == 0.0\n"
-        "  g2 = grad_mag > 0.0 ? normalize(g2) : vec3(0.0);\n"
-        "\n"
-        "  // Since the actual range of the gradient magnitude is unknown,\n"
-        "  // assume it is in the range [0, 0.25 * dataRange].\n"
-        "  range = range != 0 ? range : 1.0;\n"
-        "  grad_mag = grad_mag / (0.25 * range);\n"
-        "  grad_mag = clamp(grad_mag, 0.0, 1.0);\n"
-        "\n"
-        "  return vec4(g2.xyz, grad_mag);\n"
-        "}\n");
+        "\n");
+      if (!hasGradientOp)
+      {
+        shaderStr += std::string(
+          "  // Central differences: (F_front - F_back) / 2h\n"
+          "  // This version of computeGradient() is only used for lighting\n"
+          "  // calculations (only direction matters), hence the difference is\n"
+          "  // not scaled by 2h and a dummy gradient mag is returned (-1.).\n"
+          "  return vec4((g1 - g2) / in_cellSpacing[index], -1.0);\n"
+          "}\n");
+      }
+      else
+      {
+        shaderStr += std::string(
+          "  // Scale values the actual scalar range.\n"
+          "  float range = in_scalarsRange[c][1] - in_scalarsRange[c][0];\n"
+          "  g1 = in_scalarsRange[c][0] + range * g1;\n"
+          "  g2 = in_scalarsRange[c][0] + range * g2;\n"
+          "\n"
+          "  // Central differences: (F_front - F_back) / 2h\n"
+          "  g2 = g1 - g2;\n"
+          "\n"
+          "  float avgSpacing = (in_cellSpacing[index].x +\n"
+          "   in_cellSpacing[index].y + in_cellSpacing[index].z) / 3.0;\n"
+          "  vec3 aspect = in_cellSpacing[index] * 2.0 / avgSpacing;\n"
+          "  g2 /= aspect;\n"
+          "  float grad_mag = length(g2);\n"
+          "\n"
+          "  // Handle normalizing with grad_mag == 0.0\n"
+          "  g2 = grad_mag > 0.0 ? normalize(g2) : vec3(0.0);\n"
+          "\n"
+          "  // Since the actual range of the gradient magnitude is unknown,\n"
+          "  // assume it is in the range [0, 0.25 * dataRange].\n"
+          "  range = range != 0 ? range : 1.0;\n"
+          "  grad_mag = grad_mag / (0.25 * range);\n"
+          "  grad_mag = clamp(grad_mag, 0.0, 1.0);\n"
+          "\n"
+          "  return vec4(g2.xyz, grad_mag);\n"
+          "}\n");
+      }
     }
     else
     {
@@ -625,8 +676,8 @@ namespace vtkvolume
           \n  // For the headlight, ignore the light's ambient color\
           \n  // for now as it is causing the old mapper tests to fail\
           \n  finalColor.xyz = in_ambient[component] * color.rgb +\
-          \n                   diffuse + specular;"
-          );
+          \n                   diffuse + specular;\
+          \n");
       }
       else if (lightingComplexity == 2)
       {
@@ -2051,17 +2102,21 @@ namespace vtkvolume
       \n\
       \n  // Abscissa of the point on the depth buffer along the ray.\
       \n  // point in texture coordinates\
-      \n  vec4 terminatePosTmp = WindowToNDC(gl_FragCoord.x, gl_FragCoord.y, l_depthValue.x);\
+      \n  vec4 rayTermination = WindowToNDC(gl_FragCoord.x, gl_FragCoord.y, l_depthValue.x);\
       \n\
       \n  // From normalized device coordinates to eye coordinates.\
       \n  // in_projectionMatrix is inversed because of way VT\
       \n  // From eye coordinates to texture coordinates\
-      \n  terminatePosTmp = ip_inverseTextureDataAdjusted *\
+      \n  rayTermination = ip_inverseTextureDataAdjusted *\
       \n                    in_inverseVolumeMatrix[0] *\
       \n                    in_inverseModelViewMatrix *\
       \n                    in_inverseProjectionMatrix *\
-      \n                    terminatePosTmp;\
-      \n  g_terminatePos = terminatePosTmp.xyz / terminatePosTmp.w;\
+      \n                    rayTermination;\
+      \n  g_rayTermination = rayTermination.xyz / rayTermination.w;\
+      \n\
+      \n  // Setup the current segment:\
+      \n  g_dataPos = g_rayOrigin;\
+      \n  g_terminatePos = g_rayTermination;\
       \n\
       \n  g_terminatePointMax = length(g_terminatePos.xyz - g_dataPos.xyz) /\
       \n                        length(g_dirStep);\
@@ -2272,6 +2327,7 @@ namespace vtkvolume
       \n /// The first value is the size of the data array for clipping\
       \n /// planes (origin, normal)\
       \n uniform float in_clippingPlanes[49];\
+      \n uniform float in_clippedVoxelIntensity;\
       \n\
       \n int clip_numPlanes;\
       \n vec3 clip_rayDirObj;\
@@ -2392,36 +2448,30 @@ namespace vtkvolume
     shaderStr += std::string("\
       \n  clip_numPlanes = int(in_clippingPlanes[0]);\
       \n  clip_texToObjMat = in_volumeMatrix[0] * in_textureDatasetMatrix[0];\
-      \n  clip_objToTexMat = in_inverseTextureDatasetMatrix[0] * in_inverseVolumeMatrix[0];");
+      \n  clip_objToTexMat = in_inverseTextureDatasetMatrix[0] * in_inverseVolumeMatrix[0];\
+      \n\
+      \n  // Adjust for clipping.\
+      \n  if (!AdjustSampleRangeForClipping(g_rayOrigin, g_rayTermination))\
+      \n  { // entire ray is clipped.\
+      \n    discard;\
+      \n  }\
+      \n\
+      \n  // Update the segment post-clip:\
+      \n  g_dataPos = g_rayOrigin;\
+      \n  g_terminatePos = g_rayTermination;\
+      \n  g_terminatePointMax = length(g_terminatePos.xyz - g_dataPos.xyz) /\
+      \n                        length(g_dirStep);\
+      \n");
 
     return shaderStr;
   }
 
   //--------------------------------------------------------------------------
   std::string ClippingImplementation(vtkRenderer* vtkNotUsed(ren),
-                                     vtkVolumeMapper* mapper,
+                                     vtkVolumeMapper* vtkNotUsed(mapper),
                                      vtkVolume* vtkNotUsed(vol))
   {
-    if (!mapper->GetClippingPlanes())
-    {
-      return std::string();
-    }
-    else
-    {
-      return std::string("\
-      \n  // Adjust the ray segment to account for clipping range:\
-      \n  if (!AdjustSampleRangeForClipping(g_dataPos.xyz, g_terminatePos.xyz))\
-      \n  {\
-      \n    return vec4(0.);\
-      \n  }\
-      \n\
-      \n  // Update the number of ray marching steps to account for the clipped entry point (\
-      \n  // this is necessary in case the ray hits geometry after marching behind the plane,\
-      \n  // given that the number of steps was assumed to be from the not-clipped entry).\
-      \n  g_terminatePointMax = length(g_terminatePos.xyz - g_dataPos.xyz) /\
-      \n    length(g_dirStep);\
-      \n");
-    }
+    return std::string();
   }
 
   //--------------------------------------------------------------------------

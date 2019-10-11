@@ -223,7 +223,7 @@ vtkYoungsMaterialInterface::vtkYoungsMaterialInterface()
 }
 
 /*!
-  The destrcutor
+  The destructor
   \sa vtkYoungsMaterialInterface()
 */
 vtkYoungsMaterialInterface::~vtkYoungsMaterialInterface()
@@ -1302,7 +1302,7 @@ int vtkYoungsMaterialInterface::RequestData(
                 {
                   // An original point is encountered (not an edge intersection)
                   DBG_ASSERT( pointIndex>=0 && pointIndex<cell.np );
-                  int ptId = cell.pointIds[ pointIndex ];
+                  vtkIdType ptId = cell.pointIds[ pointIndex ];
                   if( ptId >= 0 )
                   {
                     // Interface from a previous iteration
@@ -2836,7 +2836,7 @@ namespace vtkYoungsMaterialInterfaceCellCutInternals
 
 
   /*
-    Computes the area of the intersection between the plane, orthognal to the 'normal' vector,
+    Computes the area of the intersection between the plane, orthogonal to the 'normal' vector,
     that passes through P1 (resp. P2), and the given tetrahedron.
     the resulting area function, is a function of the intersection area given the distance of the cutting plane to the origin.
   */

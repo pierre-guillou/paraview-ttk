@@ -24,7 +24,7 @@
 
 /* Just something to set in the depth. */
 #define ACTIVE_DEPTH(x, y) \
-    (((x)+(y)+1.0)/10000.0)
+    (((x)+(y)+1.0f)/10000.0f)
 
 /* Fills the given image to have data in the lower triangle like this:
  *
@@ -68,6 +68,20 @@ static void LowerTriangleImage(IceTImage image)
                     data[0] = data[1] = data[2] = data[3] = 0.0;
                 }
                 data += 4;
+            }
+        }
+    } else if (icetImageGetColorFormat(image) == ICET_IMAGE_COLOR_RGB_FLOAT) {
+        IceTFloat *data = icetImageGetColorf(image);
+        for (y = 0; y < height; y++) {
+            for (x = 0; x < width; x++) {
+                if ((height-y) < x) {
+                    data[0] = (float)x;
+                    data[1] = (float)y;
+                    data[2] = 0.0;
+                } else {
+                    data[0] = data[1] = data[2] = 0.0;
+                }
+                data += 3;
             }
         }
     } else if (icetImageGetColorFormat(image) == ICET_IMAGE_COLOR_NONE) {
@@ -119,6 +133,16 @@ static void FullImage(IceTImage image)
                 data[2] = 0.0;
                 data[3] = 1.0;
                 data += 4;
+            }
+        }
+    } else if (icetImageGetColorFormat(image) == ICET_IMAGE_COLOR_RGB_FLOAT) {
+        IceTFloat *data = icetImageGetColorf(image);
+        for (y = 0; y < height; y++) {
+            for (x = 0; x < width; x++) {
+                data[0] = (float)x;
+                data[1] = (float)y;
+                data[2] = 0.0;
+                data += 3;
             }
         }
     } else if (icetImageGetColorFormat(image) == ICET_IMAGE_COLOR_NONE) {
@@ -393,6 +417,10 @@ static int InterlaceRun()
     if (result != TEST_PASSED) { return result; }
 
     icetSetColorFormat(ICET_IMAGE_COLOR_RGBA_FLOAT);
+    result = InterlaceRunFormat();
+    if (result != TEST_PASSED) { return result; }
+
+    icetSetColorFormat(ICET_IMAGE_COLOR_RGB_FLOAT);
     result = InterlaceRunFormat();
     if (result != TEST_PASSED) { return result; }
 

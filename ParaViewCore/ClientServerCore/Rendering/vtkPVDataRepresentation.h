@@ -35,7 +35,7 @@ class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkPVDataRepresentation : public vtk
 {
 public:
   vtkTypeMacro(vtkPVDataRepresentation, vtkDataRepresentation);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * vtkAlgorithm::ProcessRequest() equivalent for rendering passes. This is
@@ -155,8 +155,8 @@ public:
    * Making these methods public. When constructing composite representations,
    * we need to call these methods directly on internal representations.
    */
-  bool AddToView(vtkView* view) VTK_OVERRIDE;
-  bool RemoveFromView(vtkView* view) VTK_OVERRIDE;
+  bool AddToView(vtkView* view) override;
+  bool RemoveFromView(vtkView* view) override;
   //@}
 
   /**
@@ -165,15 +165,12 @@ public:
    * internal pipeline.
    * Overridden to use vtkPVTrivialProducer instead of vtkTrivialProducer
    */
-  vtkAlgorithmOutput* GetInternalOutputPort() VTK_OVERRIDE
-  {
-    return this->GetInternalOutputPort(0);
-  }
-  vtkAlgorithmOutput* GetInternalOutputPort(int port) VTK_OVERRIDE
+  vtkAlgorithmOutput* GetInternalOutputPort() override { return this->GetInternalOutputPort(0); }
+  vtkAlgorithmOutput* GetInternalOutputPort(int port) override
   {
     return this->GetInternalOutputPort(port, 0);
   }
-  vtkAlgorithmOutput* GetInternalOutputPort(int port, int conn) VTK_OVERRIDE;
+  vtkAlgorithmOutput* GetInternalOutputPort(int port, int conn) override;
 
   /**
    * Provides access to the view.
@@ -188,12 +185,11 @@ public:
 
   //@{
   /**
-   * See `vtkSMRepresentationProxy::SetDebugName`.
    * This is solely intended to simplify debugging and use for any other purpose
    * is vehemently discouraged.
    */
-  void SetDebugName(const std::string& name) { this->DebugName = name; }
-  const std::string& GetDebugName() const { return this->DebugName; }
+  virtual void SetLogName(const std::string& name) { this->LogName = name; }
+  const std::string& GetLogName() const { return this->LogName; }
   //@}
 
 protected:
@@ -213,30 +209,21 @@ protected:
   /**
    * Create a default executive.
    */
-  vtkExecutive* CreateDefaultExecutive() VTK_OVERRIDE;
+  vtkExecutive* CreateDefaultExecutive() override;
 
   /**
    * Overridden to invoke vtkCommand::UpdateDataEvent.
    */
-  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) VTK_OVERRIDE;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   int RequestUpdateExtent(vtkInformation* request, vtkInformationVector** inputVector,
-    vtkInformationVector* outputVector) VTK_OVERRIDE;
+    vtkInformationVector* outputVector) override;
 
-  int RequestUpdateTime(
-    vtkInformation*, vtkInformationVector**, vtkInformationVector*) VTK_OVERRIDE;
+  int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   double UpdateTime;
   bool UpdateTimeValid;
   unsigned int UniqueIdentifier;
-
-  void SetDebugName(vtkPVDataRepresentation* repr, const std::string& name)
-  {
-    if (repr && repr->GetDebugName().empty())
-    {
-      repr->SetDebugName(this->DebugName + "/" + name);
-    }
-  }
 
 private:
   vtkPVDataRepresentation(const vtkPVDataRepresentation&) = delete;
@@ -250,7 +237,7 @@ private:
   class Internals;
   Internals* Implementation;
   vtkWeakPointer<vtkView> View;
-  std::string DebugName;
+  std::string LogName;
 };
 
 #endif

@@ -12,6 +12,13 @@
 
 =========================================================================*/
 
+#ifndef vtkPVOpenVROverlayInternal_h
+#define vtkPVOpenVROverlayInternal_h
+
+#include "vtkInteractorStyle3D.h"
+#include "vtkOpenVRCamera.h"
+#include "vtkOpenVRRenderWindow.h"
+#include "vtkRenderWindowInteractor.h"
 #include "vtkVectorOperators.h"
 
 class vtkOpenVRCameraPose
@@ -54,7 +61,7 @@ public:
     this->Distance = win->GetPhysicalScale();
     vtkInteractorStyle3D *is =
       static_cast<vtkInteractorStyle3D *>(win->GetInteractor()->GetInteractorStyle());
-    this->MotionFactor = is->GetDollyMotionFactor();
+    this->MotionFactor = is->GetDollyPhysicalSpeed();
 
     cam->GetPosition(this->Position);
 
@@ -146,7 +153,7 @@ public:
     win->SetPhysicalViewUp(this->PhysicalViewUp);
     vtkInteractorStyle3D *is =
       static_cast<vtkInteractorStyle3D *>(win->GetInteractor()->GetInteractorStyle());
-    is->SetDollyMotionFactor(this->MotionFactor);
+    is->SetDollyPhysicalSpeed(this->MotionFactor);
   }
 };
 
@@ -191,6 +198,8 @@ public:
   }
   vtkOpenVROverlaySpot& operator=(const vtkOpenVROverlaySpot&) = delete;
 };
+
+#endif // vtkPVOpenVROverlayInternal_h
 
 //****************************************************************************
 // VTK-HeaderTest-Exclude: vtkOpenVROverlayInternal.h

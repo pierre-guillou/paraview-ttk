@@ -34,7 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkDataObjectTypes.h"
 #include "vtkPVCompositeDataInformation.h"
 #include "vtkPVDataInformation.h"
-#include "vtkTimerLog.h"
+#include "vtkPVLogger.h"
 
 #include <QList>
 #include <QSet>
@@ -284,7 +284,7 @@ public:
 
   const QVariant& customColumnState(int col) const
   {
-    Q_ASSERT(col >= 0 && col < static_cast<int>(this->CustomColumnState.size()));
+    assert(col >= 0 && col < static_cast<int>(this->CustomColumnState.size()));
     return this->CustomColumnState[col].first;
   }
 
@@ -305,7 +305,7 @@ public:
   void setCustomColumnState(
     int col, const QVariant& value, bool force, pqCompositeDataInformationTreeModel* dmodel)
   {
-    Q_ASSERT(col >= 0 && col < static_cast<int>(this->CustomColumnState.size()));
+    assert(col >= 0 && col < static_cast<int>(this->CustomColumnState.size()));
     std::pair<QVariant, bool>& value_pair = this->CustomColumnState[col];
     if (value_pair.first != value)
     {
@@ -318,13 +318,21 @@ public:
     // acts as value being cleared.
     value_pair.second = value.isValid() ? true : false;
 
+    // if value is invalid i.e. the value is being cleared then we
+    // fetch the value from the parent. This makes sense since in such a case,
+    // the value would indeed be inherited from the parent.
+    if (!value.isValid() && this->Parent != nullptr)
+    {
+      value_pair.first = this->Parent->CustomColumnState[col].first;
+    }
+
     // now, propagate over all children and pass this value.
     for (auto citer = this->Children.begin(); citer != this->Children.end(); ++citer)
     {
       CNode& child = (*citer);
       if (force == true || child.CustomColumnState[col].second == false)
       {
-        child.setCustomColumnState(col, value, force, dmodel);
+        child.setCustomColumnState(col, value_pair.first, force, dmodel);
         child.CustomColumnState[col].second = false; // since the value is inherited.
       }
     }
@@ -332,7 +340,7 @@ public:
 
   void customColumnStates(int col, QList<QPair<unsigned int, QVariant> >& values) const
   {
-    Q_ASSERT(col >= 0 && col < static_cast<int>(this->CustomColumnState.size()));
+    assert(col >= 0 && col < static_cast<int>(this->CustomColumnState.size()));
     const std::pair<QVariant, bool>& value_pair = this->CustomColumnState[col];
 
     // add explicitly set values.
@@ -485,6 +493,7 @@ pqCompositeDataInformationTreeModel::pqCompositeDataInformationTreeModel(QObject
   : Superclass(parentObject)
   , Internals(new pqCompositeDataInformationTreeModel::pqInternals())
   , UserCheckable(false)
+  , OnlyLeavesAreUserCheckable(false)
   , ExpandMultiPiece(false)
   , Exclusivity(false)
   , DefaultCheckState(false)
@@ -639,7 +648,10 @@ Qt::ItemFlags pqCompositeDataInformationTreeModel::flags(const QModelIndex& idx)
   Qt::ItemFlags pflags = this->Superclass::flags(idx);
   if (this->UserCheckable && idx.column() == 0)
   {
-    pflags |= Qt::ItemIsUserCheckable | Qt::ItemIsTristate;
+    if (this->OnlyLeavesAreUserCheckable == false || !this->hasChildren(idx))
+    {
+      pflags |= Qt::ItemIsUserCheckable | Qt::ItemIsTristate;
+    }
   }
 
   // can't use Qt::ItemIsAutoTristate till we drop support for Qt 4 :(.
@@ -713,8 +725,7 @@ bool pqCompositeDataInformationTreeModel::setHeaderData(
 //-----------------------------------------------------------------------------
 bool pqCompositeDataInformationTreeModel::reset(vtkPVDataInformation* info)
 {
-  vtkTimerLogScope mark("pqCompositeDataInformationTreeModel::reset");
-  (void)mark;
+  vtkVLogScopeFunction(PARAVIEW_LOG_APPLICATION_VERBOSITY());
 
   pqInternals& internals = (*this->Internals);
 

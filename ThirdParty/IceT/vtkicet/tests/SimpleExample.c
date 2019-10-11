@@ -44,8 +44,10 @@ static void GetSphereArrays(GLfloat **vertex_array_p, GLfloat **normal_array_p)
         // Fill out tables.
         for (theta_index = 0; theta_index <= SPHERE_RESOLUTION; theta_index++)
         {
-            cos_table[theta_index]=cosf((2*M_PI/SPHERE_RESOLUTION)*theta_index);
-            sin_table[theta_index]=sinf((2*M_PI/SPHERE_RESOLUTION)*theta_index);
+            cos_table[theta_index] =
+                    (GLfloat)cos((2*M_PI/SPHERE_RESOLUTION)*theta_index);
+            sin_table[theta_index] =
+                    (GLfloat)sin((2*M_PI/SPHERE_RESOLUTION)*theta_index);
         }
 
         // Compute the vertices and normals.

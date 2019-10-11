@@ -18,11 +18,9 @@
 #include "vtkWrapPythonMethod.h"
 #include "vtkWrapPythonOverload.h"
 
+#include "vtkParseExtras.h"
 #include "vtkWrap.h"
 #include "vtkWrapText.h"
-
-/* needed for VTK_LEGACY_REMOVE */
-#include "vtkConfigure.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -188,8 +186,7 @@ static void vtkWrapPython_RemovePrecededMethods(
               }
               /* integer promotion precedence */
               else if ((indirect1 == indirect2) &&
-                       ((baseType1 == VTK_PARSE_INT) ||
-                        (baseType1 == VTK_PARSE_ID_TYPE)) &&
+                       (baseType1 == VTK_PARSE_INT) &&
                        ((baseType2 == VTK_PARSE_SHORT) ||
                         (baseType2 == VTK_PARSE_SIGNED_CHAR) ||
                         ((baseType2 == VTK_PARSE_CHAR) && unsigned2)))
@@ -197,8 +194,7 @@ static void vtkWrapPython_RemovePrecededMethods(
                 if (!vote2) { vote1 = 1; }
               }
               else if ((indirect1 == indirect2) &&
-                       ((baseType2 == VTK_PARSE_INT) ||
-                        (baseType2 == VTK_PARSE_ID_TYPE)) &&
+                       (baseType2 == VTK_PARSE_INT) &&
                        ((baseType1 == VTK_PARSE_SHORT) ||
                         (baseType1 == VTK_PARSE_SIGNED_CHAR) ||
                         ((baseType1 == VTK_PARSE_CHAR) && unsigned1)))
@@ -408,11 +404,8 @@ static void vtkWrapPython_ClassMethodDef(
             "  {\"AddObserver\",  Py%s_AddObserver, 1,\n"
             "   \"V.AddObserver(int, function) -> int\\nC++: unsigned long AddObserver(const char *event,\\n    vtkCommand *command, float priority=0.0f)\\n\\nAdd an event callback function(vtkObject, int) for an event type.\\nReturns a handle that can be used with RemoveEvent(int).\"},\n",
             classname);
-  }
 
-  /* vtkObject needs a special entry for InvokeEvent */
-  if (strcmp("vtkObject", data->Name) == 0)
-  {
+    /* vtkObject needs a special entry for InvokeEvent */
     fprintf(fp,
             "{\"InvokeEvent\", PyvtkObject_InvokeEvent, METH_VARARGS,\n"
               "   \"V.InvokeEvent(int, void) -> int\\nC++: int InvokeEvent(unsigned long event, void *callData)\\nV.InvokeEvent(string, void) -> int\\nC++: int InvokeEvent(const char *event, void *callData)\\nV.InvokeEvent(int) -> int\\nC++: int InvokeEvent(unsigned long event)\\nV.InvokeEvent(string) -> int\\nC++: int InvokeEvent(const char *event)\\n\\nThis method invokes an event and return whether the event was\\naborted or not. If the event was aborted, the return value is 1,\\notherwise it is 0.\"\n},\n");
@@ -452,7 +445,6 @@ static int vtkWrapPython_IsValueWrappable(
     VTK_PARSE_INT, VTK_PARSE_UNSIGNED_INT,
     VTK_PARSE_SHORT, VTK_PARSE_UNSIGNED_SHORT,
     VTK_PARSE_LONG, VTK_PARSE_UNSIGNED_LONG,
-    VTK_PARSE_ID_TYPE, VTK_PARSE_UNSIGNED_ID_TYPE,
     VTK_PARSE_SSIZE_T, VTK_PARSE_SIZE_T,
     VTK_PARSE_UNKNOWN,
     VTK_PARSE_LONG_LONG, VTK_PARSE_UNSIGNED_LONG_LONG,
@@ -478,6 +470,39 @@ static int vtkWrapPython_IsValueWrappable(
     {
       return 0;
     }
+  }
+
+  /* wrap std::vector<T> (IsScalar means "not pointer or array") */
+  if (vtkWrap_IsStdVector(val) &&
+      vtkWrap_IsScalar(val))
+  {
+    size_t l, n;
+    const char *tname;
+    const char **args;
+    const char *defaults[2] = { NULL, "" };
+    int wrappable = 0;
+    vtkParse_DecomposeTemplatedType(val->Class, &tname, 2, &args, defaults);
+    l = vtkParse_BasicTypeFromString(args[0], &baseType, &aClass, &n);
+    /* check that type has no following '*', '[]', or '<>' decorators */
+    if (args[0][l] == '\0')
+    {
+      if (baseType != VTK_PARSE_UNKNOWN &&
+          baseType != VTK_PARSE_OBJECT &&
+          baseType != VTK_PARSE_QOBJECT &&
+          baseType != VTK_PARSE_CHAR)
+      {
+        for (j = 0; wrappableTypes[j] != 0; j++)
+        {
+          if (baseType == wrappableTypes[j])
+          {
+            wrappable = 1;
+            break;
+          }
+        }
+      }
+    }
+    vtkParse_FreeTemplateDecomposition(tname, 2, args);
+    return wrappable;
   }
 
   aClass = val->Class;
@@ -560,7 +585,9 @@ int vtkWrapPython_MethodCheck(
   int i, n;
 
   /* some functions will not get wrapped no matter what */
-  if (currentFunction->Access != VTK_ACCESS_PUBLIC ||
+  if (currentFunction->IsExcluded ||
+      currentFunction->IsDeleted ||
+      currentFunction->Access != VTK_ACCESS_PUBLIC ||
       vtkWrap_IsInheritedMethod(data, currentFunction))
   {
     return 0;
@@ -723,13 +750,10 @@ static void vtkWrapPython_CustomMethods(
             "  return result;\n"
             "}\n"
             "\n");
-  }
 
-  /* the python vtkObject needs a special InvokeEvent to turn any
-     calldata into an appropriately unwrapped void pointer */
-  if (strcmp("vtkObject", data->Name) == 0 &&
-      do_constructors == 0)
-  {
+
+    /* the python vtkObject needs a special InvokeEvent to turn any
+       calldata into an appropriately unwrapped void pointer */
 
     /* different types of callback data */
 

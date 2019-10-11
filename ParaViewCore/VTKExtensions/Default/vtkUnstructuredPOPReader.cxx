@@ -28,7 +28,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkPVConfig.h"
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkSmartPointer.h"
@@ -36,15 +35,13 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
-// PARAVIEW_USE_MPI defined in vtkPVConfig.h
-#ifdef PARAVIEW_USE_MPI
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPIController.h"
 #else
 #include "vtkMultiProcessController.h"
 #endif
 
 #include "vtk_netcdf.h"
-#include "vtk_netcdfcpp.h"
 #include "vtksys/SystemTools.hxx"
 
 #include <algorithm>
@@ -1283,7 +1280,7 @@ void vtkUnstructuredPOPReader::ComputeVerticalVelocity(vtkUnstructuredGrid* grid
   grid->GetPointData()->RemoveArray("Gradients");
 }
 
-#ifdef PARAVIEW_USE_MPI
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 //-----------------------------------------------------------------------------
 void vtkUnstructuredPOPReader::CommunicateParallelVerticalVelocity(int* wholeExtent, int* subExtent,
   int numberOfGhostLevels, VTKPointIterator& pointIterator, double* w)
@@ -1392,7 +1389,7 @@ void vtkUnstructuredPOPReader::CommunicateParallelVerticalVelocity(int* wholeExt
     }
   }
 }
-#else // #ifdef PARAVIEW_USE_MPI
+#else
 //-----------------------------------------------------------------------------
 void vtkUnstructuredPOPReader::CommunicateParallelVerticalVelocity(int* vtkNotUsed(wholeExtent),
   int* vtkNotUsed(subExtent), int vtkNotUsed(numberOfGhostLevels),

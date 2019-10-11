@@ -36,7 +36,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPropertyWidget.h"
 #include "pqPropertyWidgetDecorator.h"
 #include "pqPropertyWidgetInterface.h"
+#include "vtkPVLogger.h"
 #include "vtkPVXMLElement.h"
+
+#include <cassert>
 
 //-----------------------------------------------------------------------------
 pqPropertyWidgetDecorator::pqPropertyWidgetDecorator(
@@ -44,7 +47,7 @@ pqPropertyWidgetDecorator::pqPropertyWidgetDecorator(
   : Superclass(parentObject)
   , XML(xmlConfig)
 {
-  Q_ASSERT(parentObject);
+  assert(parentObject);
   parentObject->addDecorator(this);
 }
 
@@ -64,7 +67,7 @@ pqPropertyWidgetDecorator* pqPropertyWidgetDecorator::create(
   if (xmlconfig == nullptr || strcmp(xmlconfig->GetName(), "PropertyWidgetDecorator") != 0 ||
     xmlconfig->GetAttribute("type") == nullptr)
   {
-    PV_DEBUG_PANELS() << "Invalid xml config specified. Cannot create a decorator.";
+    qWarning("Invalid xml config specified. Cannot create a decorator.");
     return nullptr;
   }
 
@@ -77,11 +80,13 @@ pqPropertyWidgetDecorator* pqPropertyWidgetDecorator::create(
     if (pqPropertyWidgetDecorator* decorator =
           anInterface->createWidgetDecorator(type, xmlconfig, prnt))
     {
+      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "created decorator `%s`",
+        decorator->metaObject()->className());
       return decorator;
     }
   }
 
-  PV_DEBUG_PANELS() << "Cannot create decorator of type " << type;
+  qWarning() << "Cannot create decorator of type " << type;
   return nullptr;
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -497,6 +497,19 @@ class avtSiloFileFormat : public avtSTMDFileFormat
                           GetLocalDomainBoundaryInfo(int, const char *);
 
     void                  GetQuadGhostZones(DBquadmesh *, vtkDataSet *);
+    void                  GetQuadGhostNodesFromLabels(DBquadmesh *,
+                                                      vtkDataSet *);
+    void                  GetQuadGhostZonesFromLabels(DBquadmesh *,
+                                                      vtkDataSet *);
+    void                  GetUcdGhostNodesFromLabels(DBucdmesh *,
+                                                     vtkUnstructuredGrid *,
+                                                     std::vector<int> *);
+    void                  GetUcdGhostZonesFromLabels(DBzonelist *,
+                                                     vtkUnstructuredGrid *,
+                                                     std::vector<int> *);
+    void                  GetUcdPolyhedralGhostZonesFromLabels(DBphzonelist *,
+                                              vtkUnstructuredGrid *,
+                                              std::vector<int> *);
     void                  VerifyQuadmesh(DBquadmesh *, const char *);
 
     void                  DetermineFileAndDirectory(const char *input,

@@ -29,8 +29,9 @@ void icetGLDrawCallbackFunction(const IceTDouble *projection_matrix,
   /* Check OpenGL state. */
     {
         if ((gl_viewport[2] != width) || (gl_viewport[3] != height)) {
-            icetRaiseError("OpenGL viewport different than expected."
-                           " Was it changed?", ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "OpenGL viewport different than expected."
+                           " Was it changed?");
         }
     }
 
@@ -101,8 +102,19 @@ void icetGLDrawCallbackFunction(const IceTDouble *projection_matrix,
                          GL_FLOAT,
                          colorBuffer + 4*(  readback_viewport[0]
                                           + width*readback_viewport[1]));
+        } else if (color_format == ICET_IMAGE_COLOR_RGB_FLOAT) {
+            IceTFloat *colorBuffer = icetImageGetColorf(result);
+            glReadPixels((GLint)x_offset,
+                         (GLint)y_offset,
+                         (GLsizei)readback_viewport[2],
+                         (GLsizei)readback_viewport[3],
+                         GL_RGB,
+                         GL_FLOAT,
+                         colorBuffer + 3*(  readback_viewport[0]
+                                          + width*readback_viewport[1]));
         } else if (color_format != ICET_IMAGE_COLOR_NONE) {
-            icetRaiseError("Invalid color format.", ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Invalid color format 0x%X.", color_format);
         }
 
         if (depth_format == ICET_IMAGE_DEPTH_FLOAT) {
@@ -116,7 +128,8 @@ void icetGLDrawCallbackFunction(const IceTDouble *projection_matrix,
                          depthBuffer + (  readback_viewport[0]
                                         + width*readback_viewport[1]));
         } else if (depth_format != ICET_IMAGE_DEPTH_NONE) {
-            icetRaiseError("Invalid depth format.", ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Invalid depth format 0x%X.", depth_format);
         }
 
         glPixelStorei(GL_PACK_ROW_LENGTH, 0);

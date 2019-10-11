@@ -36,7 +36,6 @@
 
 class vtkCameraPass;
 class vtkImageProcessingPass;
-class vtkMyImagePasterPass;
 
 class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkIceTSynchronizedRenderers
   : public vtkSynchronizedRenderers
@@ -44,15 +43,7 @@ class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkIceTSynchronizedRenderers
 public:
   static vtkIceTSynchronizedRenderers* New();
   vtkTypeMacro(vtkIceTSynchronizedRenderers, vtkSynchronizedRenderers);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
-
-  //@{
-  /**
-   * Identifier used to identify the view to the vtkTileDisplayHelper.
-   */
-  vtkSetMacro(Identifier, unsigned int);
-  vtkGetMacro(Identifier, unsigned int);
-  //@}
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Set the renderer to be synchronized by this instance. A
@@ -60,7 +51,7 @@ public:
    * renderer on each processes. You can create multiple instances on
    * vtkSynchronizedRenderers to synchronize multiple renderers.
    */
-  virtual void SetRenderer(vtkRenderer*) VTK_OVERRIDE;
+  virtual void SetRenderer(vtkRenderer*) override;
 
   /**
    * Set the tile dimensions. Default is (1, 1).
@@ -107,8 +98,8 @@ public:
   /**
    * Set the image reduction factor. Overrides superclass implementation.
    */
-  virtual void SetImageReductionFactor(int val) VTK_OVERRIDE;
-  virtual int GetImageReductionFactor() VTK_OVERRIDE
+  virtual void SetImageReductionFactor(int val) override;
+  virtual int GetImageReductionFactor() override
   {
     return this->IceTCompositePass->GetImageReductionFactor();
   }
@@ -118,7 +109,7 @@ public:
    * Set the parallel message communicator. This is used to communicate among
    * processes.
    */
-  virtual void SetParallelController(vtkMultiProcessController* cont) VTK_OVERRIDE
+  virtual void SetParallelController(vtkMultiProcessController* cont) override
   {
     this->Superclass::SetParallelController(cont);
     this->IceTCompositePass->SetController(cont);
@@ -169,25 +160,18 @@ protected:
   vtkIceTSynchronizedRenderers();
   ~vtkIceTSynchronizedRenderers();
 
-  unsigned int Identifier;
-
-  virtual void HandleEndRender() VTK_OVERRIDE;
-
   /**
    * Overridden to capture image from icet buffers instead of the screen.
    */
-  virtual vtkRawImage& CaptureRenderedImage() VTK_OVERRIDE;
+  vtkRawImage& CaptureRenderedImage() override;
 
   // We use vtkIceTCompositePass internally.
   vtkCameraPass* CameraRenderPass;
   vtkIceTCompositePass* IceTCompositePass;
-  vtkMyImagePasterPass* ImagePastingPass;
 
   // User specified custom passes
   vtkRenderPass* RenderPass;
   vtkImageProcessingPass* ImageProcessingPass;
-
-  virtual void SlaveStartRender() VTK_OVERRIDE;
 
 private:
   vtkIceTSynchronizedRenderers(const vtkIceTSynchronizedRenderers&) = delete;

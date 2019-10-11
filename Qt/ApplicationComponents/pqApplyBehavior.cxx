@@ -63,6 +63,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QSet>
 #include <QtDebug>
 
+#include <cassert>
+
 class pqApplyBehavior::pqInternals
 {
 public:
@@ -85,7 +87,7 @@ pqApplyBehavior::~pqApplyBehavior()
 //-----------------------------------------------------------------------------
 void pqApplyBehavior::registerPanel(pqPropertiesPanel* panel)
 {
-  Q_ASSERT(panel);
+  assert(panel);
 
   this->connect(panel, SIGNAL(applied(pqProxy*)), SLOT(onApplied(pqProxy*)));
   this->connect(panel, SIGNAL(applied()), SLOT(onApplied()));
@@ -94,7 +96,7 @@ void pqApplyBehavior::registerPanel(pqPropertiesPanel* panel)
 //-----------------------------------------------------------------------------
 void pqApplyBehavior::unregisterPanel(pqPropertiesPanel* panel)
 {
-  Q_ASSERT(panel);
+  assert(panel);
   this->disconnect(panel);
 }
 
@@ -127,7 +129,7 @@ void pqApplyBehavior::applied(pqPropertiesPanel*, pqProxy* pqproxy)
     return;
   }
 
-  Q_ASSERT(pqsource);
+  assert(pqsource);
 
   if (pqsource->modifiedState() == pqProxy::UNINITIALIZED)
   {
@@ -278,6 +280,10 @@ void pqApplyBehavior::showData(pqPipelineSource* source, pqView* view)
 
   vtkSMViewProxy* currentViewProxy = view ? view->getViewProxy() : NULL;
 
+  const auto& activeObjects = pqActiveObjects::instance();
+  auto activeLayout = activeObjects.activeLayout();
+  const auto location = activeObjects.activeLayoutLocation();
+
   QSet<vtkSMProxy*> updated_views;
 
   // create representations for all output ports.
@@ -289,12 +295,16 @@ void pqApplyBehavior::showData(pqPipelineSource* source, pqView* view)
     {
       continue;
     }
-
+    // if new view was created, let's make sure it is assigned to a layout.
+    controller->AssignViewToLayout(preferredView, activeLayout, location);
     updated_views.insert(preferredView);
+
+    // if active layout changed, let's use that from this point on.
+    activeLayout = activeObjects.activeLayout();
 
     // reset camera if this is the only visible dataset.
     pqView* pqPreferredView = smmodel->findItem<pqView*>(preferredView);
-    Q_ASSERT(pqPreferredView);
+    assert(pqPreferredView);
     if (preferredView != currentViewProxy)
     {
       // implying a new view was created, always reset that.
@@ -343,6 +353,13 @@ void pqApplyBehavior::showData(pqPipelineSource* source, pqView* view)
     // pqApplyBehavior::applied().
     this->Internals->NewlyCreatedRepresentations.push_back(
       pqInternals::PairType(reprProxy, preferredView));
+
+    // If the currentViewProxy is undefined, then a new view has been created for
+    // the first output port. Attempt to use it for the remaining output ports.
+    if (currentViewProxy == nullptr)
+    {
+      currentViewProxy = preferredView;
+    }
   }
 }
 

@@ -1,67 +1,57 @@
 # This plugin contains tools developed for the Stanford Linear Accelerator
 # Center to make it easier to visualize finite element simulation results.
 
-SET(PLUGIN_NAME SLACTools)
-SET(PLUGIN_VERSION "1.1")
+set(ui_files)
+set(qrc_files)
+set(sources)
+set(interfaces)
+if (PARAVIEW_BUILD_QT_GUI)
+  list(APPEND ui_files
+    pqSLACActionHolder.ui
+    pqSLACDataLoadManager.ui)
 
-INCLUDE_DIRECTORIES(
-  ${VTK_INCLUDE_DIRS}
-  )
+  list(APPEND qrc_files
+    SLACTools.qrc)
 
-SET(SM_XML
-  SLACToolsSM.xml
-  )
+  list(APPEND sources
+    pqSLACActionGroup.cxx
+    pqSLACActionGroup.h
+    pqSLACDataLoadManager.cxx
+    pqSLACDataLoadManager.h
+    pqSLACManager.cxx
+    pqSLACManager.h)
 
-SET(SM_SRC
-  vtkPTemporalRanges.cxx
-  vtkSLACPlaneGlyphs.cxx
-  vtkSamplePlaneSource.cxx
-  vtkTemporalRanges.cxx
-  )
-
-SET(UI_FILES
-  pqSLACActionHolder.ui
-  pqSLACDataLoadManager.ui
-  )
-
-SET(MOC_HEADERS
-  pqSLACActionGroup.h
-  pqSLACDataLoadManager.h
-  pqSLACManager.h
-  )
-
-SET(CLIENT_SRCS
-  pqSLACActionGroup.cxx
-  pqSLACDataLoadManager.cxx
-  pqSLACManager.cxx
-  )
-
-IF (PARAVIEW_BUILD_QT_GUI)
-  pv_find_package_qt(qt_targets REQUIRED QUIET
-    QT5_COMPONENTS Widgets)
-  pv_qt_wrap_cpp(MOC_SRCS ${MOC_HEADERS})
-  pv_qt_wrap_ui(UI_SRCS ${UI_FILES})
-  ADD_PARAVIEW_ACTION_GROUP(SLAC_TOOLBAR_IFACE SLAC_TOOLBAR_IFACE_SRCS
+  paraview_plugin_add_action_group(
     CLASS_NAME pqSLACActionGroup
     GROUP_NAME "ToolBar/SLAC"
-    )
+    INTERFACES action_interfaces
+    SOURCES action_sources)
+  list(APPEND interfaces
+    ${action_interfaces})
+  list(APPEND sources
+    ${action_sources})
+endif ()
 
-  ADD_PARAVIEW_PLUGIN(${PLUGIN_NAME} ${PLUGIN_VERSION}
-    SERVER_MANAGER_XML ${SM_XML}
-    SERVER_MANAGER_SOURCES ${SM_SRC}
-    GUI_INTERFACES ${SLAC_TOOLBAR_IFACE}
-    GUI_RESOURCES SLACTools.qrc
-    SOURCES ${MOC_SRCS} ${UI_SRCS} ${SLAC_TOOLBAR_IFACE_SRCS} ${CLIENT_SRCS}
-    )
+paraview_add_plugin(SLACTools
+  VERSION "1.1"
+  UI_FILES ${ui_files}
+  UI_INTERFACES ${interfaces}
+  UI_RESOURCES ${qrc_files}
+  SOURCES ${sources}
+  MODULES SLACTools::vtkSLACFilters
+  MODULE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/Filters/vtk.module")
 
-ELSE ()
-  ADD_PARAVIEW_PLUGIN(${PLUGIN_NAME} ${PLUGIN_VERSION}
-    SERVER_MANAGER_XML ${SM_XML}
-    SERVER_MANAGER_SOURCES ${SM_SRC}
-    )
-ENDIF ()
+if (PARAVIEW_BUILD_QT_GUI)
+  target_link_libraries(SLACTools
+    PRIVATE
+      ParaView::ClientServerCoreCore
+      ParaView::ServerManagerCore
+      ParaView::ServerManagerRendering
+      VTK::CommonCore
+      VTK::CommonDataModel
+      VTK::CommonExecutionModel)
+endif ()
 
-# Add testing if necessary
 if (BUILD_TESTING)
   add_subdirectory(Testing)
 endif ()

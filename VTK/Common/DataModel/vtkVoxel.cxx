@@ -308,11 +308,11 @@ void vtkVoxel::Contour(double value, vtkDataArray *cellScalars,
                        vtkPointData *inPd, vtkPointData *outPd,
                        vtkCellData *inCd, vtkIdType cellId, vtkCellData *outCd)
 {
-  static int CASE_MASK[8] = {1,2,4,8,16,32,64,128};
+  static const int CASE_MASK[8] = {1,2,4,8,16,32,64,128};
   vtkMarchingCubesTriangleCases *triCase;
   EDGE_LIST  *edge;
   int i, j, index, *vert;
-  static int vertMap[8] = { 0, 1, 3, 2, 4, 5, 7, 6 };
+  static const int vertMap[8] = { 0, 1, 3, 2, 4, 5, 7, 6 };
   int newCellId;
   vtkIdType pts[3];
   double t, x1[3], x2[3], x[3];
@@ -373,6 +373,15 @@ void vtkVoxel::Contour(double value, vtkDataArray *cellScalars,
 int *vtkVoxel::GetEdgeArray(int edgeId)
 {
   return edges[edgeId];
+}
+
+//----------------------------------------------------------------------------
+// Return the case table for table-based isocontouring (aka marching cubes
+// style implementations). A linear 3D cell with N vertices will have 2**N
+// cases. The cases list three edges in order to produce one output triangle.
+int *vtkVoxel::GetTriangleCases(int caseId)
+{
+  return &(*(vtkMarchingCubesTriangleCases::GetCases() + caseId)->edges);
 }
 
 //----------------------------------------------------------------------------

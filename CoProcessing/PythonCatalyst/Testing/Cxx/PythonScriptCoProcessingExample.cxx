@@ -18,8 +18,7 @@
 #include "vtkPVCustomTestDriver.h"
 
 #include "vtkPVConfig.h"
-#ifdef PARAVIEW_USE_MPI
-#define MPICH_SKIP_MPICXX
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPI.h"
 #endif
 #include <iostream>
@@ -31,7 +30,7 @@ int main(int argc, char* argv[])
     cerr << "Wrong number of arguments.  Command is: <exe> <python script>\n";
     return 1;
   }
-#ifdef PARAVIEW_USE_MPI
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
   MPI_Init(&argc, &argv);
 #endif
   int errors = 0;
@@ -54,7 +53,7 @@ int main(int argc, char* argv[])
   }
   testDriver->Delete();
 
-#ifdef PARAVIEW_USE_MPI
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
   MPI_Finalize();
 #endif
 

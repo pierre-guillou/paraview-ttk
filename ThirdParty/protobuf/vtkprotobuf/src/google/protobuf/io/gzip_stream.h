@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -43,16 +43,19 @@
 #ifndef GOOGLE_PROTOBUF_IO_GZIP_STREAM_H__
 #define GOOGLE_PROTOBUF_IO_GZIP_STREAM_H__
 
+#include <google/protobuf/stubs/common.h>
+#include <google/protobuf/io/zero_copy_stream.h>
+#include <google/protobuf/port.h>
 #include <zlib.h>
 
-#include <google/protobuf/io/zero_copy_stream.h>
+#include <google/protobuf/port_def.inc>
 
 namespace google {
 namespace protobuf {
 namespace io {
 
 // A ZeroCopyInputStream that reads compressed data through zlib
-class LIBPROTOBUF_EXPORT GzipInputStream : public ZeroCopyInputStream {
+class PROTOBUF_EXPORT GzipInputStream : public ZeroCopyInputStream {
  public:
   // Format key for constructor
   enum Format {
@@ -67,19 +70,13 @@ class LIBPROTOBUF_EXPORT GzipInputStream : public ZeroCopyInputStream {
   };
 
   // buffer_size and format may be -1 for default of 64kB and GZIP format
-  explicit GzipInputStream(
-      ZeroCopyInputStream* sub_stream,
-      Format format = AUTO,
-      int buffer_size = -1);
+  explicit GzipInputStream(ZeroCopyInputStream* sub_stream,
+                           Format format = AUTO, int buffer_size = -1);
   virtual ~GzipInputStream();
 
   // Return last error message or NULL if no error.
-  inline const char* ZlibErrorMessage() const {
-    return zcontext_.msg;
-  }
-  inline int ZlibErrorCode() const {
-    return zerror_;
-  }
+  inline const char* ZlibErrorMessage() const { return zcontext_.msg; }
+  inline int ZlibErrorCode() const { return zerror_; }
 
   // implements ZeroCopyInputStream ----------------------------------
   bool Next(const void** data, int* size);
@@ -98,6 +95,7 @@ class LIBPROTOBUF_EXPORT GzipInputStream : public ZeroCopyInputStream {
   void* output_buffer_;
   void* output_position_;
   size_t output_buffer_length_;
+  int64 byte_count_;
 
   int Inflate(int flush);
   void DoNextOutput(const void** data, int* size);
@@ -105,8 +103,7 @@ class LIBPROTOBUF_EXPORT GzipInputStream : public ZeroCopyInputStream {
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(GzipInputStream);
 };
 
-
-class LIBPROTOBUF_EXPORT GzipOutputStream : public ZeroCopyOutputStream {
+class PROTOBUF_EXPORT GzipOutputStream : public ZeroCopyOutputStream {
  public:
   // Format key for constructor
   enum Format {
@@ -117,7 +114,7 @@ class LIBPROTOBUF_EXPORT GzipOutputStream : public ZeroCopyOutputStream {
     ZLIB = 2,
   };
 
-  struct Options {
+  struct PROTOBUF_EXPORT Options {
     // Defaults to GZIP.
     Format format;
 
@@ -140,31 +137,26 @@ class LIBPROTOBUF_EXPORT GzipOutputStream : public ZeroCopyOutputStream {
   explicit GzipOutputStream(ZeroCopyOutputStream* sub_stream);
 
   // Create a GzipOutputStream with the given options.
-  GzipOutputStream(
-      ZeroCopyOutputStream* sub_stream,
-      const Options& options);
-
-  // DEPRECATED:  Use one of the above constructors instead.
-  GzipOutputStream(
-      ZeroCopyOutputStream* sub_stream,
-      Format format,
-      int buffer_size = -1) GOOGLE_ATTRIBUTE_DEPRECATED;
+  GzipOutputStream(ZeroCopyOutputStream* sub_stream, const Options& options);
 
   virtual ~GzipOutputStream();
 
   // Return last error message or NULL if no error.
-  inline const char* ZlibErrorMessage() const {
-    return zcontext_.msg;
-  }
-  inline int ZlibErrorCode() const {
-    return zerror_;
-  }
+  inline const char* ZlibErrorMessage() const { return zcontext_.msg; }
+  inline int ZlibErrorCode() const { return zerror_; }
 
   // Flushes data written so far to zipped data in the underlying stream.
   // It is the caller's responsibility to flush the underlying stream if
   // necessary.
   // Compression may be less efficient stopping and starting around flushes.
   // Returns true if no error.
+  //
+  // Please ensure that block size is > 6. Here is an excerpt from the zlib
+  // doc that explains why:
+  //
+  // In the case of a Z_FULL_FLUSH or Z_SYNC_FLUSH, make sure that avail_out
+  // is greater than six to avoid repeated flush markers due to
+  // avail_out == 0 on return.
   bool Flush();
 
   // Writes out all data and closes the gzip stream.
@@ -202,6 +194,8 @@ class LIBPROTOBUF_EXPORT GzipOutputStream : public ZeroCopyOutputStream {
 
 }  // namespace io
 }  // namespace protobuf
-
 }  // namespace google
+
+#include <google/protobuf/port_undef.inc>
+
 #endif  // GOOGLE_PROTOBUF_IO_GZIP_STREAM_H__

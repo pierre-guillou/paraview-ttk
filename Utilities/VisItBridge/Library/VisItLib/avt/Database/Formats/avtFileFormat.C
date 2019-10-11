@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -607,6 +607,15 @@ avtFileFormat::AddMaterialToMetaData(avtDatabaseMetaData *md, string name,
     mat->name = name;
     mat->meshName = mesh;
     mat->numMaterials = nmats;
+    if (matnames.size() == 0)
+    {
+        for (int i = 0; i < nmats; i++)
+        {
+            char num[8];
+            SNPRINTF(num, sizeof(num), "%d", i);
+            matnames.push_back(num);
+        }
+    }
     mat->materialNames = matnames;
 
     md->Add(mat);
@@ -961,6 +970,36 @@ FileFormatCloseFileCallback(void *ptr, int idx)
 {
     avtFileFormat *ff = (avtFileFormat *) ptr;
     ff->CloseFileDescriptor(idx);
+}
+
+// ****************************************************************************
+//  Function: AddLabelVarToMetaData
+//
+//  Purpose:
+//      Function to assist for adding labeled elements (zone and node) meta
+//      data
+//
+//  Arguments:
+//      md        The meta-data object to add the scalar var to.
+//      name      The name of the scalar variable.
+//      mesh      The mesh the scalar var is defined on.
+//      cent      The centering type - node vs cell.
+//
+//  Programmer: Matt Larsen
+//  Creation:   July 1, 2017 
+//
+// ****************************************************************************
+void
+avtFileFormat::AddLabelVarToMetaData(avtDatabaseMetaData *md, string name,
+                                      string mesh, avtCentering cent, int dim,
+                                      bool hideFromGUI)
+{
+    avtLabelMetaData *label = new avtLabelMetaData();
+    label->name = name;
+    label->meshName = mesh;
+    label->centering = cent;
+    label->hideFromGUI = hideFromGUI;
+    md->Add(label);
 }
 
 int avtFileFormat::GetCycle(void) { return INVALID_CYCLE; }

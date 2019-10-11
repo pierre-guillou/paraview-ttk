@@ -1,36 +1,34 @@
-SET(PLUGIN_NAME NonOrthogonalSource)
-SET(PLUGIN_VERSION "1.0")
-
-include_directories(${VTK_INCLUDE_DIRS})
-
+set(interfaces)
 set(sources)
-
-if(PARAVIEW_BUILD_QT_GUI)
-  pv_find_package_qt(qt_targets REQUIRED QUIET
-    QT5_COMPONENTS Widgets)
-  pv_qt_wrap_cpp(MOC_SRCS pqNonOrthogonalAutoStart.h)
-  add_paraview_auto_start(IFACES IFACE_SRCS
-    CLASS_NAME pqNonOrthogonalAutoStart
-    STARTUP startup
-    SHUTDOWN shutdown)
+if (PARAVIEW_BUILD_QT_GUI)
   list(APPEND sources
     pqNonOrthogonalAutoStart.cxx
-    ${MOC_SRCS}
-    ${IFACE_SRCS})
-endif()
+    pqNonOrthogonalAutoStart.h
+    pqSetupModelTransformBehavior.cxx
+    pqSetupModelTransformBehavior.h)
+  paraview_plugin_add_auto_start(
+    CLASS_NAME pqNonOrthogonalAutoStart
+    INTERFACES autostart_interface
+    SOURCES autostart_sources)
+  list(APPEND interfaces
+    ${autostart_interface})
+  list(APPEND sources
+    ${autostart_sources})
+endif ()
 
-add_paraview_plugin(NonOrthogonalSource "1.0"
-  SERVER_MANAGER_XML
-    vtkNonOrthogonalSource.xml
-  SERVER_MANAGER_SOURCES
-    vtkShearedWaveletSource.cxx
-  GUI_INTERFACES ${IFACES}
-  SOURCES ${sources}
-)
+paraview_add_plugin(NonOrthogonalSource
+  VERSION       "1.0"
+  UI_INTERFACES ${interfaces}
+  SOURCES       ${sources}
+  MODULES       NonOrthogonalSource::vtkNonOrthogonalSources
+  MODULE_FILES  "${CMAKE_CURRENT_SOURCE_DIR}/Sources/vtk.module")
+
 if (PARAVIEW_BUILD_QT_GUI)
-  target_link_libraries(NonOrthogonalSource LINK_PRIVATE pqApplicationComponents)
-endif()
+  target_link_libraries(NonOrthogonalSource
+    PRIVATE
+      ParaView::pqApplicationComponents)
+endif ()
 
-if(BUILD_TESTING)
+if (BUILD_TESTING)
   add_subdirectory(Testing)
-endif()
+endif ()

@@ -11,7 +11,6 @@
 #define __IceTDevDiagnostics_h
 
 #include <IceT.h>
-#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,45 +19,24 @@ extern "C" {
 }
 #endif
 
-ICET_EXPORT void icetRaiseDiagnostic(const char *msg, IceTEnum type,
+ICET_EXPORT void icetRaiseDiagnostic(IceTEnum type,
 				     IceTBitField level,
-				     const char *file, int line);
+                                     const char *file,
+                                     int line,
+                                     const char *format,
+                                     ...);
 
-#define icetRaiseError(msg, type)			\
-    icetRaiseDiagnostic(msg, type, ICET_DIAG_ERRORS, __FILE__, __LINE__)
+#define icetRaiseError(type, ...)			\
+    icetRaiseDiagnostic(type, ICET_DIAG_ERRORS, __FILE__, __LINE__, __VA_ARGS__)
 
-#define icetRaiseWarning(msg, type)			\
-    icetRaiseDiagnostic(msg, type, ICET_DIAG_WARNINGS, __FILE__, __LINE__)
+#define icetRaiseWarning(type, ...)			\
+    icetRaiseDiagnostic(type, ICET_DIAG_WARNINGS, __FILE__, __LINE__, __VA_ARGS__)
 
 #ifdef DEBUG
-#define icetRaiseDebug(msg)				\
-    icetRaiseDiagnostic(msg, ICET_NO_ERROR, ICET_DIAG_DEBUG, __FILE__, __LINE__)
-
-#define icetRaiseDebug1(msg, arg1)			\
-    {							\
-	char msg_string[256];				\
-	sprintf(msg_string, msg, arg1);			\
-	icetRaiseDebug(msg_string);			\
-    }
-
-#define icetRaiseDebug2(msg, arg1, arg2)		\
-    {							\
-	char msg_string[256];				\
-	sprintf(msg_string, msg, arg1, arg2);		\
-	icetRaiseDebug(msg_string);			\
-    }
-
-#define icetRaiseDebug4(msg, arg1, arg2, arg3, arg4)	\
-    {							\
-	char msg_string[256];				\
-	sprintf(msg_string, msg, arg1,arg2,arg3,arg4);	\
-	icetRaiseDebug(msg_string);			\
-    }
+#define icetRaiseDebug(...)				\
+    icetRaiseDiagnostic(ICET_NO_ERROR, ICET_DIAG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 #else /* DEBUG */
-#define icetRaiseDebug(msg)
-#define icetRaiseDebug1(msg,arg1)
-#define icetRaiseDebug2(msg,arg1,arg2)
-#define icetRaiseDebug4(msg,arg1,arg2,arg3,arg4)
+#define icetRaiseDebug(...)
 #endif /* DEBUG */
 
 ICET_EXPORT void icetDebugBreak(void);

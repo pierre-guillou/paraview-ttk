@@ -1,0 +1,19 @@
+NAME
+  StreamLinesRepresentation::vtkStreamLines
+LIBRARY_NAME
+  vtkStreamLines
+DEPENDS
+  ParaView::ClientServerCoreRendering
+  VTK::CommonCore
+  VTK::RenderingCore
+PRIVATE_DEPENDS
+  ParaView::VTKExtensionsRendering
+  VTK::CommonCore
+  VTK::CommonDataModel
+  VTK::CommonExecutionModel
+  VTK::CommonMath
+  VTK::CommonTransforms
+  VTK::RenderingCore
+  VTK::RenderingOpenGL2
+  VTK::glew
+  VTK::opengl

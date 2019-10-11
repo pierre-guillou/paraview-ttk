@@ -13,15 +13,16 @@
 =========================================================================*/
 #include "vtkPVOptions.h"
 
+#include "vtkLogger.h"
 #include "vtkObjectFactory.h"
-#include "vtkPVConfig.h" //For PARAVIEW_ALWAYS_SECURE_CONNECTION option
 #include "vtkPVOptionsXMLParser.h"
 #include "vtkProcessModule.h"
-// #include "vtkPVView.h"
 
 #include <vtksys/CommandLineArguments.hxx>
 #include <vtksys/SystemInformation.hxx>
 #include <vtksys/SystemTools.hxx>
+
+#include <algorithm>
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPVOptions);
@@ -80,6 +81,7 @@ vtkPVOptions::vtkPVOptions()
   this->ForceOffscreenRendering = 0;
   this->ForceOnscreenRendering = 0;
   this->CatalystLivePort = -1;
+  this->LogStdErrVerbosity = vtkLogger::VERBOSITY_INVALID;
 
   if (this->XMLParser)
   {
@@ -131,6 +133,19 @@ void vtkPVOptions::Initialize()
     default:
       break;
   }
+
+  this->AddCallback("--verbosity", "-v", &vtkPVOptions::VerbosityArgumentHandler, this,
+    "Log verbosity on stderr as an integer in range [-9, 9] "
+    "or INFO, WARNING, ERROR, or OFF. Defaults to INFO(0).",
+    vtkPVOptions::PVCLIENT | vtkPVOptions::PVSERVER | vtkPVOptions::PVDATA_SERVER |
+      vtkPVOptions::PVRENDER_SERVER);
+
+  this->AddCallback("--log", "-l", &vtkPVOptions::LogArgumentHandler, this,
+    "Addition log files to generate. Can be specified multiple times. "
+    "By default, log verbosity is set to INFO(0) and may be "
+    "overridden per file by adding suffix `,verbosity` where verbosity values "
+    "are same as those accepted for `--verbosity` argument.",
+    vtkPVOptions::ALLPROCESS);
 
   // On occasion, one would want to force the hostname used by a particular
   // process (overriding the default detected by making System calls). This
@@ -191,13 +206,15 @@ void vtkPVOptions::Initialize()
 #endif
   this->AddBooleanArgument("--stereo", 0, &this->UseStereoRendering,
     "Tell the application to enable stereo rendering",
-    vtkPVOptions::PVCLIENT | vtkPVOptions::PARAVIEW);
+    vtkPVOptions::PVCLIENT | vtkPVOptions::PARAVIEW | vtkPVOptions::PVRENDER_SERVER |
+      vtkPVOptions::PVSERVER | vtkPVOptions::PVBATCH);
   this->AddArgument("--stereo-type", 0, &this->StereoType,
     "Specify the stereo type. This valid only when "
     "--stereo is specified. Possible values are "
     "\"Crystal Eyes\", \"Red-Blue\", \"Interlaced\", "
     "\"Dresden\", \"Anaglyph\", \"Checkerboard\",\"SplitViewportHorizontal\"",
-    vtkPVOptions::PVCLIENT | vtkPVOptions::PARAVIEW);
+    vtkPVOptions::PVCLIENT | vtkPVOptions::PARAVIEW | vtkPVOptions::PVRENDER_SERVER |
+      vtkPVOptions::PVSERVER | vtkPVOptions::PVBATCH);
 
   this->AddBooleanArgument("--reverse-connection", "-rc", &this->ReverseConnection,
     "Have the server connect to the client.",
@@ -267,7 +284,7 @@ void vtkPVOptions::Initialize()
     "the X environment is set up properly and your OpenGL support is adequate (experimental).",
     vtkPVOptions::PVSERVER | vtkPVOptions::PVRENDER_SERVER | vtkPVOptions::PVBATCH);
 
-#if defined(PARAVIEW_USE_MPI)
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
   // We add these here so that "--help" on the process can print these variables
   // out. Note the code in vtkProcessModule::Initialize() doesn't really rely on
   // the vtkPVOptions parsing these arguments since vtkPVOptions is called on to
@@ -291,30 +308,124 @@ void vtkPVOptions::Initialize()
     "for rendering results.",
     vtkPVOptions::PVSERVER | vtkPVOptions::PVBATCH | vtkPVOptions::PVCLIENT |
       vtkPVOptions::PVRENDER_SERVER);
-
-#if defined(PARAVIEW_WITH_SUPERBUILD_MESA)
-  // We add these here so that "--help" on the process can print these variables
-  // out. The options are actually only available when built against a suitable
-  // mesa and ParaView is told that they exist. They are parsed in the forward
-  // executable infrastructure.
-  this->AddBooleanArgument(
-    "--native", 0, &this->DummyMesaFlag, "Use the system-provided OpenGL implementation.");
-  this->AddBooleanArgument("--mesa", 0, &this->DummyMesaFlag,
-    "Use the provided Mesa build and its default rendering "
-    "backend.");
-  this->AddBooleanArgument("--mesa-llvm", 0, &this->DummyMesaFlag,
-    "Use the provided Mesa build and the software renderer "
-    "(softpipe).");
-#if defined(PARAVIEW_WITH_SUPERBUILD_MESA_SWR)
-  this->AddBooleanArgument(
-    "--mesa-swr", 0, &this->DummyMesaFlag, "Use the provided Mesa build and the SWR renderer.");
-#endif
-#endif
 }
 
 //----------------------------------------------------------------------------
-int vtkPVOptions::PostProcess(int, const char* const*)
+int vtkPVOptions::LogArgumentHandler(
+  const char* vtkNotUsed(argument), const char* cvalue, void* call_data)
 {
+  if (cvalue == nullptr)
+  {
+    return 0;
+  }
+
+  std::string value(cvalue);
+  auto verbosity = vtkLogger::VERBOSITY_INFO;
+  auto separator = value.find_last_of(',');
+  if (separator != std::string::npos)
+  {
+    verbosity = vtkLogger::ConvertToVerbosity(value.substr(separator + 1).c_str());
+    if (verbosity == vtkLogger::VERBOSITY_INVALID)
+    {
+      // invalid verbosity specified.
+      return 0;
+    }
+    // remove the ",..." part from filename.
+    value = value.substr(0, separator);
+  }
+
+  auto pm = vtkProcessModule::GetProcessModule();
+  if (pm->GetNumberOfLocalPartitions() > 1)
+  {
+    value += "." + std::to_string(pm->GetPartitionId());
+  }
+
+  auto self = reinterpret_cast<vtkPVOptions*>(call_data);
+  self->LogFiles.push_back(std::make_pair(value, verbosity));
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkPVOptions::VerbosityArgumentHandler(
+  const char* vtkNotUsed(argument), const char* value, void* call_data)
+{
+  if (value != nullptr)
+  {
+    auto self = reinterpret_cast<vtkPVOptions*>(call_data);
+    self->LogStdErrVerbosity = vtkLogger::ConvertToVerbosity(value);
+    return (self->LogStdErrVerbosity != vtkLogger::VERBOSITY_INVALID);
+  }
+  return 0;
+}
+
+namespace
+{
+static void OnAtExit()
+{
+  vtkLogger::SetStderrVerbosity(vtkLogger::VERBOSITY_WARNING);
+}
+
+static void UpdateThreadName()
+{
+  // set thread name based on application.
+  auto pm = vtkProcessModule::GetProcessModule();
+  std::string tname_suffix;
+  if (pm->GetNumberOfLocalPartitions() > 1)
+  {
+    tname_suffix = "." + std::to_string(pm->GetPartitionId());
+  }
+  switch (vtkProcessModule::GetProcessType())
+  {
+    case vtkProcessModule::PROCESS_CLIENT:
+      vtkLogger::SetThreadName("paraview" + tname_suffix);
+      break;
+    case vtkProcessModule::PROCESS_SERVER:
+      vtkLogger::SetThreadName("pvserver" + tname_suffix);
+      break;
+    case vtkProcessModule::PROCESS_DATA_SERVER:
+      vtkLogger::SetThreadName("pvdatserver" + tname_suffix);
+      break;
+    case vtkProcessModule::PROCESS_RENDER_SERVER:
+      vtkLogger::SetThreadName("pvrenderserver" + tname_suffix);
+      break;
+    case vtkProcessModule::PROCESS_BATCH:
+      vtkLogger::SetThreadName("pvbatch" + tname_suffix);
+      break;
+    default:
+      break;
+  }
+}
+}
+
+//----------------------------------------------------------------------------
+int vtkPVOptions::PostProcess(int argc, const char* const* argv)
+{
+  if (this->LogStdErrVerbosity == vtkLogger::VERBOSITY_INVALID)
+  {
+    // to avoid posting preamble in init, we do this trick.
+    vtkLogger::SetStderrVerbosity(vtkLogger::VERBOSITY_WARNING);
+    vtkLogger::Init(argc, const_cast<char**>(argv), nullptr);
+    vtkLogger::SetStderrVerbosity(vtkLogger::VERBOSITY_INFO);
+
+    // this helps use avoid showing the "atexit" INFO message generated by
+    // loguru when exiting the app unless verbosity was explicitly specified on
+    // the command line.
+    atexit(OnAtExit);
+  }
+  else
+  {
+    vtkLogger::SetStderrVerbosity(static_cast<vtkLogger::Verbosity>(this->LogStdErrVerbosity));
+    vtkLogger::Init(argc, const_cast<char**>(argv), nullptr);
+  }
+
+  for (const auto& log_pair : this->LogFiles)
+  {
+    vtkLogger::LogToFile(log_pair.first.c_str(), vtkLogger::TRUNCATE,
+      static_cast<vtkLogger::Verbosity>(log_pair.second));
+  }
+
+  UpdateThreadName();
+
   switch (this->GetProcessType())
   {
     case vtkPVOptions::PVCLIENT:
@@ -336,14 +447,8 @@ int vtkPVOptions::PostProcess(int, const char* const*)
 
   if (this->TileDimensions[0] > 0 || this->TileDimensions[1] > 0)
   {
-    if (this->TileDimensions[0] <= 0)
-    {
-      this->TileDimensions[0] = 1;
-    }
-    if (this->TileDimensions[1] <= 0)
-    {
-      this->TileDimensions[1] = 1;
-    }
+    this->TileDimensions[0] = std::max(1, this->TileDimensions[0]);
+    this->TileDimensions[1] = std::max(1, this->TileDimensions[1]);
   }
 
 #ifdef PARAVIEW_ALWAYS_SECURE_CONNECTION
@@ -352,7 +457,7 @@ int vtkPVOptions::PostProcess(int, const char* const*)
     this->SetErrorMessage("You need to specify a connect ID (--connect-id).");
     return 0;
   }
-#endif // PARAVIEW_ALWAYS_SECURE_CONNECTION
+#endif
 
   // do this here for simplicity since it's
   // a universal option. The current kwsys implementation
@@ -428,14 +533,16 @@ int vtkPVOptions::DeprecatedArgument(const char* argument)
 }
 
 //----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
-int vtkPVOptions::GetUseOffscreenRendering()
+bool vtkPVOptions::GetIsInTileDisplay() const
 {
-  VTK_LEGACY_REPLACED_BODY(vtkPVOptions::GetUseOffscreenRendering, "ParaView 5.5",
-    vtkPVOptions::GetForceOffscreenRendering);
-  return this->GetForceOffscreenRendering();
+  return (this->TileDimensions[0] > 0 && this->TileDimensions[1] > 0);
 }
-#endif
+
+//----------------------------------------------------------------------------
+bool vtkPVOptions::GetIsInCave() const
+{
+  return false;
+}
 
 //----------------------------------------------------------------------------
 void vtkPVOptions::PrintSelf(ostream& os, vtkIndent indent)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -58,6 +58,7 @@
 #include <vtkFloatArray.h>
 #include <vtkIdList.h>
 #include <vtkIdTypeArray.h>
+#include <vtkInformation.h>
 #include <vtkIntArray.h>
 #include <vtkLongArray.h>
 #include <vtkLongLongArray.h>
@@ -132,7 +133,6 @@ using std::vector;
 using std::ostringstream;
 using namespace SiloDBOptions;
 
-static void      ExceptionGenerator(char *);
 static void      ExceptionGenerator(char *);
 static char     *GenerateName(const char *, const char *, const char *);
 static string    PrepareDirName(const char *, const char *);
@@ -523,6 +523,9 @@ avtSiloFileFormat::GetFile(int f)
 //
 //    Mark C. Miller, Thu Jan  6 17:17:25 PST 2011
 //    Set driver type for unknown case by asking file what its type was.
+//
+//    Mark C. Miller, Tue May 23 10:28:07 PDT 2017
+//    Add logic to use siloDriver to open if its not DB_UNKNOWN.
 // ****************************************************************************
 
 DBfile *
@@ -549,9 +552,19 @@ avtSiloFileFormat::OpenFile(int f, bool skipGlobalInfo)
 
     //
     // Open the Silo file. Impose priority order on drivers by first
-    // trying then HDF5, then PDB, then fall-back to UNKNOWN
+    // trying HDF5, then PDB, then fall-back to UNKNOWN
     //
-    if ((dbfiles[f] = DBOpen(filenames[f], DB_HDF5, DB_READ)) != NULL)
+    if ((siloDriver != DB_UNKNOWN) &&
+        (dbfiles[f] = DBOpen(filenames[f], siloDriver, DB_READ)) != NULL)
+    {
+        if (siloDriver == DB_PDB)
+            debug1 << "Opened with DB_PDB driver; lib=" << DBVersion() << ", file=" << DBFileVersion(dbfiles[f]) <<endl;
+        else if (siloDriver == DB_HDF5)
+            debug1 << "Opened with DB_HDF5 driver; lib=" << DBVersion() << ", file=" << DBFileVersion(dbfiles[f]) <<endl;
+        else
+            debug1 << "Opened with DB_UNKNOWN driver; lib=" << DBVersion() << ", file=" << DBFileVersion(dbfiles[f]) <<endl;
+    }
+    else if ((dbfiles[f] = DBOpen(filenames[f], DB_HDF5, DB_READ)) != NULL)
     {
         debug1 << "Opened with DB_HDF5 driver; lib=" << DBVersion() << ", file=" << DBFileVersion(dbfiles[f]) <<endl;
         siloDriver = DB_HDF5;
@@ -1807,11 +1820,12 @@ avtSiloFileFormat::ReadMultimeshes(DBfile *dbfile,
                                                   correctFile,
                                                   realvar);
                         DBucdmesh *um = DBGetUcdmesh(correctFile, realvar.c_str());
-                        if (um == NULL && !ignoreMissingBlocks)
+                        if (um == NULL)
                         {
                             debug1 << "Invalidating mesh \"" << multimesh_names[i] 
                                    << "\" since its first non-empty block (" << mb_meshname
                                    << ") is invalid." << endl;
+                            valid_var = false;
                             break;
                         }
                         ndims = um->ndims;
@@ -1856,6 +1870,7 @@ avtSiloFileFormat::ReadMultimeshes(DBfile *dbfile,
                             debug1 << "Invalidating mesh \"" << multimesh_names[i] 
                                    << "\" since its first non-empty block (" << mb_meshname
                                    << ") is invalid." << endl;
+                            valid_var = false;
                             break;
                         }
                         ndims = pm->ndims;
@@ -1891,6 +1906,7 @@ avtSiloFileFormat::ReadMultimeshes(DBfile *dbfile,
                             debug1 << "Invalidating mesh \"" << multimesh_names[i] 
                                    << "\" since its first non-empty block (" << mb_meshname
                                    << ") is invalid." << endl;
+                            valid_var = false;
                             break;
                         }
                         if (silo_mt == DB_QUAD_RECT)
@@ -4769,6 +4785,14 @@ avtSiloFileFormat::BroadcastGlobalInfo(avtDatabaseMetaData *metadata)
 //    Limited support for Silo nameschemes, use new multi block cache data
 //    structures.
 //
+//    Eric Brugger, Thu Mar 15 17:02:43 PDT 2018
+//    Modify the method to not only add a blank name to firstSubMeshVarName
+//    when the meshnum was greater than the number of blocks, but also when
+//    it was negative. This ensures that allSubMeshVarName and actualMeshName
+//    are the same length, which is assumed elsewhere in the plugin. The
+//    meshnum can be negative when the multimesh is invalid, such as when
+//    the number of blocks is specified as zero.
+//
 // ****************************************************************************
 void
 avtSiloFileFormat::StoreMultimeshInfo(const char *const dirname,
@@ -4790,7 +4814,7 @@ avtSiloFileFormat::StoreMultimeshInfo(const char *const dirname,
             firstSubMeshVarName.push_back(var);
         allSubMeshDirs[allSubMeshDirs.size()-1].push_back(dir);
     }
-    if (meshnum >= nblocks)
+    if (meshnum < 0 || meshnum >= nblocks)
         firstSubMeshVarName.push_back("");
 }
 
@@ -6460,6 +6484,9 @@ compare_ev_pair(const void *a, const void *b)
 //    Replaced float* arg with vtiBitArray and changed calls to manipulate the
 //    float* array with calls to SetComponents of the vtkBitArray. This enables
 //    the code to support an arbitrary number of nodelists.
+//
+//    Mark C. Miller, Wed Dec 12 04:54:13 PST 2018
+//    Adjust logic to handle cases where edges/faces appear in multiple lists.
 // ****************************************************************************
 
 static void
@@ -6564,9 +6591,9 @@ PaintNodesForAnnotIntFacelist(vtkBitArray *nlvar,
                         //
                         // If the edge id of the current edge (edgeIdx) is the
                         // same as the current one in the list we are here to paint,
-                        // then paint it.
+                        // then paint it. The while loop is to handle duplcate entries.
                         //
-                        if (edgeIdx == elemidv[elemIdx].id)
+                        while (edgeIdx == elemidv[elemIdx].id)
                         {
                             nlvar->SetComponent(edge[i][0], elemidv[elemIdx].val, 1);
                             nlvar->SetComponent(edge[i][1], elemidv[elemIdx].val, 1);
@@ -6774,9 +6801,9 @@ PaintNodesForAnnotIntFacelist(vtkBitArray *nlvar,
                         //
                         // If the face id of the current face (faceIdx) is the
                         // same as the current one in the list we are here to paint,
-                        // then paint it.
+                        // then paint it. The while loop is to handle duplicate entries.
                         //
-                        if (faceIdx == elemidv[elemIdx].id)
+                        while (faceIdx == elemidv[elemIdx].id)
                         {
                             nlvar->SetComponent(face[i][0], elemidv[elemIdx].val, 1);
                             nlvar->SetComponent(face[i][1], elemidv[elemIdx].val, 1);
@@ -6968,12 +6995,16 @@ avtSiloFileFormat::GetAnnotIntNodelistsVar(int domain, string listsname)
         DBucdmesh  *um = DBGetUcdmesh(domain_file, directory_mesh.c_str());
         DBSetDataReadMask2(oldMask);
 
-        if (um == NULL && !ignoreMissingBlocks)
+        if (um == NULL)
         {
-            char msg[256];
-            SNPRINTF(msg, sizeof(msg), "DBGetUcdmesh() failed for \"%s\" for domain %d to "
-                "paint \"%s\" variable", meshName.c_str(), domain, listsname.c_str());
-            EXCEPTION1(InvalidVariableException, msg);
+            if (!ignoreMissingBlocks)
+            {
+                char msg[256];
+                SNPRINTF(msg, sizeof(msg), "DBGetUcdmesh() failed for \"%s\" for domain %d to "
+                    "paint \"%s\" variable", meshName.c_str(), domain, listsname.c_str());
+                EXCEPTION1(InvalidVariableException, msg);
+            }
+            return 0;
         }
 
         //
@@ -7072,7 +7103,7 @@ avtSiloFileFormat::GetMrgTreeNodelistsVar(int domain, string listsname)
     unsigned long long oldMask = DBSetDataReadMask2(0x0);
     DBucdmesh  *um = DBGetUcdmesh(domain_file, domain_mesh.c_str());
     DBSetDataReadMask2(oldMask);
-    if (!um && !ignoreMissingBlocks)
+    if (!um)
     {
         debug3 << "Unable to get mesh \"" << meshName << "\" for domain " << domain << endl;
         return nlvar;
@@ -7841,9 +7872,13 @@ avtSiloFileFormat::GetUcdVectorVar(DBfile *dbfile, const char *vname,
     // Get the Silo construct.
     //
     DBucdvar  *uv = DBGetUcdvar(dbfile, varname);
-    if (uv == NULL && !ignoreMissingBlocks)
+    if (uv == NULL)
     {
-        EXCEPTION1(InvalidVariableException, varname);
+        if (!ignoreMissingBlocks)
+        {
+            EXCEPTION1(InvalidVariableException, varname);
+        }
+        return 0;
     }
 
     //
@@ -8951,9 +8986,13 @@ avtSiloFileFormat::GetUcdVar(DBfile *dbfile, const char *vname,
     // Get the Silo construct.
     //
     DBucdvar  *uv = DBGetUcdvar(dbfile, varname);
-    if (uv == NULL && !ignoreMissingBlocks)
+    if (uv == NULL)
     {
-        EXCEPTION1(InvalidVariableException, varname);
+        if (!ignoreMissingBlocks)
+        {
+            EXCEPTION1(InvalidVariableException, varname);
+        }
+        return 0;
     }
     else if (DBIsEmptyUcdvar(uv))
     {
@@ -9725,9 +9764,13 @@ avtSiloFileFormat::GetUnstructuredMesh(DBfile *dbfile, const char *mn,
     // Get the Silo construct.
     //
     DBucdmesh  *um = DBGetUcdmesh(dbfile, meshname);
-    if (um == NULL && !ignoreMissingBlocks)
+    if (um == NULL)
     {
-        EXCEPTION1(InvalidVariableException, meshname);
+        if (!ignoreMissingBlocks)
+        {
+            EXCEPTION1(InvalidVariableException, meshname);
+        }
+        return 0;
     }
     if (DBIsEmptyUcdmesh(um))
     {
@@ -10133,6 +10176,10 @@ MakePHZonelistFromZonelistArbFragment(const int *nl, int shapecnt)
 //    so that the same code used to detect zoo-type elements in DBphzonelists
 //    can be used to detect them here too. Also, fixed a problem with ghost
 //    zone variable in presence of arbitrary polyhedra.
+//
+//    Kathleen Biagas, Mon Aug 15 14:09:55 PDT 2016
+//    VTK-8, API for updating GhostLevel changed.
+//
 // ****************************************************************************
 
 void
@@ -10497,73 +10544,88 @@ avtSiloFileFormat::ReadInConnectivity(vtkUnstructuredGrid *ugrid,
         else
             cellReMap = 0;
     }
-
-    //
-    //  Tell the ugrid which of its zones are real (avtGhostZone = 0),
-    //  which are ghost (avtGhostZone = 1), but only create the ghost
-    //  zones array if ghost zones are actually present.
-    //
-    const int first = zl->min_index;  // where the real zones start
-    const int last = zl->max_index;   // where the real zones end
-
-    if (first == 0 && last == 0  && numCells > 27)
-    {
-       debug5 << "Cannot tell if ghost zones are present"
-              << " because min_index & max_index are both zero!" << endl;
+    
+    // --- Read Ghost Node Labels --- //
+    if (um->ghost_node_labels) {
+        GetUcdGhostNodesFromLabels(um, ugrid, cellReMap);
+        debug5 << "GetUcdGhostNodesFromLabels" << std::endl;
     }
-    else if (first < 0 || first >= numCells ||
-             last  < 0 || last  >= numCells)  
-    {
-       // bad min or max index
-       debug5 << "Invalid min/max index for determining ghost zones:  "
-              << "\n\tnumCells: " << numCells
-              << "\n\tmin_index: " << zl->min_index
-              << "\n\tmax_index: " << zl->max_index << endl;
+    
+    // --- Read Ghost Zone Labels --- //
+    if (um->zones->ghost_zone_labels) {
+        GetUcdGhostZonesFromLabels(um->zones, ugrid, cellReMap);
+        debug5 << "GetUcdGhostZonesFromLabels" << std::endl;
+    } else {
+    
+        //
+        //  Tell the ugrid which of its zones are real (avtGhostZone = 0),
+        //  which are ghost (avtGhostZone = 1), but only create the ghost
+        //  zones array if ghost zones are actually present.
+        //
+        const int first = zl->min_index;  // where the real zones start
+        const int last = zl->max_index;   // where the real zones end
+
+        if (first == 0 && last == 0  && numCells > 27)
+        {
+           debug5 << "Cannot tell if ghost zones are present"
+                  << " because min_index & max_index are both zero!" << endl;
+        }
+        else if (first < 0 || first >= numCells ||
+                 last  < 0 || last  >= numCells)  
+        {
+           // bad min or max index
+           debug5 << "Invalid min/max index for determining ghost zones:  "
+                  << "\n\tnumCells: " << numCells
+                  << "\n\tmin_index: " << zl->min_index
+                  << "\n\tmax_index: " << zl->max_index << endl;
+        }
+        else if (first != 0 || last != numCells -1)
+        {
+            //
+            // We now know that ghost zones are present.
+            //
+            debug5 << "Creating ghost zones, real zones are indexed"
+                   << " from " << first << " to " << last 
+                   << " of " << numCells << " Cells." << endl;
+
+            //
+            // Populate a zone-centered array of ghost zone values.
+            //
+            unsigned char *gvals = new unsigned char[numCells];
+            unsigned char val = 0;
+            avtGhostData::AddGhostZoneType(val, DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
+            for (i = 0; i < (size_t)first; i++)
+                gvals[i] = val;
+            for (i = first; i <= (size_t)last; i++)
+                gvals[i] = 0;
+            for (i = last+1; i < (size_t)numCells; i++)
+                gvals[i] = val;
+
+            //
+            // Create a temp. DBucdvar object to call CopyAndPadUcdVar. That will handle
+            // both creation of the vtkUnsignedCharArray object as well as re-mapping
+            // of array as per existence of any arb. polyhedral zones.
+            //
+            DBucdvar tmp;
+            tmp.centering = DB_ZONECENT;
+            tmp.datatype = DB_CHAR;
+            tmp.nels = numCells;
+            tmp.nvals = 1;
+            tmp.vals = (void**) malloc(sizeof(void*)); /* use malloc because this is a Silo object */
+            tmp.vals[0] = (void*) gvals;
+            vector<int> noremap;
+            vtkDataArray *ghostZones = CopyAndPadUcdVar<unsigned char,vtkUnsignedCharArray>(&tmp,
+                cellReMap?*cellReMap:noremap);
+            free(tmp.vals);
+            delete [] gvals;
+
+            ghostZones->SetName("avtGhostZones");
+            ugrid->GetCellData()->AddArray(ghostZones);
+            ghostZones->Delete();
+        }
     }
-    else if (first != 0 || last != numCells -1)
-    {
-        //
-        // We now know that ghost zones are present.
-        //
-        debug5 << "Creating ghost zones, real zones are indexed"
-               << " from " << first << " to " << last 
-               << " of " << numCells << " Cells." << endl;
-
-        //
-        // Populate a zone-centered array of ghost zone values.
-        //
-        unsigned char *gvals = new unsigned char[numCells];
-        unsigned char val = 0;
-        avtGhostData::AddGhostZoneType(val, DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
-        for (i = 0; i < (size_t)first; i++)
-            gvals[i] = val;
-        for (i = first; i <= (size_t)last; i++)
-            gvals[i] = 0;
-        for (i = last+1; i < (size_t)numCells; i++)
-            gvals[i] = val;
-
-        //
-        // Create a temp. DBucdvar object to call CopyAndPadUcdVar. That will handle
-        // both creation of the vtkUnsignedCharArray object as well as re-mapping
-        // of array as per existence of any arb. polyhedral zones.
-        //
-        DBucdvar tmp;
-        tmp.centering = DB_ZONECENT;
-        tmp.datatype = DB_CHAR;
-        tmp.nels = numCells;
-        tmp.nvals = 1;
-        tmp.vals = (void**) malloc(sizeof(void*)); /* use malloc because this is a Silo object */
-        tmp.vals[0] = (void*) gvals;
-        vector<int> noremap;
-        vtkDataArray *ghostZones = CopyAndPadUcdVar<unsigned char,vtkUnsignedCharArray>(&tmp,
-            cellReMap?*cellReMap:noremap);
-        free(tmp.vals);
-        delete [] gvals;
-
-        ghostZones->SetName("avtGhostZones");
-        ugrid->GetCellData()->AddArray(ghostZones);
-        ghostZones->Delete();
-    }
+    ugrid->GetInformation()->Set(
+        vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), 0);
 }
 
 // ****************************************************************************
@@ -11054,6 +11116,10 @@ ArbInsertArbitrary(vtkUnstructuredGrid *ugrid, int nsdims, DBphzonelist *phzl, i
 //    Mark C. Miller, Wed Jul 11 10:57:26 PDT 2012
 //    Changed interface to support repeated calls for different segments of
 //    the same zonelist.
+//
+//    Kathleen Biagas, Mon Aug 15 14:09:55 PDT 2016
+//    VTK-8, API for updating GhostLevel changed.
+//
 // ****************************************************************************
 void
 avtSiloFileFormat::ReadInArbConnectivity(const char *meshname,
@@ -11641,53 +11707,67 @@ avtSiloFileFormat::ReadInArbConnectivity(const char *meshname,
             encounteredFullyArbitraryCase = true;
         }
     } // end of loop over all zones
-
-    //
-    // Handle the ghost zoning, if necessary. We can do this easily now that
-    // the mesh has been re-mapped to all ucd elements. We use the cell
-    // centered re-mapping, if any, to make it work.
-    //
-    if (phzl->nzones > 0 && (phzl->lo_offset != 0 || phzl->hi_offset != phzl->nzones-1))
-    {
-        //
-        // Populate a zone-centered array of ghost zone values.
-        //
-        unsigned char *gvals = new unsigned char[phzl->nzones];
-        unsigned char val = 0;
-        avtGhostData::AddGhostZoneType(val, DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
-        for (i = 0; i < phzl->lo_offset; i++)
-            gvals[i] = val;
-        for (i = phzl->lo_offset; i <= phzl->hi_offset; i++)
-            gvals[i] = 0;
-        for (i = phzl->hi_offset+1; i < phzl->nzones; i++)
-            gvals[i] = val;
-       
-        //
-        // Remap the zone-centered array based on arb-poly remapping
-        // computed above.
-        //
-        vector<int> noremap;
-        vector<int> *remap = &noremap;    
-        if (encounteredFullyArbitraryCase)
-            remap = cellReMap;
-        DBucdvar tmp;
-        tmp.centering = DB_ZONECENT;
-        tmp.datatype = DB_CHAR;
-        tmp.nels = phzl->nzones;
-        tmp.nvals = 1;
-        tmp.vals = (void**) malloc(sizeof(void*));
-        tmp.vals[0] = (void*) gvals;
-        vtkDataArray *ghostZones = CopyAndPadUcdVar<unsigned char,vtkUnsignedCharArray>(&tmp, *remap);
-        free(tmp.vals);
-        delete [] gvals;
-
-        //
-        // Assign the ghost zone array to the ugrid object.
-        //
-        ghostZones->SetName("avtGhostZones");
-        ugrid->GetCellData()->AddArray(ghostZones);
-        ghostZones->Delete();
+    
+    // --- Read Ghost Node Labels --- //
+    if (um->ghost_node_labels) {
+        GetUcdGhostNodesFromLabels(um, ugrid, cellReMap);
+        debug5 << "GetUcdGhostNodesFromLabels" << std::endl;
     }
+    
+    // --- Read Ghost Zone Labels --- //
+    if (um->phzones->ghost_zone_labels) {
+        GetUcdPolyhedralGhostZonesFromLabels(um->phzones, ugrid, cellReMap);
+        debug5 << "GetUcdPolyhedralGhostZonesFromLabels" << std::endl;
+    } else {
+        //
+        // Handle the ghost zoning, if necessary. We can do this easily now that
+        // the mesh has been re-mapped to all ucd elements. We use the cell
+        // centered re-mapping, if any, to make it work.
+        //
+        if (phzl->nzones > 0 && (phzl->lo_offset != 0 || phzl->hi_offset != phzl->nzones-1))
+        {
+            //
+            // Populate a zone-centered array of ghost zone values.
+            //
+            unsigned char *gvals = new unsigned char[phzl->nzones];
+            unsigned char val = 0;
+            avtGhostData::AddGhostZoneType(val, DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
+            for (i = 0; i < phzl->lo_offset; i++)
+                gvals[i] = val;
+            for (i = phzl->lo_offset; i <= phzl->hi_offset; i++)
+                gvals[i] = 0;
+            for (i = phzl->hi_offset+1; i < phzl->nzones; i++)
+                gvals[i] = val;
+           
+            //
+            // Remap the zone-centered array based on arb-poly remapping
+            // computed above.
+            //
+            vector<int> noremap;
+            vector<int> *remap = &noremap;    
+            if (encounteredFullyArbitraryCase)
+                remap = cellReMap;
+            DBucdvar tmp;
+            tmp.centering = DB_ZONECENT;
+            tmp.datatype = DB_CHAR;
+            tmp.nels = phzl->nzones;
+            tmp.nvals = 1;
+            tmp.vals = (void**) malloc(sizeof(void*));
+            tmp.vals[0] = (void*) gvals;
+            vtkDataArray *ghostZones = CopyAndPadUcdVar<unsigned char,vtkUnsignedCharArray>(&tmp, *remap);
+            free(tmp.vals);
+            delete [] gvals;
+
+            //
+            // Assign the ghost zone array to the ugrid object.
+            //
+            ghostZones->SetName("avtGhostZones");
+            ugrid->GetCellData()->AddArray(ghostZones);
+            ghostZones->Delete();
+        }
+    }
+    ugrid->GetInformation()->Set(
+        vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), 0);
 
     //
     // Remove the avtOriginalCellNumbers array if we don't really
@@ -11726,7 +11806,7 @@ avtSiloFileFormat::ReadInArbConnectivity(const char *meshname,
 //  Arguments:
 //      dbfile   A handle to the file this variable lives in.
 //      mn       The mesh name.
-//      mn       The domain.
+//      domain   The domain.
 //
 //  Returns:     The vtkDataSet corresponding to mn.
 //
@@ -12526,6 +12606,9 @@ avtSiloFileFormat::CreateCurvilinearMesh(DBquadmesh *qm)
 //    Hank Childs, Fri Aug 27 17:22:19 PDT 2004
 //    Rename ghost data array.
 //
+//    Kathleen Biagas, Mon Aug 15 14:09:55 PDT 2016
+//    VTK-8, API for updating GhostLevel changed.
+//
 // ****************************************************************************
 
 void 
@@ -12542,104 +12625,367 @@ avtSiloFileFormat::GetQuadGhostZones(DBquadmesh *qm, vtkDataSet *ds)
     //
     //  Determine if we have ghost points
     //
-    int first[3];
-    int last[3];
-    bool ghostPresent = false;
-    bool badIndex = false;
-    for (int i = 0; i < 3; i++)
-    {
-        first[i] = (i < qm->ndims ? qm->min_index[i] : 0);
-        last[i]  = (i < qm->ndims ? qm->max_index[i] : 0);
-
-        if (first[i] < 0 || first[i] >= dims[i])
-        {
-            debug1 << "bad Index on first[" << i << "] dims is: " 
-                   << dims[i] << endl;
-            badIndex = true;
-        }
-
-        if (last[i] < 0 || last[i] >= dims[i])
-        {
-            debug1 << "bad Index on last[" << i << "] dims is: " 
-                   << dims[i] << endl;
-            badIndex = true;
-        }
-
-        if (first[i] != 0 || last[i] != dims[i] -1)
-        {
-            ghostPresent = true;
-        }
+    
+    // --- Read Ghost Node Labels --- //
+    if (qm->ghost_node_labels) {
+        GetQuadGhostNodesFromLabels(qm, ds);
+        debug5 << "GetQuadGhostNodesFromLabels" << std::endl;
     }
+    
+    // --- Read Ghost Zone Labels --- //
+    if (qm->ghost_zone_labels) {
+        GetQuadGhostZonesFromLabels(qm, ds);
+        debug5 << "GetQuadGhostZonesFromLabels" << std::endl;
+    } else {
+        
+        int first[3];
+        int last[3];
+        bool ghostPresent = false;
+        bool badIndex = false;
+        for (int i = 0; i < 3; i++)
+        {
+            first[i] = (i < qm->ndims ? qm->min_index[i] : 0);
+            last[i]  = (i < qm->ndims ? qm->max_index[i] : 0);
 
-    //
-    //  Create the ghost zones array if necessary
-    //
-    if (ghostPresent && !badIndex)
-    {
-        bool *ghostPoints = new bool[qm->nnodes];
-        //
-        // Initialize as all ghost levels
-        //
-        for (int ii = 0; ii < qm->nnodes; ii++)
-            ghostPoints[ii] = true; 
+            if (first[i] < 0 || first[i] >= dims[i])
+            {
+                debug1 << "bad Index on first[" << i << "] dims is: " 
+                       << dims[i] << endl;
+                badIndex = true;
+            }
+
+            if (last[i] < 0 || last[i] >= dims[i])
+            {
+                debug1 << "bad Index on last[" << i << "] dims is: " 
+                       << dims[i] << endl;
+                badIndex = true;
+            }
+
+            if (first[i] != 0 || last[i] != dims[i] -1)
+            {
+                ghostPresent = true;
+            }
+        }        
 
         //
-        // Set real values
+        //  Create the ghost zones array if necessary
         //
-        for (int k = first[2]; k <= last[2]; k++)
-            for (int j = first[1]; j <= last[1]; j++)
-                for (int i = first[0]; i <= last[0]; i++)
-                {
-                    int index = k*dims[1]*dims[0] + j*dims[0] + i;
-                    ghostPoints[index] = false; 
+        
+        if (ghostPresent && !badIndex)
+        {
+            bool *ghostPoints = new bool[qm->nnodes];
+            //
+            // Initialize as all ghost levels
+            //
+            for (int ii = 0; ii < qm->nnodes; ii++) {
+                ghostPoints[ii] = true;
+            }
+
+            //
+            // Set real values
+            //
+            for (int k = first[2]; k <= last[2]; k++) {
+                for (int j = first[1]; j <= last[1]; j++) {
+                    for (int i = first[0]; i <= last[0]; i++)
+                    {
+                        int index = k*dims[1]*dims[0] + j*dims[0] + i;
+                        ghostPoints[index] = false; 
+                    }
                 }
+            }
 
-        //
-        //  okay, now we have ghost points, but what we really want
-        //  are ghost cells ... convert:  if all points associated with
-        //  cell are 'real' then so is the cell.
-        //
-        unsigned char realVal = 0;
-        unsigned char ghostVal = 0;
-        avtGhostData::AddGhostZoneType(ghostVal, 
-                                       DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
-        int ncells = ds->GetNumberOfCells();
-        vtkIdList *ptIds = vtkIdList::New();
-        vtkUnsignedCharArray *ghostCells = vtkUnsignedCharArray::New();
-        ghostCells->SetName("avtGhostZones");
-        ghostCells->Allocate(ncells);
- 
-        for (int i = 0; i < ncells; i++)
-        {
-            ds->GetCellPoints(i, ptIds);
-            bool ghost = false;
-            for (int idx = 0; idx < ptIds->GetNumberOfIds(); idx++)
-                ghost |= ghostPoints[ptIds->GetId(idx)];
+            //
+            //  okay, now we have ghost points, but what we really want
+            //  are ghost cells ... convert:  if all points associated with
+            //  cell are 'real' then so is the cell.
+            //
+            unsigned char realVal = 0;
+            unsigned char ghostVal = 0;
+            avtGhostData::AddGhostZoneType(ghostVal, 
+                                           DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
+            int ncells = ds->GetNumberOfCells();
+            vtkIdList *ptIds = vtkIdList::New();
+            vtkUnsignedCharArray *ghostCells = vtkUnsignedCharArray::New();
+            ghostCells->SetName("avtGhostZones");
+            ghostCells->Allocate(ncells);
+     
+            for (int i = 0; i < ncells; i++)
+            {
+                ds->GetCellPoints(i, ptIds);
+                bool ghost = false;
+                for (int idx = 0; idx < ptIds->GetNumberOfIds(); idx++)
+                    ghost |= ghostPoints[ptIds->GetId(idx)];
 
-            if (ghost)
-                ghostCells->InsertNextValue(ghostVal);
-            else
-                ghostCells->InsertNextValue(realVal);
- 
-        } 
-        ds->GetCellData()->AddArray(ghostCells);
-        delete [] ghostPoints;
-        ghostCells->Delete();
-        ptIds->Delete();
+                if (ghost)
+                    ghostCells->InsertNextValue(ghostVal);
+                else
+                    ghostCells->InsertNextValue(realVal);
+     
+            } 
+            
+            
+            ds->GetCellData()->AddArray(ghostCells);
+            delete [] ghostPoints;
+            ghostCells->Delete();
+            ptIds->Delete();
 
-        vtkIntArray *realDims = vtkIntArray::New();
-        realDims->SetName("avtRealDims");
-        realDims->SetNumberOfValues(6);
-        realDims->SetValue(0, first[0]);
-        realDims->SetValue(1, last[0]);
-        realDims->SetValue(2, first[1]);
-        realDims->SetValue(3, last[1]);
-        realDims->SetValue(4, first[2]);
-        realDims->SetValue(5, last[2]);
-        ds->GetFieldData()->AddArray(realDims);
-        ds->GetFieldData()->CopyFieldOn("avtRealDims");
-        realDims->Delete();
+            vtkIntArray *realDims = vtkIntArray::New();
+            realDims->SetName("avtRealDims");
+            realDims->SetNumberOfValues(6);
+            realDims->SetValue(0, first[0]);
+            realDims->SetValue(1, last[0]);
+            realDims->SetValue(2, first[1]);
+            realDims->SetValue(3, last[1]);
+            realDims->SetValue(4, first[2]);
+            realDims->SetValue(5, last[2]);
+            ds->GetFieldData()->AddArray(realDims);
+            ds->GetFieldData()->CopyFieldOn("avtRealDims");
+            realDims->Delete();
+        }
     }
+    ds->GetInformation()->Set(
+        vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), 0);
+}
+
+// ****************************************************************************
+// Method: GetQuadGhostNodesFromLabels
+//
+// Purpose: 
+//   Creates array of ghost nodes from DBquadmesh::ghost_node_labels.
+//
+// Arguments:
+//   DBquadmesh *qm : the mesh from which to source the data
+//   vtkDataset *ds : the object that stores the array
+//
+// Programmer: Edward Rusu
+// Creation:   Tue Sept 11 11:06:24 PDT 2018
+// ****************************************************************************
+void
+avtSiloFileFormat::GetQuadGhostNodesFromLabels(DBquadmesh *qm,
+                                               vtkDataSet *ds)
+{
+    // --- Populate ghostNodes --- //
+    int numNodes = qm->nnodes;
+    unsigned char realVal = 0;
+    unsigned char ghostVal = 0;
+    avtGhostData::AddGhostNodeType(ghostVal, DUPLICATED_NODE);
+    
+    vtkUnsignedCharArray *ghostNodes = vtkUnsignedCharArray::New();
+    ghostNodes->SetName("avtGhostNodes");
+    ghostNodes->Allocate(numNodes);
+    for (int i = 0; i < numNodes; i++) {
+        if (qm->ghost_node_labels[i] == DB_GHOSTTYPE_NOGHOST)
+            ghostNodes->InsertNextValue(realVal);
+        else if (qm->ghost_node_labels[i] == DB_GHOSTTYPE_INTDUP)
+            ghostNodes->InsertNextValue(ghostVal);
+    }
+    
+    // --- Populate Dataset --- //
+    ds->GetPointData()->AddArray(ghostNodes);
+    ghostNodes->Delete();
+}
+
+// ****************************************************************************
+// Method: GetQuadGhostZonesFromLabels
+//
+// Purpose: 
+//   Creates array of ghost zones from DBquadmesh::ghost_zone_labels.
+//
+// Arguments:
+//   DBquadmesh *qm : the mesh from which to source the data
+//   vtkDataset *ds : the object that stores the array
+//
+// Programmer: Edward Rusu
+// Creation:   Tue Sept 11 13:50:24 PDT 2018
+// ****************************************************************************
+void
+avtSiloFileFormat::GetQuadGhostZonesFromLabels(DBquadmesh *qm,
+                                               vtkDataSet *ds)
+{
+    // --- Populate ghostZones --- //
+    int numZones = ds->GetNumberOfCells();
+    unsigned char realVal = 0;
+    unsigned char ghostVal = 0;
+    avtGhostData::AddGhostZoneType(ghostVal, DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
+    
+    vtkUnsignedCharArray *ghostZones = vtkUnsignedCharArray::New();
+    ghostZones->SetName("avtGhostZones");
+    ghostZones->Allocate(numZones);
+    for (int i = 0; i < numZones; i++) {
+        if (qm->ghost_zone_labels[i] == DB_GHOSTTYPE_NOGHOST)
+            ghostZones->InsertNextValue(realVal);
+        else if (qm->ghost_zone_labels[i] == DB_GHOSTTYPE_INTDUP)
+            ghostZones->InsertNextValue(ghostVal);
+    }
+    
+    // --- Populate Dataset --- //
+    ds->GetCellData()->AddArray(ghostZones);
+    ghostZones->Delete();
+}
+
+// ****************************************************************************
+// Method: GetUcdGhostNodesFromLabels
+//
+// Purpose: 
+//   Creates array of ghost nodes from DBucdmesh::ghost_node_labels.
+//
+// Arguments:
+//   DBucdmesh *um : the mesh from which to source the data
+//   vtkUnstructuredGrid *ugrid : the object that stores the array
+//   std::vector<int> *cellRemap : vector that stores remapping information.
+//
+// Programmer: Edward Rusu
+// Creation:   Tue Sept 11 14:05:24 PDT 2018
+// ****************************************************************************
+void
+avtSiloFileFormat::GetUcdGhostNodesFromLabels(DBucdmesh *um,
+                                              vtkUnstructuredGrid *ugrid,
+                                              std::vector<int> *cellReMap)
+{
+    // --- Populate ghostNodes --- //
+    int numNodes = um->nnodes;
+    unsigned char *gvals = new unsigned char[numNodes];
+    unsigned char realVal = 0;
+    unsigned char ghostVal = 0;
+    avtGhostData::AddGhostNodeType(ghostVal, DUPLICATED_NODE);
+
+    for (int i = 0; i < numNodes; i++) {
+        if (um->ghost_node_labels[i] == DB_GHOSTTYPE_NOGHOST)
+            gvals[i] = realVal;
+        else if (um->ghost_node_labels[i] == DB_GHOSTTYPE_INTDUP)
+            gvals[i] = ghostVal;    
+    }
+
+    // --- Create temporary DBucdvar --- //
+    DBucdvar tmp;
+    tmp.centering = DB_NODECENT;
+    tmp.datatype = DB_CHAR;
+    tmp.nels = numNodes;
+    tmp.nvals = 1;
+    tmp.vals = (void**) malloc(sizeof(void*));
+    tmp.vals[0] = (void*) gvals;
+
+    // --- Create ghostNodes --- //
+    vector<int> noremap;
+    vtkDataArray *ghostNodes = CopyAndPadUcdVar<unsigned char,
+        vtkUnsignedCharArray>(&tmp, cellReMap?*cellReMap:noremap);
+    free(tmp.vals);
+    delete [] gvals;
+
+    // --- Add Array to vtkDataSet --- //
+    ghostNodes->SetName("avtGhostNodes");
+    ugrid->GetPointData()->AddArray(ghostNodes);
+    ghostNodes->Delete();
+}
+
+// ****************************************************************************
+// Method: GetUcdGhostZonesFromLabels
+//
+// Purpose: 
+//   Creates array of ghost zones from DBucdmesh::Dbzonelist::ghost_zone_labels.
+//
+// Arguments:
+//   DBzonelist *zl : the list of zones to source data
+//   vtkUnstructuredGrid *ugrid : the object that stores the array
+//   std::vector<int> *cellRemap : vector that stores remapping information.
+//
+// Programmer: Edward Rusu
+// Creation:   Tue Sept 11 14:14:24 PDT 2018
+// ****************************************************************************
+void
+avtSiloFileFormat::GetUcdGhostZonesFromLabels(DBzonelist *zl,
+                                              vtkUnstructuredGrid *ugrid,
+                                              std::vector<int> *cellReMap)
+{
+    // --- Populate ghostZones --- //
+    int numCells = zl->nzones;
+    unsigned char *gvals = new unsigned char[numCells];
+    unsigned char realVal = 0;
+    unsigned char ghostVal = 0;
+    avtGhostData::AddGhostZoneType(ghostVal, DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
+    
+    for (int i = 0; i < numCells; i++) {
+        if (zl->ghost_zone_labels[i] == DB_GHOSTTYPE_NOGHOST)
+            gvals[i] = realVal;
+        else if (zl->ghost_zone_labels[i] == DB_GHOSTTYPE_INTDUP)
+            gvals[i] = ghostVal;    
+    }
+    
+    // --- Create temporary DBucdvar --- //
+    DBucdvar tmp;
+    tmp.centering = DB_ZONECENT;
+    tmp.datatype = DB_CHAR;
+    tmp.nels = numCells;
+    tmp.nvals = 1;
+    tmp.vals = (void**) malloc(sizeof(void*));
+    tmp.vals[0] = (void*) gvals;
+    
+    // --- Create ghostZones --- //
+    vector<int> noremap;
+    vtkDataArray *ghostZones = CopyAndPadUcdVar<unsigned char,
+        vtkUnsignedCharArray>(&tmp, cellReMap ? *cellReMap : noremap);
+    free(tmp.vals);
+    delete [] gvals;
+    
+    // --- Add Array to vtkDataSet --- //
+    ghostZones->SetName("avtGhostZones");
+    ugrid->GetCellData()->AddArray(ghostZones);
+    ghostZones->Delete();
+}
+
+// ****************************************************************************
+// Method: GetUcdPolyhedralGhostZonesFromLabels
+//
+// Purpose: 
+//   Creates array of ghost zones from DBucdmesh::Dbphzonelist::ghost_zone_labels.
+//
+// Arguments:
+//   DBphzonelist *pzl : the list of polyhedral zones to source ghost data.
+//   DBucdmesh *um : the mesh from which to source the data
+//   vtkUnstructuredGrid *ugrid : the object that stores the array
+//
+// Programmer: Edward Rusu
+// Creation:   Tue Sept 11 14:14:24 PDT 2018
+// ****************************************************************************
+void
+avtSiloFileFormat::GetUcdPolyhedralGhostZonesFromLabels(DBphzonelist *pzl,
+                                              vtkUnstructuredGrid *ugrid,
+                                              std::vector<int> *cellReMap)
+{
+    // --- Populate ghostZones --- //
+    int numCells = pzl->nzones;
+    unsigned char *gvals = new unsigned char[numCells];
+    unsigned char realVal = 0;
+    unsigned char ghostVal = 0;
+    avtGhostData::AddGhostZoneType(ghostVal, DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
+    
+    for (int i = 0; i < numCells; i++) {
+        if (pzl->ghost_zone_labels[i] == DB_GHOSTTYPE_NOGHOST)
+            gvals[i] = realVal;
+        else if (pzl->ghost_zone_labels[i] == DB_GHOSTTYPE_INTDUP)
+            gvals[i] = ghostVal;    
+    }
+    
+    // --- Create temporary DBucdvar --- //
+    DBucdvar tmp;
+    tmp.centering = DB_ZONECENT;
+    tmp.datatype = DB_CHAR;
+    tmp.nels = numCells;
+    tmp.nvals = 1;
+    tmp.vals = (void**) malloc(sizeof(void*));
+    tmp.vals[0] = (void*) gvals;
+    
+    // --- Create ghostZones --- //
+    vector<int> noremap;
+    vtkDataArray *ghostZones = CopyAndPadUcdVar<unsigned char,
+        vtkUnsignedCharArray>(&tmp, cellReMap ? *cellReMap : noremap);
+    free(tmp.vals);
+    delete [] gvals;
+    
+    // --- Add Array to vtkDataSet --- //
+    ghostZones->SetName("avtGhostZones");
+    ugrid->GetCellData()->AddArray(ghostZones);
+    ghostZones->Delete();
 }
 
 // ****************************************************************************
@@ -12701,6 +13047,7 @@ CopyPointMeshCoordinates(T *pts, const DBpointmesh *pm)
 //  Arguments:
 //      dbfile    A handle to the file this variable lives in.
 //      mn        The name of the point mesh.
+//      domain    The domain
 //
 //  Returns:      The vtkDataSet for mn.
 //
@@ -12812,6 +13159,27 @@ avtSiloFileFormat::GetPointMesh(DBfile *dbfile, const char *mn, int domain)
         void_ref_ptr vr = void_ref_ptr(arr, avtVariableCache::DestructVTKObject);
         cache->CacheVoidRef(meshname, AUXILIARY_DATA_GLOBAL_NODE_IDS, timestep, 
                             domain, vr);
+    }
+    
+    // --- Read Ghost Node Labels --- //
+    if (pm->ghost_node_labels) {
+        int numNodes = pm->nels;
+        unsigned char realVal = 0;
+        unsigned char ghostVal = 0;
+        avtGhostData::AddGhostNodeType(ghostVal, DUPLICATED_NODE);
+        
+        vtkUnsignedCharArray *ghostNodes = vtkUnsignedCharArray::New();
+        ghostNodes->SetName("avtGhostNodes");
+        ghostNodes->Allocate(numNodes);
+        for (int i = 0; i < numNodes; i++) {
+            if (pm->ghost_node_labels[i] == DB_GHOSTTYPE_NOGHOST)
+                ghostNodes->InsertNextValue(realVal);
+            else if (pm->ghost_node_labels[i] == DB_GHOSTTYPE_INTDUP)
+                ghostNodes->InsertNextValue(ghostVal);
+        }
+        
+        ugrid->GetPointData()->AddArray(ghostNodes);
+        ghostNodes->Delete();
     }
 
     points->Delete();
@@ -13249,6 +13617,9 @@ avtSiloFileFormat::GetRelativeVarName(const char *initVar, const char *newVar,
 //    Limited support for Silo nameschemes, use new multi block cache data
 //    structures.
 //
+//    Mark C. Miller, Thu Jun  8 14:52:32 PDT 2017
+//    Fix logic seeking first non-empty block to not make more than 20 attempts
+//    in the namescheme'd (implicit) case.
 // ****************************************************************************
 
 string
@@ -13277,14 +13648,38 @@ avtSiloFileFormat::DetermineMultiMeshForSubVariable(DBfile *dbfile,
     string mb_varname = obj->GenerateName(meshnum);
     int nblocks = obj->NumberOfBlocks();
     
-    while (GetMeshname(dbfile, mb_varname.c_str(), subMesh) != 0)
+    if (obj->IsExplicit())
     {
-        meshnum++;
-        if (meshnum >= nblocks)
+        while (mb_varname == "EMPTY")
         {
-            EXCEPTION1(InvalidVariableException,  name);
+            meshnum++;
+            if (meshnum >= nblocks)
+            {
+                EXCEPTION1(InvalidVariableException,  name);
+            }
+            mb_varname = obj->GenerateName(meshnum);
         }
-        mb_varname = obj->GenerateName(meshnum);
+        GetMeshname(dbfile, mb_varname.c_str(), subMesh);
+    }
+    else
+    {
+        while (GetMeshname(dbfile, mb_varname.c_str(), subMesh) != 0)
+        {
+            meshnum++;
+            if (meshnum >= nblocks)
+            {
+                EXCEPTION1(InvalidVariableException,  name);
+            }
+            else if (meshnum > 20)
+            {
+                char str[1024];
+                SNPRINTF(str, sizeof(str), "Giving up after 20 attempts to find first non-empty submesh "
+                    "of a namescheme'd multivar \"%s\". This typically leads to the variable being invalidated "
+                    "(grayed out) in the GUI.", name);
+                EXCEPTION1(SiloException, str);
+            }
+            mb_varname = obj->GenerateName(meshnum);
+        }
     }
 
     //
@@ -14056,8 +14451,14 @@ avtSiloFileFormat::GetGlobalNodeIds(int dom, const char *mesh)
     DBSetDataReadMask2(DBUMGlobNodeNo);
     DBucdmesh *um = DBGetUcdmesh(domain_file, directory_mesh.c_str());
     DBSetDataReadMask2(mask);
-    if (um == NULL && !ignoreMissingBlocks)
-        EXCEPTION1(InvalidVariableException, mesh);
+    if (um == NULL)
+    {
+        if (!ignoreMissingBlocks)
+        {
+            EXCEPTION1(InvalidVariableException, mesh);
+        }
+        return 0;
+    }
 
     vtkDataArray *rv = NULL;
     if (um->gnodeno != NULL)
@@ -14223,8 +14624,14 @@ avtSiloFileFormat::GetGlobalZoneIds(int dom, const char *mesh)
     DBSetDataReadMask2(DBUMZonelist|DBZonelistGlobZoneNo|DBZonelistInfo);
     DBucdmesh *um = DBGetUcdmesh(domain_file, directory_mesh.c_str());
     DBSetDataReadMask2(mask);
-    if (um == NULL && !ignoreMissingBlocks)
-        EXCEPTION1(InvalidVariableException, mesh);
+    if (um == NULL)
+    {
+        if (!ignoreMissingBlocks)
+        {
+            EXCEPTION1(InvalidVariableException, mesh);
+        }
+        return 0;
+    }
 
     vtkDataArray *rv = NULL;
     if (um->zones->gzoneno != NULL)
@@ -14770,8 +15177,15 @@ avtSiloFileFormat::CalcExternalFacelist(DBfile *dbfile, const char *mesh)
     DBucdmesh *um = DBGetUcdmesh(correctFile, realvar.c_str());
     DBSetDataReadMask2(mask);
     VisitMutexUnlock("avtSiloFileFormat::CalcExternalFacelist");
-    if (um == NULL && !ignoreMissingBlocks)
-        EXCEPTION1(InvalidVariableException, mesh);
+    if (um == NULL)
+    {
+        if (!ignoreMissingBlocks)
+        {
+            EXCEPTION1(InvalidVariableException, mesh);
+        }
+        return 0;
+    }
+
     DBfacelist *fl = um->faces;
 
     if (fl == NULL)
@@ -15504,12 +15918,17 @@ avtSiloFileFormat::CheckForTimeVaryingMetadata(DBfile *toc)
 //
 //    Mark C. Miller, Wed Feb  8 10:37:38 PST 2012
 //    Made it a static function
+//
+//    Mark C. Miller, Thu May  3 11:10:06 PDT 2018
+//    Made it issue warning message too.
 // ****************************************************************************
 static void
 ExceptionGenerator(char *msg)
 {
     if (msg)
     {
+        if (strstr(msg, "Checksum failure"))
+            avtCallback::IssueWarning(msg);
         debug1 << "The following Silo error occurred: " << msg << endl;
     }
     else

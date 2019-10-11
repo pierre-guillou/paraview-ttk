@@ -33,6 +33,7 @@
 #include "vtkSMTransferFunctionManager.h"
 #include "vtkSMTransferFunctionProxy.h"
 #include "vtkSMUtilities.h"
+#include "vtkSMVectorProperty.h"
 #include "vtkSMViewLayoutProxy.h"
 #include "vtkSMViewProxy.h"
 #include "vtkSmartPointer.h"
@@ -101,11 +102,7 @@ bool vtkIsOutputTypeNonStandard(vtkPVXMLElement* hints, const int outputPort)
       }
       if (const char* type = child->GetAttribute("type"))
       {
-        if (strcmp(type, "text") == 0)
-        {
-          return true;
-        }
-        else if (strcmp(type, "progress") == 0)
+        if (strcmp(type, "text") == 0 || strcmp(type, "progress") == 0 || strcmp(type, "logo") == 0)
         {
           return true;
         }
@@ -197,12 +194,16 @@ void vtkInheritRepresentationProperties(vtkSMRepresentationProxy* repr, vtkSMSou
       // representation, which is incorrect.
       continue;
     }
+    auto destVP = vtkSMVectorProperty::SafeDownCast(dest);
+    auto sourceVP = vtkSMVectorProperty::SafeDownCast(source);
     if (dest && source &&
       // the property wasn't modified since initialization or if it is
       // "Representation" property -- (HACK)
       (dest->GetMTime() < initTimeStamp || strcmp("Representation", pname) == 0) &&
       // the property types match.
-      strcmp(dest->GetClassName(), source->GetClassName()) == 0)
+      strcmp(dest->GetClassName(), source->GetClassName()) == 0 &&
+      // ensure vector properties have the same number of elements
+      !(destVP && sourceVP && destVP->GetNumberOfElements() != sourceVP->GetNumberOfElements()))
     {
       dest->Copy(source);
     }
@@ -386,15 +387,6 @@ vtkSMProxy* vtkSMParaViewPipelineControllerWithRendering::Show(
   // Since no repr exists, create a new one if possible.
   if (vtkSMRepresentationProxy* repr = view->CreateDefaultRepresentation(producer, outputPort))
   {
-    // let's set a name to make debugging easier.
-    auto pxm = producer->GetSessionProxyManager();
-    if (auto pname = pxm->GetProxyName("sources", producer))
-    {
-      std::ostringstream debugname;
-      debugname << pname << "(" << repr->GetXMLName() << ")";
-      repr->SetDebugName(debugname.str().c_str());
-    }
-
     vtkTimerLogScope scopeTimer2(
       "ParaViewPipelineControllerWithRendering::Show::CreatingRepresentation");
     SM_SCOPED_TRACE(Show)
@@ -404,6 +396,14 @@ vtkSMProxy* vtkSMParaViewPipelineControllerWithRendering::Show(
       .arg("display", repr);
 
     this->PreInitializeProxy(repr);
+
+    // let's set a name to make debugging easier.
+    if (auto pname = producer->GetLogName())
+    {
+      std::ostringstream logname;
+      logname << pname << "(" << repr->GetXMLName() << ")";
+      repr->SetLogName(logname.str().c_str());
+    }
 
     vtkTimeStamp ts;
     ts.Modified();
@@ -662,6 +662,21 @@ const char* vtkSMParaViewPipelineControllerWithRendering::GetPreferredViewType(
 }
 
 //----------------------------------------------------------------------------
+const char* vtkSMParaViewPipelineControllerWithRendering::GetPipelineIcon(
+  vtkSMSourceProxy* producer, int outputPort)
+{
+  // 1. Check if there's a hint for the producer. If so, use that.
+  vtkPVXMLElement* hint = vtkFindChildFromHints(producer->GetHints(), outputPort, "PipelineIcon");
+  if (hint && hint->GetAttribute("name"))
+  {
+    return hint->GetAttribute("name");
+  }
+
+  // 2. If not, return the prefered view type
+  return this->GetPreferredViewType(producer, outputPort);
+}
+
+//----------------------------------------------------------------------------
 bool vtkSMParaViewPipelineControllerWithRendering::AlsoShowInCurrentView(
   vtkSMSourceProxy* producer, int outputPort, vtkSMViewProxy* vtkNotUsed(currentView))
 {
@@ -695,53 +710,6 @@ void vtkSMParaViewPipelineControllerWithRendering::UpdatePipelineBeforeDisplay(
 }
 
 //----------------------------------------------------------------------------
-bool vtkSMParaViewPipelineControllerWithRendering::RegisterViewProxy(
-  vtkSMProxy* proxy, const char* proxyname)
-{
-  if (!proxy)
-  {
-    return false;
-  }
-
-  bool retval = this->Superclass::RegisterViewProxy(proxy, proxyname);
-  if (proxy->HasAnnotation("ParaView::DetachedFromLayout") &&
-    strcmp(proxy->GetAnnotation("ParaView::DetachedFromLayout"), "true") == 0)
-  {
-    return retval;
-  }
-
-  vtkSMSessionProxyManager* pxm = proxy->GetSessionProxyManager();
-
-  // locate layout (create a new one if needed).
-  vtkSMProxySelectionModel* selmodel = pxm->GetSelectionModel("ActiveView");
-  assert(selmodel != nullptr);
-  vtkSMViewProxy* activeView = vtkSMViewProxy::SafeDownCast(selmodel->GetCurrentProxy());
-  vtkSMProxy* activeLayout = vtkSMViewLayoutProxy::FindLayout(activeView);
-  activeLayout =
-    activeLayout ? activeLayout : this->FindProxy(pxm, "layouts", "misc", "ViewLayout");
-  if (!activeLayout)
-  {
-    // no active layout is present at all. Create a new one.
-    activeLayout = pxm->NewProxy("misc", "ViewLayout");
-    if (activeLayout)
-    {
-      this->InitializeProxy(activeLayout);
-      this->RegisterLayoutProxy(activeLayout);
-      activeLayout->FastDelete();
-    }
-  }
-  if (activeLayout)
-  {
-    vtkSMProxy* layoutAssigned =
-      vtkSMViewLayoutProxy::FindLayout(vtkSMViewProxy::SafeDownCast(proxy));
-    activeLayout = layoutAssigned ? layoutAssigned : activeLayout;
-    vtkSMViewLayoutProxy::SafeDownCast(activeLayout)
-      ->AssignViewToAnyCell(vtkSMViewProxy::SafeDownCast(proxy), 0);
-  }
-  return retval;
-}
-
-//----------------------------------------------------------------------------
 bool vtkSMParaViewPipelineControllerWithRendering::RegisterLayoutProxy(
   vtkSMProxy* proxy, const char* proxyname)
 {
@@ -769,4 +737,57 @@ void vtkSMParaViewPipelineControllerWithRendering::DoMaterialSetup(vtkSMProxy* p
   vtkSMMaterialLibraryProxy* mlp = vtkSMMaterialLibraryProxy::SafeDownCast(prox);
   mlp->LoadDefaultMaterials();
   mlp->Synchronize();
+}
+
+//----------------------------------------------------------------------------
+void vtkSMParaViewPipelineControllerWithRendering::AssignViewToLayout(
+  vtkSMViewProxy* view, vtkSMViewLayoutProxy* layout, int hint)
+{
+  if (!view)
+  {
+    vtkErrorMacro("`AssignViewToLayout` called with `view==nullptr`.");
+    return;
+  }
+
+  // sanity check, the view cannot be assigned to another layout already.
+  if (vtkSMViewLayoutProxy::FindLayout(view) != nullptr)
+  {
+    return;
+  }
+
+  if (layout && layout->GetSession() != view->GetSession())
+  {
+    // both layout and view must be on the same session.
+    layout = nullptr;
+  }
+
+  SM_SCOPED_TRACE(CallFunction)
+    .arg("AssignViewToLayout")
+    .arg("view", view)
+    .arg("layout", layout)
+    .arg("hint", hint)
+    .arg("comment", "add view to a layout so it's visible in UI");
+
+  auto pxm = view->GetSessionProxyManager();
+  if (layout == nullptr)
+  {
+    layout =
+      vtkSMViewLayoutProxy::SafeDownCast(this->FindProxy(pxm, "layouts", "misc", "ViewLayout"));
+  }
+
+  if (layout == nullptr)
+  {
+    // create a new layout.
+    if ((layout = vtkSMViewLayoutProxy::SafeDownCast(pxm->NewProxy("misc", "ViewLayout"))))
+    {
+      this->InitializeProxy(layout);
+      this->RegisterLayoutProxy(layout);
+      layout->FastDelete();
+    }
+  }
+
+  if (layout)
+  {
+    layout->AssignViewToAnyCell(view, hint);
+  }
 }

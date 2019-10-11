@@ -113,9 +113,11 @@
 #ifndef vtkSMSessionProxyManager_h
 #define vtkSMSessionProxyManager_h
 
-#include "vtkPVServerManagerCoreModule.h" //needed for exports
+#include "vtkPVServerManagerCoreModule.h" // needed for exports
 #include "vtkSMMessageMinimal.h"          // needed for vtkSMMessage.
 #include "vtkSMSessionObject.h"
+
+#include <string> // needed for std::string
 
 class vtkCollection;
 class vtkEventForwarderCommand;
@@ -151,7 +153,7 @@ public:
    */
   static vtkSMSessionProxyManager* New(vtkSMSession* session);
   vtkTypeMacro(vtkSMSessionProxyManager, vtkSMSessionObject);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
   //@}
 
   /**
@@ -208,7 +210,7 @@ public:
    * This overload register the proxy using an unique name returned by
    * GetUniqueProxyName() and returns the name used.
    */
-  vtkStdString RegisterProxy(const char* groupname, vtkSMProxy* proxy);
+  std::string RegisterProxy(const char* groupname, vtkSMProxy* proxy);
 
   //@{
   /**
@@ -269,8 +271,11 @@ public:
   /**
    * Given a group, returns a name not already used for proxies registered in
    * the given group. The prefix is used to come up with a new name.
+   * if alwaysAppend is true, then a suffix will always be appended, if not,
+   * the prefix may be used directly if possible.
    */
-  vtkStdString GetUniqueProxyName(const char* groupname, const char* prefix);
+  std::string GetUniqueProxyName(
+    const char* groupname, const char* prefix, bool alwaysAppend = true);
 
   /**
    * If the proxy is in the given group, return its name, otherwise

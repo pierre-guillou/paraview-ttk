@@ -413,15 +413,14 @@ struct Process_5_4_to_5_5
         continue;
       }
       // If the property LightSwitch is on, we add a light
-      auto switchNode = proxyNode.select_single_node("//Property[@name='LightSwitch']");
+      auto switchNode = proxyNode.select_node("//Property[@name='LightSwitch']");
       if (switchNode.node().child("Element").attribute("value").as_int() == 1)
       {
         // add a proxy group to the SM, with one headlight, with intensity and color set
         // get the old color and intensity. Diffuse color was set by the UI.
         double diffuseR = 1, diffuseG = 1, diffuseB = 1;
         double intensity = 1;
-        auto colorNode =
-          proxyNode.select_single_node("//Property[@name='LightDiffuseColor']").node();
+        auto colorNode = proxyNode.select_node("//Property[@name='LightDiffuseColor']").node();
         if (colorNode)
         {
           auto colorElt = colorNode.child("Element");
@@ -431,8 +430,7 @@ struct Process_5_4_to_5_5
           colorElt = colorElt.next_sibling("Element");
           diffuseB = colorElt.attribute("value").as_double();
         }
-        auto intensityNode =
-          proxyNode.select_single_node("//Property[@name='LightIntensity']").node();
+        auto intensityNode = proxyNode.select_node("//Property[@name='LightIntensity']").node();
         if (intensityNode)
         {
           auto intensityElt = intensityNode.child("Element");
@@ -503,7 +501,7 @@ struct Process_5_4_to_5_5
         //   <Proxy value="8232"/>
         // </Property>
         auto additionalLightsNode =
-          proxyNode.select_single_node("//Property[@name='AdditionalLights']").node();
+          proxyNode.select_node("//Property[@name='AdditionalLights']").node();
         if (!additionalLightsNode)
         {
           additionalLightsNode = proxyNode.append_child("Property");
@@ -543,8 +541,7 @@ struct Process_5_4_to_5_5
         continue;
       }
 
-      auto prop =
-        proxyNode.select_single_node("//Property[@name='DataBoundsInflateFactor']").node();
+      auto prop = proxyNode.select_node("//Property[@name='DataBoundsInflateFactor']").node();
       auto valueElt = prop.child("Element");
       double inflateFactor = valueElt.attribute("value").as_double();
 
@@ -569,7 +566,7 @@ struct Process_5_4_to_5_5
         continue;
       }
 
-      auto prop = proxyNode.select_single_node("//Property[@name='InsideOut']").node();
+      auto prop = proxyNode.select_node("//Property[@name='InsideOut']").node();
       auto valueElt = prop.child("Element");
       int invert = valueElt.attribute("value").as_int();
 
@@ -620,6 +617,148 @@ struct Process_5_5_to_5_6
         "Consider replacing the Glyph filter with a new Glyph filter. The old implementation "
         "is still available as 'Glyph Legacy' and will be used for loading this state file.");
     }
+    return true;
+  }
+};
+
+//===========================================================================
+struct Process_5_6_to_5_7
+{
+  bool operator()(xml_document& document)
+  {
+    return ConvertResampleWithDataset(document) && ConvertIdsFilter(document) &&
+      ConvertOSPRayNames(document) && ConvertBox(document) &&
+      ConvertExodusLegacyBlockNamesWithElementTypes(document) && RemoveColorPropertyLinks(document);
+  }
+
+  static bool ConvertResampleWithDataset(xml_document& document)
+  {
+    // Change InputProperty names for the inputs to be a bit clearer.
+    pugi::xpath_node_set elements = document.select_nodes(
+      "//ServerManagerState/Proxy[@group='filters' and @type='ResampleWithDataset']");
+    for (auto iter = elements.begin(); iter != elements.end(); ++iter)
+    {
+      pugi::xml_node proxy_node = iter->node();
+      // Rename the Input property and change the name attribute.
+      pugi::xml_node input_node = proxy_node.find_child_by_attribute("Property", "name", "Input");
+      input_node.attribute("name").set_value("SourceDataArrays");
+
+      // Rename the Source property and change the name attribute.
+      pugi::xml_node source_node = proxy_node.find_child_by_attribute("Property", "name", "Source");
+      source_node.attribute("name").set_value("DestinationMesh");
+    }
+
+    return true;
+  }
+
+  static bool ConvertIdsFilter(xml_document& document)
+  {
+    // `ArrayName` property was removed, instead replaced by `CellIdsArrayName`
+    // and `PointIdsArrayName`.
+    pugi::xpath_node_set elements =
+      document.select_nodes("//ServerManagerState/Proxy[@group='filters' and "
+                            "@type='GenerateIdScalars']/Property[@name='ArrayName']");
+    for (auto iter = elements.begin(); iter != elements.end(); ++iter)
+    {
+      auto arrayname_node = iter->node();
+      auto proxy_node = arrayname_node.parent();
+      std::string id = proxy_node.attribute("id").value();
+
+      arrayname_node.attribute("name").set_value("CellIdsArrayName");
+      arrayname_node.attribute("id").set_value((id + ".CellIdsArrayName").c_str());
+      proxy_node.append_copy(arrayname_node);
+
+      arrayname_node.attribute("name").set_value("PointIdsArrayName");
+      arrayname_node.attribute("id").set_value((id + ".PointIdsArrayName").c_str());
+    }
+
+    return true;
+  };
+
+  static bool ConvertOSPRayNames(xml_document& document)
+  {
+    // The `EnableOSPray` property for the first time got a label, which is `Enable Ray Tracing`.
+    // Other OSPRay label changes appear to have no effect on the state file.
+    pugi::xpath_node_set elements =
+      document.select_nodes("//ServerManagerState/Proxy[@group='views' "
+                            "and @type='RenderView']/Property[@name='EnableOSPRay']");
+    for (auto iter = elements.begin(); iter != elements.end(); ++iter)
+    {
+      auto property_node = iter->node();
+      auto proxy_node = property_node.parent();
+
+      property_node.attribute("name").set_value("EnableRayTracing");
+      proxy_node.append_copy(property_node);
+    }
+
+    return true;
+  };
+
+  static bool ConvertBox(xml_document& document)
+  {
+    pugi::xpath_node_set elements = document.select_nodes(
+      "//ServerManagerState/Proxy[@group='implicit_functions' and @type='Box']");
+    for (auto iter = elements.begin(); iter != elements.end(); ++iter)
+    {
+      pugi::xml_node proxy_node = iter->node();
+      std::string id_string(proxy_node.attribute("id").value());
+
+      // add a `UseReferenceBounds=1` property to each one.
+      auto node = proxy_node.append_child("Property");
+      node.append_attribute("name").set_value("UseReferenceBounds");
+      node.append_attribute("id").set_value((id_string + ".UseReferenceBounds").c_str());
+      node.append_attribute("number_of_elements").set_value("1");
+
+      auto elem = node.append_child("Element");
+      elem.append_attribute("index").set_value("0");
+      elem.append_attribute("value").set_value("1");
+
+      // find 'Scale' property and rename it to 'Length'
+      for (auto pchild = proxy_node.child("Property"); pchild;
+           pchild = pchild.next_sibling("Property"))
+      {
+        if (strcmp(pchild.attribute("name").as_string(), "Scale") == 0)
+        {
+          pchild.attribute("name").set_value("Length");
+        }
+      }
+    }
+
+    return true;
+  }
+
+  static bool ConvertExodusLegacyBlockNamesWithElementTypes(xml_document& document)
+  {
+    pugi::xpath_node_set elements =
+      document.select_nodes("//ServerManagerState/Proxy[@group='sources' and "
+                            "(@type='ExodusIIReader' or @type='ExodusRestartReader')]");
+    for (auto iter = elements.begin(); iter != elements.end(); ++iter)
+    {
+      pugi::xml_node proxy_node = iter->node();
+      std::string id_string(proxy_node.attribute("id").value());
+
+      // add a `UseLegacyBlockNamesWithElementTypes=1` property to each one.
+      auto node = proxy_node.append_child("Property");
+      node.append_attribute("name").set_value("UseLegacyBlockNamesWithElementTypes");
+      node.append_attribute("id").set_value(
+        (id_string + ".UseLegacyBlockNamesWithElementTypes").c_str());
+      node.append_attribute("number_of_elements").set_value("1");
+
+      auto elem = node.append_child("Element");
+      elem.append_attribute("index").set_value("0");
+      elem.append_attribute("value").set_value("1");
+    }
+
+    return true;
+  }
+
+  static bool RemoveColorPropertyLinks(xml_document& document)
+  {
+    pugi::xpath_node_set elements =
+      document.select_nodes("//ServerManagerState/Links/GlobalPropertyLink"
+                            "[@property='Color']");
+    PurgeElements(elements);
+
     return true;
   }
 };
@@ -681,7 +820,7 @@ bool vtkSMStateVersionController::Process(vtkPVXMLElement* parent, vtkSMSession*
   // parse using pugi.
   pugi::xml_document document;
 
-  if (!document.load(stream.str().c_str()))
+  if (!document.load_string(stream.str().c_str()))
   {
     vtkErrorMacro("Failed to convert from vtkPVXMLElement to pugi::xml_document");
     return false;
@@ -712,6 +851,13 @@ bool vtkSMStateVersionController::Process(vtkPVXMLElement* parent, vtkSMSession*
     Process_5_5_to_5_6 converter;
     status = converter(document);
     version = vtkSMVersion(5, 6, 0);
+  }
+
+  if (status && (version < vtkSMVersion(5, 7, 0)))
+  {
+    Process_5_6_to_5_7 converter;
+    status = converter(document);
+    version = vtkSMVersion(5, 7, 0);
   }
 
   if (status)

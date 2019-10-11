@@ -51,7 +51,7 @@ static void icetTimingBegin(IceTEnum start_pname,
                             IceTEnum result_pname,
                             const char *name)
 {
-    icetRaiseDebug1("Beginning %s", name);
+    icetRaiseDebug("Beginning %s", name);
     (void)name;
 
     icetEventBegin(result_pname);
@@ -60,13 +60,12 @@ static void icetTimingBegin(IceTEnum start_pname,
         IceTInt current_id;
         icetGetIntegerv(id_pname, &current_id);
         if (current_id != 0) {
-            char message[256];
-            sprintf(message,
+            icetRaiseError(
+                    ICET_SANITY_CHECK_FAIL,
                     "Called start for timer 0x%x,"
                     " but end never called for timer 0x%x",
                     result_pname,
                     current_id);
-            icetRaiseError(message, ICET_SANITY_CHECK_FAIL);
         }
     }
 
@@ -79,7 +78,7 @@ static void icetTimingEnd(IceTEnum start_pname,
                           IceTEnum result_pname,
                           const char *name)
 {
-    icetRaiseDebug1("Ending %s", name);
+    icetRaiseDebug("Ending %s", name);
     (void)name;
 
     icetEventEnd(result_pname);
@@ -88,12 +87,10 @@ static void icetTimingEnd(IceTEnum start_pname,
         IceTInt current_id;
         icetGetIntegerv(id_pname, &current_id);
         if ((IceTEnum)current_id != result_pname) {
-            char message[256];
-            sprintf(message,
-                    "Started timer 0x%x, but ended timer 0x%x",
-                    result_pname,
-                    current_id);
-            icetRaiseError(message, ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Started timer 0x%x, but ended timer 0x%x",
+                           result_pname,
+                           current_id);
         }
     }
 

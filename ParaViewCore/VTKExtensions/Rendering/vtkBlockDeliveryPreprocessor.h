@@ -27,6 +27,7 @@
 
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkPVVTKExtensionsRenderingModule.h" // needed for export macro
+#include "vtkSplitColumnComponents.h"          //  needed for enum
 
 class VTKPVVTKEXTENSIONSRENDERING_EXPORT vtkBlockDeliveryPreprocessor
   : public vtkDataObjectAlgorithm
@@ -34,7 +35,7 @@ class VTKPVVTKEXTENSIONSRENDERING_EXPORT vtkBlockDeliveryPreprocessor
 public:
   static vtkBlockDeliveryPreprocessor* New();
   vtkTypeMacro(vtkBlockDeliveryPreprocessor, vtkDataObjectAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -80,6 +81,17 @@ public:
 
   //@{
   /**
+   * Corresponds to `vtkSplitColumnComponents::NamingMode`. Pick which mode to
+   * use to name arrays when `FlattenTable` is true. Default is
+   * `vtkSplitColumnComponents::NAMES_WITH_UNDERSCORES`.
+   */
+  vtkSetClampMacro(SplitComponentsNamingMode, int, vtkSplitColumnComponents::NUMBERS_WITH_PARENS,
+    vtkSplitColumnComponents::NAMES_WITH_UNDERSCORES);
+  vtkGetMacro(SplitComponentsNamingMode, int);
+  //@}
+
+  //@{
+  /**
    * When set (default) the vtkOriginalIndices array will be added to the
    * output. Can be overridden by setting this flag to 0.
    * This is only respected when AddMetaData is true.
@@ -92,21 +104,19 @@ protected:
   vtkBlockDeliveryPreprocessor();
   ~vtkBlockDeliveryPreprocessor() override;
 
-  vtkExecutive* CreateDefaultExecutive() VTK_OVERRIDE;
-
   /**
    * This is called by the superclass.
    * This is the method you should override.
    */
-  int RequestDataObject(
-    vtkInformation*, vtkInformationVector**, vtkInformationVector*) VTK_OVERRIDE;
+  int RequestDataObject(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) VTK_OVERRIDE;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   int FieldAssociation;
   int FlattenTable;
   bool GenerateOriginalIds;
   bool GenerateCellConnectivity;
+  int SplitComponentsNamingMode;
 
 private:
   vtkBlockDeliveryPreprocessor(const vtkBlockDeliveryPreprocessor&) = delete;

@@ -1,5 +1,6 @@
-#include "vtkPVConfig.h"
-#ifdef PARAVIEW_USE_MPI
+// xxx(kitware)
+#if VTK_MODULE_ENABLE_VTK_mpi
+// if MPI is enabled, let BoxLib know that too.
 #define BL_USE_MPI 1
 #endif
 

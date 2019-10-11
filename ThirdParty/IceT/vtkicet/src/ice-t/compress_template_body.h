@@ -177,10 +177,9 @@
                     * (CT_SPACE_LEFT+CT_SPACE_RIGHT) );
 #endif /*CT_PADDING*/
     if (_totalcount != (IceTSizeType)CT_PIXEL_COUNT) {
-        char msg[256];
-        sprintf(msg, "Total run lengths don't equal pixel count: %d != %d",
-                (int)_totalcount, (int)(CT_PIXEL_COUNT));
-        icetRaiseError(msg, ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Total run lengths don't equal pixel count: %d != %d",
+                       (int)_totalcount, (int)(CT_PIXEL_COUNT));
     }
 #endif /*DEBUG*/
 

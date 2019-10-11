@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -67,6 +67,7 @@
 #include <avtSIL.h>
 
 #include <DebugStream.h>
+#include <Environment.h>
 #include <ImproperUseException.h>
 #include <InvalidFilesException.h>
 #include <InvalidDimensionsException.h>
@@ -962,15 +963,15 @@ avtDatabase::PopulateDataObjectInformation(avtDataObject_p &dob,
             //
             if (smd->hasDataExtents)
             {
-                double extents[6]; // 6 is probably too much, but better to be safe
+                double extents[2];
                 extents[0] = smd->minDataExtents;
                 extents[1] = smd->maxDataExtents;
-    
+
                 atts.GetOriginalDataExtents(var_list[i])->Set(extents);
             }
             else
             {
-                double extents[6]; // 6 is probably too much, but better to be safe
+                double extents[2];
                 if (GetExtentsFromAuxiliaryData(spec, var_list[i],
                         AUXILIARY_DATA_DATA_EXTENTS, extents))
                 {
@@ -978,7 +979,7 @@ avtDatabase::PopulateDataObjectInformation(avtDataObject_p &dob,
                 }
             }
         }
-    
+
         const avtVectorMetaData *vmd = GetMetaData(ts)->GetVector(var_list[i]);
         if (vmd != NULL)
         {
@@ -989,7 +990,7 @@ avtDatabase::PopulateDataObjectInformation(avtDataObject_p &dob,
             atts.SetVariableDimension(vmd->varDim, var_list[i]);
             atts.SetCentering(vmd->centering, var_list[i]);
             atts.SetVariableType(AVT_VECTOR_VAR, var_list[i]);
-    
+
             //
             // Note that we are using the spatial extents as both the spatial 
             // extents and as the global spatial extents (the spatial extents 
@@ -997,14 +998,14 @@ avtDatabase::PopulateDataObjectInformation(avtDataObject_p &dob,
             //
             if (vmd->hasDataExtents)
             {
-                double extents[6]; // 6 is probably too much, but better to be safe
+                double extents[2];
                 extents[0] = vmd->minDataExtents;
                 extents[1] = vmd->maxDataExtents;
                 atts.GetOriginalDataExtents(var_list[i])->Set(extents);
             }
             else
             {
-                double extents[6]; // 6 is probably too much, but better to be safe
+                double extents[2];
                 if (GetExtentsFromAuxiliaryData(spec, var_list[i],
                         AUXILIARY_DATA_DATA_EXTENTS, extents))
                 {
@@ -1024,7 +1025,7 @@ avtDatabase::PopulateDataObjectInformation(avtDataObject_p &dob,
             atts.SetCentering(tmd->centering, var_list[i]);
             atts.SetVariableType(AVT_TENSOR_VAR, var_list[i]);
         }
-    
+
         const avtSymmetricTensorMetaData *stmd = 
                                    GetMetaData(ts)->GetSymmTensor(var_list[i]);
         if (stmd != NULL)
@@ -1080,7 +1081,7 @@ avtDatabase::PopulateDataObjectInformation(avtDataObject_p &dob,
             atts.SetYLabel(cmd->yLabel);
             if (cmd->hasDataExtents)
             {
-                double extents[6]; // 6 is probably too much, but better to be safe
+                double extents[2];
                 extents[0] = cmd->minDataExtents;
                 extents[1] = cmd->maxDataExtents;
                 atts.GetOriginalDataExtents(var_list[i])->Set(extents);
@@ -1291,6 +1292,9 @@ avtDatabase::GetMostRecentTimestep(void) const
 //    Brad Whitlock, Thu Jun 19 10:36:38 PDT 2014
 //    Removed code to get IO info.
 //
+//    Mark C. Miller, Thu Jun  8 14:14:48 PDT 2017
+//    Add logic to disable speculative expression generation (SEG) under
+//    certain conditions.
 // ****************************************************************************
 
 void
@@ -1317,14 +1321,21 @@ avtDatabase::GetNewMetaData(int timeState, bool forceReadAllCyclesTimes)
     md->SetMustRepopulateOnStateChange(!MetaDataIsInvariant() ||
                                        !SILIsInvariant());
 
-    if (avtDatabaseFactory::GetCreateMeshQualityExpressions())
-        AddMeshQualityExpressions(md);
+    if (md->ShouldDisableSEG(Environment::exists(md->GetSEGEnvVarName())))
+    {
+        md->IssueSEGWarningMessage();
+    }
+    else
+    {
+        if (avtDatabaseFactory::GetCreateMeshQualityExpressions())
+            AddMeshQualityExpressions(md);
 
-    if (avtDatabaseFactory::GetCreateTimeDerivativeExpressions())
-        AddTimeDerivativeExpressions(md);
+        if (avtDatabaseFactory::GetCreateTimeDerivativeExpressions())
+            AddTimeDerivativeExpressions(md);
 
-    if (avtDatabaseFactory::GetCreateVectorMagnitudeExpressions())
-        AddVectorMagnitudeExpressions(md);
+        if (avtDatabaseFactory::GetCreateVectorMagnitudeExpressions())
+            AddVectorMagnitudeExpressions(md);
+    }
 
     Convert1DVarMDsToCurveMDs(md);
 
@@ -1346,6 +1357,9 @@ avtDatabase::GetNewMetaData(int timeState, bool forceReadAllCyclesTimes)
 //    Mark C. Miller, Wed Feb 18 14:54:59 PST 2009
 //    Fixed naming of curve md objects so their names don't wind up colliding
 //    with thier original scalar var objects.
+//
+//    Mark C. Miller Tue May 22 18:34:15 PDT 2018
+//    Remove single block restriction for re-interpreting 1D meshes as curves.
 // ****************************************************************************
 
 void
@@ -1361,7 +1375,7 @@ avtDatabase::Convert1DVarMDsToCurveMDs(avtDatabaseMetaData *md)
     for (i = 0; i < md->GetNumMeshes(); ++i)
     {
         const avtMeshMetaData *mmd = md->GetMesh(i);
-        if (mmd->spatialDimension == 1 && mmd->numBlocks == 1)
+        if (mmd->spatialDimension == 1)
             meshNameToNumMap[mmd->name] = i;
     }
     if (meshNameToNumMap.empty())
@@ -1383,6 +1397,7 @@ avtDatabase::Convert1DVarMDsToCurveMDs(avtDatabaseMetaData *md)
             scalarsToHide.push_back(i);
             avtCurveMetaData *cmd = new avtCurveMetaData();
             cmd->name = "Scalar_Curves/" + smd->name;
+            cmd->meshName = smd->meshName;
             cmd->originalName = smd->originalName;
             cmd->validVariable = smd->validVariable;
             cmd->yUnits = smd->units;
@@ -1461,6 +1476,8 @@ avtDatabase::Convert1DVarMDsToCurveMDs(avtDatabaseMetaData *md)
 //    Matthew Wheeler, Mon 20 May 12:00:00 GMT 2013
 //    Added min_corner_area and min_sin_corner
 //
+//    Mark C. Miller, Thu Jun  8 14:15:28 PDT 2017
+//    Skip invalid variables too
 // ****************************************************************************
 
 void
@@ -1496,7 +1513,7 @@ avtDatabase::AddMeshQualityExpressions(avtDatabaseMetaData *md)
         if (topoDim == 0 || topoDim == 1)
             continue;
 
-        if (mmd->hideFromGUI)
+        if (mmd->hideFromGUI || !mmd->validVariable)
             continue;
 
         int pass_for_this_mesh = 2;
@@ -1600,6 +1617,8 @@ avtDatabase::AddMeshQualityExpressions(avtDatabaseMetaData *md)
 //    Variable names may be compound (eg "mesh/ireg") so make sure they are
 //    enclosed in angle-brackets at the beginning of the created expression.
 //
+//    Mark C. Miller, Thu Jun  8 14:15:50 PDT 2017
+//    Skip invalid variables too
 // ****************************************************************************
 
 void
@@ -1616,6 +1635,9 @@ avtDatabase::AddTimeDerivativeExpressions(avtDatabaseMetaData *md)
     for (i = 0 ; i < numMeshes ; ++i)
     {
          const avtMeshMetaData *mmd = md->GetMesh(i);
+
+         if (mmd->hideFromGUI || !mmd->validVariable)
+             continue;
 
          string base2;
          if (numMeshes == 1)
@@ -1823,20 +1845,27 @@ avtDatabase::AddTimeDerivativeExpressions(avtDatabaseMetaData *md)
 // 
 //    Mark C. Miller, Tue Apr 15 15:12:26 PDT 2008
 //    Eliminated database objects for which hideFromGUI is true
+//
+//    Mark C. Miller, Thu Jun  8 14:16:27 PDT 2017
+//    Skip invalid variables too. Const qualified md pointer and expressions.
 // ****************************************************************************
 
 void
 avtDatabase::AddVectorMagnitudeExpressions(avtDatabaseMetaData *md)
 {
+    avtDatabaseMetaData const *const_md = md;
+
     char buff[1024];
     // get vectors from database metadata
     int nvectors = md->GetNumVectors();
     for(int i=0; i < nvectors; ++i)
     {
-        if (md->GetVectors(i).hideFromGUI)
+        avtVectorMetaData const &vmd = const_md->GetVectors(i);
+
+        if (vmd.hideFromGUI || !vmd.validVariable)
             continue;
 
-        const char *vec_name = md->GetVectors(i).name.c_str();
+        const char *vec_name = vmd.name.c_str();
         Expression new_expr;
         SNPRINTF(buff,1024, "%s_magnitude", vec_name);
         new_expr.SetName(buff);
@@ -1848,7 +1877,7 @@ avtDatabase::AddVectorMagnitudeExpressions(avtDatabaseMetaData *md)
     }
     
     // also get any from database expressions
-    ExpressionList elist = md->GetExprList();
+    ExpressionList const elist = md->GetExprList();
     int nexprs = elist.GetNumExpressions();
     for(int i=0; i < nexprs; ++i)
     {
@@ -2374,6 +2403,11 @@ avtDatabase::NumStagesForFetch(avtDataRequest_p)
 //    Jim Eliot, Wed 18 Nov 11:30:58 GMT 2015
 //    Fixed bug (2461) with reading DOS formatted files which uses '\'r
 //    newline character
+//
+//    Burlen Loring, Fri Apr 28 10:21:30 PDT 2017
+//    Don't count key words when determining if the file count evenly divides
+//    the block count.
+//
 // ****************************************************************************
 
 bool
@@ -2398,8 +2432,9 @@ avtDatabase::GetFileListFromTextFile(const char *textfile,
     vector<char *>  list;
     char  str_auto[1024];
     char  str_with_dir[2048];
-    int   count = 0;
-    int   badCount = 0;
+    int   goodCount = 0; // number of valid lines, keywords and files
+    int   badCount = 0; // number of empty and comment lines
+    int   fileCount = 0; // number of non empty, non comment, non keyword, lines
     int   bang_nBlocks = -1;
     bool failed = false;
     while (!ifile.eof() && !failed && badCount < 10000)
@@ -2432,7 +2467,7 @@ avtDatabase::GetFileListFromTextFile(const char *textfile,
         if (str_auto[0] != '\0' && str_auto[0] != '#')
         {
             char *bnbp = strstr(str_auto, "!NBLOCKS ");
-            if (bnbp && bnbp == str_auto && !count)
+            if (bnbp && bnbp == str_auto && !goodCount)
             {
                 errno = 0;
                 bang_nBlocks = strtol(str_auto + strlen("!NBLOCKS "), 0, 10);
@@ -2446,7 +2481,7 @@ avtDatabase::GetFileListFromTextFile(const char *textfile,
 
                 if (bang_nBlocksp)
                     *bang_nBlocksp = bang_nBlocks;
- 
+
                 continue;
             }
 
@@ -2454,6 +2489,8 @@ avtDatabase::GetFileListFromTextFile(const char *textfile,
             if (str_auto[0] == VISIT_SLASH_CHAR || str_auto[0] == '!' ||
                 (str_auto_len > 2 && str_auto[1] == ':'))
             {
+                // already have an absolute path like /something or C:\something,
+                // or a keyword like !SOMETHING
                 strcpy(str_with_dir, str_auto);
             }
             else
@@ -2461,8 +2498,13 @@ avtDatabase::GetFileListFromTextFile(const char *textfile,
                 sprintf(str_with_dir, "%s%s", dir, str_auto);
             }
             char *str_heap = CXX_strdup(str_with_dir);
-            list.push_back(str_heap); 
-            ++count;
+            list.push_back(str_heap);
+            ++goodCount;
+
+            // lines of the file starting with ! are keywords and
+            // are not part of the block count
+            if (str_auto[0] != '!')
+                ++fileCount;
         }
         else
             ++badCount;
@@ -2470,10 +2512,11 @@ avtDatabase::GetFileListFromTextFile(const char *textfile,
 
     if (bang_nBlocks > 0 && !failed)
     {
-        if (count % bang_nBlocks)
+        if (fileCount % bang_nBlocks)
         {
             failed = true;
-            debug1 << "File count of " << count << " not evenly divided by !NBLOCKS value of " << bang_nBlocks << endl;
+            debug1 << "File count of " << fileCount << " not evenly divided by "
+                "!NBLOCKS value of " << bang_nBlocks << endl;
         }
     }
 
@@ -2487,7 +2530,7 @@ avtDatabase::GetFileListFromTextFile(const char *textfile,
     }
     else
     {
-        filelist = new char*[count];
+        filelist = new char*[goodCount];
         filelistN = 0;
         for (it = list.begin() ; it != list.end() ; ++it)
         {

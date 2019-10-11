@@ -178,8 +178,8 @@ vtkIdType vtkPointLocator::FindClosestPoint(const double x[3])
   double minDist2;
   double dist2 = VTK_DOUBLE_MAX;
   double pt[3];
-  int closest, level;
-  vtkIdType ptId, cno, nids;
+  int level;
+  vtkIdType ptId, closest, cno, nids;
   vtkIdList *ptIds;
   int ijk[3], *nei;
   vtkNeighborPoints buckets;
@@ -846,7 +846,6 @@ void vtkPointLocator::FindPointsWithinRadius(double R, const double x[3],
 void vtkPointLocator::BuildLocator()
 {
   int ndivs[3];
-  int i;
   vtkIdType idx;
   vtkIdList *bucket;
   vtkIdType numPts;
@@ -891,7 +890,7 @@ void vtkPointLocator::BuildLocator()
   {
     bbox.Inflate(); //make sure non-zero volume
     bbox.GetBounds(this->Bounds);
-    for (i=0; i<3; i++)
+    for (int i=0; i<3; ++i)
     {
       ndivs[i] = ( this->Divisions[i] < 1 ? 1 : this->Divisions[i] );
     }
@@ -905,7 +904,7 @@ void vtkPointLocator::BuildLocator()
 
   //  Compute width of bucket in three directions
   //
-  for (i=0; i<3; i++)
+  for (int i=0; i<3; ++i)
   {
     this->H[i] = (this->Bounds[2*i+1] - this->Bounds[2*i]) / static_cast<double>(ndivs[i]);
   }
@@ -921,7 +920,7 @@ void vtkPointLocator::BuildLocator()
   //  Insert each point into the appropriate bucket.  Make sure point
   //  falls within bucket.
   //
-  for (i=0; i<numPts; i++)
+  for (vtkIdType i=0; i<numPts; ++i)
   {
     this->DataSet->GetPoint(i, x);
     idx = this->GetBucketIndex(x);
@@ -1047,7 +1046,7 @@ void vtkPointLocator::GetOverlappingBuckets(vtkNeighborPoints* buckets,
                                             int prevMaxLevel[3])
 {
   int i, j, k, nei[3], minLevel[3], maxLevel[3];
-  int kFactor, jFactor;
+  vtkIdType kFactor, jFactor;
   int jkSkipFlag, kSkipFlag;
   double xMin[3], xMax[3];
 

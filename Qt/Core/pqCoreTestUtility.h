@@ -58,6 +58,12 @@ public:
   pqCoreTestUtility(QObject* parent = 0);
   ~pqCoreTestUtility() override;
 
+  /**
+   * Cleans up patch to replace $PARAVIEW_TEST_ROOT and $PARAVIEW_DATA_ROOT
+   * with appropriate paths specified on the command line.
+   */
+  static QString fixPath(const QString& path);
+
 public:
   /**
   * Returns the absolute path to the PARAVIEW_DATA_ROOT in canonical form
@@ -87,8 +93,9 @@ public:
   * Compares the contents of a render window to a reference image,
   * returning true iff the two match within a given threshold
   */
-  static bool CompareImage(vtkRenderWindow* RenderWindow, const QString& ReferenceImage,
-    double Threshold, ostream& Output, const QString& TempDirectory);
+  static bool CompareImage(vtkRenderWindow* renderWindow, const QString& referenceImage,
+    double threshold, ostream& output, const QString& tempDirectory,
+    const QSize& size = QSize(300, 300));
 
   /**
   * Compares the test image to a reference image,
@@ -111,6 +118,11 @@ public:
     const QString& tempDirectory, const QSize& size = QSize());
 
   static const char* PQ_COMPAREVIEW_PROPERTY_NAME;
+
+  static bool CompareTile(QWidget* widget, int rank, int tdx, int tdy, const QString& baseline,
+    double threshold, ostream& output, const QString& tempDirectory);
+  static bool CompareTile(pqView* widget, int rank, int tdx, int tdy, const QString& baseline,
+    double threshold, ostream& output, const QString& tempDirectory);
 
 private:
   QStringList TestFilenames;

@@ -17,16 +17,29 @@
 
 #include "vtkAMRDualContour.h"
 #include "vtkAppendPolyData.h"
+#include "vtkArrayDispatch.h"
+#include "vtkAssume.h"
 #include "vtkCompositeDataIterator.h"
+#include "vtkContour3DLinearGrid.h"
+#include "vtkDataArray.h"
+#include "vtkDataArrayAccessor.h"
 #include "vtkDataObject.h"
 #include "vtkDemandDrivenPipeline.h"
+#include "vtkEventForwarderCommand.h"
 #include "vtkHierarchicalBoxDataSet.h"
 #include "vtkInformation.h"
 #include "vtkInformationStringVectorKey.h"
 #include "vtkInformationVector.h"
+#include "vtkLogger.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkObjectFactory.h"
+#include "vtkPointData.h"
+#include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
+#include "vtkUnstructuredGrid.h"
+
+#include <cmath>
+#include <set>
 
 vtkStandardNewMacro(vtkPVContourFilter);
 
@@ -134,6 +147,41 @@ int vtkPVContourFilter::RequestData(
     }
   }
 
+  vtkDataArray* array = this->GetInputArrayToProcess(0, inputVector);
+  if (!array)
+  {
+    vtkLog(INFO, "Contour array is null.");
+    return 1;
+  }
+
+  // See if we can delegate to the faster vtkContour3DLinearGrid for this dataset and settings
+  // Note: vtkContour3DLinearGrid does not support the ComputeScalars option.
+  bool useLinear3DContour = this->ComputeScalars == 0 &&
+    vtkContour3DLinearGrid::CanFullyProcessDataObject(inDataObj, array->GetName());
+
+  if (useLinear3DContour)
+  {
+    vtkNew<vtkContour3DLinearGrid> linear3DContour;
+    linear3DContour->SetNumberOfContours(this->GetNumberOfContours());
+    for (int i = 0; i < this->GetNumberOfContours(); ++i)
+    {
+      linear3DContour->SetValue(i, this->GetValue(i));
+    }
+    linear3DContour->SetMergePoints(this->GetLocator() != nullptr);
+    linear3DContour->SetInterpolateAttributes(true);
+    linear3DContour->SetComputeNormals(this->GetComputeNormals());
+    linear3DContour->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+    linear3DContour->SetUseScalarTree(this->GetUseScalarTree());
+    linear3DContour->SetScalarTree(this->GetScalarTree());
+    linear3DContour->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
+    vtkNew<vtkEventForwarderCommand> progressForwarder;
+    progressForwarder->SetTarget(this);
+    linear3DContour->AddObserver(vtkCommand::ProgressEvent, progressForwarder);
+    auto retval = linear3DContour->ProcessRequest(request, inputVector, outputVector);
+
+    return retval;
+  }
+
   return this->ContourUsingSuperclass(request, inputVector, outputVector);
 }
 
@@ -188,7 +236,15 @@ int vtkPVContourFilter::ContourUsingSuperclass(
   vtkCompositeDataSet* inputCD = vtkCompositeDataSet::SafeDownCast(inputDO);
   if (!inputCD)
   {
-    return this->Superclass::RequestData(request, inputVector, outputVector);
+    auto retval = this->Superclass::RequestData(request, inputVector, outputVector);
+    if (retval)
+    {
+      if (auto polydata = vtkPolyData::GetData(outputVector, 0))
+      {
+        this->CleanOutputScalars(polydata->GetPointData()->GetScalars());
+      }
+    }
+    return retval;
   }
 
   vtkCompositeDataSet* outputCD = vtkCompositeDataSet::SafeDownCast(outputDO);
@@ -221,6 +277,7 @@ int vtkPVContourFilter::ContourUsingSuperclass(
     {
       return 0;
     }
+    this->CleanOutputScalars(polydata->GetPointData()->GetScalars());
     outputCD->SetDataSet(iter, polydata);
   }
 
@@ -243,4 +300,65 @@ int vtkPVContourFilter::FillInputPortInformation(int port, vtkInformation* info)
   // input data set type since VTK 5.2.
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHierarchicalBoxDataSet");
   return 1;
+}
+
+//-----------------------------------------------------------------------------
+namespace
+{
+struct Cleaner
+{
+  std::set<double> Values;
+
+  template <typename ArrayT>
+  void operator()(ArrayT* scalars) const
+  {
+    VTK_ASSUME(scalars->GetNumberOfComponents() == 1);
+    vtkDataArrayAccessor<ArrayT> accessor(scalars);
+    using ValueT = typename vtkDataArrayAccessor<ArrayT>::APIType;
+
+    vtkSMPTools::For(
+      0, scalars->GetNumberOfTuples(), [this, &accessor](vtkIdType begin, vtkIdType end) {
+        for (vtkIdType cc = begin; cc < end; ++cc)
+        {
+          accessor.Set(
+            cc, 0, static_cast<ValueT>(this->GetClosest(static_cast<double>(accessor.Get(cc, 0)))));
+        }
+      });
+  }
+
+  double GetClosest(const double& val) const
+  {
+    double delta = VTK_DOUBLE_MAX;
+    double closeset_val = val;
+    for (const auto& set_val : this->Values)
+    {
+      const auto curDelta = std::abs(val - set_val);
+      if (curDelta < delta)
+      {
+        closeset_val = set_val;
+        delta = curDelta;
+      }
+    }
+    return closeset_val;
+  }
+};
+}
+
+void vtkPVContourFilter::CleanOutputScalars(vtkDataArray* outScalars)
+{
+  if (outScalars)
+  {
+    Cleaner worker;
+    const auto values = this->GetValues();
+    for (int cc = 0, max = this->GetNumberOfContours(); cc < max; ++cc)
+    {
+      worker.Values.insert(values[cc]);
+    }
+
+    using DispatcherT = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
+    if (!DispatcherT::Execute(outScalars, worker))
+    {
+      worker(outScalars);
+    }
+  }
 }

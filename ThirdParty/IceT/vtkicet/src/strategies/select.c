@@ -84,12 +84,13 @@ const char *icetStrategyNameFromEnum(IceTEnum strategy)
       case ICET_STRATEGY_REDUCE:        return "Reduce";
       case ICET_STRATEGY_VTREE:         return "Virtual Tree";
       case ICET_STRATEGY_UNDEFINED:
-          icetRaiseError("Strategy not defined. "
-                         "Use icetStrategy to set the strategy.",
-                         ICET_INVALID_ENUM);
+          icetRaiseError(ICET_INVALID_ENUM,
+                         "Strategy not defined. "
+                         "Use icetStrategy to set the strategy.");
           return "<Not Set>";
       default:
-          icetRaiseError("Invalid strategy.", ICET_INVALID_ENUM);
+          icetRaiseError(ICET_INVALID_ENUM,
+                         "Invalid strategy %d.", strategy);
           return "<Invalid>";
     }
 }
@@ -103,20 +104,20 @@ IceTBoolean icetStrategySupportsOrdering(IceTEnum strategy)
       case ICET_STRATEGY_REDUCE:        return ICET_TRUE;
       case ICET_STRATEGY_VTREE:         return ICET_FALSE;
       case ICET_STRATEGY_UNDEFINED:
-          icetRaiseError("Strategy not defined. "
-                         "Use icetStrategy to set the strategy.",
-                         ICET_INVALID_ENUM);
+          icetRaiseError(ICET_INVALID_ENUM,
+                         "Strategy not defined. "
+                         "Use icetStrategy to set the strategy.");
           return ICET_FALSE;
       default:
-          icetRaiseError("Invalid strategy.", ICET_INVALID_ENUM);
+          icetRaiseError(ICET_INVALID_ENUM, "Invalid strategy %d.", strategy);
           return ICET_FALSE;
     }
 }
 
 IceTImage icetInvokeStrategy(IceTEnum strategy)
 {
-    icetRaiseDebug1("Invoking strategy %s",
-                    icetStrategyNameFromEnum(strategy));
+    icetRaiseDebug("Invoking strategy %s",
+                   icetStrategyNameFromEnum(strategy));
 
     switch (strategy) {
       case ICET_STRATEGY_DIRECT:        return icetDirectCompose();
@@ -125,12 +126,12 @@ IceTImage icetInvokeStrategy(IceTEnum strategy)
       case ICET_STRATEGY_REDUCE:        return icetReduceCompose();
       case ICET_STRATEGY_VTREE:         return icetVtreeCompose();
       case ICET_STRATEGY_UNDEFINED:
-          icetRaiseError("Strategy not defined. "
-                         "Use icetStrategy to set the strategy.",
-                         ICET_INVALID_ENUM);
+          icetRaiseError(ICET_INVALID_ENUM,
+                         "Strategy not defined. "
+                         "Use icetStrategy to set the strategy.");
           return icetImageNull();
       default:
-          icetRaiseError("Invalid strategy.", ICET_INVALID_ENUM);
+          icetRaiseError(ICET_INVALID_ENUM, "Invalid strategy %d.", strategy);
           return icetImageNull();
     }
 }
@@ -162,7 +163,8 @@ const char *icetSingleImageStrategyNameFromEnum(IceTEnum strategy)
       case ICET_SINGLE_IMAGE_STRATEGY_RADIXKR:          return "Radix-kr";
       case ICET_SINGLE_IMAGE_STRATEGY_BSWAP_FOLDING:    return "Folded Binary Swap";
       default:
-          icetRaiseError("Invalid single image strategy.", ICET_INVALID_ENUM);
+          icetRaiseError(ICET_INVALID_ENUM,
+                         "Invalid single image strategy %d.", strategy);
           return "<Invalid>";
     }
 }
@@ -175,8 +177,8 @@ void icetInvokeSingleImageStrategy(IceTEnum strategy,
                                    IceTSparseImage *result_image,
                                    IceTSizeType *piece_offset)
 {
-    icetRaiseDebug1("Invoking single image strategy %s",
-                    icetSingleImageStrategyNameFromEnum(strategy));
+    icetRaiseDebug("Invoking single image strategy %s",
+                   icetSingleImageStrategyNameFromEnum(strategy));
 
     switch(strategy) {
       case ICET_SINGLE_IMAGE_STRATEGY_AUTOMATIC:
@@ -228,7 +230,8 @@ void icetInvokeSingleImageStrategy(IceTEnum strategy,
                                 piece_offset);
         break;
       default:
-          icetRaiseError("Invalid single image strategy.", ICET_INVALID_ENUM);
+          icetRaiseError(ICET_INVALID_ENUM,
+                         "Invalid single image strategy %d.", strategy);
           break;
     }
 

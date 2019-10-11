@@ -483,8 +483,8 @@ eventPos[2])
         {
           this->GetNthNodeWorldPosition( i, ref );
           worldPos[0] = centroid[0] + ratio * ( ref[0] - centroid[0] );
-          worldPos[1] = centroid[0] + ratio * ( ref[1] - centroid[1] );
-          worldPos[2] = centroid[0] + ratio * ( ref[2] - centroid[2] );
+          worldPos[1] = centroid[1] + ratio * ( ref[1] - centroid[1] );
+          worldPos[2] = centroid[2] + ratio * ( ref[2] - centroid[2] );
           this->SetNthNodeWorldPosition( i, worldPos, worldOrient );
         }
       }
@@ -901,7 +901,7 @@ int vtkOrientedGlyphFocalPlaneContourRepresentation::RenderTranslucentPolygonalG
 }
 
 //-----------------------------------------------------------------------------
-int vtkOrientedGlyphFocalPlaneContourRepresentation::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkOrientedGlyphFocalPlaneContourRepresentation::HasTranslucentPolygonalGeometry()
 {
   int result = this->LinesActor->HasTranslucentPolygonalGeometry();
   if ( this->Actor->GetVisibility() )

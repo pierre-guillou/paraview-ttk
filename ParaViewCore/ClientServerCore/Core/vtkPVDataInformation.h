@@ -53,7 +53,7 @@ class VTKPVCLIENTSERVERCORECORE_EXPORT vtkPVDataInformation : public vtkPVInform
 public:
   static vtkPVDataInformation* New();
   vtkTypeMacro(vtkPVDataInformation, vtkPVInformation);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Method to find and return attribute array information for a particular
@@ -79,12 +79,12 @@ public:
   /**
    * Transfer information about a single object into this object.
    */
-  void CopyFromObject(vtkObject*) VTK_OVERRIDE;
+  void CopyFromObject(vtkObject*) override;
 
   /**
    * Merge another information object. Calls AddInformation(info, 0).
    */
-  void AddInformation(vtkPVInformation* info) VTK_OVERRIDE;
+  void AddInformation(vtkPVInformation* info) override;
 
   /**
    * Merge another information object. If adding information of
@@ -97,8 +97,8 @@ public:
   /**
    * Manage a serialized version of the information.
    */
-  void CopyToStream(vtkClientServerStream*) VTK_OVERRIDE;
-  void CopyFromStream(const vtkClientServerStream*) VTK_OVERRIDE;
+  void CopyToStream(vtkClientServerStream*) override;
+  void CopyFromStream(const vtkClientServerStream*) override;
   //@}
 
   //@{
@@ -108,8 +108,8 @@ public:
    * information itself. For example, PortNumber on vtkPVDataInformation
    * controls what output port the data-information is gathered from.
    */
-  void CopyParametersToStream(vtkMultiProcessStream&) VTK_OVERRIDE;
-  void CopyParametersFromStream(vtkMultiProcessStream&) VTK_OVERRIDE;
+  void CopyParametersToStream(vtkMultiProcessStream&) override;
+  void CopyParametersFromStream(vtkMultiProcessStream&) override;
   //@}
 
   /**
@@ -125,15 +125,16 @@ public:
   vtkGetMacro(DataSetType, int);
   vtkGetMacro(CompositeDataSetType, int);
   const char* GetDataSetTypeAsString();
-  int DataSetTypeIsA(const char* type);
+  bool DataSetTypeIsA(const char* type);
   vtkGetMacro(NumberOfPoints, vtkTypeInt64);
   vtkGetMacro(NumberOfCells, vtkTypeInt64);
   vtkGetMacro(NumberOfRows, vtkTypeInt64);
   vtkGetMacro(NumberOfTrees, vtkTypeInt64);
   vtkGetMacro(NumberOfVertices, vtkTypeInt64);
+  vtkGetMacro(NumberOfEdges, vtkTypeInt64);
   vtkGetMacro(NumberOfLeaves, vtkTypeInt64);
   vtkGetMacro(MemorySize, int);
-  vtkGetMacro(PolygonCount, int);
+  vtkGetMacro(PolygonCount, vtkIdType);
   vtkGetMacro(NumberOfDataSets, int);
   vtkGetVector6Macro(Bounds, double);
   //@}
@@ -269,7 +270,14 @@ public:
   /**
    * Returns if the data type is structured.
    */
-  int IsDataStructured();
+  bool IsDataStructured();
+
+  /**
+   * Returns true if provided fieldAssociation is valid for this dataset, false otherwise.
+   * Always returns true for composite datasets.
+   * eg, FIELD_ASSOCIATION_EDGES will return false for a vtkPolyData, true for a vtkGraph.
+   */
+  bool IsAttributeValid(int fieldAssociation);
 
   //@{
   /**
@@ -309,34 +317,37 @@ protected:
   static vtkPVDataInformationHelper* FindHelper(const char* classname);
 
   // Data information collected from remote processes.
-  int DataSetType;
-  int CompositeDataSetType;
-  int NumberOfDataSets;
-  vtkTypeInt64 NumberOfPoints; // data sets
-  vtkTypeInt64 NumberOfCells;
-  vtkTypeInt64 NumberOfRows;  // tables
-  vtkTypeInt64 NumberOfTrees; // hypertreegrids
-  vtkTypeInt64 NumberOfVertices;
-  vtkTypeInt64 NumberOfLeaves;
-  int MemorySize;
-  vtkIdType PolygonCount;
-  double Bounds[6];
-  int Extent[6];
-  double TimeSpan[2];
-  double Time;
-  int HasTime;
-  int NumberOfTimeSteps;
+  int DataSetType = -1;
+  int CompositeDataSetType = -1;
+  int NumberOfDataSets = 0;
+  vtkTypeInt64 NumberOfPoints = 0; // data sets
+  vtkTypeInt64 NumberOfCells = 0;
+  vtkTypeInt64 NumberOfRows = 0;  // tables
+  vtkTypeInt64 NumberOfTrees = 0; // hypertreegrids
+  vtkTypeInt64 NumberOfVertices = 0;
+  vtkTypeInt64 NumberOfEdges = 0; // graphs
+  vtkTypeInt64 NumberOfLeaves = 0;
+  int MemorySize = 0;
+  vtkIdType PolygonCount = 0;
+  double Bounds[6] = { VTK_DOUBLE_MAX, -VTK_DOUBLE_MAX, VTK_DOUBLE_MAX, -VTK_DOUBLE_MAX,
+    VTK_DOUBLE_MAX, -VTK_DOUBLE_MAX };
+  int Extent[6] = { VTK_INT_MAX, -VTK_INT_MAX, VTK_INT_MAX, -VTK_INT_MAX, VTK_INT_MAX,
+    -VTK_INT_MAX };
+  double TimeSpan[2] = { VTK_DOUBLE_MAX, -VTK_DOUBLE_MAX };
+  double Time = 0.0;
+  int HasTime = 0;
+  int NumberOfTimeSteps = 0;
 
-  char* DataClassName;
+  char* DataClassName = nullptr;
   vtkSetStringMacro(DataClassName);
 
-  char* TimeLabel;
+  char* TimeLabel = nullptr;
   vtkSetStringMacro(TimeLabel);
 
-  char* CompositeDataClassName;
+  char* CompositeDataClassName = nullptr;
   vtkSetStringMacro(CompositeDataClassName);
 
-  char* CompositeDataSetName;
+  char* CompositeDataSetName = nullptr;
   vtkSetStringMacro(CompositeDataSetName);
 
   vtkPVDataSetAttributesInformation* PointDataInformation;
@@ -357,7 +368,7 @@ private:
   vtkPVDataInformation(const vtkPVDataInformation&) = delete;
   void operator=(const vtkPVDataInformation&) = delete;
 
-  int PortNumber;
+  int PortNumber = -1;
 };
 
 #endif

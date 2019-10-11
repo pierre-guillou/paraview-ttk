@@ -1,0 +1,9 @@
+NAME
+  ParaView::ProcessXML
+LIBRARY_NAME
+  vtkProcessXML
+PRIVATE_DEPENDS
+  VTK::vtksys
+TEST_LABELS
+  ParaView
+EXCLUDE_WRAP

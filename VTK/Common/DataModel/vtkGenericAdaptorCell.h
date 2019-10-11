@@ -153,7 +153,7 @@ public:
    * \pre a_exists: a!=0
    * \post definition: result==(GetAttributeOrder()==1)
    */
-  int IsAttributeLinear(vtkGenericAttribute *a);
+  vtkTypeBool IsAttributeLinear(vtkGenericAttribute *a);
 
   /**
    * Is the cell primary (i.e. not composite) ?
@@ -202,6 +202,7 @@ public:
    * Create an empty cell iterator. The user is responsible for deleting it.
    * \post result_exists: result!=0
    */
+  VTK_NEWINSTANCE
   virtual vtkGenericCellIterator *NewCellIterator()=0;
 
   /**

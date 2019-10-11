@@ -486,23 +486,13 @@
                      most notably a string descriptor, to generate a vtkHyperTreeGrid instance
                      representing the corresponding a tree-based AMR grid with arbitrary rectilinear
                      geometry and either binary or ternary subdivision.</Documentation>
-      <IntVectorProperty command="SetDimension"
-                         default_values="3"
-                         name="Dimension"
-                         number_of_elements="1">
-        <IntRangeDomain max="3"
-                        min="2"
-                        name="range" />
-        <Documentation>This property specifies the dimensionality of
-        the hyper tree grid.</Documentation>
-      </IntVectorProperty>
-      <IntVectorProperty command="SetGridSize"
-                         default_values="1 1 1"
-                         name="GridSize"
+      <IntVectorProperty command="SetDimensions"
+                         default_values="2 2 2"
+                         name="Dimensions"
                          number_of_elements="3">
         <IntRangeDomain name="range" />
         <Documentation>The three values in this property specify the number
-        of root cells in each dimension of the hyper tree grid.</Documentation>
+        of points in each dimension of the hyper tree grid.</Documentation>
       </IntVectorProperty>
       <DoubleVectorProperty command="SetGridScale"
                          default_values="1 1 1"
@@ -558,11 +548,11 @@
                          name="Seed"
                          number_of_elements="1">
       </IntVectorProperty>
-      <IntVectorProperty command="SetGridSize"
-                         default_values="5 5 2"
-                         name="GridSize"
+      <IntVectorProperty command="SetDimensions"
+                         default_values="6 6 3"
+                         name="Dimensions"
                          number_of_elements="3">
-        <IntRangeDomain min="0"
+        <IntRangeDomain min="1"
                         name="range" />
         <Documentation>The three values in this property specify the number
         of root cells in each dimension of the hyper tree grid.</Documentation>
@@ -1687,13 +1677,19 @@
       <PropertyGroup label="Frequency">
         <Property name="XFreq" />
         <Property name="YFreq" />
-        <Property name="ZFreq" />
       </PropertyGroup>
 
       <PropertyGroup label="Amplitude">
         <Property name="XMag" />
         <Property name="YMag" />
         <Property name="ZMag" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Frequency">
+        <!-- this is added separately just to demonstrate that
+             this group will automatically get merged with the previous
+             one with the same name! -->
+        <Property name="ZFreq" />
       </PropertyGroup>
 
       <!-- End Wavelet -->
@@ -1739,6 +1735,24 @@
                     type="text" />
       </Hints>
       <!-- End of TextSource -->
+    </SourceProxy>
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkPVLogoSource" name="LogoSource" label="Logo">
+      <ProxyProperty command="SetTexture"
+                     name="Texture"
+                     panel_widget="texture_selector"
+                     null_on_empty="1" >
+        <ProxyGroupDomain name="groups">
+          <Group name="textures" />
+        </ProxyGroupDomain>
+      </ProxyProperty>
+      <Hints>
+        <Visibility replace_input="0" />
+        <OutputPort index="0"
+                    name="Output-0"
+                    type="logo" />
+      </Hints>
+      <!-- End of LogoSource -->
     </SourceProxy>
     <!-- ==================================================================== -->
     <SourceProxy class="vtkQuerySelectionSource"
@@ -1857,10 +1871,9 @@
       selection used to select blocks from a composite dataset.</Documentation>
       <IdTypeVectorProperty clean_command="RemoveAllBlocks"
                             command="AddBlock"
-                            default_values="0"
                             label="Blocks"
                             name="Blocks"
-                            number_of_elements="1"
+                            number_of_elements="0"
                             number_of_elements_per_command="1"
                             repeat_command="1">
         <Documentation>The list of blocks that will be added to the selection
@@ -1903,10 +1916,9 @@
       based selection.</Documentation>
       <IdTypeVectorProperty clean_command="RemoveAllGlobalIDs"
                             command="AddGlobalID"
-                            default_values="0"
                             label="Global IDs"
                             name="IDs"
-                            number_of_elements="1"
+                            number_of_elements="0"
                             number_of_elements_per_command="1"
                             repeat_command="1">
         <Documentation>The list of IDs that will be added to the selection
@@ -1959,9 +1971,8 @@
       datasets.</Documentation>
       <IdTypeVectorProperty clean_command="RemoveAllIDs"
                             command="AddID"
-                            default_values="0 0"
                             name="IDs"
-                            number_of_elements="2"
+                            number_of_elements="0"
                             number_of_elements_per_command="2"
                             repeat_command="1">
         <Documentation>The list of IDs that will be added to the selection
@@ -1980,9 +1991,8 @@
       dataset).</Documentation>
       <IdTypeVectorProperty clean_command="RemoveAllCompositeIDs"
                             command="AddCompositeID"
-                            default_values="0 0 0"
                             name="IDs"
-                            number_of_elements="3"
+                            number_of_elements="0"
                             number_of_elements_per_command="3"
                             repeat_command="1">
         <Documentation>The list of IDs that will be added to the selection
@@ -2000,9 +2010,8 @@
       based selection for HierarchicalBox datasets.</Documentation>
       <IdTypeVectorProperty clean_command="RemoveAllHierarchicalIDs"
                             command="AddHierarhicalID"
-                            default_values="0 0 0"
                             name="IDs"
-                            number_of_elements="3"
+                            number_of_elements="0"
                             number_of_elements_per_command="3"
                             repeat_command="1">
         <Documentation>The list of IDs that will be added to the selection
@@ -2046,9 +2055,8 @@
       selection.</Documentation>
       <DoubleVectorProperty clean_command="RemoveAllLocations"
                             command="AddLocation"
-                            default_values="0 0 0"
                             name="Locations"
-                            number_of_elements="3"
+                            number_of_elements="0"
                             number_of_elements_per_command="3"
                             repeat_command="1">
         <Documentation>The list of locations that will be added to the

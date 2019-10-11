@@ -44,8 +44,8 @@ void icetProjectTile(IceTInt tile, IceTDouble *mat_out)
 
     icetGetIntegerv(ICET_NUM_TILES, &num_tiles);
     if ((tile < 0) || (tile >= num_tiles)) {
-        icetRaiseError("Bad tile passed to icetProjectTile.",
-                       ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE,
+                       "Bad tile passed to icetProjectTile.");
         return;
     }
 

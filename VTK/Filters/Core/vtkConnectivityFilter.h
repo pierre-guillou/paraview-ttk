@@ -45,6 +45,11 @@
  * structure. These voxels can then be contoured or processed by other
  * visualization filters.
  *
+ * If the extraction mode is set to all regions and ColorRegions is enabled,
+ * The RegionIds are assigned to each region by the order in which the region
+ * was processed and has no other significance with respect to the size of
+ * or number of cells.
+ *
  * @sa
  * vtkPolyDataConnectivityFilter
 */
@@ -175,6 +180,24 @@ public:
   vtkBooleanMacro(ColorRegions,vtkTypeBool);
   //@}
 
+  /**
+   * Enumeration of the various ways to assign RegionIds when
+   * the ColorRegions option is on.
+   */
+  enum RegionIdAssignment {
+    UNSPECIFIED,
+    CELL_COUNT_DESCENDING,
+    CELL_COUNT_ASCENDING
+  };
+
+  //@{
+  /**
+   * Set/get mode controlling how RegionIds are assigned.
+   */
+  //@}
+  vtkSetMacro(RegionIdAssignmentMode, int);
+  vtkGetMacro(RegionIdAssignmentMode, int);
+
   //@{
   /**
    * Set/get the desired precision for the output types. See the documentation
@@ -210,7 +233,11 @@ protected:
   vtkTypeBool ScalarConnectivity;
   double ScalarRange[2];
 
+  int RegionIdAssignmentMode;
+
   void TraverseAndMark(vtkDataSet *input);
+
+  void OrderRegionIds(vtkIdTypeArray* pointRegionIds, vtkIdTypeArray* cellRegionIds);
 
 private:
   // used to support algorithm execution
@@ -267,5 +294,3 @@ inline const char *vtkConnectivityFilter::GetExtractionModeAsString(void)
 //@}
 
 #endif
-
-

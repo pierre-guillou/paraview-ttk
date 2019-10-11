@@ -47,9 +47,8 @@ class PQCORE_EXPORT pqOptions : public vtkPVOptions
 public:
   static pqOptions* New();
   vtkTypeMacro(pqOptions, vtkPVOptions);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  vtkGetStringMacro(TileImagePath);
   vtkGetStringMacro(BaselineDirectory);
   vtkGetStringMacro(TestDirectory);
   vtkGetStringMacro(DataDirectory);
@@ -73,7 +72,6 @@ public:
   */
   vtkGetStringMacro(ServerResourceName);
 
-  vtkSetStringMacro(TileImagePath);
   vtkSetStringMacro(BaselineDirectory);
   vtkSetStringMacro(TestDirectory);
   vtkSetStringMacro(DataDirectory);
@@ -111,15 +109,14 @@ protected:
   pqOptions();
   ~pqOptions() override;
 
-  void Initialize() VTK_OVERRIDE;
-  int PostProcess(int argc, const char* const* argv) VTK_OVERRIDE;
+  void Initialize() override;
+  int PostProcess(int argc, const char* const* argv) override;
 
   char* BaselineDirectory;
   char* TestDirectory;
   char* DataDirectory;
   char* ServerResourceName;
   char* StateFileName; // loading state file(Bug #5711)
-  char* TileImagePath;
 
   int ExitAppWhenTestsDone;
   int DisableRegistry;
@@ -148,7 +145,7 @@ protected:
   // Description:
   // This method is called when wrong argument is found. If it returns 0, then
   // the parsing will fail.
-  int WrongArgument(const char* argument) VTK_OVERRIDE;
+  int WrongArgument(const char* argument) override;
 
 private:
   pqOptions(const pqOptions&);

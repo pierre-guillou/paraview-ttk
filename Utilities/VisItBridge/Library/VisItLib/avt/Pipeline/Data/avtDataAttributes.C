@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -3737,6 +3737,7 @@ avtDataAttributes::SetLabels(const vector<string> &l)
         labels.clear();
     }
 
+    labels.reserve(l.size());
     for (size_t i = 0; i < l.size(); i++)
     {
         labels.push_back(l[i]);
@@ -3766,12 +3767,18 @@ avtDataAttributes::GetLabels(vector<string> &l)
         l.clear();
     }
 
+    l.reserve(labels.size());
     for (size_t i = 0; i < labels.size(); i++)
     {
         l.push_back(labels[i]);
     }
 }
 
+const vector<string> &
+avtDataAttributes::GetLabels() const
+{
+    return labels;
+}
 
 // ****************************************************************************
 //  Method: avtDataAttributes::GetActualDataExtents
@@ -5128,6 +5135,9 @@ avtDataAttributes::GetFilterMetaData(stringVector &filterNames,
 //    Brad Whitlock, Wed Mar 19 14:15:56 PDT 2014
 //    Print the plot information to the debug dump.
 //
+//    Kathleen Biagas, Thu Jun  1 08:47:46 PDT 2017
+//    Print OriginalDataExtents.
+//
 // ****************************************************************************
 
 static const char *
@@ -5385,6 +5395,8 @@ avtDataAttributes::DebugDump(avtWebpage *webpage)
                                     YesOrNo(variables[i]->treatAsASCII));
             SNPRINTF(str, 4096, "%d", variables[i]->useForAxis);
             webpage->AddTableEntry3(NULL, "Use for axis", str);
+            ExtentsToString(variables[i]->originalData, str, 4096);
+            webpage->AddTableEntry3(NULL, "Original data extents", str);
             ExtentsToString(variables[i]->thisProcsOriginalData, str, 4096);
             webpage->AddTableEntry3(NULL, "ThisProcs original data extents", str);
             ExtentsToString(variables[i]->desiredData, str, 4096);
@@ -5423,6 +5435,40 @@ avtDataAttributes::DebugDump(avtWebpage *webpage)
     webpage->AddTableEntry2("data", data.c_str());
     webpage->EndTable();
 }
+
+
+// ****************************************************************************
+// Method: avtDataAttributes::ResetAllExtents
+//
+// Purpose:
+//   Clears out all extent information.
+//
+// Programmer: Kathleen Biagas
+// Creation:   June 1, 2017
+//
+// Modifications:
+//
+// ****************************************************************************
+
+void
+avtDataAttributes::ResetAllExtents()
+{
+    originalSpatial->Clear();
+    thisProcsOriginalSpatial->Clear();
+    desiredSpatial->Clear();
+    actualSpatial->Clear();
+    thisProcsActualSpatial->Clear();
+
+    for (size_t i = 0; i < variables.size(); ++i)
+    {
+        variables[i]->originalData->Clear();
+        variables[i]->thisProcsOriginalData->Clear();
+        variables[i]->desiredData->Clear();
+        variables[i]->actualData->Clear();
+        variables[i]->thisProcsActualData->Clear();
+    }
+}
+
 
 // ****************************************************************************
 //  Method: avtDataAttributes::VarInfo::VarInfo

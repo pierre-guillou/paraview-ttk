@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -47,6 +47,7 @@
 #include <vtkCellData.h>
 #include <vtkFloatArray.h>
 #include <vtkDoubleArray.h>
+#include <vtkInformation.h>
 #include <vtkIntArray.h>
 #include <vtkPointData.h>
 #include <vtkRectilinearGrid.h>
@@ -2994,6 +2995,9 @@ avtStructuredDomainBoundaries::ResetCachedMembers(void)
 //    Hank Childs, Sun Oct 30 10:13:23 PDT 2011
 //    Fix bug with uninitialized data.
 //
+//    Kathleen Biagas, Mon Aug 15 14:09:55 PDT 2016
+//    VTK-8, API for updating GhostLevel changed.
+//
 // ****************************************************************************
 
 void
@@ -3052,6 +3056,7 @@ avtStructuredDomainBoundaries::CreateGhostZones(vtkDataSet *outMesh,
 
     outMesh->GetCellData()->AddArray(ghostCells);
     ghostCells->Delete();
+    outMesh->GetInformation()->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), 0); 
 
     //
     //  Create a field-data array indicating the extents of real zones.

@@ -1,3 +1,4 @@
+
 /*=========================================================================
 
   Program:   ParaView
@@ -222,9 +223,7 @@ public:
       for (auto iter = this->PLDLinks.begin(); iter != this->PLDLinks.end(); ++iter)
       {
         vtkSMProperty* prop = clone->GetProperty(iter->first.c_str());
-        vtkSMProxyListDomain* pld = prop
-          ? vtkSMProxyListDomain::SafeDownCast(prop->FindDomain("vtkSMProxyListDomain"))
-          : nullptr;
+        auto pld = prop ? prop->FindDomain<vtkSMProxyListDomain>() : nullptr;
         if (pld)
         {
           for (int cc = 0, max = pld->GetNumberOfProxies(); cc < max; ++cc)
@@ -262,9 +261,7 @@ public:
     for (auto iter = this->PLDLinks.begin(); iter != this->PLDLinks.end(); ++iter)
     {
       vtkSMProperty* prop = back->GetProperty(iter->first.c_str());
-      vtkSMProxyListDomain* pld = prop
-        ? vtkSMProxyListDomain::SafeDownCast(prop->FindDomain("vtkSMProxyListDomain"))
-        : nullptr;
+      auto pld = prop ? prop->FindDomain<vtkSMProxyListDomain>() : nullptr;
       if (pld)
       {
         for (int cc = 0, max = pld->GetNumberOfProxies(); cc < max; ++cc)
@@ -311,9 +308,7 @@ protected:
     for (iter->Begin(); !iter->IsAtEnd(); iter->Next())
     {
       vtkSMProperty* prop = iter->GetProperty();
-      vtkSMProxyListDomain* pld = prop
-        ? vtkSMProxyListDomain::SafeDownCast(prop->FindDomain("vtkSMProxyListDomain"))
-        : nullptr;
+      auto pld = prop ? prop->FindDomain<vtkSMProxyListDomain>() : nullptr;
       if (!pld)
       {
         continue;
@@ -475,7 +470,8 @@ public:
       "ViewSize", "ViewTime", "CacheKey", "UseCache", "ViewPosition",
       // Camera is linked via CameraLink.
       "CameraPositionInfo", "CameraPosition", "CameraFocalPointInfo", "CameraFocalPoint",
-      "CameraViewUpInfo", "CameraViewUp", "CameraViewAngleInfo", "CameraViewAngle"
+      "CameraViewUpInfo", "CameraViewUp", "CameraViewAngleInfo", "CameraViewAngle",
+      "CameraFocalDiskInfo", "CameraFocalDisk", "CameraFocalDistanceInfo", "CameraFocalDistance"
     };
 
     this->Setup(root, exceptions);
@@ -488,7 +484,7 @@ public:
    * Overridden to create/delete representations as views are added/removed.
    * Also handle this->OverlayViews == true.
    */
-  bool Resize(size_t num_comparisons) VTK_OVERRIDE
+  bool Resize(size_t num_comparisons) override
   {
     this->NumberOfComparisons = num_comparisons;
     if (this->OverlayViews)
@@ -589,7 +585,7 @@ protected:
    * A new view is being created, we need to create clones of representations too
    * and add them to the new view.
    */
-  vtkSMProxy* PushBack() VTK_OVERRIDE
+  vtkSMProxy* PushBack() override
   {
     if (vtkSMProxy* clone = this->Superclass::PushBack())
     {
@@ -617,7 +613,7 @@ protected:
   /**
    * A view is being removed; we need to remove clones of representations for that view too.
    */
-  void PopBack() VTK_OVERRIDE
+  void PopBack() override
   {
     vtkSMProxy* back = this->GetBack();
     if (back == this->GetRoot())
@@ -970,6 +966,20 @@ vtkImageData* vtkPVComparativeView::CaptureWindow(int magX, int magY)
     img->Register(this);
   }
   return img.GetPointer();
+}
+
+//----------------------------------------------------------------------------
+void vtkPVComparativeView::SetTileScale(int, int)
+{
+  // we don't do anything here since `CaptureWindow` will handle scaling of each
+  // view separately.
+}
+
+//----------------------------------------------------------------------------
+void vtkPVComparativeView::SetTileViewport(double, double, double, double)
+{
+  // we don't do anything here since `CaptureWindow` will handle scaling of each
+  // view separately.
 }
 
 //----------------------------------------------------------------------------

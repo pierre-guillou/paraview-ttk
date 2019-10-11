@@ -65,6 +65,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QVBoxLayout>
 #include <QtDebug>
 
+#include <cassert>
+
 QStringList pqPythonShell::Preamble;
 
 class pqPythonShellCompleter : public pqConsoleWidgetCompleter
@@ -289,10 +291,10 @@ public:
    */
   void begin()
   {
-    Q_ASSERT(this->ExecutionCounter >= 0);
+    assert(this->ExecutionCounter >= 0);
     if (this->ExecutionCounter == 0)
     {
-      Q_ASSERT(this->OldInstance == nullptr);
+      assert(this->OldInstance == nullptr);
       emit this->Parent->executing(true);
 
       if (this->isInterpreterInitialized() == false)
@@ -315,7 +317,7 @@ public:
   void end()
   {
     this->ExecutionCounter--;
-    Q_ASSERT(this->ExecutionCounter >= 0);
+    assert(this->ExecutionCounter >= 0);
     if (this->ExecutionCounter == 0)
     {
       vtkPythonInterpreter::SetCaptureStdin(this->OldCapture);
@@ -353,7 +355,7 @@ private:
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
 
     vtkPythonInterpreter::Initialize();
-    Q_ASSERT(vtkPythonInterpreter::IsInitialized());
+    assert(vtkPythonInterpreter::IsInitialized());
 
     // Print the default Python interpreter greeting.
     this->Parent->printString(
@@ -465,11 +467,11 @@ void pqPythonShell::printString(const QString& text, pqPythonShell::PrintMode mo
 
       case STATUS:
       default:
-        format.setForeground(QColor(0, 0, 150));
+        format.setForeground(QApplication::palette().highlight().color());
     }
     consoleWidget->setFormat(format);
     consoleWidget->printString(string);
-    format.setForeground(QColor(0, 0, 0));
+    format.setForeground(QApplication::palette().windowText().color());
     consoleWidget->setFormat(format);
 
     this->Prompted = false;
@@ -498,7 +500,7 @@ bool pqPythonShell::prompt(const QString& indent)
 
     Ui::PythonShell& ui = this->Internals->Ui;
     QTextCharFormat format = ui.consoleWidget->getFormat();
-    format.setForeground(QColor(0, 0, 0));
+    format.setForeground(QApplication::palette().windowText().color());
     ui.consoleWidget->setFormat(format);
     ui.consoleWidget->prompt(this->Prompt);
     ui.consoleWidget->printCommand(indent);

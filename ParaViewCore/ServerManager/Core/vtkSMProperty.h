@@ -157,7 +157,7 @@ class VTKPVSERVERMANAGERCORE_EXPORT vtkSMProperty : public vtkSMObject
 public:
   static vtkSMProperty* New();
   vtkTypeMacro(vtkSMProperty, vtkSMObject);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -196,7 +196,7 @@ public:
    * Overloaded to break the reference loop caused by the
    * internal domain iterator.
    */
-  void UnRegister(vtkObjectBase* obj) VTK_OVERRIDE;
+  void UnRegister(vtkObjectBase* obj) override;
 
   /**
    * Creates, initializes and returns a new domain iterator. The user
@@ -206,6 +206,7 @@ public:
 
   /**
    * Returns a domain give a name.
+   * Avoids using this method and use FindDomain instead.
    */
   vtkSMDomain* GetDomain(const char* name);
 
@@ -233,8 +234,8 @@ public:
   inline DomainType* FindDomain();
 
   /**
-   * Returns the number of domains this property has. This can be
-   * used to specify a valid index for GetDomain(index).
+   * Returns the number of domains this property has.
+   * One can use a domain iterator to access domains then.
    */
   unsigned int GetNumberOfDomains();
 
@@ -332,8 +333,9 @@ public:
    * * "default": Show the property by default.
    * * "advanced": Only show the property in the advanced view.
    * * "never": Never show the property on the panel.
-
-   * By default, all properties have "default" visibility.
+   *
+   * By default, standard properties have "default" visibility,
+   * while information_only properties have "never" visibility.
    */
   vtkSetStringMacro(PanelVisibility)
     //@}
@@ -470,7 +472,7 @@ public:
   /**
    * Overridden to support blocking of modified events.
    */
-  void Modified() VTK_OVERRIDE
+  void Modified() override
   {
     if (this->BlockModifiedEvents)
     {

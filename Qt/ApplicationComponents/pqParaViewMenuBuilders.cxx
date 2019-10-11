@@ -68,6 +68,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqHelpReaction.h"
 #endif
 #include "pqIgnoreSourceTimeReaction.h"
+#include "pqImmediateExportReaction.h"
 #include "pqImportCinemaReaction.h"
 #include "pqLinkSelectionReaction.h"
 #include "pqLoadDataReaction.h"
@@ -97,13 +98,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqSetName.h"
 #include "pqShowHideAllReaction.h"
 #include "pqSourcesMenuReaction.h"
+#include "pqTemporalExportReaction.h"
 #include "pqTestingReaction.h"
 #include "pqTimerLogReaction.h"
 #include "pqUndoRedoReaction.h"
 #include "pqVCRToolbar.h"
 #include "pqViewMenuManager.h"
 
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
 #include "pqMacroReaction.h"
 #include "pqPythonManager.h"
 #include "pqSGWritersMenuManager.h"
@@ -136,7 +138,7 @@ void pqParaViewMenuBuilders::buildFileMenu(QMenu& menu)
   // now setup reactions.
   new pqLoadDataReaction(ui.actionFileOpen);
   new pqImportCinemaReaction(ui.actionFileImportCinemaDatabase);
-#ifdef PARAVIEW_USE_OSPRAY
+#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
   new pqLoadMaterialsReaction(ui.actionFileLoadMaterials);
 #else
   delete ui.actionFileLoadMaterials;
@@ -155,6 +157,7 @@ void pqParaViewMenuBuilders::buildFileMenu(QMenu& menu)
   new pqSaveAnimationGeometryReaction(ui.actionFileSaveGeometry);
 
   new pqExportReaction(ui.actionExport);
+  new pqImmediateExportReaction(ui.actionExportImmediate);
   new pqSaveDataReaction(ui.actionFileSaveData);
 
   new pqLoadRestoreWindowLayoutReaction(true, ui.actionFileLoadWindowArrangement);
@@ -181,6 +184,7 @@ void pqParaViewMenuBuilders::buildEditMenu(QMenu& menu, pqPropertiesPanel* prope
   new pqDeleteReaction(ui.actionDelete_All, true);
   new pqShowHideAllReaction(ui.actionShow_All, pqShowHideAllReaction::ActionType::Show);
   new pqShowHideAllReaction(ui.actionHide_All, pqShowHideAllReaction::ActionType::Hide);
+  new pqSaveScreenshotReaction(ui.actionCopyScreenshotToClipboard, true);
   new pqCopyReaction(ui.actionCopy);
   new pqCopyReaction(ui.actionPaste, true);
   new pqApplicationSettingsReaction(ui.actionEditSettings);
@@ -290,7 +294,7 @@ void pqParaViewMenuBuilders::buildToolsMenu(QMenu& menu)
   new pqTimerLogReaction(menu.addAction("Timer Log") << pqSetName("actionToolsTimerLog"));
   menu.addSeparator(); // --------------------------------------------------
 
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
   menu.addSeparator(); // --------------------------------------------------
   new pqTraceReaction(menu.addAction("Start Trace") << pqSetName("actionToolsStartStopTrace"),
     "Start Trace", "Stop Trace");
@@ -488,7 +492,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
 void pqParaViewMenuBuilders::buildMacrosMenu(QMenu& menu)
 {
   Q_UNUSED(menu);
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
   // Give the macros menu to the pqPythonMacroSupervisor
   pqPythonManager* manager = pqPVApplicationCore::instance()->pythonManager();
   if (manager)
@@ -568,9 +572,9 @@ void pqParaViewMenuBuilders::buildHelpMenu(QMenu& menu)
   new pqDesktopServicesReaction(QUrl("http://www.paraview.org/Wiki/ParaView"),
     (menu.addAction("ParaView Wiki") << pqSetName("actionWiki")));
 
-  // ParaView Mailing Lists
-  new pqDesktopServicesReaction(QUrl("http://www.paraview.org/mailing-lists/"),
-    (menu.addAction("ParaView Mailing Lists") << pqSetName("actionMailingLists")));
+  // ParaView Community Support
+  new pqDesktopServicesReaction(QUrl("http://www.paraview.org/community-support/"),
+    (menu.addAction("ParaView Community Support") << pqSetName("actionCommunitySupport")));
 
   // ParaView Release Notes
   QString versionString(PARAVIEW_VERSION_FULL);
@@ -653,7 +657,7 @@ void pqParaViewMenuBuilders::buildToolbars(QMainWindow& mainWindow)
   axesToolbar->layout()->setSpacing(0);
   mainWindow.addToolBar(Qt::TopToolBarArea, axesToolbar);
 
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
   // Give the macros menu to the pqPythonMacroSupervisor
   pqPythonManager* manager =
     qobject_cast<pqPythonManager*>(pqApplicationCore::instance()->manager("PYTHON_MANAGER"));
@@ -682,7 +686,7 @@ void pqParaViewMenuBuilders::buildCatalystMenu(QMenu& menu, QWidget* exportConfi
   new pqCatalystRemoveBreakpointReaction(
     menu.addAction("Remove Breakpoint") << pqSetName("actionCatalystRemoveBreakpoint"));
 
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
 #define SHOWNEWCATALYSTGUI 1
 #if SHOWNEWCATALYSTGUI
   menu.addSeparator(); // --------------------------------------------------
@@ -695,6 +699,12 @@ void pqParaViewMenuBuilders::buildCatalystMenu(QMenu& menu, QWidget* exportConfi
   QAction* gcatalyst = menu.addAction("Export Catalyst Script")
     << pqSetName("actionExportCatalyst");
   new pqCatalystExportReaction(gcatalyst);
+  QAction* gimmediate = menu.addAction("Export Now") << pqSetName("actionExportImmediate");
+  new pqImmediateExportReaction(gimmediate);
+  QAction* gtemporal = menu.addAction("Export Temporal Script")
+    << pqSetName("actionExportTemporal");
+  new pqTemporalExportReaction(gtemporal);
+
 #else
   (void)exportConfiguration; // avoid unreferenced parameter comp warning
 #endif

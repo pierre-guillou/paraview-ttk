@@ -32,7 +32,6 @@ class MyArray : public vtkTypedDataArray<float>
 {
   vtkFloatArray *Data;
 public:
-  vtkTypeMacro(MyArray, vtkTypedDataArray<float>)
   static MyArray *New() { VTK_STANDARD_NEW_BODY(MyArray) }
   void Init(vtkFloatArray *array)
   {
@@ -57,8 +56,8 @@ public:
   void GetTypedTuple(vtkIdType, ValueType*) const override {}
   vtkIdType InsertNextValue(ValueType) override { return 0; }
   void InsertValue(vtkIdType, ValueType) override {}
-  int Allocate(vtkIdType, vtkIdType) override { return 0; }
-  int Resize(vtkIdType) override { return 0; }
+  vtkTypeBool Allocate(vtkIdType, vtkIdType) override { return 0; }
+  vtkTypeBool Resize(vtkIdType) override { return 0; }
 };
 }
 

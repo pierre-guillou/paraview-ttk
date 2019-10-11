@@ -569,7 +569,7 @@ void vtkCurveRepresentation::SetPlaneSource(vtkPlaneSource* plane)
 }
 
 //----------------------------------------------------------------------------
-void vtkCurveRepresentation::Initialize(void)
+void vtkCurveRepresentation::Initialize()
 {
   int i;
   for ( i = 0; i < this->NumberOfHandles; ++i )
@@ -736,7 +736,7 @@ int vtkCurveRepresentation::RenderOverlay(vtkViewport* win)
 }
 
 //----------------------------------------------------------------------------
-int vtkCurveRepresentation::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkCurveRepresentation::HasTranslucentPolygonalGeometry()
 {
   this->BuildRepresentation();
   int count = 0;

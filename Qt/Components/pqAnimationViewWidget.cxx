@@ -55,6 +55,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqAnimationKeyFrame.h"
 #include "pqAnimationModel.h"
 #include "pqAnimationScene.h"
+#include "pqAnimationTimeWidget.h"
 #include "pqAnimationTrack.h"
 #include "pqAnimationWidget.h"
 #include "pqApplicationCore.h"
@@ -82,36 +83,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMRenderViewProxy.h"
 #include "vtkSMTrace.h"
 
-#ifdef PARAVIEW_ENABLE_PYTHON
+#include <cassert>
+
+#if VTK_MODULE_ENABLE_ParaView_pqPython
 #include "pqPythonSyntaxHighlighter.h"
 #endif
-//-----------------------------------------------------------------------------
-// FIXME: this could be generalized. Seems like a useful extension to
-// pqPropertyLinksConnection. Makes it easy to trace property changes.
-class pqTraceablePropertyLinksConnection : public pqPropertyLinksConnection
-{
-  typedef pqPropertyLinksConnection Superclass;
-
-public:
-  pqTraceablePropertyLinksConnection(QObject* qobject, const char* qproperty, const char* qsignal,
-    vtkSMProxy* smproxy, vtkSMProperty* smproperty, int smindex, bool use_unchecked_modified_event,
-    QObject* parentObject = 0)
-    : Superclass(qobject, qproperty, qsignal, smproxy, smproperty, smindex,
-        use_unchecked_modified_event, parentObject)
-  {
-  }
-  ~pqTraceablePropertyLinksConnection() override {}
-protected:
-  /// Called to update the ServerManager Property due to UI change.
-  void setServerManagerValue(bool use_unchecked, const QVariant& value) override
-  {
-    SM_SCOPED_TRACE(PropertiesModified).arg("proxy", this->proxySM());
-    this->Superclass::setServerManagerValue(use_unchecked, value);
-  }
-
-private:
-  Q_DISABLE_COPY(pqTraceablePropertyLinksConnection)
-};
 
 //-----------------------------------------------------------------------------
 class pqAnimationViewWidget::pqInternal
@@ -119,9 +95,8 @@ class pqAnimationViewWidget::pqInternal
 public:
   pqInternal()
     : AnimationWidget(NULL)
+    , AnimationTimeWidget(NULL)
     , PlayMode(NULL)
-    , Time(NULL)
-    , TimeLabel(NULL)
     , StartTime(NULL)
     , StartTimeLabel(NULL)
     , EndTime(NULL)
@@ -141,13 +116,12 @@ public:
 
   QPointer<pqAnimationScene> Scene;
   pqAnimationWidget* AnimationWidget;
+  pqAnimationTimeWidget* AnimationTimeWidget;
   QSignalMapper KeyFramesChanged;
   typedef QMap<QPointer<pqAnimationCue>, pqAnimationTrack*> TrackMapType;
   TrackMapType TrackMap;
   QPointer<QDialog> Editor;
   QComboBox* PlayMode;
-  QLineEdit* Time;
-  QLabel* TimeLabel;
   QLineEdit* StartTime;
   QLabel* StartTimeLabel;
   QLineEdit* EndTime;
@@ -294,12 +268,10 @@ pqAnimationViewWidget::pqAnimationViewWidget(QWidget* _parent)
   this->Internal->PlayMode = new QComboBox(this) << pqSetName("PlayMode");
   this->Internal->PlayMode->addItem("Snap to Timesteps");
   hboxlayout->addWidget(this->Internal->PlayMode);
-  this->Internal->TimeLabel = new QLabel("Time:", this);
-  hboxlayout->addWidget(this->Internal->TimeLabel);
-  this->Internal->Time = new QLineEdit(this) << pqSetName("Time");
-  this->Internal->Time->setValidator(new QDoubleValidator(this->Internal->Time));
-  this->Internal->Time->setMinimumWidth(30);
-  hboxlayout->addWidget(this->Internal->Time);
+  this->Internal->AnimationTimeWidget = new pqAnimationTimeWidget(this);
+  this->Internal->AnimationTimeWidget->setPlayModeReadOnly(true);
+  hboxlayout->addWidget(this->Internal->AnimationTimeWidget);
+
   this->Internal->StartTimeLabel = new QLabel("Start Time:", this);
   hboxlayout->addWidget(this->Internal->StartTimeLabel);
   this->Internal->StartTime = new QLineEdit(this) << pqSetName("StartTime");
@@ -354,7 +326,7 @@ pqAnimationViewWidget::pqAnimationViewWidget(QWidget* _parent)
   QWidget* w = this->Internal->AnimationWidget->createDeleteWidget();
 
   this->Internal->CreateSource = new pqAnimatableProxyComboBox(w) << pqSetName("ProxyCombo");
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
   this->Internal->CreateSource->addProxy(0, "Python", NULL);
 #endif
   this->Internal->CreateProperty = new pqAnimatablePropertiesComboBox(w)
@@ -409,8 +381,6 @@ pqAnimationViewWidget::~pqAnimationViewWidget()
 //-----------------------------------------------------------------------------
 void pqAnimationViewWidget::setScene(pqAnimationScene* scene)
 {
-  typedef pqTraceablePropertyLinksConnection TPL;
-
   if (this->Internal->Scene)
   {
     this->Internal->Links.removeAllPropertyLinks();
@@ -436,24 +406,25 @@ void pqAnimationViewWidget::setScene(pqAnimationScene* scene)
     d0->setObjectName("ComboBoxDomain");
     pqSignalAdaptorComboBox* adaptor = new pqSignalAdaptorComboBox(this->Internal->PlayMode);
     adaptor->setObjectName("ComboBoxAdaptor");
-    this->Internal->Links.addPropertyLink<TPL>(adaptor, "currentText",
+    this->Internal->Links.addTraceablePropertyLink(adaptor, "currentText",
       SIGNAL(currentTextChanged(const QString&)), scene->getProxy(),
       scene->getProxy()->GetProperty("PlayMode"));
 
     // connect time
-    this->Internal->Links.addPropertyLink<TPL>(this->Internal->Time, "text",
-      SIGNAL(editingFinished()), scene->getProxy(),
+    this->Internal->Links.addTraceablePropertyLink(this->Internal->AnimationTimeWidget, "timeValue",
+      SIGNAL(timeValueChanged()), scene->getProxy(),
       scene->getProxy()->GetProperty("AnimationTime"));
+    this->Internal->AnimationTimeWidget->setAnimationScene(scene->getProxy());
     // connect start time
-    this->Internal->Links.addPropertyLink<TPL>(this->Internal->StartTime, "text",
+    this->Internal->Links.addTraceablePropertyLink(this->Internal->StartTime, "text",
       SIGNAL(editingFinished()), scene->getProxy(), scene->getProxy()->GetProperty("StartTime"));
     // connect end time
-    this->Internal->Links.addPropertyLink<TPL>(this->Internal->EndTime, "text",
+    this->Internal->Links.addTraceablePropertyLink(this->Internal->EndTime, "text",
       SIGNAL(editingFinished()), scene->getProxy(), scene->getProxy()->GetProperty("EndTime"));
     // connect lock start time.
-    this->Internal->Links.addPropertyLink<TPL>(this->Internal->LockStartTime, "checked",
+    this->Internal->Links.addTraceablePropertyLink(this->Internal->LockStartTime, "checked",
       SIGNAL(toggled(bool)), scene->getProxy(), scene->getProxy()->GetProperty("LockStartTime"));
-    this->Internal->Links.addPropertyLink<TPL>(this->Internal->LockEndTime, "checked",
+    this->Internal->Links.addTraceablePropertyLink(this->Internal->LockEndTime, "checked",
       SIGNAL(toggled(bool)), scene->getProxy(), scene->getProxy()->GetProperty("LockEndTime"));
 
     QObject::connect(scene, SIGNAL(cuesChanged()), this, SLOT(onSceneCuesChanged()));
@@ -611,8 +582,14 @@ void pqAnimationViewWidget::updateSceneTime()
 //-----------------------------------------------------------------------------
 void pqAnimationViewWidget::setCurrentTime(double t)
 {
-  vtkSMPropertyHelper(this->Internal->Scene->getProxy(), "AnimationTime").Set(t);
-  this->Internal->Scene->getProxy()->UpdateVTKObjects();
+  vtkSMProxy* animationScene = this->Internal->Scene->getProxy();
+  {
+    // Use another scope to prevent modifications to the TimeKeeper from
+    // being traced.
+    SM_SCOPED_TRACE(PropertiesModified).arg("proxy", animationScene);
+    vtkSMPropertyHelper(animationScene, "AnimationTime").Set(t);
+  }
+  animationScene->UpdateVTKObjects();
 }
 
 //-----------------------------------------------------------------------------
@@ -672,7 +649,7 @@ void pqAnimationViewWidget::trackSelected(pqAnimationTrack* track)
     QDialog dialog(this);
     Ui::PythonAnimationCue ui;
     ui.setupUi(&dialog);
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
     new pqPythonSyntaxHighlighter(ui.script, ui.script);
 #endif
     ui.script->setPlainText(vtkSMPropertyHelper(cue->getProxy(), "Script").GetAsString());
@@ -741,14 +718,14 @@ void pqAnimationViewWidget::trackSelected(pqAnimationTrack* track)
 //-----------------------------------------------------------------------------
 void pqAnimationViewWidget::updatePlayMode()
 {
-  typedef pqTraceablePropertyLinksConnection TPL;
-
   pqAnimationModel* animModel = this->Internal->AnimationWidget->animationModel();
   vtkSMProxy* pxy = this->Internal->Scene->getProxy();
 
   QString mode = pqSMAdaptor::getEnumerationProperty(pxy->GetProperty("PlayMode")).toString();
 
   this->Internal->DurationLink.removeAllPropertyLinks();
+
+  this->Internal->AnimationTimeWidget->setPlayMode(mode);
 
   if (mode == "Real Time")
   {
@@ -765,11 +742,11 @@ void pqAnimationViewWidget::updatePlayMode()
 
     this->Internal->StartTime->setEnabled(true);
     this->Internal->EndTime->setEnabled(true);
-    this->Internal->Time->setEnabled(true);
+    this->Internal->AnimationTimeWidget->setEnabled(true);
     this->Internal->Duration->setEnabled(true);
     this->Internal->DurationLabel->setEnabled(true);
     this->Internal->DurationLabel->setText("Duration (s):");
-    this->Internal->DurationLink.addPropertyLink<TPL>(this->Internal->Duration, "text",
+    this->Internal->DurationLink.addTraceablePropertyLink(this->Internal->Duration, "text",
       SIGNAL(editingFinished()), this->Internal->Scene->getProxy(),
       this->Internal->Scene->getProxy()->GetProperty("Duration"));
   }
@@ -788,11 +765,10 @@ void pqAnimationViewWidget::updatePlayMode()
 
     this->Internal->StartTime->setEnabled(true);
     this->Internal->EndTime->setEnabled(true);
-    this->Internal->Time->setEnabled(true);
     this->Internal->Duration->setEnabled(true);
     this->Internal->DurationLabel->setEnabled(true);
     this->Internal->DurationLabel->setText("No. Frames:");
-    this->Internal->DurationLink.addPropertyLink<TPL>(this->Internal->Duration, "text",
+    this->Internal->DurationLink.addTraceablePropertyLink(this->Internal->Duration, "text",
       SIGNAL(editingFinished()), this->Internal->Scene->getProxy(),
       this->Internal->Scene->getProxy()->GetProperty("NumberOfFrames"));
   }
@@ -813,7 +789,6 @@ void pqAnimationViewWidget::updatePlayMode()
     this->Internal->DurationLabel->setEnabled(false);
     this->Internal->StartTime->setEnabled(false);
     this->Internal->EndTime->setEnabled(false);
-    this->Internal->Time->setEnabled(false);
   }
   else
   {
@@ -937,7 +912,7 @@ void pqAnimationViewWidget::createTrack()
 // we only support that when python is enabled.
 // we allow creating as many python tracks as needed, hence we don't check
 // if there exists a track already (which is the case with others).
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
     this->createPythonTrack();
 #endif
     return;
@@ -1027,11 +1002,11 @@ void pqAnimationViewWidget::createTrack()
 //-----------------------------------------------------------------------------
 void pqAnimationViewWidget::createPythonTrack()
 {
-#ifdef PARAVIEW_ENABLE_PYTHON
+#if VTK_MODULE_ENABLE_ParaView_pqPython
   BEGIN_UNDO_SET("Add Animation Track");
 
   pqAnimationCue* cue = this->Internal->Scene->createCue("PythonAnimationCue");
-  Q_ASSERT(cue != NULL);
+  assert(cue != NULL);
   (void)cue;
   END_UNDO_SET();
 #else
@@ -1053,7 +1028,6 @@ void pqAnimationViewWidget::onTimeLabelChanged()
   }
 
   // Update labels
-  this->Internal->TimeLabel->setText(timeName);
   this->Internal->StartTimeLabel->setText(QString("Start %1:").arg(timeName));
   this->Internal->EndTimeLabel->setText(QString("End %1:").arg(timeName));
 }

@@ -396,7 +396,7 @@ void vtkWedge::Contour(double value, vtkDataArray *cellScalars,
                        vtkPointData *inPd, vtkPointData *outPd,
                        vtkCellData *inCd, vtkIdType cellId, vtkCellData *outCd)
 {
-  static int CASE_MASK[6] = {1,2,4,8,16,32};
+  static const int CASE_MASK[6] = {1,2,4,8,16,32};
   TRIANGLE_CASES *triCase;
   EDGE_LIST  *edge;
   int i, j, index, *vert, v1, v2, newCellId;
@@ -472,6 +472,15 @@ void vtkWedge::Contour(double value, vtkDataArray *cellScalars,
 int *vtkWedge::GetEdgeArray(int edgeId)
 {
   return edges[edgeId];
+}
+
+//----------------------------------------------------------------------------
+// Return the case table for table-based isocontouring (aka marching cubes
+// style implementations). A linear 3D cell with N vertices will have 2**N
+// cases. The cases list three edges in order to produce one output triangle.
+int *vtkWedge::GetTriangleCases(int caseId)
+{
+  return triCases[caseId].edges;
 }
 
 //----------------------------------------------------------------------------

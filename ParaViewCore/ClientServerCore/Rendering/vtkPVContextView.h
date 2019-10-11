@@ -42,20 +42,20 @@ class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkPVContextView : public vtkPVView
 {
 public:
   vtkTypeMacro(vtkPVContextView, vtkPVView);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Triggers a high-resolution render.
    * \note CallOnAllProcesses
    */
-  void StillRender() VTK_OVERRIDE;
+  void StillRender() override;
 
   /**
    * Triggers a interactive render. Based on the settings on the view, this may
    * result in a low-resolution rendering or a simplified geometry rendering.
    * \note CallOnAllProcesses
    */
-  void InteractiveRender() VTK_OVERRIDE;
+  void InteractiveRender() override;
 
   //@{
   /**
@@ -70,10 +70,6 @@ public:
   virtual vtkAbstractContextItem* GetContextItem() = 0;
 
   //@{
-  vtkRenderWindow* GetRenderWindow() VTK_OVERRIDE { return this->RenderWindow; }
-  //@}
-
-  //@{
   /**
    * Set the interactor. Client applications must set the interactor to enable
    * interactivity. Note this method will also change the interactor styles set
@@ -84,17 +80,10 @@ public:
   //@}
 
   /**
-   * Initialize the view with an identifier. Unless noted otherwise, this method
-   * must be called before calling any other methods on this class.
-   * \note CallOnAllProcesses
-   */
-  void Initialize(unsigned int id) VTK_OVERRIDE;
-
-  /**
    * Overridden to ensure that in multi-client configurations, same set of
    * representations are "dirty" on all processes to avoid race conditions.
    */
-  void Update() VTK_OVERRIDE;
+  void Update() override;
 
   /**
    * Representations can use this method to set the selection for a particular
@@ -121,6 +110,57 @@ public:
    */
   virtual bool Export(vtkCSVExporter* exporter);
 
+  //@{
+  /**
+   * Get/Set the title.
+   * These methods should not be called directly. They are made public only so
+   * that the client-server-stream-interpreter can invoke them. Use the
+   * corresponding properties to change these values.
+   */
+  vtkSetStringMacro(Title);
+  vtkGetStringMacro(Title);
+  //@}
+
+  //@{
+  /**
+   * Get/Set the font of the title.
+   * These methods should not be called directly. They are made public only so
+   * that the client-server-stream-interpreter can invoke them. Use the
+   * corresponding properties to change these values.
+   */
+  virtual void SetTitleFont(const char* family, int pointSize, bool bold, bool italic) = 0;
+  virtual void SetTitleFontFamily(const char* family) = 0;
+  virtual void SetTitleFontSize(int pointSize) = 0;
+  virtual void SetTitleBold(bool bold) = 0;
+  virtual void SetTitleItalic(bool italic) = 0;
+  virtual void SetTitleFontFile(const char* file) = 0;
+  virtual const char* GetTitleFontFamily() = 0;
+  virtual int GetTitleFontSize() = 0;
+  virtual int GetTitleFontBold() = 0;
+  virtual int GetTitleFontItalic() = 0;
+  //@}
+
+  //@{
+  /**
+   * Get/Set the color of the title.
+   * These methods should not be called directly. They are made public only so
+   * that the client-server-stream-interpreter can invoke them. Use the
+   * corresponding properties to change these values.
+   */
+  virtual void SetTitleColor(double red, double green, double blue) = 0;
+  virtual double* GetTitleColor() = 0;
+  //@}
+
+  //@{
+  /**
+   * Get/Set the alignement of the title.
+   * These methods should not be called directly. They are made public only so
+   * that the client-server-stream-interpreter can invoke them. Use the
+   * corresponding properties to change these values.
+   */
+  virtual void SetTitleAlignment(int alignment) = 0;
+  virtual int GetTitleAlignment() = 0;
+
 protected:
   vtkPVContextView();
   ~vtkPVContextView() override;
@@ -142,23 +182,20 @@ protected:
    */
   virtual bool MapSelectionToInput(vtkSelection*);
 
-  //@{
   /**
-   * Callbacks called when the primary "renderer" in the vtkContextView
-   * starts/ends rendering. Note that this is called on the renderer, hence
-   * before the rendering cleanup calls like SwapBuffers called by the
-   * render-window.
+   * Method to get the Formatted title after replacing some key strings
+   * eg: ${TIME}
+   * Child class should inherit this to add their own key strings
    */
-  void OnStartRender();
-  void OnEndRender();
-  //@}
+  virtual std::string GetFormattedTitle();
 
   vtkContextView* ContextView;
-  vtkRenderWindow* RenderWindow;
 
 private:
   vtkPVContextView(const vtkPVContextView&) = delete;
   void operator=(const vtkPVContextView&) = delete;
+
+  char* Title = nullptr;
 
   // Used in GetSelection to avoid modifying the selection obtained from the
   // annotation link.

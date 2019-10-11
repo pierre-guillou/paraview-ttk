@@ -81,16 +81,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqSMProxy.h"
 
 #include <QStringList>
-#include <set>
 
-const int pqSMAdaptor::metaId = qRegisterMetaType<QList<QList<QVariant> > >();
+#include <cassert>
+#include <set>
 
 namespace
 {
 template <class T>
 T* FindDomain(vtkSMProperty* prop)
 {
-  Q_ASSERT(prop != NULL);
+  assert(prop != NULL);
 
   vtkSmartPointer<vtkSMDomainIterator> iter;
   iter.TakeReference(prop->NewDomainIterator());
@@ -134,14 +134,10 @@ pqSMAdaptor::PropertyType pqSMAdaptor::getPropertyType(vtkSMProperty* Property)
       type = pqSMAdaptor::PROXYLIST;
     }
     type = pqSMAdaptor::PROXY;
-    if (vtkSMProxyListDomain::SafeDownCast(Property->GetDomain("proxy_list")))
+    if (Property->FindDomain<vtkSMProxyListDomain>())
     {
       type = pqSMAdaptor::PROXYSELECTION;
     }
-  }
-  else if (Property->GetDomain("field_list"))
-  {
-    type = pqSMAdaptor::FIELD_SELECTION;
   }
   else
   {
@@ -367,10 +363,8 @@ QList<pqSMProxy> pqSMAdaptor::getProxyPropertyDomain(vtkSMProperty* Property)
 
     // get group domain of this property
     // and add all proxies in those groups to our list
-    vtkSMProxyGroupDomain* gd;
-    vtkSMProxyListDomain* ld;
-    ld = vtkSMProxyListDomain::SafeDownCast(Property->GetDomain("proxy_list"));
-    gd = vtkSMProxyGroupDomain::SafeDownCast(Property->GetDomain("groups"));
+    auto ld = Property->FindDomain<vtkSMProxyListDomain>();
+    auto gd = Property->FindDomain<vtkSMProxyGroupDomain>();
     if (ld)
     {
       unsigned int numProxies = ld->GetNumberOfProxies();
@@ -738,7 +732,7 @@ void pqSMAdaptor::setSelectionProperty(
   if (StringListDomain || StringDomain)
   {
     vtkSMStringVectorProperty* svp = vtkSMStringVectorProperty::SafeDownCast(Property);
-    Q_ASSERT(svp);
+    assert(svp);
     if (Type == CHECKED)
     {
       svp->SetElements(smValueStrings.GetPointer());
@@ -751,7 +745,7 @@ void pqSMAdaptor::setSelectionProperty(
   else if (EnumerationDomain)
   {
     vtkSMIntVectorProperty* ivp = vtkSMIntVectorProperty::SafeDownCast(Property);
-    Q_ASSERT(ivp);
+    assert(ivp);
     smValueInts.push_back(0); // avoids need to check for size==0.
     if (Type == CHECKED)
     {
@@ -1695,265 +1689,6 @@ void pqSMAdaptor::setFileListProperty(
 
     i++;
   }
-}
-
-QStringList pqSMAdaptor::getFieldSelection(vtkSMProperty* Property, PropertyValueType Type)
-{
-  vtkSMStringVectorProperty* StringVectorProperty =
-    vtkSMStringVectorProperty::SafeDownCast(Property);
-  vtkSMEnumerationDomain* domain =
-    vtkSMEnumerationDomain::SafeDownCast(StringVectorProperty->GetDomain("field_list"));
-
-  QString mode;
-  QString scalars;
-
-  if (StringVectorProperty && domain)
-  {
-    int which = -1;
-
-    if (Type == CHECKED)
-    {
-      which = QString(StringVectorProperty->GetElement(3)).toInt();
-    }
-    else if (Type == UNCHECKED)
-    {
-      which = QString(StringVectorProperty->GetUncheckedElement(3)).toInt();
-    }
-
-    for (unsigned int i = 0; i < domain->GetNumberOfEntries(); i++)
-    {
-      if (domain->GetEntryValue(i) == which)
-      {
-        mode = domain->GetEntryText(i);
-        break;
-      }
-    }
-
-    if (Type == CHECKED)
-    {
-      scalars = StringVectorProperty->GetElement(4);
-    }
-    else if (Type == UNCHECKED)
-    {
-      scalars = StringVectorProperty->GetUncheckedElement(4);
-    }
-  }
-
-  QStringList selection;
-  selection.append(mode);
-  selection.append(scalars);
-  return selection;
-}
-
-void pqSMAdaptor::setFieldSelection(
-  vtkSMProperty* prop, const QStringList& Value, PropertyValueType Type)
-{
-  vtkSMStringVectorProperty* Property = vtkSMStringVectorProperty::SafeDownCast(prop);
-  vtkSMEnumerationDomain* domain =
-    vtkSMEnumerationDomain::SafeDownCast(prop->GetDomain("field_list"));
-
-  if (Value.size() != 2)
-  {
-    qDebug() << "pqSMAdaptor::setFieldSelection(): "
-                "Value should be string list with (AttributeType, ArrayName).";
-    return;
-  }
-
-  if (Property && domain)
-  {
-    for (unsigned int i = 0; i < domain->GetNumberOfEntries(); i++)
-    {
-      if (Value[0] == domain->GetEntryText(i))
-      {
-        std::string text = QString("%1").arg(domain->GetEntryValue(i)).toStdString();
-
-        if (Type == CHECKED)
-        {
-          Property->SetElement(3, text.c_str());
-          Property->SetElement(4, Value[1].toUtf8().data());
-        }
-        else if (Type == UNCHECKED)
-        {
-          Property->SetUncheckedElement(3, text.c_str());
-          Property->SetUncheckedElement(4, Value[1].toUtf8().data());
-        }
-        break;
-      }
-    }
-  }
-}
-
-QString pqSMAdaptor::getFieldSelectionMode(vtkSMProperty* prop, PropertyValueType Type)
-{
-  QString ret;
-  vtkSMStringVectorProperty* Property = vtkSMStringVectorProperty::SafeDownCast(prop);
-  vtkSMEnumerationDomain* domain =
-    vtkSMEnumerationDomain::SafeDownCast(prop->GetDomain("field_list"));
-
-  if (Property && domain)
-  {
-    int which = -1;
-
-    if (Type == CHECKED)
-    {
-      which = QString(Property->GetElement(3)).toInt();
-    }
-    else if (Type == UNCHECKED)
-    {
-      which = QString(Property->GetUncheckedElement(3)).toInt();
-    }
-
-    int numEntries = domain->GetNumberOfEntries();
-    for (int i = 0; i < numEntries; i++)
-    {
-      if (domain->GetEntryValue(i) == which)
-      {
-        ret = domain->GetEntryText(i);
-        break;
-      }
-    }
-  }
-  return ret;
-}
-
-void pqSMAdaptor::setFieldSelectionMode(
-  vtkSMProperty* prop, const QString& val, PropertyValueType Type)
-{
-  vtkSMStringVectorProperty* Property = vtkSMStringVectorProperty::SafeDownCast(prop);
-  vtkSMEnumerationDomain* domain =
-    vtkSMEnumerationDomain::SafeDownCast(prop->GetDomain("field_list"));
-
-  if (Property && domain)
-  {
-    int numEntries = domain->GetNumberOfEntries();
-    for (int i = 0; i < numEntries; i++)
-    {
-      if (val == domain->GetEntryText(i))
-      {
-        std::string text = QString("%1").arg(domain->GetEntryValue(i)).toStdString();
-
-        if (Type == CHECKED)
-        {
-          Property->SetElement(3, text.c_str());
-        }
-        else if (Type == UNCHECKED)
-        {
-          Property->SetUncheckedElement(3, text.c_str());
-        }
-        break;
-      }
-    }
-  }
-}
-
-QList<QString> pqSMAdaptor::getFieldSelectionModeDomain(vtkSMProperty* prop)
-{
-  QList<QString> types;
-  if (!prop)
-  {
-    return types;
-  }
-
-  vtkSMStringVectorProperty* Property = vtkSMStringVectorProperty::SafeDownCast(prop);
-  vtkSMEnumerationDomain* domain =
-    vtkSMEnumerationDomain::SafeDownCast(prop->GetDomain("field_list"));
-
-  if (Property && domain)
-  {
-    int numEntries = domain->GetNumberOfEntries();
-    for (int i = 0; i < numEntries; i++)
-    {
-      types.append(QString::fromUtf8(domain->GetEntryText(i)));
-    }
-  }
-  return types;
-}
-
-QString pqSMAdaptor::getFieldSelectionScalar(vtkSMProperty* prop, PropertyValueType Type)
-{
-  QString ret;
-  vtkSMStringVectorProperty* Property = vtkSMStringVectorProperty::SafeDownCast(prop);
-
-  if (Property)
-  {
-    if (Type == CHECKED)
-    {
-      ret = QString::fromUtf8(Property->GetElement(4));
-    }
-    else if (Type == UNCHECKED)
-    {
-      ret = QString::fromUtf8(Property->GetUncheckedElement(4));
-    }
-  }
-  return ret;
-}
-
-void pqSMAdaptor::setFieldSelectionScalar(
-  vtkSMProperty* prop, const QString& val, PropertyValueType Type)
-{
-  vtkSMStringVectorProperty* Property = vtkSMStringVectorProperty::SafeDownCast(prop);
-
-  if (Property)
-  {
-    if (Type == CHECKED)
-    {
-      Property->SetElement(4, val.toUtf8().data());
-    }
-    else if (Type == UNCHECKED)
-    {
-      Property->SetUncheckedElement(4, val.toUtf8().data());
-    }
-  }
-}
-
-//-----------------------------------------------------------------------------
-QList<QString> pqSMAdaptor::getFieldSelectionScalarDomain(vtkSMProperty* prop)
-{
-  QList<QString> types;
-  if (!prop)
-  {
-    return types;
-  }
-
-  vtkSMStringVectorProperty* Property = vtkSMStringVectorProperty::SafeDownCast(prop);
-  vtkSMArrayListDomain* domain =
-    prop ? vtkSMArrayListDomain::SafeDownCast(prop->GetDomain("array_list")) : 0;
-
-  if (Property && domain)
-  {
-    int numEntries = domain->GetNumberOfStrings();
-    for (int i = 0; i < numEntries; i++)
-    {
-      types.append(QString::fromUtf8(domain->GetString(i)));
-    }
-  }
-  return types;
-}
-
-//-----------------------------------------------------------------------------
-QList<QPair<QString, bool> > pqSMAdaptor::getFieldSelectionScalarDomainWithPartialArrays(
-  vtkSMProperty* prop)
-{
-  QList<QPair<QString, bool> > types;
-  if (!prop)
-  {
-    return types;
-  }
-
-  vtkSMStringVectorProperty* Property = vtkSMStringVectorProperty::SafeDownCast(prop);
-  vtkSMArrayListDomain* domain =
-    prop ? vtkSMArrayListDomain::SafeDownCast(prop->GetDomain("array_list")) : 0;
-
-  if (Property && domain)
-  {
-    int numEntries = domain->GetNumberOfStrings();
-    for (int i = 0; i < numEntries; i++)
-    {
-      types.append(QPair<QString, bool>(
-        QString::fromUtf8(domain->GetString(i)), domain->IsArrayPartial(i) != 0));
-    }
-  }
-  return types;
 }
 
 //-----------------------------------------------------------------------------

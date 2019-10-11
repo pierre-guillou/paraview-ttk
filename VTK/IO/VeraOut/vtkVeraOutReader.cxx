@@ -227,8 +227,8 @@ public:
       count++;
       std::ostringstream groupName;
       groupName << "/STATE_" << std::setw(4) << std::setfill('0') << count;
-      H5Eset_auto(NULL, NULL);
-      status = H5Gget_objinfo(this->FileId, groupName.str().c_str(), 0, NULL);
+      H5Eset_auto(nullptr, nullptr);
+      status = H5Gget_objinfo(this->FileId, groupName.str().c_str(), 0, nullptr);
     }
     // H5Eset_auto(NULL, NULL);
     this->NUMBER_OF_STATES = count ? count - 1 : 0;
@@ -587,7 +587,7 @@ public:
     dataSource->Delete(); // Just needed to extract the single value
 
     // ------------------------------------------
-    // Extract pin informations
+    // Extract pin information
     // ------------------------------------------
     std::vector<std::string> names;
     this->AddDataSetNamesWithDimension("/CORE", 4, names);
@@ -821,6 +821,7 @@ vtkStandardNewMacro(vtkVeraOutReader);
 vtkVeraOutReader::vtkVeraOutReader()
 {
   this->FileName = nullptr;
+  this->NumberOfTimeSteps = 0;
   this->TimeSteps.clear();
   this->SetNumberOfInputPorts(0);
   this->SetNumberOfOutputPorts(1);

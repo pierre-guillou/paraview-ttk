@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -246,14 +246,13 @@ FileFunctions::ReadAndProcessDirectory(const std::string &directory,
             if(directory.substr(directory.size() - 1, 1) != "/")
                 fileName += "/";
             fileName += ent->d_name;
-            VisItStat(fileName.c_str(), &s);
 
-            mode_t mode = s.st_mode;
-            bool isdir = S_ISDIR(mode);
-   
+            bool isdir = FileFunctions::FILE_TYPE_DIR ==
+                GetFileType(fileName, ent, checkAccess?&s:0);
             bool canaccess = checkAccess ? false : true;
             if(checkAccess)
             {
+                mode_t mode = s.st_mode;
                 bool isuser  = (s.st_uid == uid);
                 bool isgroup = false;
                 for (int i=0; i<ngids && !isgroup; i++)
@@ -350,6 +349,9 @@ FileFunctions::GetCurrentWorkingDirectory()
 //   Kathleen Bonnell, Fri Nov 7 15:46:33 PST 2008
 //   Forgot path separator between homeDir and username. 
 //
+//   Kathleen Biagas, Thu May 17, 2018
+//   Support UNC paths on windows.
+//
 // ****************************************************************************
 
 std::string
@@ -441,6 +443,11 @@ FileFunctions::ExpandPath(const std::string &path,
         // special path. do nothing
         newPath = path;
     }
+    else if (path.substr(0,2) == "\\\\")
+    {
+        // absolute UNC path. do nothing
+        newPath = path;
+    }
     else
     {
         // relative path:
@@ -488,16 +495,30 @@ FileFunctions::ExpandPath(const std::string &path,
 //   Brad Whitlock, Mon Sep 28 16:36:18 PDT 2009
 //   Don't pop_back unless there's something to remove.
 //
+//   Kathleen Biagas, Thu May 17, 2018
+//   Support UNC paths on windows.
+//
 // ****************************************************************************
 
 std::string
 FileFunctions::FilteredPath(const std::string &path)
 {
     // Remove multiple slashes in a row.
-    size_t i = 0;
     size_t state = 0;
+    size_t start = 0;
     std::string filteredPath;
-    for(i = 0; i < path.length(); ++i)
+#ifdef WIN32
+    bool isUNC = false;
+    if (path.substr(0,2) == "\\\\")
+    {
+        // unc style path, we don't want to remove the
+        // double-slashes at the beginning
+        start = 2;
+        filteredPath = "\\\\";
+        isUNC = true;
+    }
+#endif
+    for(size_t i = start; i < path.length(); ++i)
     {
         if(state == 0)
         {
@@ -525,9 +546,8 @@ FileFunctions::FilteredPath(const std::string &path)
         // Filter out .. so we get the right path.
         stringVector tmpNames;
         std::string  tmp;
-        state = 0;
         const char *str = filteredPath.c_str();
-        for(i = 0; i < filteredPath.length() + 1; ++i)
+        for(size_t i = 0; i < filteredPath.length() + 1; ++i)
         {
             if(str[i] == VISIT_SLASH_CHAR || str[i] == '\0')
             {
@@ -551,14 +571,18 @@ FileFunctions::FilteredPath(const std::string &path)
         if(tmpNames.size() > 0)
         {
             filteredPath = "";
-            for(i = 0; i < tmpNames.size(); ++i)
-            { 
-#if defined(_WIN32)
-                if(i > 0)
-                    filteredPath += VISIT_SLASH_STRING;
-#else
-                filteredPath += VISIT_SLASH_STRING;
+            size_t start = 0;
+#ifdef WIN32
+            if (isUNC)
+            {
+                filteredPath = "\\\\";
+            }
+            filteredPath += tmpNames[0];
+            start = 1;
 #endif
+            for(size_t i = start; i < tmpNames.size(); ++i)
+            { 
+                filteredPath += VISIT_SLASH_STRING;
                 filteredPath += tmpNames[i];
             }
         }
@@ -1129,13 +1153,19 @@ FileFunctions::SplitHostDatabase(const std::string &hostDB,
 // Creation:   Thu Mar 25 15:05:40 PST 2004
 //
 // Modifications:
-//   
+//   Kathleen Biagas, Thu May 17, 2018
+//   Allow for UNC style paths.
+//
 // ****************************************************************************
 
 std::string
 FileFunctions::ComposeDatabaseName(const std::string &host,
     const std::string &db)
 {
+#ifdef WIN32
+    if (db.substr(0,2) == "\\\\")
+        return db;
+#endif
     std::string h(host);
 
     if(h == "")
@@ -1185,4 +1215,144 @@ FileFunctions::FileMatchesPatternCB(void *cbdata, const std::string &filename, b
                fl->push_back(name);
         }
     }
+}
+
+// ****************************************************************************
+//  Method: GetFileType
+//
+//  Purpose: More flexible and possibly faster way of determining file type 
+//  information without resorting to stat'ing the file but if so, able to
+//  return statbuf too if caller wants/needs it.
+//
+//  If statbuf arg is non-null (and not FILE_TYPE_DONT_STAT key), this method
+//  *will* stat the file to get file type information *and* that method is
+//  *always* reliable, but also costly. It will also return to the caller the
+//  resulting statbuf so that the work in stat'ing the file isn't wasted.
+//
+//  If used within an opendir()/readdir() iteration, a caller may instead
+//  pass current dirent and a null statbuf. This will then use d_type member
+//  of dirent to determine file type *iff* that is available.
+//
+//  Otherwise it *will* call stat() on the file (unless FILE_TYPE_DONT_STAT
+//  is passed for the statbuf arg) to obtain file type information but will
+//  do so only to a local copy of a statbuf thereby wasting any stat'ing work
+//  for the caller.
+//
+//  GetFileType(<path>)
+//      - gets file type by stat'ing and stat work is wasted because its done
+//        to a local variable.
+//  GetFileType(<path>, dirent)
+//      - gets file type from dirent, if possible, but if dirent returns
+//        DT_UNKNOWN stat's file and stat work is wasted
+//  GetFileType(<path>, dirent, FILE_TYPE_DONT_STAT)
+//      - like above but will NOT stat if dirent fails to resolve type
+//  GetFileType(<path>, null or non-null, statbuf)
+//      - gets file type by stat'ing, returns stat'd info in stabuf
+//
+//  Mark C. Miller, Wed Mar 14 22:36:48 PDT 2018
+//
+//  Modifications:
+//
+//    Mark C. Miller, Fri Mar 23 12:11:40 PDT 2018
+//    Added processing of LINK file type.
+//
+// ****************************************************************************
+
+FileFunctions::FileType
+FileFunctions::GetFileType(char const *filename, struct dirent const *dent,
+    VisItStat_t *statbuf)
+{
+    if (!filename)
+        return FILE_TYPE_NOT_KNOWN;
+
+    // If statbuf is non-null, caller wants stat info back.
+    // So, we have not choice but to stat the file.
+    if (statbuf && statbuf != FILE_TYPE_DONT_STAT)
+    {
+        VisItStat(filename, statbuf);
+        if S_ISDIR(statbuf->st_mode)
+            return FILE_TYPE_DIR;
+        if S_ISREG(statbuf->st_mode)
+            return FILE_TYPE_REG;
+        return FILE_TYPE_OTHER;
+    }
+
+    // Try to use dirent if we have it.
+#if defined(_DIRENT_HAVE_D_TYPE) || defined(__APPLE__)
+    if (dent)
+    {
+        if (dent->d_type == DT_DIR)
+            return FILE_TYPE_DIR;
+        if (dent->d_type == DT_REG)
+            return FILE_TYPE_REG;
+        if (dent->d_type == DT_LNK)
+            return FILE_TYPE_LINK;
+        if (dent->d_type != DT_UNKNOWN)
+            return FILE_TYPE_OTHER;
+    }
+#endif
+
+    if (statbuf == FILE_TYPE_DONT_STAT)
+        return FILE_TYPE_NOT_KNOWN;
+
+    // Really a last resort to perform a stat call to a local variable
+    // therby wasting everything we get from it except file type info
+    VisItStat_t stattmp;
+    VisItStat(filename, &stattmp);
+    if S_ISDIR(stattmp.st_mode)
+        return FILE_TYPE_DIR;
+    if S_ISREG(stattmp.st_mode)
+        return FILE_TYPE_REG;
+
+    return FILE_TYPE_OTHER;
+}
+
+FileFunctions::FileType
+FileFunctions::GetFileType(std::string const &filename, struct dirent const *dent,
+    VisItStat_t *statbuf)
+{
+    return GetFileType(filename.c_str(), dent, statbuf);
+}
+
+// ****************************************************************************
+// Method: FileFunctions::ReadTextFile
+//
+// Purpose:
+//   Read an entire file into a std::string.
+//
+// Arguments:
+//   filename     : The name of the file to read.
+//   fileContents : The string that contains the file contents.
+//
+// Returns:    True if the file was read, false otherwise.
+//
+// Note:       We're reading as binary (we could do getlines to get EOLN
+//             conversion but that's not currently what we're doing).
+//
+// Programmer: Brad Whitlock
+// Creation:   Wed Jul 18 10:22:55 PDT 2018
+//
+// Modifications:
+//
+// ****************************************************************************
+
+bool
+FileFunctions::ReadTextFile(const std::string &filename, std::string &fileContents)
+{
+    bool retval = false;
+    VisItStat_t s;
+    fileContents.clear();
+    if(VisItStat(filename, &s) == 0)
+    {
+        fileContents.resize(s.st_size);
+        FILE *f = fopen(filename.c_str(), "rb");
+        if(f != NULL)
+        {
+            fileContents.resize(s.st_size);
+            fread(&fileContents[0], 1, s.st_size, f);
+            fclose(f);
+            retval = true;
+        }
+    }
+    return retval;
 }

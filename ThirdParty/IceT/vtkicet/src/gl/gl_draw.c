@@ -38,9 +38,9 @@ static void inflateBuffer(IceTUByte *buffer,
 void icetGLDrawCallback(IceTGLDrawCallbackType func)
 {
     if (!icetGLIsInitialized()) {
-        icetRaiseError("IceT OpenGL layer not initialized."
-                       " Call icetGLInitialize.",
-                       ICET_INVALID_OPERATION);
+        icetRaiseError(ICET_INVALID_OPERATION,
+                       "IceT OpenGL layer not initialized."
+                       " Call icetGLInitialize.");
         return;
     }
 
@@ -97,9 +97,9 @@ static void setupOpenGLRender(IceTDouble *projection_matrix,
     *ok_to_proceed = ICET_FALSE;
 
     if (!icetGLIsInitialized()) {
-        icetRaiseError("IceT OpenGL layer not initialized."
-                       " Call icetGLInitialize.",
-                       ICET_INVALID_OPERATION);
+        icetRaiseError(ICET_INVALID_OPERATION,
+                       "IceT OpenGL layer not initialized."
+                       " Call icetGLInitialize.");
         return;
     }
 
@@ -117,8 +117,8 @@ static void setupOpenGLRender(IceTDouble *projection_matrix,
   /* Check the GL callback. */
     icetGetPointerv(ICET_GL_DRAW_FUNCTION, &value);
     if (value == NULL) {
-        icetRaiseError("GL Drawing function not set.  Call icetGLDrawCallback.",
-                       ICET_INVALID_OPERATION);
+        icetRaiseError(ICET_INVALID_OPERATION,
+                       "GL Drawing function not set. Call icetGLDrawCallback.");
         return;
     }
 

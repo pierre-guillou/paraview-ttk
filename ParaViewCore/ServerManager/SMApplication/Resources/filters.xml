@@ -746,6 +746,7 @@
       </IntVectorProperty>
       <Hints>
         <!-- View can be used to specify the preferred view for the proxy -->
+        <PipelineIcon name="XYChartView" />
         <View type="QuartileChartView" />
         <WarnOnCreate title="Potentially slow operation">
           **Plot Data Over Time** filter needs to process all timesteps
@@ -822,6 +823,7 @@
 
       <Hints>
         <!-- View can be used to specify the preferred view for the proxy -->
+        <PipelineIcon name="XYChartView" />
         <View type="QuartileChartView" />
         <WarnOnCreate title="Potentially slow operation">
           **Plot Selection Over Time** filter needs to process all timesteps
@@ -832,7 +834,7 @@
       <!-- End of ExtractSelectionOverTime -->
     </SourceProxy>
     <!-- ==================================================================== -->
-    <SourceProxy class="vtkPExtractTemporalFieldData"
+    <SourceProxy class="vtkPExtractExodusGlobalTemporalVariables"
                  label="Plot Global Variables Over Time"
                  name="ExtractFieldDataOverTime">
       <Documentation long_help="Extracts and plots data in field data over time."
@@ -853,18 +855,6 @@
         <Documentation>The input from which the selection is
         extracted.</Documentation>
       </InputProperty>
-      <IntVectorProperty name="HandleBlocksIndividually"
-        command="SetHandleCompositeDataBlocksIndividually"
-        number_of_elements="1"
-        default_values="0"
-        panel_visibility="never">
-        <BooleanDomain name="bool" />
-        <Documentation>
-          When checked, if the input is a composite-dataset, then
-          each block in the input dataset is processed. If unchecked,
-          then the first non-empty FieldData is considered.
-        </Documentation>
-      </IntVectorProperty>
       <Hints>
         <!-- View can be used to specify the preferred view for the proxy -->
         <View type="XYChartView" />
@@ -1127,20 +1117,17 @@
       <!-- End AppendPolyData -->
     </SourceProxy>
     <!-- ==================================================================== -->
-    <SourceProxy class="vtkAppendFilter"
+    <SourceProxy class="vtkAppendDataSets"
                  label="Append Datasets"
                  name="Append">
-      <Documentation long_help="Takes an input of multiple datasets and output has only one unstructured grid."
+      <Documentation long_help="Takes an input of multiple datasets and output has only one unstructured grid or polydata."
                      short_help="Append multiple datasets into one.">The Append
                      Datasets filter operates on multiple data sets of any type
-                     (polygonal, structured, etc.). It merges their geometry
-                     into a single data set. Only the point and cell attributes
-                     that all of the input data sets have in common will appear
-                     in the output. The input data sets must already be
-                     collected together, either as a result of a reader that
-                     loads multiple parts (e.g., EnSight reader) or because the
-                     Group Parts filter has been run to form a collection of
-                     data sets.</Documentation>
+                     (polygonal, structured, etc.). It merges their meshes
+                     into a single dataset. If all inputs are polydata, the output
+                     is a polydata, otherwise it is an unstructured grid.
+                     Only the point and cell attributes that all of the input
+                     datasets have in common will appear in the output.</Documentation>
       <InputProperty clean_command="RemoveAllInputs"
                      command="AddInputConnection"
                      multiple_input="1"
@@ -1156,6 +1143,24 @@
         <Documentation>This property specifies the datasets to be merged into a
         single dataset by the Append Datasets filter.</Documentation>
       </InputProperty>
+      <IntVectorProperty command="SetOutputDataSetType"
+                         default_values="4"
+                         number_of_elements="1"
+                         name="OutputDataSetType"
+                         panel_visibility="advanced">
+        <EnumerationDomain name="enum">
+          <Entry text="Polygonal Mesh"
+                 value="0" />
+          <Entry text="Unstructured Grid"
+                 value="4" />
+        </EnumerationDomain>
+        <Documentation>Determines the output type produced by this filter. Only input datasets compatible
+        with the output type will be merged in the output. For example, if the output type is
+        "Polygonal Mesh", then inputs of type "Image Data", "StructuredGrid", etc. will not be merged.
+        On the other hand, if the output type is "Unstructured Grid", then inputs of almost any type
+        will be merged in the output. Defaults to "Unstructured Grid".
+        </Documentation>
+      </IntVectorProperty>
       <!-- End AppendDataSet -->
     </SourceProxy>
     <!-- ==================================================================== -->
@@ -1223,6 +1228,32 @@
         <Documentation>This property specifies the input to the Cell Data to
         Point Data filter.</Documentation>
       </InputProperty>
+      <IntVectorProperty command="SetProcessAllArrays"
+                         default_values="1"
+                         name="ProcessAllArrays"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>The value of this property controls whether all input
+        cell arrays will be processed and converted into point arrays.</Documentation>
+      </IntVectorProperty>
+      <StringVectorProperty clean_command="ClearCellDataArrays"
+                            command="AddCellDataArray"
+                            name="CellDataArrays"
+                            label="Cell Data Array to process"
+                            number_of_elements_per_command="1"
+                            repeat_command="1">
+        <Documentation>Add a cell array by name to be converted to point array.</Documentation>
+        <ArrayListDomain input_domain_name="input_array" name="array_list">
+          <RequiredProperties>
+            <Property function="Input" name="Input" />
+          </RequiredProperties>
+        </ArrayListDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="ProcessAllArrays" function="boolean_invert" />
+          </PropertyWidgetDecorator>
+        </Hints>
+      </StringVectorProperty>
       <IntVectorProperty command="SetPassCellData"
                          default_values="0"
                          name="PassCellData"
@@ -1268,13 +1299,60 @@
         <Documentation>This property specifies the input to the Cell Data to
         Point Data filter.</Documentation>
       </InputProperty>
-      <StringVectorProperty command="SetIdsArrayName"
-                            default_values="Ids"
-                            name="ArrayName"
+      <IntVectorProperty name="GeneratePointIds"
+                         command="SetPointIds"
+                         number_of_elements="1"
+                         default_values="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Enable generation of point ids.
+        </Documentation>
+      </IntVectorProperty>
+
+      <StringVectorProperty command="SetPointIdsArrayName"
+                            default_values="PointIds"
+                            name="PointIdsArrayName"
                             number_of_elements="1">
-        <Documentation>The name of the array that will contain
-        ids.</Documentation>
+        <Documentation>The name of the point ids array.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="enabled_state"
+                                   property="GeneratePointIds"
+                                   value="1" />
+        </Hints>
       </StringVectorProperty>
+
+      <IntVectorProperty name="GenerateCellIds"
+                         command="SetCellIds"
+                         number_of_elements="1"
+                         default_values="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Enable generation of cell ids.
+        </Documentation>
+      </IntVectorProperty>
+
+      <StringVectorProperty command="SetCellIdsArrayName"
+                            default_values="CellIds"
+                            name="CellIdsArrayName"
+                            number_of_elements="1">
+        <Documentation>The name of the cell ids array.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="enabled_state"
+                                   property="GenerateCellIds"
+                                   value="1" />
+        </Hints>
+      </StringVectorProperty>
+      <PropertyGroup label="Point Ids">
+        <Property name="GeneratePointIds" />
+        <Property name="PointIdsArrayName" />
+      </PropertyGroup>
+      <PropertyGroup label="Cell Ids">
+        <Property name="GenerateCellIds" />
+        <Property name="CellIdsArrayName" />
+      </PropertyGroup>
+
       <!-- End GenerateIdScalars -->
     </SourceProxy>
     <!-- ==================================================================== -->
@@ -1774,7 +1852,26 @@ found and the point will be rejected.</Documentation>
         <Documentation>Controls the coloring of the connected
         regions.</Documentation>
       </IntVectorProperty>
-
+      <IntVectorProperty command="SetRegionIdAssignmentMode"
+                         default_values="0"
+                         name="RegionIdAssignmentMode"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <Documentation>
+          Specifies how regions IDs are assigned to the connected components. **Unspecified** means
+          regions will have no particular order, **Cell Count Descending** assigns increasing region
+          IDs to connected components with progressively smaller cell counts, and **Cell Count Ascending**
+          assigns increasing region IDs to connected components with progressively larger cell counts.
+        </Documentation>
+        <EnumerationDomain name="enum">
+          <Entry text="Unspecified"
+                 value="0" />
+          <Entry text="Cell Count Descending"
+                 value="1" />
+          <Entry text="Cell Count Ascending"
+                 value="2" />
+        </EnumerationDomain>
+      </IntVectorProperty>
       <DoubleVectorProperty
         name="ClosestPoint"
         command="SetClosestPoint"
@@ -2473,9 +2570,10 @@ being of a vtkDoubleArray.</Documentation>
         </ProxyGroupDomain>
         <DataTypeDomain name="input_type">
           <DataType value="vtkDataSet" />
+          <DataType value="vtkGraph"/>
         </DataTypeDomain>
         <InputArrayDomain name="input_array" optional="1"/>
-        <Documentation>This property specifies the input dataset to the
+        <Documentation>This property specifies the input dataset (vtkDataSet or vtkGraph) to the
         Calculator filter. The scalar and vector variables may be chosen from
         this dataset's arrays.</Documentation>
       </InputProperty>
@@ -2483,12 +2581,14 @@ being of a vtkDoubleArray.</Documentation>
                          default_values="0"
                          name="AttributeType"
                          number_of_elements="1">
-        <EnumerationDomain name="enum">
-          <Entry text="Point Data" value="0" />
-          <Entry text="Cell Data" value="1" />
-        </EnumerationDomain>
-        <Documentation>This property determines whether the computation is to
-        be performed on point-centered or cell-centered data.</Documentation>
+        <FieldDataDomain name="enum">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input" />
+          </RequiredProperties>
+        </FieldDataDomain>
+        <Documentation>This property determines on which types of field data the computation is to
+        be performed on.</Documentation>
       </IntVectorProperty>
       <IntVectorProperty command="SetCoordinateResults"
                          default_values="0"
@@ -2770,12 +2870,6 @@ array.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property lists the name of the array from which to
         use.</Documentation>
       </StringVectorProperty>
@@ -2925,12 +3019,6 @@ array.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property lists the name of the scalar array from
         which to compute the gradient.</Documentation>
       </StringVectorProperty>
@@ -4744,6 +4832,32 @@ array.
         <Documentation>This property specifies the input to the Point Data to
         Cell Data filter.</Documentation>
       </InputProperty>
+      <IntVectorProperty command="SetProcessAllArrays"
+                         default_values="1"
+                         name="ProcessAllArrays"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>The value of this property controls whether all input
+        point arrays will be processed and converted into cell arrays.</Documentation>
+      </IntVectorProperty>
+      <StringVectorProperty clean_command="ClearPointDataArrays"
+                            command="AddPointDataArray"
+                            name="PointDataArrays"
+                            label="Point Data Array to process"
+                            number_of_elements_per_command="1"
+                            repeat_command="1">
+        <Documentation>Add a point array by name to be converted to cell array.</Documentation>
+        <ArrayListDomain input_domain_name="input_array" name="array_list">
+          <RequiredProperties>
+            <Property function="Input" name="Input" />
+          </RequiredProperties>
+        </ArrayListDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="ProcessAllArrays" function="boolean_invert" />
+          </PropertyWidgetDecorator>
+        </Hints>
+      </StringVectorProperty>
       <IntVectorProperty command="SetPassPointData"
                          default_values="0"
                          name="PassPointData"
@@ -5026,6 +5140,7 @@ array.
           <Entry value="9" text="UnsignedLong"/>
           <Entry value="10" text="Float"/>
           <Entry value="11" text="Double"/>
+          <Entry value="12" text="vtkIdType"/>
         </EnumerationDomain>
         <Documentation>
           Specify the type of array to create (all components of this
@@ -6634,6 +6749,24 @@ array.
                          number_of_elements="1">
         <BooleanDomain name="bool" />
         <Documentation>This parameter controls whether to produce triangles in the output.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="PreserveInputCells" function="boolean_invert" />
+          </PropertyWidgetDecorator>
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetMergePoints"
+                         default_values="1"
+                         name="MergePoints"
+                         label="Merge duplicated points in the slice"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>This parameter controls whether to merge duplicated points in the slice.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="PreserveInputCells" function="boolean_invert" />
+          </PropertyWidgetDecorator>
+        </Hints>
       </IntVectorProperty>
       <DoubleVectorProperty animateable="1"
                             command="SetValue"
@@ -6655,6 +6788,11 @@ array.
         offset values. This can be used to create multiple slices with
         different centers. Each entry represents a new slice with its center
         shifted by the offset value.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="PreserveInputCells" function="boolean_invert" />
+          </PropertyWidgetDecorator>
+        </Hints>
       </DoubleVectorProperty>
       <Hints>
         <Visibility replace_input="2" />
@@ -6990,12 +7128,6 @@ array.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>If clipping with scalars, this property specifies the
         name of the scalar array on which to perform the clip
         operation.</Documentation>
@@ -7252,12 +7384,6 @@ array.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>The value of this property contains the name of the
         scalar array from which to perform thresholding.</Documentation>
       </StringVectorProperty>
@@ -7303,6 +7429,16 @@ array.
           results.
         </Documentation>
       </IntVectorProperty>
+      <IntVectorProperty command="SetInvert"
+                         default_values="0"
+                         name="Invert"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>Invert the threshold results. That is, cells that would have been in the
+          output with this option off are excluded, while cells that would have been excluded from
+          the output are included.
+        </Documentation>
+      </IntVectorProperty>
       <Hints>
         <Visibility replace_input="2" />
       </Hints>
@@ -7344,12 +7480,6 @@ array.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>The value of this property contains the name of the
         scalar array from which to perform thresholding.</Documentation>
       </StringVectorProperty>
@@ -7414,12 +7544,6 @@ array.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property specifies the name of the scalar array
         from which the contour filter will compute isolines and/or
         isosurfaces.</Documentation>
@@ -7431,7 +7555,7 @@ array.
                          number_of_elements="1">
         <BooleanDomain name="bool" />
         <Hints>
-          <PropertyWidgetDecorator type="NonPolyDataInputDecorator" />
+          <PropertyWidgetDecorator type="InputDataTypeDecorator" name="vtkPolyData"  exclude="1"/>
         </Hints>
         <Documentation>If this property is set to 1, a scalar array containing
         a normal value at each point in the isosurface or isoline will be
@@ -7464,9 +7588,10 @@ array.
       </IntVectorProperty>
       <IntVectorProperty animateable="0"
                          command="SetComputeScalars"
-                         default_values="0"
+                         default_values="1"
                          name="ComputeScalars"
-                         number_of_elements="1">
+                         number_of_elements="1"
+                         panel_visibility="advanced">
         <BooleanDomain name="bool" />
         <Documentation>If this property is set to 1, an array of scalars
         (containing the contour value) will be added to the output dataset. If
@@ -7652,12 +7777,6 @@ points in the input dataset.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>
 Select the input array to use for orienting the glyphs.
         </Documentation>
@@ -7676,12 +7795,6 @@ Select the input array to use for orienting the glyphs.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>
 Select the input array to be used for scaling the glyphs. If the scale
 array is a vector array, you can control how the glyphs are scaled with
@@ -7770,7 +7883,9 @@ source.</Documentation>
         <EnumerationDomain name="enum">
           <Entry text="All Points" value="0"/>
           <Entry text="Every Nth Point" value="1"/>
-          <Entry text="Uniform Spatial Distribution" value="2"/>
+          <Entry text="Uniform Spatial Distribution (Bounds Based)" value="2"/>
+          <Entry text="Uniform Spatial Distribution (Surface Sampling)" value="3"/>
+          <Entry text="Uniform Spatial Distribution (Volume Sampling)" value="4"/>
         </EnumerationDomain>
         <Documentation>
 This property indicates the mode that will be used to generate
@@ -7787,11 +7902,14 @@ This property specifies the maximum number of sample points to use
 when sampling the space when Uniform Spatial Distribution is used.
         </Documentation>
         <Hints>
-          <PropertyWidgetDecorator type="GenericDecorator"
-                                   mode="visibility"
-                                   property="GlyphMode"
-                                   value="2" />
-          <!-- show this widget when GlyphMode==2 -->
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="or">
+              <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="GlyphMode" value="2" inverse="0" />
+              <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="GlyphMode" value="3" inverse="0" />
+              <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="GlyphMode" value="4" inverse="0" />
+            </Expression>
+          </PropertyWidgetDecorator>
+          <!-- show this widget when GlyphMode==2||3||4 -->
         </Hints>
       </IntVectorProperty>
       <IntVectorProperty command="SetSeed"
@@ -7805,11 +7923,14 @@ uniform distribution of glyph points when a Uniform Spatial
 Distribution is used.
         </Documentation>
         <Hints>
-          <PropertyWidgetDecorator type="GenericDecorator"
-                                   mode="visibility"
-                                   property="GlyphMode"
-                                   value="2" />
-          <!-- show this widget when GlyphMode==2 -->
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="or">
+              <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="GlyphMode" value="2" inverse="0" />
+              <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="GlyphMode" value="3" inverse="0" />
+              <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="GlyphMode" value="4" inverse="0" />
+            </Expression>
+          </PropertyWidgetDecorator>
+          <!-- show this widget when GlyphMode==2||3||4 -->
         </Hints>
       </IntVectorProperty>
       <IntVectorProperty command="SetStride"
@@ -7946,12 +8067,6 @@ dataset from which the points are selected to be glyphed.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>
 Select the input array to be treated as the active **Scalars**.  You
 can scale the glyphs using the selected scalars by setting the **Scale
@@ -7973,12 +8088,6 @@ Mode** property to **scalar**.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>
 Select the input array to be treated as the active **Vectors**.  You can
 scale the glyphs using the selected vectors by setting the **Scale
@@ -8250,12 +8359,6 @@ points in the input dataset.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>
 Select the input array to use for orienting the glyphs.
         </Documentation>
@@ -8274,12 +8377,6 @@ Select the input array to use for orienting the glyphs.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>
 Select the input array to be used for scaling the glyphs. If the scale
 array is a vector array, you can control how the glyphs are scaled with
@@ -8763,7 +8860,7 @@ Every Nth Point.
         <IntRangeDomain min="1"
                         name="range" />
         <Documentation>This property indicates the sampling rate in the I
-        dimension. A value grater than 1 results in subsampling; every nth
+        dimension. A value greater than 1 results in subsampling; every nth
         index will be included in the output.</Documentation>
       </IntVectorProperty>
       <IntVectorProperty animateable="1"
@@ -8775,7 +8872,7 @@ Every Nth Point.
         <IntRangeDomain min="1"
                         name="range" />
         <Documentation>This property indicates the sampling rate in the J
-        dimension. A value grater than 1 results in subsampling; every nth
+        dimension. A value greater than 1 results in subsampling; every nth
         index will be included in the output.</Documentation>
       </IntVectorProperty>
       <IntVectorProperty animateable="1"
@@ -8787,7 +8884,7 @@ Every Nth Point.
         <IntRangeDomain min="1"
                         name="range" />
         <Documentation>This property indicates the sampling rate in the K
-        dimension. A value grater than 1 results in subsampling; every nth
+        dimension. A value greater than 1 results in subsampling; every nth
         index will be included in the output.</Documentation>
       </IntVectorProperty>
       <IntVectorProperty command="SetIncludeBoundary"
@@ -9424,13 +9521,13 @@ Every Nth Point.
         <Property name="InitialIntegrationStep" />
         <Property name="MinimumIntegrationStep" />
         <Property name="MaximumIntegrationStep" />
+        <Property name="MaximumError" />
       </PropertyGroup>
 
       <PropertyGroup label="Streamline Parameters" >
         <Property name="MaximumNumberOfSteps" />
         <Property name="MaximumPropagation" />
         <Property name="TerminalSpeed" />
-        <Property name="MaximumError" />
       </PropertyGroup>
 
       <Hints>
@@ -10864,12 +10961,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>If clipping with scalars, this property specifies the
         name of the scalar array on which to perform the clip
         operation.</Documentation>
@@ -10969,12 +11060,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property specifies the name of the scalar array
         from which the contour filter will compute isolines and/or
         isosurfaces.</Documentation>
@@ -12105,12 +12190,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>
           This property indicates the name of the array to be extracted.
         </Documentation>
@@ -12214,12 +12293,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property specifies the name of the scalar array
         from which we will color by.</Documentation>
       </StringVectorProperty>
@@ -12282,12 +12355,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property indicates the name of the array from which
         to compute the histogram.</Documentation>
       </StringVectorProperty>
@@ -12317,23 +12384,6 @@ Every Nth Point.
         <Documentation>The value of this property specifies the array component
         from which the histogram should be computed.</Documentation>
       </IntVectorProperty>
-      <IntVectorProperty command="SetCenterBinsAroundMinAndMax"
-                         default_values="0"
-                         name="CenterBinsAroundMinAndMax"
-                         number_of_elements="1"
-                         panel_visibility="advanced">
-        <BooleanDomain name="bool" />
-        <Documentation>When set to true, first and last bin will be centered
-          around the minimum and the maximum values of the data.
-          By default, set to false.</Documentation>
-        <Hints>
-          <PropertyWidgetDecorator type="GenericDecorator"
-                                   mode="visibility"
-                                   property="UseCustomBinRanges"
-                                   value="0" />
-          <!-- show this widget when UseCustomBinRanges==0 -->
-        </Hints>
-      </IntVectorProperty>
       <IntVectorProperty command="SetCalculateAverages"
                          default_values="0"
                          name="CalculateAverages"
@@ -12354,6 +12404,21 @@ Every Nth Point.
         of using the full range for the selected array. By default, set to
         false.</Documentation>
       </IntVectorProperty>
+      <IntVectorProperty command="SetCenterBinsAroundMinAndMax"
+                         default_values="0"
+                         name="CenterBinsAroundMinAndMax"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>When set to true, first and last bin will be centered
+          around the minimum and the maximum values of the data.
+          By default, set to false.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="UseCustomBinRanges" function="boolean_invert" />
+          </PropertyWidgetDecorator>
+        </Hints>
+      </IntVectorProperty>
       <DoubleVectorProperty command="SetCustomBinRanges"
                             default_values="0.0 100.0"
                             name="CustomBinRanges"
@@ -12369,6 +12434,11 @@ Every Nth Point.
                       name="SelectInputArray" />
           </RequiredProperties>
         </ArrayRangeDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="UseCustomBinRanges" function="boolean" />
+          </PropertyWidgetDecorator>
+        </Hints>
       </DoubleVectorProperty>
       <Hints>
         <!-- View can be used to specify the preferred view for the proxy -->
@@ -12470,110 +12540,6 @@ Every Nth Point.
       <!-- End TransposeTable -->
     </SourceProxy>
     <!-- ==================================================================== -->
-    <SourceProxy class="vtkPVExtractBagPlots"
-                 label="Extract Bag Plots"
-                 name="ExtractBagPlots">
-      <Documentation long_help="Extract Bag Plots."
-                     short_help="Extract tables used to display Bag Plots
-                     views.">
-                     </Documentation>
-      <InputProperty command="SetInputConnection"
-                    name="Input">
-        <ProxyGroupDomain name="groups">
-          <Group name="sources" />
-          <Group name="filters" />
-        </ProxyGroupDomain>
-        <DataTypeDomain name="input_type">
-          <DataType value="vtkTable" />
-        </DataTypeDomain>
-        <InputArrayDomain attribute_type="row"
-                          name="input_aray"
-                          number_of_components="1"/>
-        <Documentation>This property specifies the input to the
-        filter.</Documentation>
-      </InputProperty>
-      <StringVectorProperty clean_command="ClearAttributeArrays"
-                            command="EnableAttributeArray"
-                            label="Variables of Interest"
-                            name="SelectArrays"
-                            number_of_elements_per_command="1"
-                            repeat_command="1">
-        <ArrayListDomain name="array_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </ArrayListDomain>
-        <Documentation>Choose arrays whose entries will be used to form
-        observations for statistical analysis.</Documentation>
-      </StringVectorProperty>
-      <IntVectorProperty command="SetUseSilvermanRule"
-                         default_values="1"
-                         name="UseSilvermanRule"
-                         number_of_elements="1">
-        <BooleanDomain name="bool" />
-        <Documentation>This flag indicates kernel width must be automatically
-        computed using Silverman's rules (sigma*n^(-1/(d+4))).</Documentation>
-      </IntVectorProperty>
-      <DoubleVectorProperty command="SetKernelWidth"
-                         default_values="1"
-                         name="KernelWidth"
-                         number_of_elements="1">
-        <DoubleRangeDomain name="range" />
-        <Hints>
-          <PropertyWidgetDecorator type="GenericDecorator"
-                                   mode="visibility"
-                                   property="UseSilvermanRule"
-                                   value="0" />
-          <!-- show this widget when UseSilvermanRule==0 -->
-        </Hints>
-        <Documentation>Specify the kernel width used to compute the HDR.
-        </Documentation>
-      </DoubleVectorProperty>
-      <IntVectorProperty command="SetGridSize"
-                         default_values="100"
-                         name="GridSize"
-                         number_of_elements="1">
-        <IntRangeDomain min="1" name="grid_range"/>
-        <Documentation>Width and height of the grid image to perform the PCA on.
-        </Documentation>
-      </IntVectorProperty>
-      <IntVectorProperty command="SetUserQuantile"
-                         default_values="95"
-                         name="UserQuantile"
-                         number_of_elements="1">
-        <IntRangeDomain min="0" max="100" name="thresold_range"/>
-        <Documentation>
-        </Documentation>
-      </IntVectorProperty>
-      <IntVectorProperty command="SetTransposeTable"
-                         default_values="1"
-                         name="TransposeTable"
-                         label="Process the transposed of the input table"
-                         number_of_elements="1"
-                         panel_visibility="advanced">
-        <BooleanDomain name="bool" />
-        <Documentation>This flag indicates if the input table must
-        be transposed first.</Documentation>
-      </IntVectorProperty>
-      <IntVectorProperty command="SetRobustPCA"
-                         default_values="0"
-                         name="RobustPCA"
-                         number_of_elements="1"
-                         panel_visibility="never">
-        <BooleanDomain name="bool" />
-        <Documentation>This flag indicates if the PCA should be run
-        in robust mode or not.</Documentation>
-      </IntVectorProperty>
-      <!-- View can be used to specify the preferred view for the proxy -->
-      <Hints>
-        <Visibility replace_input="0" />
-        <View type="XYFunctionalBagChartView" port="0" />
-        <Plotable />
-      </Hints>
-      <!-- End ExtractBagPlots -->
-    </SourceProxy>
-    <!-- ==================================================================== -->
     <SourceProxy class="vtkPassThrough"
                  label="Scatter Plot"
                  name="ScatterPlot">
@@ -12596,7 +12562,7 @@ Every Nth Point.
       <Hints>
         <Visibility replace_input="0" />
         <!-- View can be used to specify the preferred view for the proxy -->
-        <View type="XYChartView" />
+        <View type="PlotMatrixView" />
         <Plotable />
       </Hints>
       <!-- End ScatterPlot -->
@@ -13214,7 +13180,6 @@ Every Nth Point.
       </IntVectorProperty>
       <!-- End of ConvertSelection -->
     </SourceProxy>
-    <!-- ==================================================================== -->
     <!-- ==================================================================== -->
     <SourceProxy class="vtkDataObjectTreeToPointSetFilter"
                  label="Merge Blocks"
@@ -15402,12 +15367,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>Choose a scalar array to splat into the output cells. If
         ignore arrays is chosen, point density will be counted
         instead.</Documentation>
@@ -15651,12 +15610,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Hints>
           <NoDefault />
         </Hints>
@@ -15674,12 +15627,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Hints>
           <NoDefault />
         </Hints>
@@ -15870,12 +15817,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>Specify the array to use for blanking.</Documentation>
       </StringVectorProperty>
       <IntVectorProperty command="SetReverse"
@@ -16137,12 +16078,13 @@ Every Nth Point.
                  label="Resample With Dataset"
                  name="ResampleWithDataset">
       <Documentation short_help="Sample data attributes at the points of a dataset.">
-          This filter takes two inputs - Input and Source, and samples the
-          point and cell values of Input on to the point locations of Source.
-          The output has the same structure as Source but its point data
-          have the resampled values from Input."
+          This filter takes two inputs - **Source Data Arrays**, and samples the
+          point and cell values of this input onto the point locations of the
+          **Destination Geometry** input. The output has the same structure as the
+          **Destination Geometry** input, but its point data has the resampled values from
+          the **Source Data Arrays**."
       </Documentation>
-      <InputProperty command="SetSourceConnection" name="Input">
+      <InputProperty command="SetSourceConnection" name="SourceDataArrays">
         <ProxyGroupDomain name="groups">
           <Group name="sources" />
           <Group name="filters" />
@@ -16154,7 +16096,7 @@ Every Nth Point.
         <Documentation>This property specifies the dataset from which to obtain
         probe values. The data attributes come from this dataset.</Documentation>
       </InputProperty>
-      <InputProperty command="SetInputConnection" name="Source">
+      <InputProperty command="SetInputConnection" name="DestinationMesh">
         <ProxyGroupDomain name="groups">
           <Group name="sources" />
           <Group name="filters" />
@@ -16827,6 +16769,27 @@ Every Nth Point.
       <!-- End vtkHyperTreeGridToUnstructuredGrid -->
     </SourceProxy>
     <!-- ==================================================================== -->
+    <SourceProxy class="vtkHyperTreeGridToDualGrid"
+                 label="HyperTreeGrid To Dual Grid"
+                 name="HyperTreeGridToDualGrid">
+      <Documentation long_help="Convert HyperTreeGrid to the dual UnstructuredGrid."
+                     short_help="Convert HyperTreeGrid to the dual UnstructuredGrid.">
+                     This filter converts vtkHyperTreeGrid data to vtkUnstructuredGrid, using the dual grid. The converted output consumes much more memory but is compatible with most of the standard filters.
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkHyperTreeGrid" />
+        </DataTypeDomain>
+        <Documentation>This property specifies the input to the converter.</Documentation>
+      </InputProperty>
+      <!-- End vtkHyperTreeGridToDualGrid -->
+    </SourceProxy>
+    <!-- ==================================================================== -->
     <SourceProxy class="vtkHyperTreeGridContour"
                  label="Hyper Tree Grid - Contour"
                  name="HyperTreeGridContour">
@@ -16858,12 +16821,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property specifies the name of the scalar array
         from which the contour filter will compute isolines and/or
         isosurfaces.</Documentation>
@@ -16923,12 +16880,6 @@ Every Nth Point.
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
-        <FieldDataDomain name="field_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </FieldDataDomain>
         <Documentation>This property specifies the name of the scalar array
         from which the contour filter will compute isolines and/or
         isosurfaces.</Documentation>
@@ -17027,23 +16978,13 @@ Every Nth Point.
                                    value="0" />
         </Hints>
       </IntVectorProperty>
-      <DoubleVectorProperty name="MinimumBoxCorner"
-                            command="SetMinimumBounds"
-                            number_of_elements="3"
-                            default_values="-0.5 -0.5 -0.5">
-        <Documentation>Defines the most negative point of the clip box.</Documentation>
-        <Hints>
-          <PropertyWidgetDecorator type="GenericDecorator"
-                                   mode="visibility"
-                                   property="ClipType"
-                                   value="1" />
-        </Hints>
-      </DoubleVectorProperty>
-      <DoubleVectorProperty name="MaximumBoxCorner"
-                            command="SetMaximumBounds"
-                            number_of_elements="3"
-                            default_values="0.5 0.5 0.5">
-        <Documentation>Defines the most positive point of the clip box.</Documentation>
+      <DoubleVectorProperty name="Bounds"
+                            command="SetBounds"
+                            number_of_elements="6"
+                            default_values="-0.5 0.5 -0.5 0.5 -0.5 0.5">
+        <Documentation>
+          Defines the bounds (minX, maxX, minY, maxY, minZ, maxZ) of the clip box.
+        </Documentation>
         <Hints>
           <PropertyWidgetDecorator type="GenericDecorator"
                                    mode="visibility"
@@ -17054,7 +16995,7 @@ Every Nth Point.
       <DoubleVectorProperty name="QuadricCoefficients"
                             command="SetQuadricCoefficients"
                             number_of_elements="10"
-                            default_values="1. 1. 1. 0. 0. 0. 0. 0. 0. -1.">
+                            default_values="1 1 1 0 0 0 0 0 0 -1">
         <Documentation>
           Coefficients of the quadric function, defined as the 'a' values in:
           F(x,y,z) = a0*x^2 + a1*y^2 + a2*z^2 + a3*x*y + a4*y*z + a5*x*z + a6*x + a7*y + a8*z + a9
@@ -17241,15 +17182,16 @@ Every Nth Point.
           <DataType value="vtkHyperTreeGrid" />
         </DataTypeDomain>
       </InputProperty>
-      <ProxyProperty command="SetPlane"
-                     name="Plane">
-        <ProxyListDomain name="proxy_list">
-          <Proxy group="implicit_functions"
-                 name="Plane" />
-        </ProxyListDomain>
-        <Documentation>This property sets the parameters of the plane
-        function.</Documentation>
-      </ProxyProperty>
+      <DoubleVectorProperty
+        command="SetPlane"
+        name="Plane"
+        number_of_elements="4"
+        default_values="1 0 0 0">
+        <Documentation>
+          This property sets the parameters of the plane function.
+          Specify the plane with its [a,b,c,d] Cartesian coefficients a.x + b.y + c.z = d
+        </Documentation>
+      </DoubleVectorProperty>
       <IntVectorProperty name="UseDualGrid"
                          command="SetDual"
                          default_values="0"

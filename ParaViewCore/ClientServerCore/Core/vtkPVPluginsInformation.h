@@ -32,7 +32,7 @@ class VTKPVCLIENTSERVERCORECORE_EXPORT vtkPVPluginsInformation : public vtkPVInf
 public:
   static vtkPVPluginsInformation* New();
   vtkTypeMacro(vtkPVPluginsInformation, vtkPVInformation);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -46,6 +46,7 @@ public:
   const char* GetRequiredPlugins(unsigned int);
   bool GetRequiredOnServer(unsigned int);
   bool GetRequiredOnClient(unsigned int);
+  const char* GetDescription(unsigned int);
   bool GetAutoLoad(unsigned int);
   //@}
 
@@ -73,12 +74,12 @@ public:
   /**
    * Transfer information about a single object into this object.
    */
-  void CopyFromObject(vtkObject*) VTK_OVERRIDE;
+  void CopyFromObject(vtkObject*) override;
 
   /**
    * Merge another information object.
    */
-  void AddInformation(vtkPVInformation*) VTK_OVERRIDE;
+  void AddInformation(vtkPVInformation*) override;
 
   /**
    * Updates the local information with elements from other without overriding
@@ -90,8 +91,8 @@ public:
   /**
    * Manage a serialized version of the information.
    */
-  void CopyToStream(vtkClientServerStream*) VTK_OVERRIDE;
-  void CopyFromStream(const vtkClientServerStream*) VTK_OVERRIDE;
+  void CopyToStream(vtkClientServerStream*) override;
+  void CopyFromStream(const vtkClientServerStream*) override;
   //@}
 
   //@{

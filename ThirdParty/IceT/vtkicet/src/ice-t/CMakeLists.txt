@@ -56,19 +56,31 @@ SET(ICET_HEADERS
   ../strategies/common.h
   )
 
-ICET_ADD_LIBRARY(IceTCore ${ICET_SRCS} ${ICET_HEADERS})
+ICET_ADD_LIBRARY(vtkIceTCore ${ICET_SRCS} ${ICET_HEADERS})
 
+SET_TARGET_PROPERTIES(vtkIceTCore
+  PROPERTIES DEFINE_SYMBOL IceTCore_EXPORTS
+  )
 SET_SOURCE_FILES_PROPERTIES(${ICET_HEADERS}
   PROPERTIES HEADER_FILE_ONLY TRUE
   )
 
+TARGET_LINK_LIBRARIES(vtkIceTCore PRIVATE VTK::mpi)
 IF (UNIX)
   # Depend on the math library under Unix.
-  TARGET_LINK_LIBRARIES(IceTCore m)
+  TARGET_LINK_LIBRARIES(vtkIceTCore PRIVATE m)
 ENDIF (UNIX)
+set_target_properties(vtkIceTCore
+  PROPERTIES
+    DEFINE_SYMBOL IceTCore_EXPORTS)
 
 IF(NOT ICET_INSTALL_NO_DEVELOPMENT)
   INSTALL(FILES ${ICET_SOURCE_DIR}/src/include/IceT.h
     ${ICET_BINARY_DIR}/src/include/IceTConfig.h
     DESTINATION ${ICET_INSTALL_INCLUDE_DIR})
 ENDIF(NOT ICET_INSTALL_NO_DEVELOPMENT)
+
+vtk_module_install_headers(
+  FILES   ${ICET_SOURCE_DIR}/src/include/IceT.h
+          ${ICET_BINARY_DIR}/src/include/IceTConfig.h
+  SUBDIR  "vtkicet/src/include")

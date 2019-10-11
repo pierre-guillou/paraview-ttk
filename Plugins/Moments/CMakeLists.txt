@@ -3,22 +3,8 @@
 # flows through the area of the cell.  Circulation fields are defined on 1D
 # cells and describes flows in the direction of the cell.
 
-include_directories(${VTK_INCLUDE_DIRS})
-
-SET(PLUGIN_NAME Moments)
-SET(PLUGIN_VERSION "0.0")
-
-SET(SM_XML
-  Moments.xml
-  )
-
-SET(SM_SRC
-  vtkMomentGlyphs.cxx
-  vtkMomentVectors.cxx
-  )
-
-ADD_PARAVIEW_PLUGIN(${PLUGIN_NAME} ${PLUGIN_VERSION}
+paraview_add_plugin(Moments
   REQUIRED_ON_SERVER
-  SERVER_MANAGER_XML ${SM_XML}
-  SERVER_MANAGER_SOURCES ${SM_SRC}
-  )
+  VERSION "0.0"
+  MODULES Moments::MomentFilters
+  MODULE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/Filters/vtk.module")

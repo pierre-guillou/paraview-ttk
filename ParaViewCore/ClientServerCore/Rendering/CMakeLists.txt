@@ -28,111 +28,101 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #==========================================================================
-set (Module_SRCS
-  vtk3DWidgetRepresentation.cxx
-  vtkAMROutlineRepresentation.cxx
-  vtkAMRStreamingPriorityQueue.cxx
-  vtkAMRStreamingVolumeRepresentation.cxx
-  vtkCacheSizeKeeper.cxx
-  vtkCaveSynchronizedRenderers.cxx
-  vtkChartRepresentation.cxx
-  vtkChartSelectionRepresentation.cxx
-  vtkChartWarning.cxx
-  vtkClientServerMoveData.cxx
-  vtkCompositeRepresentation.cxx
-  vtkDataLabelRepresentation.cxx
-  vtkFeatureEdgesRepresentation.cxx
-  vtkGeometryRepresentation.cxx
-  vtkGeometryRepresentationWithFaces.cxx
-  vtkGeometrySliceRepresentation.cxx
-  vtkGlyph3DRepresentation.cxx
-  vtkImageSliceRepresentation.cxx
-  vtkImageVolumeRepresentation.cxx
-  vtkMoleculeRepresentation.cxx
-  vtkMPIMoveData.cxx
-  vtkOutlineRepresentation.cxx
-  vtkPExtentTranslator.cxx
-  vtkPolarAxesRepresentation.cxx
-  vtkProgressBarSourceRepresentation.cxx
-  vtkPVBagChartRepresentation.cxx
-  vtkPVBoxChartRepresentation.cxx
-  vtkPVCacheKeeper.cxx
-  vtkPVCacheKeeperPipeline.cxx
-  vtkPVCacheSizeInformation.cxx
-  vtkPVClientServerSynchronizedRenderers.cxx
-  vtkPVCompositeOrthographicSliceRepresentation.cxx
-  vtkPVCompositeRepresentation.cxx
-  vtkPVContextInteractorStyle.cxx
-  vtkPVContextView.cxx
-  vtkPVDataDeliveryManager.cxx
-  vtkPVDataRepresentation.cxx
-  vtkPVDataRepresentationPipeline.cxx
-  vtkPVGridAxes3DRepresentation.cxx
-  vtkPVHardwareSelector.cxx
-  vtkPVHistogramChartRepresentation.cxx
-  vtkPVImageSliceMapper.cxx
-  vtkPVImplicitCylinderRepresentation.cxx
-  vtkPVImplicitPlaneRepresentation.cxx
-  vtkPVLastSelectionInformation.cxx
-  vtkPVLight.cxx
-  vtkPVMultiSliceView.cxx
-  vtkPVOpenGLInformation.cxx
-  vtkPVOrthographicSliceView.cxx
-  vtkPVMaterialLibrary.cxx
-  vtkPVParallelCoordinatesRepresentation.cxx
-  vtkPVPlotMatrixRepresentation.cxx
-  vtkPVPlotMatrixView.cxx
-  vtkPVProminentValuesInformation.cxx
-  vtkPVRayCastPickingHelper.cxx
-  vtkPVRenderingCapabilitiesInformation.cxx
-  vtkPVRenderView.cxx
-  vtkPVRenderViewSettings.cxx
-  vtkPVRepresentedDataInformation.cxx
-  vtkPVSelectionInformation.cxx
-  vtkPVStreamingPiecesInformation.cxx
-  vtkPVSynchronizedRenderer.cxx
-  vtkPVSynchronizedRenderWindows.cxx
-  vtkPVView.cxx
-  vtkPVXYChartView.cxx
-  vtkQuartileChartRepresentation.cxx
-  vtkRulerSourceRepresentation.cxx
-  vtkSelectionDeliveryFilter.cxx
-  vtkSelectionRepresentation.cxx
-  vtkSpreadSheetRepresentation.cxx
-  vtkSpreadSheetView.cxx
-  vtkStructuredGridVolumeRepresentation.cxx
-  vtkTableExtentTranslator.cxx
-  vtkTextSourceRepresentation.cxx
-  vtkThreeSliceFilter.cxx
-  vtkUnstructuredGridVolumeRepresentation.cxx
-  vtkXYChartRepresentation.cxx
-)
+set(classes
+  vtk3DWidgetRepresentation
+  vtkAMROutlineRepresentation
+  vtkAMRStreamingPriorityQueue
+  vtkAMRStreamingVolumeRepresentation
+  vtkCacheSizeKeeper
+  vtkCaveSynchronizedRenderers
+  vtkChartRepresentation
+  vtkChartSelectionRepresentation
+  vtkChartWarning
+  vtkClientServerMoveData
+  vtkCompositeRepresentation
+  vtkDataLabelRepresentation
+  vtkFeatureEdgesRepresentation
+  vtkGeometryRepresentation
+  vtkGeometryRepresentationWithFaces
+  vtkGeometrySliceRepresentation
+  vtkGlyph3DRepresentation
+  vtkImageSliceRepresentation
+  vtkImageVolumeRepresentation
+  vtkLogoSourceRepresentation
+  vtkMoleculeRepresentation
+  vtkMPIMoveData
+  vtkOutlineRepresentation
+  vtkPExtentTranslator
+  vtkPointGaussianRepresentation
+  vtkPolarAxesRepresentation
+  vtkProgressBarSourceRepresentation
+  vtkPVBoxChartRepresentation
+  vtkPVCacheKeeper
+  vtkPVCacheKeeperPipeline
+  vtkPVCacheSizeInformation
+  vtkPVClientServerSynchronizedRenderers
+  vtkPVCompositeOrthographicSliceRepresentation
+  vtkPVCompositeRepresentation
+  vtkPVContextInteractorStyle
+  vtkPVContextView
+  vtkPVDataDeliveryManager
+  vtkPVDataRepresentation
+  vtkPVDataRepresentationPipeline
+  vtkPVGridAxes3DRepresentation
+  vtkPVHardwareSelector
+  vtkPVHistogramChartRepresentation
+  vtkPVImageSliceMapper
+  vtkPVImplicitCylinderRepresentation
+  vtkPVImplicitPlaneRepresentation
+  vtkPVLastSelectionInformation
+  vtkPVLight
+  vtkPVMaterialLibrary
+  vtkPVMultiSliceView
+  vtkPVOpenGLInformation
+  vtkPVOrthographicSliceView
+  vtkPVParallelCoordinatesRepresentation
+  vtkPVPlotMatrixRepresentation
+  vtkPVPlotMatrixView
+  vtkPVProcessWindow
+  vtkPVProminentValuesInformation
+  vtkPVRayCastPickingHelper
+  vtkPVRenderingCapabilitiesInformation
+  vtkPVRenderView
+  vtkPVRenderViewSettings
+  vtkPVRepresentedDataInformation
+  vtkPVSelectionInformation
+  vtkPVStreamingPiecesInformation
+  vtkPVSynchronizedRenderer
+  vtkPVView
+  vtkPVXYChartView
+  vtkQuartileChartRepresentation
+  vtkRulerSourceRepresentation
+  vtkSelectionDeliveryFilter
+  vtkSelectionRepresentation
+  vtkSpreadSheetRepresentation
+  vtkSpreadSheetView
+  vtkStructuredGridVolumeRepresentation
+  vtkTableExtentTranslator
+  vtkTextSourceRepresentation
+  vtkThreeSliceFilter
+  vtkUnstructuredGridVolumeRepresentation
+  vtkViewLayout
+  vtkXYChartRepresentation)
 
-list(APPEND Module_SRCS
-  vtkPointGaussianRepresentation.cxx)
+if (TARGET VTK::ParallelMPI AND TARGET ParaView::icet)
+  # TODO: Split these into a separate module so that there isn't a public
+  # optional dependency.
+  list(APPEND classes
+    vtkIceTSynchronizedRenderers)
+endif ()
 
-if (PARAVIEW_ENABLE_PYTHON)
-  list(APPEND Module_SRCS
-    vtkPythonRepresentation.cxx
-    vtkPythonView.cxx)
-endif()
+set(headers
+  vtkStreamingPriorityQueue.h)
 
-if (PARAVIEW_USE_ICE_T)
-  list(APPEND Module_SRCS
-    vtkIceTSynchronizedRenderers.cxx)
-endif()
+set(private_headers
+  vtkGeometryRepresentationInternal.h)
 
-if(NOT VTK_LEGACY_REMOVE)
-  list(APPEND Module_SRCS
-    vtkPVDisplayInformation.cxx
-    vtkPVOpenGLExtensionsInformation.cxx)
-endif()
-
-set (${vtk-module}_HDRS
-  vtkStreamingPriorityQueue.h
-  vtkGeometryRepresentationInternal.h
-)
-
-vtk_module_library(vtkPVClientServerCoreRendering ${Module_SRCS})
-include(vtkOpenGL)
-vtk_opengl_link(vtkPVClientServerCoreRendering)
+vtk_module_add_module(ParaView::ClientServerCoreRendering
+  CLASSES ${classes}
+  HEADERS ${headers}
+  PRIVATE_HEADERS ${private_headers})

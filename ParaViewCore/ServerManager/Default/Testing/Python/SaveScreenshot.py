@@ -12,11 +12,13 @@ def RegressionTest(imageName):
     testing.AddArgument("-T")
     testing.AddArgument(smtesting.TempDir)
     testing.AddArgument("-V")
-    testing.AddArgument(smtesting.DataDir + "/Baseline/" + imageName)
+    testing.AddArgument(smtesting.DataDir + "/ParaViewCore/ServerManager/Default/Testing/Data/Baseline/" + imageName)
     return testing.RegressionTest(smtesting.TempDir + "/" + imageName, 10) == vtkTesting.PASSED
 
 renderView1 = CreateView('RenderView')
 renderView1.ViewSize = [200, 200]
+
+AssignViewToLayout(renderView1)
 
 # get layout
 layout1 = GetLayout()
@@ -98,10 +100,8 @@ SaveScreenshot(smtesting.TempDir + "/SaveScreenshotBarPlot.png", magnification=2
 
 val1 = RegressionTest("SaveScreenshotOutline.png")
 val2 = RegressionTest("SaveScreenshotSurface.png")
+val3 = RegressionTest("SaveScreenshotLinePlot.png")
+val4 = RegressionTest("SaveScreenshotBarPlot.png")
 
-# charts are not rendering correctly when magnification factor is large.
-# val3 = RegressionTest("SaveScreenshotLinePlot.png")
-# val4 = RegressionTest("SaveScreenshotBarPlot.png")
-
-if not (val1 and val2): # and val3 and val4):
+if not (val1 and val2 and val3 and val4):
     raise RuntimeError("Test Failed")

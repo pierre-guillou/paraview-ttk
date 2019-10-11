@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -75,7 +75,7 @@ class VISIT_VTK_API vtkVisItPolyDataNormals : public vtkPolyDataAlgorithm
 
     // Usual data generation method
     int RequestData(vtkInformation*, vtkInformationVector**,
-                     vtkInformationVector*);
+                     vtkInformationVector*) override;
     void ExecutePointWithoutSplitting(vtkPolyData*, vtkPolyData*);
     void ExecutePointWithSplitting(vtkPolyData*, vtkPolyData*);
     void ExecuteCell(vtkPolyData *, vtkPolyData*);

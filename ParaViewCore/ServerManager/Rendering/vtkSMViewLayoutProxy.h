@@ -53,7 +53,7 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMViewLayoutProxy : public vtkSMProx
 public:
   static vtkSMViewLayoutProxy* New();
   vtkTypeMacro(vtkSMViewLayoutProxy, vtkSMProxy);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   enum Direction
   {
@@ -227,16 +227,16 @@ public:
   /**
    * Overridden to save custom XML state.
    */
-  vtkPVXMLElement* SaveXMLState(vtkPVXMLElement* root) VTK_OVERRIDE
+  vtkPVXMLElement* SaveXMLState(vtkPVXMLElement* root) override
   {
     return this->Superclass::SaveXMLState(root);
   }
-  vtkPVXMLElement* SaveXMLState(vtkPVXMLElement* root, vtkSMPropertyIterator* iter) VTK_OVERRIDE;
+  vtkPVXMLElement* SaveXMLState(vtkPVXMLElement* root, vtkSMPropertyIterator* iter) override;
 
   /**
    * Overridden to load custom XML state.
    */
-  int LoadXMLState(vtkPVXMLElement* element, vtkSMProxyLocator* locator) VTK_OVERRIDE;
+  int LoadXMLState(vtkPVXMLElement* element, vtkSMProxyLocator* locator) override;
 
   /**
    * Resets the layout.
@@ -271,33 +271,14 @@ public:
    */
   std::vector<vtkSMViewProxy*> GetViews();
 
-  /**
-   * Set the color to use for separator between views in multi-view
-   * configurations when saving images.
-   * @param[in] r Red component value in range (0, 255);
-   * @param[in] g Green component value in range (0, 255);
-   * @param[in] b Blue component value in range (0, 255);
-   */
-  void SetSeparatorColor(unsigned char r, unsigned char g, unsigned char b);
-
   //@{
   /**
-   * Set the color to use for separator between views in multi-view
-   * configurations when saving images.
-   *
-   * The arguments are the components of the red, green, and blue channels from 0.0 to 1.0.
+   * This is only meant for testing and debugging purposes. This allows the
+   * application to save the image rendered on the server side in certain
+   * configurations (tile display and cave) to a png file for regression
+   * testing.
    */
-  vtkSetVector3Macro(SeparatorColor, double);
-  vtkGetVector3Macro(SeparatorColor, double);
-  //@}
-
-  //@{
-  /**
-   * Get/Set the separator width (in pixels) to use for separator between views
-   * in multi-view configurations.
-   */
-  vtkSetClampMacro(SeparatorWidth, int, 0, VTK_INT_MAX);
-  vtkGetMacro(SeparatorWidth, int);
+  void SaveAsPNG(int rank, const char* fname);
   //@}
 
 protected:
@@ -307,7 +288,7 @@ protected:
   /**
    * Called to load state from protobuf message.
    */
-  void LoadState(const vtkSMMessage* message, vtkSMProxyLocator* locator) VTK_OVERRIDE;
+  void LoadState(const vtkSMMessage* message, vtkSMProxyLocator* locator) override;
 
   /**
    * Although this class is a proxy, it's not really a proxy in the traditional
@@ -329,9 +310,6 @@ protected:
   int GetSplittableCell(int root, Direction& suggested_direction);
 
   int MaximizedCell;
-
-  double SeparatorColor[3];
-  int SeparatorWidth;
 
 private:
   vtkSMViewLayoutProxy(const vtkSMViewLayoutProxy&) = delete;

@@ -1,4 +1,4 @@
-include_directories(${VTK_INCLUDE_DIRS})
-add_paraview_plugin(ThickenLayeredCells "1.0"
-  SERVER_MANAGER_XML ThickenLayeredCells.xml
-  SERVER_MANAGER_SOURCES vtkThickenLayeredCells.cxx)
+paraview_add_plugin(ThickenLayeredCells
+  VERSION "1.0"
+  MODULES ThickenLayeredCells::vtkThickenLayeredCellsFilters
+  MODULE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/Filters/vtk.module")

@@ -57,8 +57,8 @@ IceTState icetStateCreate(void)
 
     state = (IceTState)malloc(sizeof(struct IceTStateValue) * ICET_STATE_SIZE);
     if (state == NULL) {
-        icetRaiseError("Could not allocate memory for state.",
-                       ICET_OUT_OF_MEMORY);
+        icetRaiseError(ICET_OUT_OF_MEMORY,
+                       "Could not allocate memory for state.");
         return NULL;
     }
 
@@ -122,6 +122,8 @@ void icetStateSetDefaults(void)
     IceTInt *int_array;
     int i;
     int comm_size, comm_rank;
+#define ENV_BUFFER_LEN 128
+    char env_buffer[128];
 
     icetDiagnostics(ICET_DIAG_ALL_NODES | ICET_DIAG_WARNINGS);
 
@@ -157,28 +159,28 @@ void icetStateSetDefaults(void)
     icetStateSetInteger(ICET_DATA_REPLICATION_GROUP_SIZE, 1);
     icetStateSetInteger(ICET_FRAME_COUNT, 0);
 
-    if (getenv("ICET_MAGIC_K") != NULL) {
-        IceTInt magic_k = atoi(getenv("ICET_MAGIC_K"));
+    if (icetGetEnv("ICET_MAGIC_K", env_buffer, ENV_BUFFER_LEN)) {
+        IceTInt magic_k = atoi(env_buffer);
         if (magic_k > 1) {
             icetStateSetInteger(ICET_MAGIC_K, magic_k);
         } else {
-            icetRaiseError("Environment varible ICET_MAGIC_K must be set"
-                           " to an integer greater than 1.",
-                           ICET_INVALID_VALUE);
+            icetRaiseError(ICET_INVALID_VALUE,
+                           "Environment varible ICET_MAGIC_K must be set"
+                           " to an integer greater than 1.");
             icetStateSetInteger(ICET_MAGIC_K, ICET_MAGIC_K_DEFAULT);
         }
     } else {
         icetStateSetInteger(ICET_MAGIC_K, ICET_MAGIC_K_DEFAULT);
     }
 
-    if (getenv("ICET_MAX_IMAGE_SPLIT") != NULL) {
-        IceTInt max_image_split = atoi(getenv("ICET_MAX_IMAGE_SPLIT"));
+    if (icetGetEnv("ICET_MAX_IMAGE_SPLIT", env_buffer, ENV_BUFFER_LEN)) {
+        IceTInt max_image_split = atoi(env_buffer);
         if (max_image_split > 0) {
             icetStateSetInteger(ICET_MAX_IMAGE_SPLIT, max_image_split);
         } else {
-            icetRaiseError("Environment variable ICET_MAX_IMAGE_SPLIT must be"
-                           " set to an integer greater than 0.",
-                           ICET_INVALID_VALUE);
+            icetRaiseError(ICET_INVALID_VALUE,
+                           "Environment variable ICET_MAX_IMAGE_SPLIT must be"
+                           " set to an integer greater than 0.");
             icetStateSetInteger(ICET_MAX_IMAGE_SPLIT,
                                 ICET_MAX_IMAGE_SPLIT_DEFAULT);
         }
@@ -309,16 +311,14 @@ IceTTimeStamp icetStateGetTime(IceTEnum pname)
           break;                                                               \
       case ICET_NULL:                                                          \
           {                                                                    \
-              char msg[256];                                                   \
-              sprintf(msg, "No such parameter, 0x%x.", (int)pname);            \
-              icetRaiseError(msg, ICET_INVALID_ENUM);                          \
+              icetRaiseError(ICET_INVALID_ENUM,                                \
+              "No such parameter, 0x%x.", (int)pname);                         \
           }                                                                    \
           break;                                                               \
       default:                                                                 \
           {                                                                    \
-              char msg[256];                                                   \
-              sprintf(msg, "Could not cast value for 0x%x.", (int)pname);      \
-              icetRaiseError(msg, ICET_BAD_CAST);                              \
+              icetRaiseError(ICET_BAD_CAST,                                    \
+                             "Could not cast value for 0x%x.", (int)pname);    \
           }                                                                    \
     }
 
@@ -357,8 +357,8 @@ void icetGetEnumv(IceTEnum pname, IceTEnum *params)
     int i;
     stateCheck(pname, icetGetState());
     if ((value->type == ICET_FLOAT) || (value->type == ICET_DOUBLE)) {
-        icetRaiseError("Floating point values cannot be enumerations.",
-                       ICET_BAD_CAST);
+        icetRaiseError(ICET_BAD_CAST,
+                       "Floating point values cannot be enumerations.");
     }
     copyArray(IceTEnum, params, value->type, value->data, value->num_entries);
 }
@@ -368,8 +368,8 @@ void icetGetBitFieldv(IceTEnum pname, IceTBitField *params)
     int i;
     stateCheck(pname, icetGetState());
     if ((value->type == ICET_FLOAT) || (value->type == ICET_DOUBLE)) {
-        icetRaiseError("Floating point values cannot be enumerations.",
-                       ICET_BAD_CAST);
+        icetRaiseError(ICET_BAD_CAST,
+                       "Floating point values cannot be enumerations.");
     }
     copyArray(IceTBitField, params, value->type,
               value->data, value->num_entries);
@@ -381,14 +381,12 @@ void icetGetPointerv(IceTEnum pname, IceTVoid **params)
     int i;
     stateCheck(pname, icetGetState());
     if (value->type == ICET_NULL) {
-        char msg[256];
-        sprintf(msg, "No such parameter, 0x%x.", (int)pname);
-        icetRaiseError(msg, ICET_INVALID_ENUM);
+        icetRaiseError(ICET_INVALID_ENUM,
+                       "No such parameter, 0x%x.", (int)pname);
     }
     if (value->type != ICET_POINTER) {
-        char msg[256];
-        sprintf(msg, "Could not cast value for 0x%x.", (int)pname);
-        icetRaiseError(msg, ICET_BAD_CAST);
+        icetRaiseError(ICET_BAD_CAST,
+                       "Could not cast value for 0x%x.", (int)pname);
     }
     copyArrayGivenCType(IceTVoid *, params, IceTVoid *,
                         value->data, value->num_entries);
@@ -397,7 +395,8 @@ void icetGetPointerv(IceTEnum pname, IceTVoid **params)
 void icetEnable(IceTEnum pname)
 {
     if ((pname < ICET_STATE_ENABLE_START) || (pname >= ICET_STATE_ENABLE_END)) {
-        icetRaiseError("Bad value to icetEnable", ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE,
+                       "Bad value to icetEnable 0x%X", pname);
         return;
     }
     icetStateSetBoolean(pname, ICET_TRUE);
@@ -406,7 +405,8 @@ void icetEnable(IceTEnum pname)
 void icetDisable(IceTEnum pname)
 {
     if ((pname < ICET_STATE_ENABLE_START) || (pname >= ICET_STATE_ENABLE_END)) {
-        icetRaiseError("Bad value to icetDisable", ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE,
+                       "Bad value to icetDisable 0x%X", pname);
         return;
     }
     icetStateSetBoolean(pname, ICET_FALSE);
@@ -417,7 +417,8 @@ IceTBoolean icetIsEnabled(IceTEnum pname)
     IceTBoolean isEnabled;
 
     if ((pname < ICET_STATE_ENABLE_START) || (pname >= ICET_STATE_ENABLE_END)) {
-        icetRaiseError("Bad value to icetIsEnabled", ICET_INVALID_VALUE);
+        icetRaiseError(ICET_INVALID_VALUE,
+                       "Bad value to icetIsEnabled 0x%X", pname);
         return ICET_FALSE;
     }
     icetGetBooleanv(pname, &isEnabled);
@@ -457,61 +458,50 @@ static void stateCheck(IceTEnum pname, const IceTState state)
             padding = STATE_DATA_PRE_PADDING(pname, state);
             for (i = 0; i < STATE_PADDING_SIZE; i++) {
                 if (padding[i] != g_pre_padding[i]) {
-                    char message[256];
-                    sprintf(message,
-                            "Lower buffer overrun detected in "
-                            " state variable 0x%X",
-                            pname);
-                    icetRaiseError(message, ICET_SANITY_CHECK_FAIL);
+                    icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                                   "Lower buffer overrun detected in "
+                                   " state variable 0x%X",
+                                   pname);
                 }
             }
             padding = STATE_DATA_POST_PADDING(pname, state);
             for (i = 0; i < STATE_PADDING_SIZE; i++) {
                 if (padding[i] != g_post_padding[i]) {
-                    char message[256];
-                    sprintf(message,
-                            "Upper buffer overrun detected in "
-                            " state variable 0x%X",
-                            pname);
-                    icetRaiseError(message, ICET_SANITY_CHECK_FAIL);
+                    icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                                   "Upper buffer overrun detected in "
+                                   " state variable 0x%X",
+                                   pname);
                 }
             }
         } else {
             if (state[pname].data != NULL) {
-                char message[256];
-                sprintf(message,
+                icetRaiseError(
+                        ICET_SANITY_CHECK_FAIL,
                         "State variable 0x%X has zero sized buffer but"
                         " non-null pointer.",
                         pname);
-                icetRaiseError(message, ICET_SANITY_CHECK_FAIL);
             }
         }
     } else { /* state[pname].type == ICET_NULL */
         if (state[pname].data != NULL) {
-            char message[256];
-            sprintf(message,
-                    "State variable 0x%X has ICET_NULL type but"
-                    " non-null pointer.",
-                    pname);
-            icetRaiseError(message, ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "State variable 0x%X has ICET_NULL type but"
+                           " non-null pointer.",
+                           pname);
         }
         if (state[pname].num_entries != 0) {
-            char message[256];
-            sprintf(message,
-                    "State variable 0x%X has ICET_NULL type but"
-                    " also has %d entries (!= 0).",
-                    pname,
-                    (int)state[pname].num_entries);
-            icetRaiseError(message, ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "State variable 0x%X has ICET_NULL type but"
+                           " also has %d entries (!= 0).",
+                           pname,
+                           (int)state[pname].num_entries);
         }
         if (state[pname].buffer_size != 0) {
-            char message[256];
-            sprintf(message,
-                    "State variable 0x%X has ICET_NULL type but"
-                    " also has a buffer of size %d (!= 0).",
-                    pname,
-                    (int)state[pname].buffer_size);
-            icetRaiseError(message, ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "State variable 0x%X has ICET_NULL type but"
+                           " also has a buffer of size %d (!= 0).",
+                           pname,
+                           (int)state[pname].buffer_size);
         }
     }
 }
@@ -530,8 +520,8 @@ static IceTVoid *stateAllocate(IceTEnum pname,
     stateCheck(pname, state);
 
     if (num_entries < 0) {
-        icetRaiseError("Asked to allocate buffer of negative size",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Asked to allocate buffer of negative size");
     }
 
     if (   (num_entries == state[pname].num_entries)
@@ -550,8 +540,8 @@ static IceTVoid *stateAllocate(IceTEnum pname,
             stateFree(pname, state);
             buffer = malloc(STATE_DATA_ALLOCATE(type, num_entries));
             if (buffer == NULL) {
-                icetRaiseError("Could not allocate memory for state variable.",
-                               ICET_OUT_OF_MEMORY);
+                icetRaiseError(ICET_OUT_OF_MEMORY,
+                               "Could not allocate memory for state variable.");
                 return NULL;
             }
 #ifdef ICET_STATE_CHECK_MEM
@@ -633,8 +623,9 @@ static void *icetUnsafeStateGet(IceTEnum pname, IceTEnum type)
     stateCheck(pname, icetGetState());
 
     if (icetGetState()[pname].type != type) {
-        icetRaiseError("Mismatched types in unsafe state get.",
-                       ICET_SANITY_CHECK_FAIL);
+        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                       "Mismatched types in unsafe state get (0x%X != 0x%x).",
+                       icetGetState()[pname].type, type);
         return NULL;
     }
     return icetGetState()[pname].data;
@@ -692,10 +683,10 @@ IceTVoid *icetGetStateBuffer(IceTEnum pname, IceTSizeType num_bytes)
    * besides a buffer. */
     if (   (icetStateGetType(pname) != ICET_VOID)
         && (icetStateGetType(pname) != ICET_NULL) ) {
-        icetRaiseWarning("A non-buffer state variable is being reallocated as"
+        icetRaiseWarning(ICET_SANITY_CHECK_FAIL,
+                         "A non-buffer state variable is being reallocated as"
                          " a state variable.  This is probably indicative of"
-                         " mixing up state variables.",
-                         ICET_SANITY_CHECK_FAIL);
+                         " mixing up state variables.");
     }
 
     return stateAllocate(pname, num_bytes, ICET_VOID, icetGetState());

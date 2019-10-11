@@ -45,6 +45,7 @@
 
 #include <avtSTMDFileFormat.h>
 
+class DBOptionsAttributes;
 
 // ****************************************************************************
 //  Class: avtBOVFileFormat
@@ -90,12 +91,16 @@
 //    Added the ReadTOC function to the GetCycle and GetTime methods.
 //    Need this for pathlines.
 //
+//    Alister Maguire, Thu Sep  7 09:02:03 PDT 2017
+//    Added DBOptionsAttributes as a constructor argument. 
+//
 // ****************************************************************************
 
 class avtBOVFileFormat : public avtSTMDFileFormat
 {
   public:
-                               avtBOVFileFormat(const char *);
+                               avtBOVFileFormat(const char *, 
+                                   DBOptionsAttributes *);
     virtual                   ~avtBOVFileFormat();
 
     virtual const char        *GetType(void) { return "Brick of values"; };

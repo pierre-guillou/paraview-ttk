@@ -8,14 +8,13 @@ readonly name="visit"
 readonly ownership="VisIt Upstream <kwrobot@kitware.com>"
 readonly subtree="Library/VisItLib"
 readonly repo="https://gitlab.kitware.com/third-party/visit.git"
-readonly tag="for/paraview"
+readonly tag="for/paraview-20190610-trunk-r34006"
 
 readonly paths="
 COPYRIGHT
 .gitattributes
 README.kitware.md
 CMakeLists.paraview.txt
-VisItBridgeUse.cmake.in
 
 CMake/FindBoxlib.cmake
 CMake/FindGFortran.cmake
@@ -23,7 +22,6 @@ CMake/FindMili.cmake
 CMake/testFStream.cxx
 CMake/TestSocklenT.c
 CMake/VisItCommon.cmake
-CMake/VisIt*.in
 
 avt/Database/Database/avtDatabase.*
 avt/Database/Database/avtDatabaseFactory.*
@@ -424,6 +422,7 @@ visit_vtk/lightweight/ClipCases*.C
 visit_vtk/lightweight/visit_vtk_light_exports.h
 visit_vtk/lightweight/vtkCellIntersections.*
 visit_vtk/lightweight/vtkDataSetFromVolume.*
+visit_vtk/lightweight/vtkElementLabelArray.*
 visit_vtk/lightweight/vtkEnumThreshold.*
 visit_vtk/lightweight/vtkPolyDataRelevantPointsFilter.*
 visit_vtk/lightweight/vtkTriangulationTables.*
@@ -440,8 +439,8 @@ visit_vtk/CMakeLists.txt
 extract_source () {
     git_archive
     pushd "$extractdir/$name-reduced"
-    find -name "*.code" -delete
-    find -name "*.xml" -delete
+    find . -name "*.code" -delete
+    find . -name "*.xml" -delete
     mv CMakeLists.paraview.txt CMakeLists.txt
     popd
 }

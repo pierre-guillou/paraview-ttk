@@ -307,6 +307,7 @@ bool vtkShaderProgram::DetachShader(const vtkShader *shader)
         return true;
       }
 #endif
+    case vtkShader::Unknown:
     default:
       return false;
   }
@@ -358,7 +359,7 @@ bool vtkShaderProgram::Link()
   // clear out the list of uniforms used
   this->ClearMaps();
 
-#if GL_ES_VERSION_3_0 != 1
+#ifndef GL_ES_VERSION_3_0
   // bind the outputs if specified
   if (this->NumberOfOutputs)
   {

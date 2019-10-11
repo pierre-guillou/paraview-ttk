@@ -47,7 +47,7 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMParaViewPipelineControllerWithRend
 public:
   static vtkSMParaViewPipelineControllerWithRendering* New();
   vtkTypeMacro(vtkSMParaViewPipelineControllerWithRendering, vtkSMParaViewPipelineController);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Show the output data in the view. If data cannot be shown in the view,
@@ -143,12 +143,38 @@ public:
   virtual const char* GetPreferredViewType(vtkSMSourceProxy* producer, int outputPort);
 
   /**
+   * Return the pipeline icon to use with the provided producer.
+   * It can be either a view type name, an existing icon resource or nullptr.
+   * Here is the strategy to determine the pipeline icon.
+   *
+   * # Using XML hints.
+   *    A producer proxy can provide XML hints to define the pipeline icon to use
+   *    of each (or all) of its output ports. This is done as follows:
+   *
+   *    @code{xml}
+   *      <SourceProxy>
+   *        <Hints>
+   *          <PipelineIcon name="<view name or icon resource>" port="<output port number>" />
+   *        </Hints>
+   *      </SourceProxy>
+   *    @endcode
+   *
+   *    Attribute `port` is optional and only needed to explicitly specify
+   *    different view types for different output ports.
+   *
+   * # Using GetPreferredViewType
+   *    If no PipelineIcon as been provided, we fall back to using
+   *    GetPreferredViewType.
+   */
+  virtual const char* GetPipelineIcon(vtkSMSourceProxy* producer, int outputPort);
+
+  /**
    * Overridden to create color and opacity transfer functions if applicable.
    * While it is tempting to add any default property setup logic in such
    * overrides, we must keep such overrides to a minimal and opting for domains
    * that set appropriate defaults where as much as possible.
    */
-  bool RegisterRepresentationProxy(vtkSMProxy* proxy) VTK_OVERRIDE;
+  bool RegisterRepresentationProxy(vtkSMProxy* proxy) override;
 
   /**
    * Control how scalar bar visibility is updated by the Hide call.
@@ -169,20 +195,25 @@ public:
   /**
    * Overridden to handle default ColorArrayName for representations correctly.
    */
-  bool PostInitializeProxy(vtkSMProxy* proxy) VTK_OVERRIDE;
-
-  //@{
-  /**
-   * Overridden to place the view in a layout on creation.
-   */
-  bool RegisterViewProxy(vtkSMProxy* proxy, const char* proxyname) VTK_OVERRIDE;
-  using Superclass::RegisterViewProxy;
-  //@}
+  bool PostInitializeProxy(vtkSMProxy* proxy) override;
 
   /**
    * Register layout proxy.
    */
   virtual bool RegisterLayoutProxy(vtkSMProxy* proxy, const char* proxyname = NULL);
+
+  /**
+   * Assigns the view to any cell in the layout. If the layout is null, then
+   * this will locate a layout on the same session and use it. If no layout is
+   * present on the session, a new layout will be created (and registered)
+   * before assigning the view to it.
+   *
+   * If the view is already assigned to a layout then this method is a no-op.
+   *
+   * @sa vtkSMViewProxy::AssignViewToAnyCell
+   */
+  virtual void AssignViewToLayout(
+    vtkSMViewProxy* view, vtkSMViewLayoutProxy* layout = nullptr, int hint = 0);
 
 protected:
   vtkSMParaViewPipelineControllerWithRendering();

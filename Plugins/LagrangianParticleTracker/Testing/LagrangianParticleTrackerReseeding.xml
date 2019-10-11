@@ -1,11 +1,11 @@
 <?xml version="1.0" ?>
 <pqevents>
   <pqevent object="pqClientMainWindow/MainControlsToolbar/actionOpenData" command="activate" arguments="" />
-  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/LagrangianParticleTracker/flow.vtm" />
+  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/Plugins/LagrangianParticleTracker/Testing/Data/LagrangianParticleTracker/flow.vtm" />
   <pqevent object="pqClientMainWindow/MainControlsToolbar/actionOpenData" command="activate" arguments="" />
-  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/LagrangianParticleTracker/seeds.vtp" />
+  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/Plugins/LagrangianParticleTracker/Testing/Data/LagrangianParticleTracker/seeds.vtp" />
   <pqevent object="pqClientMainWindow/MainControlsToolbar/actionOpenData" command="activate" arguments="" />
-  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/LagrangianParticleTracker/surface.vtm" />
+  <pqevent object="pqClientMainWindow/FileOpenDialog" command="filesSelected" arguments="$PARAVIEW_DATA_ROOT/Plugins/LagrangianParticleTracker/Testing/Data/LagrangianParticleTracker/surface.vtm" />
   <pqevent object="pqClientMainWindow/propertiesDock/propertiesPanel/Accept" command="activate" arguments="" />
   <pqevent object="pqClientMainWindow/pipelineBrowserDock/pipelineBrowser" command="mousePress" arguments="1,1,0,66,5,/0:0/0:0" />
   <pqevent object="pqClientMainWindow/pipelineBrowserDock/pipelineBrowser" command="mouseRelease" arguments="1,0,0,66,5,/0:0/0:0" />
@@ -42,7 +42,7 @@
   <pqevent object="pqClientMainWindow/SelectInputDialog/pipelineView" command="mousePress" arguments="1,1,0,84,7,/0:0/2:0" />
   <pqevent object="pqClientMainWindow/SelectInputDialog/pipelineView" command="mouseRelease" arguments="1,0,0,84,7,/0:0/2:0" />
   <pqevent object="pqClientMainWindow/SelectInputDialog/buttonBox/1QPushButton0" command="activate" arguments="" />
-  <pqevent object="pqClientMainWindow/propertiesDock/propertiesPanel/scrollArea/qt_scrollarea_viewport/scrollAreaWidgetContents/PropertiesFrame/ProxyPanel/Step/DoubleLineEdit0" command="set_full_precision_text" arguments="0.1" />
+  <pqevent object="pqClientMainWindow/propertiesDock/propertiesPanel/scrollArea/qt_scrollarea_viewport/scrollAreaWidgetContents/PropertiesFrame/ProxyPanel/Step/DoubleLineEdit0" command="set_string" arguments="0.1" />
   <pqevent object="pqClientMainWindow/propertiesDock/propertiesPanel/Accept" command="activate" arguments="" />
   <pqevent object="pqClientMainWindow/propertiesDock/propertiesPanel/scrollArea/qt_scrollarea_viewport/scrollAreaWidgetContents/PropertiesFrame/ProxyPanel/NumberOfSteps/LineEdit0" command="set_string" arguments="1000" />
   <pqevent object="pqClientMainWindow/propertiesDock/propertiesPanel/scrollArea/qt_scrollarea_viewport/scrollAreaWidgetContents/PropertiesFrame/ProxyPanel/NumberOfSteps/LineEdit0" command="key" arguments="16777221" />

@@ -44,6 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqSelectionManager.h"
 #include "pqServerManagerModel.h"
 #include "pqSetName.h"
+#include "pqTabbedMultiViewWidget.h"
 #include "pqUndoStack.h"
 #include "vtkDataObject.h"
 #include "vtkNew.h"
@@ -60,6 +61,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMSourceProxy.h"
 #include "vtkSMTransferFunctionManager.h"
 #include "vtkSMViewProxy.h"
+#include "vtksys/SystemTools.hxx"
 
 #include <QAction>
 #include <QApplication>
@@ -68,6 +70,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QMouseEvent>
 #include <QPair>
 #include <QWidget>
+
+#include <cassert>
 
 namespace
 {
@@ -90,7 +94,7 @@ QPair<int, QString> convert(const QVariant& val)
   if (val.canConvert<QStringList>())
   {
     QStringList list = val.toStringList();
-    Q_ASSERT(list.size() == 2);
+    assert(list.size() == 2);
     result.first = list[0].toInt();
     result.second = list[1];
   }
@@ -152,6 +156,13 @@ bool pqPipelineContextMenuBehavior::eventFilter(QObject* caller, QEvent* e)
           // we need to flip Y.
           int height = senderWidget->size().height();
           pos[1] = height - pos[1];
+          // Account for HiDPI displays
+          qreal devicePixelRatioF = senderWidget->devicePixelRatioF();
+          if (!vtksys::SystemTools::HasEnv("DASHBOARD_TEST_FROM_CTEST"))
+          {
+            pos[0] = pos[0] * devicePixelRatioF;
+            pos[1] = pos[1] * devicePixelRatioF;
+          }
           unsigned int blockIndex = 0;
           this->PickedRepresentation = view->pickBlock(pos, blockIndex);
           this->buildMenu(this->PickedRepresentation, blockIndex);
@@ -320,6 +331,16 @@ void pqPipelineContextMenuBehavior::buildMenu(pqDataRepresentation* repr, unsign
 
   // when nothing was picked we show the "link camera" menu.
   this->Menu->addAction("Link Camera...", view, SLOT(linkToOtherView()));
+
+  if (auto tmvwidget = qobject_cast<pqTabbedMultiViewWidget*>(
+        pqApplicationCore::instance()->manager("MULTIVIEW_WIDGET")))
+  {
+    auto actn = this->Menu->addAction("Show Frame Decorations");
+    actn->setCheckable(true);
+    actn->setChecked(tmvwidget->decorationsVisibility());
+    QObject::connect(
+      actn, &QAction::triggered, tmvwidget, &pqTabbedMultiViewWidget::setDecorationsVisibility);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -335,8 +356,11 @@ void pqPipelineContextMenuBehavior::buildColorFieldsMenu(
 
   menu->addAction(solidColorIcon, "Solid Color")->setData(convert(QPair<int, QString>()));
   vtkSMProperty* prop = pipelineRepr->getProxy()->GetProperty("ColorArrayName");
-  vtkSMArrayListDomain* domain =
-    prop ? vtkSMArrayListDomain::SafeDownCast(prop->FindDomain("vtkSMArrayListDomain")) : NULL;
+  if (!prop)
+  {
+    return;
+  }
+  auto domain = prop->FindDomain<vtkSMArrayListDomain>();
   if (!domain)
   {
     return;

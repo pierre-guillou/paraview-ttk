@@ -24,8 +24,8 @@
 
 #define icetCommCheckCount(count)                                       \
     if (count > 1073741824) {                                           \
-        icetRaiseWarning("Encountered a ridiculously large message.",   \
-                         ICET_INVALID_VALUE);                           \
+        icetRaiseWarning(ICET_INVALID_VALUE,                            \
+                         "Encountered a ridiculously large message.");  \
     }
 
 IceTCommunicator icetCommDuplicate()

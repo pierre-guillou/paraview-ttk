@@ -20,7 +20,6 @@ representation from the UI.
       </Hints>
     </RepresentationProxy>
 
-
 WarnOnCreate
 ------------
 Warn the user when creating the filter or source in the UI.
@@ -28,7 +27,6 @@ Warn the user when creating the filter or source in the UI.
 The motivation behind this hint is to warn the user when executing filters
 like **Temporal Statistics** filter since they can potentially take a long time
 for large file series.
-
 
     <SourceProxy ...>
       ...
@@ -114,6 +112,75 @@ displayed manually by toggling the visibility when an appropriate View is active
       </Hints>
     </SourceProxy>
 
+PipelineIcon
+------------
+Specify the pipeline icon view to use in the pipeline browser for this
+source/filter proxy.
+
+This hint is used to indicate the icon to use in the pipeline browser.
+It can be either the full name of a qt resource icon or the name of a view type
+for which an icon as already been defined.
+
+    <SourceProxy ...>
+      ...
+      <Hints>
+        <PipelineIcon name="XYChartView" />
+      </Hints>
+    </SourceProxy>
+
+If the source/filter has more than 1 output port, you can choose which port the
+hint corresponds to by using the optional `port` attribute.
+
+    <SourceProxy ...>
+      ...
+      <Hints>
+        <PipelineIcon name="XYChartView" port="1" />
+      </Hints>
+    </SourceProxy>
+
+At the time of writing, the supported stock icon names were:
+ * "SERVER"
+ * "SECURE_SERVER"
+ * "LINK"
+ * "GEOMETRY"
+ * "XYChartView"
+ * "XYBarChartView"
+ * "XYHistogramChartView"
+ * "BoxChartView"
+ * "SpreadSheetView"
+ * "INDETERMINATE"
+ * "None"
+ * "EYEBALL"
+ * "EYEBALL_GRAY"
+ * "INSITU_EXTRACT"
+ * "INSITU_EXTRACT_GRAY"
+ * "INSITU_SERVER_RUNNING"
+ * "INSITU_SERVER_PAUSED"
+ * "INSITU_BREAKPOINT"
+ * "INSITU_WRITER_PARAMETERS"
+ * "CINEMA_MARK"
+
+If the desired icon is not present in the list, it is possible to use a Qt resource icon name directly.
+
+    <SourceProxy ...>
+      ...
+      <Hints>
+        <PipelineIcon name=":/pqWidgets/Icons/pqCalculator24.png" />
+      </Hints>
+    </SourceProxy>
+
+Available icons are visible in the sources of ParaView
+
+If the desired icon is not present, it can be added, for example in the context of a plugin, using
+GUI_RESOURCES in your ADD_PARAVIEW_PLUGIN macro, a .qrc file and your own icon file.
+
+    <SourceProxy ...>
+      ...
+      <Hints>
+        <PipelineIcon name=":/MyPluginQtResource/Icons/myIcon.png" />
+      </Hints>
+    </SourceProxy>
+
 Plotable
 --------
 Mark output data as plotable in 2D chart views.
@@ -192,7 +259,6 @@ possible values are:
 2. *short_help*: to use vtkSMDocumentation::GetShortHelp(), and
 3. *long_help*: to use vtkSMDocumentation::GetLongHelp().
 
-
     <SourceProxy ...>
       <Documentation>
         Some text that will be shown in the label.
@@ -224,10 +290,9 @@ reader proxy to invoke to make the reader refresh.
 View Annotations
 ----------------
 Views support the following annotations:
-1. **ParaView::DetachedFromLayout**: If set to "True", this annotation will prevent the
-layout from grabbing the view, enabling custom application developers to assign or
-position the view themselves. Use `pqObjectBuilder::createView(viewType, server, true)`
-to create a new view with this annotation added.
+
+1. **ParaView::DetachedFromLayout**: **Deprecated in ParaView 5.7**.
+This is no longer applicable as all views are created detached from layout by default.
 
 Live Source
 ------------
@@ -240,9 +305,12 @@ For that, one simply adds a hint to the proxy as follows:
     <SourceProxy ...>
       ...
       <Hints>
-        <LiveSource />
+        <LiveSource interval="100" />
       </Hints>
     </SourceProxy>
 
 The algorithm subclass must have `bool GetNeedsUpdate()` method that returns
 true if the algorithm needs update.
+
+The `interval` attribute is optional (defaults to 100) and can be used to
+provide a refresh rate in milliseconds.

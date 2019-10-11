@@ -32,12 +32,12 @@
 #include "vtkInformationObjectBaseKey.h"
 #include "vtkInformationRequestKey.h"
 #include "vtkInformationStringKey.h"
-#include "vtkInformationStringKey.h"
 #include "vtkInformationUnsignedLongKey.h"
 #include "vtkInformationVector.h"
+#include "vtkLogger.h"
+#include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
-#include "vtkNew.h"
 
 vtkStandardNewMacro(vtkStreamingDemandDrivenPipeline);
 
@@ -164,6 +164,7 @@ int vtkStreamingDemandDrivenPipeline
     }
     if(N2E)
     {
+      vtkLogF(TRACE, "%s execute-update-time", vtkLogIdentifier(this->Algorithm));
       result = this->CallAlgorithm(request, vtkExecutive::RequestUpstream,
                                    inInfoVec, outInfoVec);
       // Propagate the update extent to all inputs.
@@ -176,27 +177,41 @@ int vtkStreamingDemandDrivenPipeline
     return result;
   }
 
- // Look for specially supported requests.
+  // Look for specially supported requests.
   if(request->Has(REQUEST_TIME_DEPENDENT_INFORMATION()))
   {
+    int result = 1;
     int outputPort = -1;
     if(request->Has(FROM_OUTPUT_PORT()))
     {
       outputPort = request->Get(FROM_OUTPUT_PORT());
     }
-    int N2E = 1;
-    if(outputPort>=0)
+
+    int N2E =  this->Superclass::NeedToExecuteData(outputPort, inInfoVec,outInfoVec);
+    if(!N2E && outputPort>=0)
     {
       vtkInformation* outInfo = outInfoVec->GetInformationObject(outputPort);
-      if(!outInfo->Has(TIME_DEPENDENT_INFORMATION()))
+      vtkDataObject* dataObject = outInfo->Get(vtkDataObject::DATA_OBJECT());
+      if (outInfo->Has(TIME_DEPENDENT_INFORMATION()))
+      {
+        N2E  = this->NeedToExecuteBasedOnTime(outInfo,dataObject);
+      }
+      else
       {
         N2E = 0;
       }
     }
-    if(!N2E)
+    if(N2E)
     {
-      return 1;
+      if(!this->ForwardUpstream(request))
+      {
+        return 0;
+      }
+      vtkLogF(TRACE, "%s execute-time-dependent-information", vtkLogIdentifier(this->Algorithm));
+      result = this->CallAlgorithm(request, vtkExecutive::RequestUpstream,
+                                   inInfoVec, outInfoVec);
     }
+    return result;
   }
 
   if(request->Has(REQUEST_UPDATE_EXTENT()))
@@ -313,6 +328,7 @@ int vtkStreamingDemandDrivenPipeline
       {
         // Invoke the request on the algorithm.
         this->LastPropogateUpdateExtentShortCircuited = 0;
+        vtkLogF(TRACE, "%s execute-update-extent", vtkLogIdentifier(this->Algorithm));
         result = this->CallAlgorithm(request, vtkExecutive::RequestUpstream,
                                      inInfoVec, outInfoVec);
 

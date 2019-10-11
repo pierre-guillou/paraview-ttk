@@ -9,8 +9,8 @@ configure_file("${CMAKE_ROOT}/Modules/CMakeConfigurableFile.in"
 unset(CMAKE_CONFIGURABLE_FILE_CONTENT)
 
 #---------------------------------------------------------------------------------
-# add a custom command to package the documentations into a tar ball thats
-# easy  to move around.
+# add a custom command to package the documentations into a tarball that's
+# easy to move around.
 add_custom_target(ParaViewDoc-TGZ
   COMMAND
     ${CMAKE_COMMAND} -E tar cfz
@@ -18,4 +18,8 @@ add_custom_target(ParaViewDoc-TGZ
     ${PARAVIEW_GENERATED_DOCUMENTATION_OUTPUT_DIRECTORY}
   WORKING_DIRECTORY ${PARAVIEW_GENERATED_DOCUMENTATION_OUTPUT_DIRECTORY}/..
   COMMENT "Generate ParaViewGeneratedDocs.tar.gz")
-add_dependencies(ParaViewDoc-TGZ ParaViewDoc)
+
+add_dependencies(ParaViewDoc-TGZ ParaViewDoxygenDoc)
+if (PARAVIEW_ENABLE_PYTHON)
+  add_dependencies(ParaViewDoc-TGZ ParaViewPythonDoc)
+endif ()

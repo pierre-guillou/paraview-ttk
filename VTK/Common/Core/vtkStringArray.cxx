@@ -165,7 +165,7 @@ void vtkStringArray::SetArrayFreeFunction(void (*callback)(void *))
 //-----------------------------------------------------------------------------
 // Allocate memory for this array. Delete old storage only if necessary.
 
-int vtkStringArray::Allocate(vtkIdType sz, vtkIdType)
+vtkTypeBool vtkStringArray::Allocate(vtkIdType sz, vtkIdType)
 {
   if(sz > this->Size)
   {
@@ -404,7 +404,7 @@ vtkStdString * vtkStringArray::ResizeAndExtend(vtkIdType sz)
 }
 
 //-----------------------------------------------------------------------------
-int vtkStringArray::Resize(vtkIdType sz)
+vtkTypeBool vtkStringArray::Resize(vtkIdType sz)
 {
   vtkStdString * newArray;
   vtkIdType newSize = sz;
@@ -508,13 +508,13 @@ vtkIdType vtkStringArray::InsertNextValue(vtkStdString f)
 }
 
 // ----------------------------------------------------------------------------
-int vtkStringArray::GetDataTypeSize( void )
+int vtkStringArray::GetDataTypeSize( )
 {
   return static_cast<int>(sizeof(vtkStdString));
 }
 
 // ----------------------------------------------------------------------------
-unsigned long vtkStringArray::GetActualMemorySize( void )
+unsigned long vtkStringArray::GetActualMemorySize( )
 {
   size_t totalSize = 0;
   size_t  numPrims = static_cast<size_t>(this->GetSize());

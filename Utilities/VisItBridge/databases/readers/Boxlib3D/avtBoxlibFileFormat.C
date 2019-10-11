@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -67,7 +67,10 @@
 
 // It is necessary to define BL_USE_MPI for Boxlib to avoid collision of
 // type definitions for MPI_Comm in Boxlib header files with MPI library
-#ifdef PARALLEL
+
+// xxx(kitware)
+#if VTK_MODULE_ENABLE_VTK_mpi
+// if MPI is enabled, let BoxLib know that too.
 #define BL_USE_MPI 1
 #endif
 #define BL_USE_SPACEDIM_SYMBOLS

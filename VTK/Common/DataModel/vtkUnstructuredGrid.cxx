@@ -17,6 +17,7 @@
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellLinks.h"
+#include "vtkCellTypes.h"
 #include "vtkConvexPointSet.h"
 #include "vtkCubicLine.h"
 #include "vtkEmptyCell.h"
@@ -52,6 +53,8 @@
 #include "vtkQuadraticQuad.h"
 #include "vtkQuadraticTetra.h"
 #include "vtkQuadraticTriangle.h"
+#include "vtkSMPThreadLocalObject.h"
+#include "vtkSMPTools.h"
 #include "vtkTetra.h"
 #include "vtkTriangle.h"
 #include "vtkTriangleStrip.h"
@@ -67,6 +70,8 @@
 #include "vtkBiQuadraticQuadraticWedge.h"
 #include "vtkBiQuadraticQuadraticHexahedron.h"
 #include "vtkBiQuadraticTriangle.h"
+
+#include "vtkSMPTools.h"
 
 #include <set>
 
@@ -127,6 +132,9 @@ vtkUnstructuredGrid::vtkUnstructuredGrid ()
   this->Types = nullptr;
   this->Locations = nullptr;
 
+  this->DistinctCellTypes = nullptr;
+  this->DistinctCellTypesUpdateMTime = 0;
+
   this->Faces = nullptr;
   this->FaceLocations = nullptr;
 
@@ -173,6 +181,15 @@ void vtkUnstructuredGrid::Allocate (vtkIdType numCells, int extSize)
   this->Locations->Allocate(numCells,extSize);
   this->Locations->Register(this);
   this->Locations->Delete();
+
+  if ( this->DistinctCellTypes )
+  {
+    this->DistinctCellTypes->UnRegister(this);
+  }
+  this->DistinctCellTypes = vtkCellTypes::New();
+  this->DistinctCellTypesUpdateMTime = 0;
+  this->DistinctCellTypes->Register(this);
+  this->DistinctCellTypes->Delete();
 }
 
 //----------------------------------------------------------------------------
@@ -473,6 +490,12 @@ void vtkUnstructuredGrid::Cleanup()
   {
     this->Types->UnRegister(this);
     this->Types = nullptr;
+  }
+
+  if (this->DistinctCellTypes)
+  {
+    this->DistinctCellTypes->UnRegister(this);
+    this->DistinctCellTypes = nullptr;
   }
 
   if ( this->Locations )
@@ -956,10 +979,61 @@ void vtkUnstructuredGrid::GetCellBounds(vtkIdType cellId, double bounds[6])
 
 }
 
+// Define threaded functor supporting GetMaxCellSize()
+namespace {
+  struct MaxCellSize
+  {
+    const vtkIdType *Conn;
+    const vtkIdType *Locs;
+    int MaxSize; //Reduced maximum size (over all threads)
+    vtkSMPThreadLocal<int> LocalMaxSize; //for this thread
+    MaxCellSize(const vtkIdType *conn, const vtkIdType *locs) :
+      Conn(conn), Locs(locs), MaxSize(0) {}
+    void Initialize()
+    {
+      int& localMaxSize = this->LocalMaxSize.Local();
+      localMaxSize = 0;
+    }
+    void operator()(vtkIdType cellId, vtkIdType endCellId)
+    {
+      const vtkIdType *conn = this->Conn;
+      const vtkIdType *locs = this->Locs;
+      int size;
+      int& localMaxSize = this->LocalMaxSize.Local();
+      for ( ; cellId < endCellId; ++cellId )
+      {
+        size = static_cast<int>(*(conn + locs[cellId]));
+        localMaxSize = (size > localMaxSize ? size : localMaxSize);
+      }
+    }
+    void Reduce()
+    {
+      auto mEnd=this->LocalMaxSize.end();
+      auto mIter=this->LocalMaxSize.begin();
+      for ( ; mIter != mEnd; ++mIter )
+      {
+        this->MaxSize = ( *mIter > this->MaxSize ? *mIter : this->MaxSize );
+      }
+    }
+  };
+}//anonymous namespace
+
 //----------------------------------------------------------------------------
+// Return the number of points from the cell defined by the maximum number of
+// points/
 int vtkUnstructuredGrid::GetMaxCellSize()
 {
-  if (this->Connectivity)
+  // Try threaded fast path first, it should always be called except in
+  // exceptional situations.
+  if (this->Connectivity && this->Locations)
+  {
+    MaxCellSize maxSize(this->Connectivity->GetPointer(),
+                        static_cast<vtkIdType*>(this->Locations->GetVoidPointer(0)));
+    vtkIdType numCells = this->Connectivity->GetNumberOfCells();
+    vtkSMPTools::For(0,numCells, 10000, maxSize);
+    return maxSize.MaxSize;
+  }
+  else if (this->Connectivity)
   {
     return this->Connectivity->GetMaxCellSize();
   }
@@ -1426,6 +1500,83 @@ void vtkUnstructuredGrid::GetCellPoints(vtkIdType cellId, vtkIdType& npts,
   this->Connectivity->GetCell(loc,npts,pts);
 }
 
+namespace
+{
+class DistinctCellTypesWorker
+{
+public:
+  DistinctCellTypesWorker(vtkUnstructuredGrid* grid)
+    : Grid(grid)
+  {
+  }
+
+  vtkUnstructuredGrid* Grid;
+  std::set<unsigned char> DistinctCellTypes;
+
+  // Thread-local storage
+  vtkSMPThreadLocal< std::set< unsigned char > > LocalDistinctCellTypes;
+
+  void Initialize() {}
+
+  void operator()(vtkIdType begin, vtkIdType end)
+  {
+    if (!this->Grid)
+    {
+      return;
+    }
+
+    for (vtkIdType idx = begin; idx < end; ++idx)
+    {
+      unsigned char cellType = static_cast<unsigned char>(this->Grid->GetCellType(idx));
+      this->LocalDistinctCellTypes.Local().insert(cellType);
+    }
+  }
+
+  void Reduce()
+  {
+    this->DistinctCellTypes.clear();
+    for (vtkSMPThreadLocal< std::set< unsigned char > >::iterator iter = this->LocalDistinctCellTypes.begin();
+         iter != this->LocalDistinctCellTypes.end(); ++iter)
+    {
+      this->DistinctCellTypes.insert(iter->begin(), iter->end());
+    }
+  }
+};
+}
+
+//----------------------------------------------------------------------------
+void vtkUnstructuredGrid::GetCellTypes(vtkCellTypes* types)
+{
+  if (this->DistinctCellTypes == nullptr ||
+    this->Types->GetMTime() > this->DistinctCellTypesUpdateMTime)
+  {
+    // Update the list of cell types
+    DistinctCellTypesWorker cellTypesWorker(this);
+    vtkSMPTools::For(0, this->GetNumberOfCells(), cellTypesWorker);
+
+    if (this->DistinctCellTypes)
+    {
+      this->DistinctCellTypes->Reset();
+    }
+    else
+    {
+      this->DistinctCellTypes = vtkCellTypes::New();
+      this->DistinctCellTypes->Register(this);
+      this->DistinctCellTypes->Delete();
+    }
+    this->DistinctCellTypes->Allocate(static_cast<int>(cellTypesWorker.DistinctCellTypes.size()));
+
+    for (auto cellType : cellTypesWorker.DistinctCellTypes)
+    {
+      this->DistinctCellTypes->InsertNextType(cellType);
+    }
+
+    this->DistinctCellTypesUpdateMTime = this->Types->GetMTime();
+  }
+
+  types->DeepCopy(this->DistinctCellTypes);
+}
+
 //----------------------------------------------------------------------------
 void vtkUnstructuredGrid::GetFaceStream(vtkIdType cellId, vtkIdList *ptIds)
 {
@@ -1529,6 +1680,10 @@ void vtkUnstructuredGrid::Reset()
   if ( this->Locations )
   {
     this->Locations->Reset();
+  }
+  if ( this->DistinctCellTypes )
+  {
+    this->DistinctCellTypes->Reset();
   }
   if ( this->Faces )
   {
@@ -1810,6 +1965,19 @@ void vtkUnstructuredGrid::DeepCopy(vtkDataObject *dataObject)
       this->Locations->Delete();
     }
 
+    if (this->DistinctCellTypes)
+    {
+      this->DistinctCellTypes->UnRegister(this);
+      this->DistinctCellTypes = nullptr;
+    }
+    if (grid->DistinctCellTypes)
+    {
+      this->DistinctCellTypes = vtkCellTypes::New();
+      this->DistinctCellTypes->DeepCopy(grid->DistinctCellTypes);
+      this->DistinctCellTypes->Register(this);
+      this->DistinctCellTypes->Delete();
+    }
+
     if ( this->Faces )
     {
       this->Faces->UnRegister(this);
@@ -1946,7 +2114,8 @@ int vtkUnstructuredGrid::IsHomogeneous()
   if (this->Types && this->Types->GetMaxId() >= 0)
   {
     type = Types->GetValue(0);
-    for (int cellId = 0; cellId < this->GetNumberOfCells(); cellId++)
+    vtkIdType numCells = this->GetNumberOfCells();
+    for (vtkIdType cellId=0; cellId < numCells; ++cellId)
     {
       if (this->Types->GetValue(cellId) != type)
       {

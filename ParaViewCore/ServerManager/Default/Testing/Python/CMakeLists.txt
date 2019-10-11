@@ -1,24 +1,3 @@
-paraview_test_load_data(""
-  blow_data.myvtk
-  blow.vtk
-  bot2.wrl
-  can.ex2
-  disk_out_ref.ex2
-  dualSphereAnimation4.pvd
-  elements.vtu
-  iron_protein.vtk
-  multicomb_0.vts
-  poisson_3dall_2.xmf
-  PythonProgrammableFilterParameters.xml
-  quadraticTetra01.vtu
-  sonic.pht
-  SPCTH/ball_and_box.spcth
-  TestRepresentationTypePlugin.xml
-  )
-paraview_test_load_data_dirs(""
-  dualSphereAnimation
-  FileSeries)
-
 ###############################################################################
 # For python scripts for testing.
 #
@@ -31,8 +10,10 @@ set(PY_TESTS
   ChangeTimeSteps.py
   ColorAttributeTypeBackwardsCompatibility.py,NO_VALID
   CSVWriterReader.py,NO_VALID
+  GenerateIdScalarsBackwardsCompatibility.py,NO_VALID
   GhostCellsInMergeBlocks.py
   IntegrateAttributes.py,NO_VALID
+  LookupTable.py,NO_VALID
   MultiServer.py,NO_VALID
   PointGaussianProperties.py
   CompositeDataFieldArraysInformation.py,NO_VALID
@@ -73,15 +54,20 @@ if (BUILD_SHARED_LIBS
 endif ()
 
 set(SMSTATE_FILE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(${vtk-module}_ARGS
+set(ParaView::ServerManagerDefault_ARGS
   -S "${SMSTATE_FILE_DIR}")
 paraview_add_test_python(
   JUST_VALID
   ${PY_TESTS}
   )
+set(ParaView::ServerManagerDefault_ARGS)
 
 ###############################################################################
 # Add tests for pvbatch.
+
+vtk_module_test_data(
+  "${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/MultiView_chart_view.png"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/MultiView_render_view.png")
 
 set(PVBATCH_TESTS
   AnnotationVisibility.py
@@ -105,38 +91,56 @@ endif()
 set(PVBATCH_NO_SYMMETRIC_TESTS
   SaveAnimation.py
   )
-IF (VTK_MPIRUN_EXE AND VTK_MPI_MAX_NUMPROCS GREATER 1)
-  set(${vtk-module}_NUMPROCS 2)
+
+set(PVBATCH_TESTS_5_RANKS
+    ParallelSerialWriterMultipleRankIO.py)
+
+IF (MPIEXEC_EXECUTABLE)
+  set(vtkPVServerManagerDefault_NUMPROCS 2)
   paraview_add_test_pvbatch_mpi(
     JUST_VALID
     ${PVBATCH_TESTS}
     ${PVBATCH_NO_SYMMETRIC_TESTS}
     )
-  set(PARAVIEW_PVBATCH_ARGS
+  set(vtkPVServerManagerDefault_NUMPROCS 5)
+  paraview_add_test_pvbatch_mpi(
+    JUST_VALID
+    ${PVBATCH_TESTS_5_RANKS}
+    )
+
+  set(vtkPVServerManagerDefault_NUMPROCS 2)
+  set(paraview_pvbatch_args
     --symmetric)
   set(vtk_test_prefix Symmetric)
   paraview_add_test_pvbatch_mpi(
     JUST_VALID
     ${PVBATCH_TESTS}
     )
-  set(PARAVIEW_PVBATCH_ARGS)
-  set(vtk_test_prefix)
-  set(${vtk-module}_NUMPROCS)
+
+  set(vtkPVServerManagerDefault_NUMPROCS 5)
+  paraview_add_test_pvbatch_mpi(
+    JUST_VALID
+    ${PVBATCH_TESTS_5_RANKS}
+    )
+
+  unset(paraview_pvbatch_args)
+  unset(vtk_test_prefix)
+  unset(vtkPVServerManagerDefault_NUMPROCS)
 else ()
   paraview_add_test_pvbatch(
     JUST_VALID
     ${PVBATCH_TESTS}
     ${PVBATCH_NO_SYMMETRIC_TESTS}
     )
-  set(PARAVIEW_PVBATCH_ARGS
+  set(paraview_pvbatch_args
     --symmetric)
   set(vtk_test_prefix Symmetric)
   paraview_add_test_pvbatch(
     JUST_VALID
     ${PVBATCH_TESTS}
     )
-  set(PARAVIEW_PVBATCH_ARGS)
-  set(vtk_test_prefix)
+  unset(paraview_pvbatch_args)
+  unset(vtk_test_prefix)
 endif ()
 
 if (numpy_found)
@@ -150,14 +154,14 @@ if (numpy_found)
   # not trash the DashBoard because it always fails. The solution, however, is
   # out of my control. When the related problem is fixed, please uncomment this
   # line.
-  # set_tests_properties(${vtk-module}Python-MPI-PythonFilters PROPERTIES FAIL_REGULAR_EXPRESSION "Error")
-  # set_tests_properties(${vtk-module}Python-MPI-SymmetricPythonFilters PROPERTIES FAIL_REGULAR_EXPRESSION "Error")
-  # set_tests_properties(${vtk-module}Python-PythonFilters PROPERTIES FAIL_REGULAR_EXPRESSION "Error")
-  # set_tests_properties(${vtk-module}Python-SymmetricPythonFilters PROPERTIES FAIL_REGULAR_EXPRESSION "Error")
+  # set_tests_properties(vtkPVServerManagerDefaultPython-MPI-PythonFilters PROPERTIES FAIL_REGULAR_EXPRESSION "Error")
+  # set_tests_properties(vtkPVServerManagerDefaultPython-MPI-SymmetricPythonFilters PROPERTIES FAIL_REGULAR_EXPRESSION "Error")
+  # set_tests_properties(vtkPVServerManagerDefaultPython-PythonFilters PROPERTIES FAIL_REGULAR_EXPRESSION "Error")
+  # set_tests_properties(vtkPVServerManagerDefaultPython-SymmetricPythonFilters PROPERTIES FAIL_REGULAR_EXPRESSION "Error")
 endif()
 
-if (PARAVIEW_USE_MPI AND VTK_MPIRUN_EXE AND NOT WIN32)
-  set(PARAVIEW_PVBATCH_ARGS
+if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE AND NOT WIN32)
+  set(paraview_pvbatch_args
     --symmetric)
   paraview_add_test_pvbatch_mpi(
     NO_DATA NO_OUTPUT NO_VALID
@@ -165,7 +169,7 @@ if (PARAVIEW_USE_MPI AND VTK_MPIRUN_EXE AND NOT WIN32)
     TestMPI4PY.py
     ParallelPythonImport.py
     )
-  set(PARAVIEW_PVBATCH_ARGS)
+  unset(paraview_pvbatch_args)
 endif()
 
 # Python state tests. Each test executes an XML test in the ParaView UI, saves
@@ -179,19 +183,19 @@ set(paraview_python_state_tests
 )
 foreach(python_state_test ${paraview_python_state_tests})
   if (PARAVIEW_BUILD_QT_GUI)
-    if(BUILD_SHARED_LIBS)
-      add_test(NAME ${python_state_test}
-        COMMAND ${CMAKE_COMMAND}
-        -DPARAVIEW_EXECUTABLE:FILEPATH=$<TARGET_FILE:paraview>
-        -DPVPYTHON_EXECUTABLE:FILEPATH=$<TARGET_FILE:pvpython>
-        -DPARAVIEW_TEST_OUTPUT_DIR:PATH=${PARAVIEW_TEST_OUTPUT_DIR}
-        -DPARAVIEW_TEST_OUTPUT_BASELINE_DIR:PATH=${PARAVIEW_TEST_OUTPUT_BASELINE_DIR}
-        -DTEST_DRIVER:FILEPATH=${CMAKE_CURRENT_SOURCE_DIR}/PythonStateTestDriver.py
-        -DTEST_SCRIPT:FILEPATH=${CMAKE_CURRENT_SOURCE_DIR}/${python_state_test}.xml
-        -DTEMPORARY_DIR:PATH=${PARAVIEW_TEST_OUTPUT_DIR}
-        -DPYTHON_STATE_TEST_NAME:STRING=${python_state_test}
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/PythonStateTestDriver.cmake)
-      set_tests_properties(${python_state_test} PROPERTIES LABELS "PARAVIEW")
-    endif()
+    set(tname "ParaView::ServerManagerDefaultPython-${python_state_test}")
+    ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}" NAME ${tname}
+      COMMAND ${CMAKE_COMMAND}
+      -DPARAVIEW_EXECUTABLE:FILEPATH=$<TARGET_FILE:paraview>
+      -DPVPYTHON_EXECUTABLE:FILEPATH=$<TARGET_FILE:pvpython>
+      -DPARAVIEW_TEST_OUTPUT_BASELINE_DIR:PATH=${paraview_test_data_directory_output}/Testing/Data/Baseline
+      -DTEST_DRIVER:FILEPATH=${CMAKE_CURRENT_SOURCE_DIR}/PythonStateTestDriver.py
+      -DTEST_SCRIPT:FILEPATH=${CMAKE_CURRENT_SOURCE_DIR}/${python_state_test}.xml
+      -DTEMPORARY_DIR:PATH=${CMAKE_BINARY_DIR}/Testing/Temporary
+      -DPYTHON_STATE_TEST_NAME:STRING=${python_state_test}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/PythonStateTestDriver.cmake
+      DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/Baseline/${python_state_test}.png}
+      )
+    set_tests_properties(${tname} PROPERTIES LABELS "PARAVIEW")
   endif()
 endforeach()

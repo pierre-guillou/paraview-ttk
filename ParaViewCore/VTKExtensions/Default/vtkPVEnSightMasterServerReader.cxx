@@ -32,7 +32,7 @@
 #include "vtkTransmitUnstructuredGridPiece.h"
 #include "vtkUnstructuredGrid.h"
 
-#ifdef PARAVIEW_USE_MPI
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPICommunicator.h"
 #endif
 
@@ -91,7 +91,7 @@ void vtkPVEnSightMasterServerReader::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-#ifdef PARAVIEW_USE_MPI
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 template <class T>
 int vtkPVEnSightMasterServerReaderSyncValues(
   T* data, int numValues, int numPieces, vtkMultiProcessController* controller)
@@ -539,7 +539,7 @@ int vtkPVEnSightMasterServerReader::ParseMasterServerFile()
   // data.
   int numProcs = this->Controller->GetNumberOfProcesses();
 
-  // Make sure we have enoght processes to read all the pieces.
+  // Make sure we have enough processes to read all the pieces.
   if (numProcs < numServers)
   {
     vtkErrorMacro("Not enough processes (" << numProcs << ") to read all Ensight server files ("

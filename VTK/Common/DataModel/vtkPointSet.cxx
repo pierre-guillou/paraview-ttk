@@ -128,6 +128,24 @@ vtkMTimeType vtkPointSet::GetMTime()
 }
 
 //----------------------------------------------------------------------------
+void vtkPointSet::BuildLocator()
+{
+  if ( !this->Locator )
+  {
+    this->Locator = vtkPointLocator::New();
+    this->Locator->Register(this);
+    this->Locator->Delete();
+    this->Locator->SetDataSet(this);
+  }
+  else if ( this->Points->GetMTime() > this->Locator->GetMTime() )
+  {
+    this->Locator->SetDataSet(this);
+  }
+
+  this->Locator->BuildLocator();
+}
+
+//----------------------------------------------------------------------------
 vtkIdType vtkPointSet::FindPoint(double x[3])
 {
   if ( !this->Points )
@@ -312,7 +330,7 @@ vtkIdType vtkPointSet::FindCell(double x[3], vtkCell *cell,
   this->GetPoint(ptId, ptCoord);
   VTK_CREATE(vtkIdList, coincidentPtIds);
   coincidentPtIds->Allocate(8, 100);
-  this->Locator->FindPointsWithinRadius(tol2, ptCoord, coincidentPtIds);
+  this->Locator->FindPointsWithinRadius(sqrt(tol2), ptCoord, coincidentPtIds);
   coincidentPtIds->DeleteId(ptId);      // Already searched this one.
   for (vtkIdType i = 0; i < coincidentPtIds->GetNumberOfIds(); i++)
   {

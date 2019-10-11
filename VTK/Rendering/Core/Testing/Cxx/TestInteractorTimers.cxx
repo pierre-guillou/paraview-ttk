@@ -88,6 +88,9 @@ public:
           vtkRenderWindowInteractor *iren = vtkRenderWindowInteractor::SafeDownCast(caller);
           if (iren)
           {
+            iren->DestroyTimer(this->ReallyFastTimerId);
+            iren->DestroyTimer(this->FastTimerId);
+            iren->DestroyTimer(this->RenderTimerId);
             cout << "Calling iren->ExitCallback()..." << endl;
             iren->ExitCallback();
           }
@@ -194,9 +197,9 @@ int TestInteractorTimers(int argc, char* argv[])
   tid = iren->CreateRepeatingTimer(100);
   cb->SetRenderTimerId(tid);
 
-  // And create a one shot timer to quit after 10 seconds.
+  // And create a one shot timer to quit after 4 seconds.
   //
-  tid = iren->CreateOneShotTimer(10000);
+  tid = iren->CreateOneShotTimer(4000);
   cb->SetOneShotTimerId(tid);
   cb->SetQuitOnOneShotTimer(!testing->IsInteractiveModeSpecified());
 

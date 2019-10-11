@@ -5,14 +5,9 @@
 ## This source code is released under the New BSD License.
 #
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
-
-# Turn off policy 0017, which makes modules packaged with CMake find
-# any module rather than just others packaged with CMake.  This is
-# necessary for backward compatibility when included from ParaView.
-IF (POLICY CMP0017)
-  CMAKE_POLICY(SET CMP0017 OLD)
-ENDIF (POLICY CMP0017)
+if (FALSE) # XXX(kitware): ParaView handles CMake versions.
+CMAKE_MINIMUM_REQUIRED(VERSION 3.3)
+endif ()
 
 PROJECT(ICET C)
 
@@ -22,6 +17,7 @@ SET(ICET_MINOR_VERSION 2)
 SET(ICET_PATCH_VERSION 0)
 SET(ICET_VERSION "${ICET_MAJOR_VERSION}.${ICET_MINOR_VERSION}.${ICET_PATCH_VERSION}")
 
+if (FALSE) # XXX(kitware): ParaView handles rpaths.
 # CMake 2.8.12 and later supports an rpath mechanism on Mac OSX that allows
 # build and install targets to point to dependent libraries that are not
 # dependent on DYLD_LIBRARY_PATH. This variable turns that behavior on by
@@ -36,21 +32,31 @@ SET(EXECUTABLE_OUTPUT_PATH ${ICET_BINARY_DIR}/bin CACHE PATH
 MARK_AS_ADVANCED(LIBRARY_OUTPUT_PATH EXECUTABLE_OUTPUT_PATH)
 SET(ICET_LIBRARY_DIR ${LIBRARY_OUTPUT_PATH})
 SET(ICET_EXECUTABLE_DIR ${EXECUTABLE_OUTPUT_PATH})
+endif ()
 
 SET(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
   ${CMAKE_SOURCE_DIR}/cmake
   )
 
+if (FALSE) # XXX(kitware): Hardcode settings.
 # Turn shared libraries on or off.
 OPTION(BUILD_SHARED_LIBS "Build IceT with shared libraries." OFF)
+endif ()
 SET(ICET_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 
+if (FALSE) # XXX(kitware): Hardcode settings.
 # Options controlling support libraries
 OPTION(ICET_USE_OPENGL "Build OpenGL support layer for IceT." ON)
 OPTION(ICET_USE_OSMESA "Use OffScreen Mesa" OFF)
 OPTION(ICET_USE_OFFSCREEN_EGL "Use OffScreen rendering through EGL" OFF)
 OPTION(ICET_USE_MPI "Build MPI communication layer for IceT." ON)
+else ()
+set(ICET_USE_OPENGL ON)
+set(ICET_USE_OSMESA "${VTK_OPENGL_HAS_OSMESA}")
+set(ICET_USE_OFFSCREEN_EGL "${VTK_OPENGL_HAS_EGL}")
+set(ICET_USE_MPI ON)
+endif ()
 
 # Option to set the preferred K value to use in the radix-k algorithm
 SET(initial_magic_k 8)
@@ -60,42 +66,55 @@ ENDIF ("${CMAKE_SYSTEM_NAME}" MATCHES "^BlueGene")
 IF ("$ENV{ICET_MAGIC_K}" GREATER 1)
   SET(initial_magic_k $ENV{ICET_MAGIC_K})
 ENDIF ("$ENV{ICET_MAGIC_K}" GREATER 1)
+if (FALSE) # XXX(kitware): Hardcode settings.
 SET(ICET_MAGIC_K ${initial_magic_k} CACHE STRING
   "Sets the preferred `k' value for the radix-k algorithm.  This is the amount of simultaneous messages each process receives.  A value of 8 is generally good on most architectures, but in others that have slower computation with respect to network (such as BlueGene), a larger value may give better performance."
   )
+else ()
+set(ICET_MAGIC_K "${initial_magic_k}")
+endif ()
 IF (NOT ${ICET_MAGIC_K} GREATER 1)
   MESSAGE(SEND_ERROR "ICET_MAGIC_K must be set to a number greater than 1.")
 ENDIF (NOT ${ICET_MAGIC_K} GREATER 1)
 
 # Option to set the preferred number of ways to break up an image.
-SET(initial_max_image_split 512)
+SET(initial_max_image_split 500000)
 IF ("$ENV{ICET_MAX_IMAGE_SPLIT}" GREATER 0)
   SET(initial_max_image_split $ENV{ICET_MAX_IMAGE_SPLIT})
 ENDIF ("$ENV{ICET_MAX_IMAGE_SPLIT}" GREATER 0)
+if (FALSE) # XXX(kitware): Hardcode settings.
 SET(ICET_MAX_IMAGE_SPLIT ${initial_max_image_split} CACHE STRING
-  "Sets the preferred number of times an image may be split.  Some image compositing algorithms prefer to partition the images such that each process gets a piece.  Too many partitions, though, and you end up spending more time collecting them than you save balancing the compositing."
+  "Sets the preferred number of times an image may be split.  Most image compositing algorithms prefer to partition the images such that each process gets a piece.  Too many partitions, though, and you could end up spending more time collecting them than you save balancing the compositing."
   )
+else ()
+set(ICET_MAX_IMAGE_SPLIT "${initial_max_image_split}")
+endif ()
 
 # Configure MPE support
+if (FALSE) # XXX(kitware): Hardcode settings.
 IF (ICET_USE_MPI)
   OPTION(ICET_USE_MPE "Use MPE to trace MPI communications.  This is helpful for developers trying to measure the performance of parallel compositing algorithms." OFF)
   MARK_AS_ADVANCED(ICET_USE_MPE)
 ENDIF (ICET_USE_MPI)
+endif ()
 
+if (FALSE) # XXX(kitware): ParaView handles testing.
 # Configure testing support.
 INCLUDE(Dart)
 IF (BUILD_TESTING)
   ENABLE_TESTING()
 ENDIF (BUILD_TESTING)
+endif ()
 
 IF (CMAKE_BUILD_TYPE MATCHES "Debug")
   ADD_DEFINITIONS(-DDEBUG)
 ENDIF (CMAKE_BUILD_TYPE MATCHES "Debug")
 
-IF (UNIX)
+IF (UNIX AND FALSE) # XXX(kitware): avoid using LINK_LIBRARIES
   LINK_LIBRARIES(m)
-ENDIF (UNIX)
+ENDIF ()
 
+if (FALSE) # XXX(kitware): Use the vtkopengl module.
 # Configure OpenGL support.
 IF (ICET_USE_OPENGL)
   IF (ICET_USE_OSMESA)
@@ -112,50 +131,29 @@ IF (ICET_USE_OPENGL)
     SET(ICET_OPENGL_LIBRARIES ${OPENGL_LIBRARIES})
   ENDIF()
 ENDIF (ICET_USE_OPENGL)
+else ()
+set(ICET_OPENGL_LIBRARIES VTK::opengl)
+endif ()
 
+if (FALSE) # XXX(kitware): Use the vtkmpi module.
 # Configure MPI support.
 IF (ICET_USE_MPI)
   FIND_PACKAGE(MPI REQUIRED)
   # Mark certain variables as non-advanced.
 
-  IF (DEFINED MPI_C_COMPILER)
-    # Using newer MPI module.
-    # Older MPI module
-    MARK_AS_ADVANCED(CLEAR MPI_C_INCLUDE_PATH)
-    MARK_AS_ADVANCED(CLEAR MPI_C_LIBRARIES)
+  INCLUDE_DIRECTORIES(${MPI_C_INCLUDE_PATH})
+  SET (ICET_MPI_LIBRARIES ${MPI_C_LIBRARIES})
 
-    INCLUDE_DIRECTORIES(${MPI_C_INCLUDE_PATH})
-    SET (ICET_MPI_LIBRARIES ${MPI_C_LIBRARIES})
-  ELSE (DEFINED MPI_C_COMPILER)
-    # Older MPI module
-    MARK_AS_ADVANCED(CLEAR MPI_INCLUDE_PATH)
-    MARK_AS_ADVANCED(CLEAR MPI_LIBRARY)
-    MARK_AS_ADVANCED(CLEAR MPI_EXTRA_LIBRARY)
-
-    INCLUDE_DIRECTORIES(${MPI_INCLUDE_PATH})
-    SET(ICET_MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY})
-  ENDIF(DEFINED MPI_C_COMPILER)
-
-  # Set up variables used to run MPI programs.  In CMake 2.8 or later, they are
-  # defined by the FindMPI module.
-  IF (MPIEXEC)
-    SET(ICET_MPIRUN_EXE ${MPIEXEC})
-    SET(ICET_MPI_NUMPROC_FLAG ${MPIEXEC_NUMPROC_FLAG})
-    SET(ICET_MPI_PREFLAGS ${MPIEXEC_PREFLAGS})
-    SET(ICET_MPI_POSTFLAGS ${MPIEXEC_POSTFLAGS})
-  ELSE (MPIEXEC)
-    FIND_PROGRAM(ICET_MPIRUN_EXE NAMES mpiexec mpirun lamexec)
-    SET(ICET_MPI_NUMPROC_FLAG "-np" CACHE STRING "Flag used by MPI start program.  Used to specify the number of processes.")
-    SET(ICET_MPI_PREFLAGS "" CACHE STRING "Flags used by MPI start program.  These are placed directly before the executable.")
-    SET(ICET_MPI_POSTFLAGS "" CACHE STRING "Flags used by MPI start program.  These are placed after all other flags.")
-    MARK_AS_ADVANCED(
-      ICET_MPIRUN_EXE
-      ICET_MPI_NUMPROC_FLAG
-      ICET_MPI_PREFLAGS
-      ICET_MPI_POSTFLAGS
-      )
-  ENDIF (MPIEXEC)
-  SET(ICET_MPI_MAX_NUMPROCS "2" CACHE STRING "Maximum number of processors available to run parallel applications.")
+  # Set up variables used to run MPI programs.
+  SET(ICET_MPIRUN_EXE ${MPIEXEC})
+  SET(ICET_MPI_NUMPROC_FLAG ${MPIEXEC_NUMPROC_FLAG})
+  SET(ICET_MPI_PREFLAGS ${MPIEXEC_PREFLAGS})
+  SET(ICET_MPI_POSTFLAGS ${MPIEXEC_POSTFLAGS})
+  IF(NOT MPIEXEC_MAX_NUMPROCS)
+  SET(MPIEXEC_MAX_NUMPROCS 2)
+  ENDIF()
+  SET(ICET_MPI_MAX_NUMPROCS ${MPIEXEC_MAX_NUMPROCS} CACHE STRING
+    "Maximum number of processors available to run parallel applications.")
   MARK_AS_ADVANCED(ICET_MPI_MAX_NUMPROCS)
   SEPARATE_ARGUMENTS(ICET_MPI_PREFLAGS)
   SEPARATE_ARGUMENTS(ICET_MPI_POSTFLAGS)
@@ -166,6 +164,9 @@ IF (ICET_USE_MPI)
     SET(ICET_MPI_LIBRARIES ${MPE_LOG_LIBRARIES} ${ICET_MPI_LIBRARIES})
   ENDIF (ICET_USE_MPE)
 ENDIF (ICET_USE_MPI)
+else ()
+set(ICET_MPI_LIBRARIES VTK::mpi)
+endif ()
 
 # Add extra warnings when possible.  The IceT build should be clean.  I expect
 # no warnings when bulding this code.
@@ -175,12 +176,17 @@ ENDIF()
 
 IF (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANG)
   SET(ICET_C_FLAGS_WARN "-ansi -Wall -Wno-long-long -Wextra -Wformat-security -Wshadow -Wunused -Wreturn-type -Wpointer-arith -Wdeclaration-after-statement")
+  SET(ICET_C_FLAGS_WARN_LIST -ansi -Wall -Wno-long-long -Wextra -Wformat-security -Wshadow -Wunused -Wreturn-type -Wpointer-arith -Wdeclaration-after-statement)
 ENDIF (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANG)
 
 # Configure testing support.
 IF (BUILD_TESTING)
+  if (FALSE) # XXX(kitware): Hardcode settings.
   OPTION(ICET_BUILD_TESTING "Build and run the IceT tests." ON)
   MARK_AS_ADVANCED(ICET_BUILD_TESTING)
+  else ()
+  set(ICET_BUILD_TESTING OFF)
+  endif ()
 ENDIF (BUILD_TESTING)
 
 # Configure data type sizes.
@@ -214,6 +220,7 @@ IF(NOT ICET_INSTALL_EXPORT_NAME)
   SET(ICET_INSTALL_EXPORT_NAME IceTTargets)
 ENDIF()
 
+if (FALSE) # XXX(kitware): ParaView handles installation.
 # Shared libraries are considered both runtime and development and
 # static libraries are considered development only.  In order to
 # switch library installation on and off correctly we make the
@@ -228,6 +235,10 @@ ELSE(BUILD_SHARED_LIBS)
     SET(ICET_INSTALL_NO_LIBRARIES 1)
   ENDIF(ICET_INSTALL_NO_DEVELOPMENT)
 ENDIF(BUILD_SHARED_LIBS)
+else ()
+set(ICET_INSTALL_NO_LIBRARIES 1)
+set(ICET_INSTALL_NO_DEVELOPMENT 1)
+endif ()
 
 # Configure files with settings for use by the build.
 CONFIGURE_FILE(${ICET_SOURCE_DIR}/src/include/IceTConfig.h.in
@@ -241,16 +252,36 @@ INCLUDE_DIRECTORIES(${ICET_BINARY_DIR}/src/include)
 # for building and installing.
 SET(ICET_INSTALL_TARGETS "" CACHE INTERNAL "" FORCE)
 MACRO(ICET_ADD_LIBRARY library_name)
+  if (FALSE) # XXX(kitware): ParaView handles installation.
   SET(ICET_INSTALL_TARGETS ${ICET_INSTALL_TARGETS} ${library_name}
     CACHE INTERNAL "" FORCE
     )
+  endif ()
   SET(icet_library_sources ${ARGN})
   ADD_LIBRARY(${library_name} ${icet_library_sources})
+  if (FALSE) # XXX(kitware): ParaView handles installation.
+  # Make sure libraries go to lib directory and dll go to bin directory.
+  # Mostly important on Windows.
+  SET_TARGET_PROPERTIES(${library_name} PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY ${ICET_LIBRARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY ${ICET_LIBRARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY ${ICET_EXECUTABLE_DIR}
+    )
+  endif ()
+  _vtk_module_apply_properties("${library_name}")
+  _vtk_module_install("${library_name}")
   IF (ICET_C_FLAGS_WARN)
+    if (FALSE) # XXX(kitware): Use target properties.
     SET_SOURCE_FILES_PROPERTIES(${icet_library_sources}
       PROPERTIES COMPILE_FLAGS ${ICET_C_FLAGS_WARN}
       )
+    else ()
+    target_compile_options("${library_name}"
+      PRIVATE
+        ${ICET_C_FLAGS_WARN_LIST})
+    endif ()
   ENDIF (ICET_C_FLAGS_WARN)
+  if (FALSE) # XXX(kitware): ParaView handles installation.
   IF(NOT ICET_INSTALL_NO_LIBRARIES)
     INSTALL(TARGETS ${library_name}
       EXPORT ${ICET_INSTALL_EXPORT_NAME}
@@ -264,6 +295,7 @@ MACRO(ICET_ADD_LIBRARY library_name)
         )
     ENDIF (NOT ICET_INSTALL_NO_DEVELOPMENT)
   ENDIF(NOT ICET_INSTALL_NO_LIBRARIES)
+  endif ()
 ENDMACRO(ICET_ADD_LIBRARY)
 
 ADD_SUBDIRECTORY(src)
@@ -276,8 +308,11 @@ IF (BUILD_TESTING AND ICET_BUILD_TESTING)
   ENDIF (ICET_USE_MPI)
 ENDIF (BUILD_TESTING AND ICET_BUILD_TESTING)
 
+if (FALSE)
 ADD_SUBDIRECTORY(doc)
+endif ()
 
+if (FALSE) # XXX(kitware): ParaView handles installation.
 # Save the CMake targets so another project can import them.
 EXPORT(TARGETS ${ICET_INSTALL_TARGETS}
   FILE ${ICET_LIBRARY_DIR}/IceTTargets.cmake
@@ -345,3 +380,21 @@ INCLUDE(CPack)
 # Allow local additions to this file without CVS conflicts.
 INCLUDE(${ICET_BINARY_DIR}/LocalUserOptions.cmake OPTIONAL)
 INCLUDE(${ICET_SOURCE_DIR}/LocalUserOptions.cmake OPTIONAL)
+endif ()
+
+vtk_module_add_module(ParaView::icet
+  HEADER_ONLY)
+target_include_directories(icet
+  INTERFACE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include>"
+    "$<INSTALL_INTERFACE:${_vtk_build_HEADERS_DESTINATION}/vtkicet/src/include>")
+target_link_libraries(icet
+  INTERFACE
+    vtkIceTCore
+    vtkIceTGL)
+if (ICET_USE_MPI)
+  target_link_libraries(icet
+    INTERFACE
+      vtkIceTMPI)
+endif ()

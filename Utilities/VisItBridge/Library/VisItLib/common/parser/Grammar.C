@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -476,7 +476,7 @@ Grammar::WriteStateInitialization(const string &name, ostream &o)
 {
     o << "/*****************************************************************************" << endl;
     o << "*" << endl;
-    o << "* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC" << endl;
+    o << "* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC" << endl;
     o << "* Produced at the Lawrence Livermore National Laboratory" << endl;
     o << "* LLNL-CODE-442911" << endl;
     o << "* All rights reserved." << endl;
@@ -609,13 +609,37 @@ Grammar::WriteStateInitialization(const string &name, ostream &o)
         o << "}" << endl;
         o << endl;
     }
+
+    int nfuncper = 50;    
+    int nfuncs = states.size() / nfuncper;
+    if(states.size() % nfuncper > 0)
+        ++nfuncs;
+    size_t f = 0;
+    std::vector<std::string> funcnames;
+    for(int i = 0; i < nfuncs; ++i)
+    {
+        char tmp[10];
+        sprintf(tmp, "%03d", i*nfuncper);
+        std::string name = std::string("ExprGrammar_Init") + std::string(tmp);
+        funcnames.push_back(name);
+        o << "static void " << name << "(Dictionary &dictionary," << endl;
+        o << "    std::vector<State> &states)" << endl;
+        o << "{" << endl;
+        for(int j = 0; j < nfuncper; ++j)
+        {
+            if(f < states.size())
+                o << "    InitState_"<<f<<"(dictionary, states[" << f << "]);" << endl;
+            ++f;
+        }
+        o << "}" << endl << endl;
+    }
     o << "bool " << name.c_str() << "::Initialize()" << endl;
     o << "{" << endl;
     o << "    states.resize(" << states.size() << ");" << endl;
     o << endl;
-    for (size_t i=0; i<states.size(); i++)
+    for (size_t i=0; i<funcnames.size(); i++)
     {
-        o << "    InitState_"<<i<<"(dictionary, states[" << i << "]);" << endl;
+        o << "    " << funcnames[i] <<"(dictionary, states);" << endl;
     }
     o << endl;
     o << "    return true;" << endl;

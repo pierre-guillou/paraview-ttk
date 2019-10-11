@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -64,6 +64,8 @@
 // Static vars.
 //
 static bool isDevelopmentVersion = false;
+static int pid = -1;
+static std::string pidStr = "-1";
 
 // ****************************************************************************
 // Method: GetDefaultConfigFile
@@ -451,23 +453,15 @@ GetSystemVisItHostsDirectory()
 //   Kathleen Biagas, Wed Aug 6 13:32:47 PDT 2014
 //   Support the correct loction in dev version on Windows.
 //
+//   Kathleen Biagas, Mon Oct 23 17:06:21 MST 2017
+//   Resources dir on Windows is now the same whether dev build or not.
+//
 // ****************************************************************************
 
 std::string
 GetVisItResourcesDirectory(VisItResourceDirectoryType t)
 {
     std::string retval(GetVisItArchitectureDirectory());
-#if defined(_WIN32)
-    if (GetIsDevelopmentVersion())
-    {
-        size_t pos = retval.rfind("exe");
-        if (pos != std::string::npos)
-        {
-            std::string tmp = retval.substr(0, pos-1);
-            retval = tmp;
-        }
-    }
-#endif
     retval += VISIT_SLASH_STRING;
     retval += "resources";
 
@@ -1361,5 +1355,39 @@ GetVisItLibraryDirectory(const char *version)
 #endif
     std::string libdir = varchdir + VISIT_SLASH_CHAR + "lib";
     return libdir;
+}
+
+// ****************************************************************************
+// Method: GetVisItPIDString
+//
+// Purpose:
+//   Gets VisIt's process Id as a string.
+//
+// Returns:    The process Id string.
+//
+// Programmer: Kevin Griffin
+// Creation:   March 6, 2018
+//
+// Modifications:
+//
+// ****************************************************************************
+
+std::string
+GetVisItPIDString()
+{
+    if(pid == -1)
+    {
+#if defined(_WIN32)
+        pid = static_cast<int>(GetCurrentProcessId());
+#else
+        pid = static_cast<int>(getpid());
+#endif
+        char buffer[50];
+        SNPRINTF(buffer, 50, "%d", pid);
+        
+        pidStr = std::string(buffer);
+    }
+    
+    return pidStr;
 }
 

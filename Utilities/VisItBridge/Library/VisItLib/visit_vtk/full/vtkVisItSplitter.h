@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -77,7 +77,7 @@ class VISIT_VTK_API vtkVisItSplitter :
 {
   public:
     vtkTypeMacro(vtkVisItSplitter,vtkUnstructuredGridAlgorithm);
-    void PrintSelf(ostream& os, vtkIndent indent);
+    void PrintSelf(ostream& os, vtkIndent indent) override;
 
     static vtkVisItSplitter *New();
 
@@ -123,8 +123,8 @@ class VISIT_VTK_API vtkVisItSplitter :
 
     virtual int RequestData(vtkInformation *,
                             vtkInformationVector **,
-                            vtkInformationVector *);
-    virtual int FillInputPortInformation(int port, vtkInformation *info);
+                            vtkInformationVector *) override;
+    virtual int FillInputPortInformation(int port, vtkInformation *info) override;
 
   private:
      // Contains the state for the filter.

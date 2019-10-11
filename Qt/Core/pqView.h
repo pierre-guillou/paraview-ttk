@@ -33,8 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define pqView_h
 
 #include "pqProxy.h"
-#include "vtkSetGet.h" // needed for VTK_LEGACY.
-#include <QSize>       // needed for QSize.
+#include <QSize> // needed for QSize.
 
 class pqOutputPort;
 class pqPipelineSource;
@@ -98,6 +97,13 @@ public:
   * all undo related signals defined by this class.
   */
   virtual bool supportsUndo() const { return false; }
+
+  /**
+  * Returns if this view module can support
+  * image capture. Returns false by default. Subclassess must override
+  * if that's not the case.
+  */
+  virtual bool supportsCapture() const { return false; }
 
   /**
   * Returns the type of this view module.

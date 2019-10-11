@@ -279,7 +279,7 @@ static void bswapSendFromUpperGroup(const IceTInt *lower_group,
 
         BIT_REVERSE(dest_rank, piece, num_pieces);
         dest_rank = dest_rank*upper_group_size + upper_group_rank;
-        icetRaiseDebug2("Sending piece %d to %d", piece, dest_rank);
+        icetRaiseDebug("Sending piece %d to %d", piece, dest_rank);
 
         icetSparseImagePackageForSend(image_partitions[piece],
                                       &package_buffer, &package_size);
@@ -321,7 +321,7 @@ static void bswapReceiveFromUpperGroup(const IceTInt *lower_group,
         lower_group_rank = icetFindMyRankInGroup(lower_group, lower_group_size);
 
         src = lower_group_rank & (upper_group_size-1);
-        icetRaiseDebug1("Absorbing image from %d", (int)src);
+        icetRaiseDebug("Absorbing image from %d", (int)src);
 
         in_image_buffer
             = icetGetStateBuffer(BSWAP_INCOMING_IMAGES_BUFFER, incoming_size);
@@ -723,8 +723,8 @@ void icetBswapFoldingCompose(const IceTInt *compose_group,
          * copy over. Do a sanity check too to make sure that we haven't messed
          * up our indexing. */
         if ((group_size - whole_group_index) != (pow2size - pow2group_index)) {
-            icetRaiseError("Miscounted indices while folding.",
-                           ICET_SANITY_CHECK_FAIL);
+            icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                           "Miscounted indices while folding.");
         }
         memcpy(&pow2group[pow2group_index],
                &compose_group[whole_group_index],

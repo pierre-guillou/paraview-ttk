@@ -5,9 +5,11 @@
  *      Author: mdurant
  */
 
+#include <vtk_hdf5.h>
+#include <visit-hdf5.h>
+
 #include "VsFile.h"
 #include "VsLog.h"
-#include "vtk_hdf5.h"
 #include "VsDataset.h"
 #include "VsGroup.h"
 #include "VsVariable.h"

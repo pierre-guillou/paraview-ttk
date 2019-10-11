@@ -6,8 +6,12 @@ if (COMMAND cmake_policy)
 endif (COMMAND cmake_policy)
 
 #disable compiler warnings from the bridge
+if (FALSE)
 option(VISIT_DISABLE_COMPILER_WARNINGS "Disable compiler warnings" ON)
 mark_as_advanced(VISIT_DISABLE_COMPILER_WARNINGS)
+else ()
+set(VISIT_DISABLE_COMPILER_WARNINGS ON)
+endif ()
 if(VISIT_DISABLE_COMPILER_WARNINGS)
   if(WIN32)
     if (MSVC)
@@ -44,11 +48,12 @@ set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${VISIT_CMAKE_DIR})
 
 #include the visit install target and plugin function
 MACRO(VISIT_INSTALL_TARGETS target)
-# Removed to let vtk modular take care of installation
+  _vtk_module_apply_properties(${target})
+  _vtk_module_install(${target})
 ENDMACRO(VISIT_INSTALL_TARGETS)
 
 FUNCTION(ADD_PARALLEL_LIBRARY target)
-    VTK_ADD_LIBRARY(${target} ${ARGN})
+    ADD_LIBRARY(${target} ${ARGN})
     IF(VISIT_PARALLEL_CXXFLAGS)
         SET(PAR_COMPILE_FLAGS "")
         FOREACH (X ${VISIT_PARALLEL_CXXFLAGS})
@@ -86,390 +91,17 @@ FUNCTION(ADD_PARALLEL_LIBRARY target)
     ENDIF(VISIT_PARALLEL_CXXFLAGS)
 ENDFUNCTION(ADD_PARALLEL_LIBRARY)
 
-#called from readers that are being built into paraview
-FUNCTION(ADD_VISIT_READER NAME VERSION)
-  set(PLUGIN_NAME "vtk${NAME}")
-  set(PLUGIN_VERSION "${VERSION}")
-  set(ARG_VISIT_READER_NAME)
-  set(ARG_VISIT_INCLUDE_NAME)
-  set(ARG_VISIT_READER_TYPE)
-  set(ARG_VISIT_READER_USES_OPTIONS OFF)
-  set(ARG_SERVER_SOURCES)
-  set(ARG_VISIT_READER_OPTIONS_NAME)
-
-  PV_PLUGIN_PARSE_ARGUMENTS(ARG
-    "VISIT_READER_NAME;VISIT_INCLUDE_NAME;VISIT_READER_TYPE;VISIT_READER_USES_OPTIONS;SERVER_SOURCES;VISIT_READER_OPTIONS_NAME"
-      "" ${ARGN} )
-  #check reader types
-  string(REGEX MATCH "^[SM]T[SM]D$" VALID_READER_TYPE ${ARG_VISIT_READER_TYPE})
-
-  if ( NOT VALID_READER_TYPE)
-    MESSAGE(FATAL_ERROR "Invalid Reader Type. Valid Types are STSD, STMD, MTSD, MTMD")
-  endif()
-
-  #if the user hasn't defined an include name, we presume the reader name
-  #is also the include name
-  if(NOT ARG_VISIT_INCLUDE_NAME)
-    set(ARG_VISIT_INCLUDE_NAME ${ARG_VISIT_READER_NAME})
-  endif()
-
-  if(ARG_VISIT_READER_USES_OPTIONS)
-    #determine the name of the plugin info class by removing the
-    #avt from the start and the FileFormat from the back
-    if(ARG_VISIT_READER_OPTIONS_NAME)
-      string(REGEX REPLACE "^avt|FileFormat$" "" TEMP_NAME ${ARG_VISIT_READER_OPTIONS_NAME})
-    else()
-      string(REGEX REPLACE "^avt|FileFormat$" "" TEMP_NAME ${ARG_VISIT_READER_NAME})
-    endif()
-    set(ARG_VISIT_PLUGIN_INFO_HEADER ${TEMP_NAME}PluginInfo)
-    set(ARG_VISIT_PLUGIN_INFO_CLASS ${TEMP_NAME}CommonPluginInfo)
-  endif()
-
-  set(XML_NAME ${NAME})
-  set(LIBRARY_NAME "vtkVisItDatabases")
-  #need to generate the VTK class wrapper
-  string(SUBSTRING ${ARG_VISIT_READER_TYPE} 0 2 READER_WRAPPER_TYPE)
-
-  configure_file(
-    ${VISIT_CMAKE_DIR}/VisItExport.h.in
-    ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}Export.h @ONLY)
-
-  configure_file(
-      ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}.h.in
-      ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}.h @ONLY)
-  configure_file(
-      ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}.cxx.in
-      ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}.cxx @ONLY)
-
-  set(reader_sources
-  ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}.cxx
-  ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}.h
-    )
-
-  #fix up the arg_server_sources path for compilation
-  set(ABS_SERVER_SOURCES "")
-  foreach(SRC_FILENAME ${ARG_SERVER_SOURCES})
-    list(APPEND ABS_SERVER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SRC_FILENAME}")
-  endforeach()
-
-  set(VISIT_SERVER_SOURCES ${VISIT_SERVER_SOURCES} ${reader_sources}
-    CACHE INTERNAL "vtk classes to wrap for client server")
-  set(VISIT_DB_SOURCES ${VISIT_DB_SOURCES} ${ABS_SERVER_SOURCES}
-    CACHE INTERNAL "visit sources for readers")
-  set(VISIT_DB_INC_DIRS ${VISIT_DB_INC_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}
-    CACHE INTERNAL "include directories")
-ENDFUNCTION(ADD_VISIT_READER)
-
-#called from readers that are being built into paraview
-FUNCTION(ADD_VISIT_INTERFACE_READER NAME VERSION)
-
-  set(INTERFACE_NAME "vtk${NAME}")
-  set(INTERFACE_VERSION "${VERSION}")
-  set(ARG_VISIT_READER_NAMES)
-  set(ARG_VISIT_READER_TYPES)
-  set(ARG_VISIT_READER_INCLUDES)
-  set(ARG_VISIT_INTERFACE_CALL)
-  set(ARG_VISIT_INTERFACE_FILE)
-  set(ARG_VISIT_INTERFACE_EXEMPT_CLASSES)
-  set(ARG_VISIT_READER_FILE_PATTERN)
-  set(ARG_SERVER_SOURCES)
-  PV_PLUGIN_PARSE_ARGUMENTS(ARG
-  "VISIT_READER_NAMES;VISIT_READER_TYPES;VISIT_READER_INCLUDES;VISIT_INTERFACE_CALL;VISIT_INTERFACE_FILE;VISIT_INTERFACE_EXEMPT_CLASSES;SERVER_SOURCES"
-    "" ${ARGN} )
-
-  if (NOT ARG_VISIT_INTERFACE_CALL OR NOT ARG_VISIT_INTERFACE_FILE )
-    MESSAGE(FATAL_ERROR "The macro file for the file interface needs to be defined.")
-  endif(NOT ARG_VISIT_INTERFACE_CALL OR NOT ARG_VISIT_INTERFACE_FILE)
-
-  #if the user hasn't defined an include name, we presume the reader name
-  #is also the include name
-  if(NOT ARG_VISIT_INCLUDE_NAME)
-    set(ARG_VISIT_INCLUDE_NAME ${ARG_VISIT_READER_NAME})
-  endif()
-
-  set(LIBRARY_NAME "vtkVisItDatabases")
-
-  list(LENGTH ARG_VISIT_READER_NAMES NUM_READERS)
-  foreach( index RANGE ${NUM_READERS})
-    if ( index LESS NUM_READERS )
-      list(GET ARG_VISIT_READER_NAMES ${index} ARG_VISIT_READER_NAME)
-      list(GET ARG_VISIT_READER_TYPES ${index} ARG_VISIT_READER_TYPE)
-      list(GET ARG_VISIT_READER_INCLUDES ${index} ARG_VISIT_INCLUDE_NAME)
-
-      #need to set up the vars needed by the configures
-      string(REGEX REPLACE "^avt|FileFormat$" "" TEMP_NAME ${ARG_VISIT_READER_NAME})
-      set(PLUGIN_NAME "vtkVisIt${TEMP_NAME}Reader")
-      set(XML_NAME "VisItVisIt${TEMP_NAME}Reader")
-
-
-      #need to generate the VTK class wrapper
-      string(SUBSTRING ${ARG_VISIT_READER_TYPE} 0 2 READER_WRAPPER_TYPE)
-
-      #determine if this file is exempt from the interface CanReadFile macro
-      list(FIND ARG_VISIT_INTERFACE_EXEMPT_CLASSES ${ARG_VISIT_READER_NAME} EXEMPT_READER)
-      if ( EXEMPT_READER EQUAL -1 )
-        set(VISIT_READER_USES_INTERFACE ON)
-      else( EXEMPT_READER EQUAL -1 )
-        set(VISIT_READER_USES_INTERFACE OFF)
-      endif( EXEMPT_READER EQUAL -1 )
-
-      #we have to configure the macro file
-      configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_VISIT_INTERFACE_FILE}.h
-        ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}${ARG_VISIT_INTERFACE_FILE}.h @ONLY)
-
-      configure_file(
-        ${VISIT_CMAKE_DIR}/VisItExport.h.in
-        ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}Export.h @ONLY)
-
-      configure_file(
-        ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}.h.in
-        ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}.h @ONLY)
-
-      configure_file(
-        ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}.cxx.in
-        ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}.cxx @ONLY)
-
-      set(reader_sources
-        ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}.cxx
-        ${VISIT_DATABASE_BINARY_DIR}/${PLUGIN_NAME}.h)
-
-
-      set(VISIT_SERVER_SOURCES ${VISIT_SERVER_SOURCES} ${reader_sources}
-        CACHE INTERNAL "vtk classes to wrap for client server")
-
-    endif(index LESS NUM_READERS)
-  endforeach(index)
-
-  #fix up the arg_server_sources path for compilation
-  set(ABS_SERVER_SOURCES "")
-  foreach(SRC_FILENAME ${ARG_SERVER_SOURCES})
-    list(APPEND ABS_SERVER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SRC_FILENAME}")
-  endforeach()
-
-  set(VISIT_DB_SOURCES ${VISIT_DB_SOURCES} ${ABS_SERVER_SOURCES}
-    CACHE INTERNAL "visit sources for readers")
-
-  set(VISIT_DB_INC_DIRS ${VISIT_DB_INC_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}
-    CACHE INTERNAL "include directories")
-
-
-ENDFUNCTION(ADD_VISIT_INTERFACE_READER)
-
-#Used for readers that are plugins for paraview
-FUNCTION(ADD_VISIT_PLUGIN_READER NAME VERSION)
-set(PLUGIN_NAME "vtk${NAME}")
-set(PLUGIN_VERSION "${VERSION}")
-set(ARG_VISIT_READER_NAME)
-set(ARG_VISIT_INCLUDE_NAME)
-set(ARG_VISIT_READER_TYPE)
-set(ARG_VISIT_READER_FILE_PATTERN)
-set(ARG_VISIT_READER_USES_OPTIONS OFF)
-set(ARG_SERVER_SOURCES)
-
-PV_PLUGIN_PARSE_ARGUMENTS(ARG
-  "VISIT_READER_NAME;VISIT_INCLUDE_NAME;VISIT_READER_TYPE;VISIT_READER_FILE_PATTERN;VISIT_READER_USES_OPTIONS;SERVER_SOURCES"
-    "" ${ARGN} )
-#check reader types
-string(REGEX MATCH "^[SM]T[SM]D$" VALID_READER_TYPE ${ARG_VISIT_READER_TYPE})
-
-if ( NOT VALID_READER_TYPE)
-  MESSAGE(FATAL_ERROR "Invalid Reader Type. Valid Types are STSD, STMD, MTSD, MTMD")
-endif()
-
-#if the user hasn't defined an include name, we presume the reader name
-#is also the include name
-if(NOT ARG_VISIT_INCLUDE_NAME)
-  set(ARG_VISIT_INCLUDE_NAME ${ARG_VISIT_READER_NAME})
-endif()
-
-MESSAGE(STATUS "Generating wrappings for ${PLUGIN_NAME}")
-include_directories(
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${VISITBRIDGE_INCLUDE_DIRS}
-  )
-
-if(ARG_VISIT_READER_USES_OPTIONS)
-  #determine the name of the plugin info class by removing the
-  #avt from the start and the FileFormat from the back
-  string(REGEX REPLACE "^avt|FileFormat$" "" TEMP_NAME ${ARG_VISIT_READER_NAME})
-  set(ARG_VISIT_PLUGIN_INFO_HEADER ${TEMP_NAME}PluginInfo)
-  set(ARG_VISIT_PLUGIN_INFO_CLASS ${TEMP_NAME}CommonPluginInfo)
-endif()
-
-set(XML_NAME ${NAME})
-set(LIBRARY_NAME ${NAME})
-#need to generate the VTK class wrapper
-string(SUBSTRING ${ARG_VISIT_READER_TYPE} 0 2 READER_WRAPPER_TYPE)
-configure_file(
-    ${VISIT_CMAKE_DIR}/VisItExport.h.in
-    ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}Export.h @ONLY)
-configure_file(
-    ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}.h.in
-    ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}.h @ONLY)
-configure_file(
-    ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}.cxx.in
-    ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}.cxx @ONLY)
-
-#generate server manager xml file
-configure_file(
-  ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}SM.xml.in
-  ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}SM.xml @ONLY)
-
-set(reader_sources
-  ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}.cxx
-  ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}.h
-    )
-set(reader_server_xml
-  ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}SM.xml
-  )
-
-#add the vtk classes to the argument list
-set(PV_ARGS ${ARGN})
-list(APPEND PV_ARGS "SERVER_MANAGER_SOURCES;${reader_sources}")
-
-#now we need to add the XML info
-list(APPEND PV_ARGS "SERVER_MANAGER_XML;${reader_server_xml}")
-
-#all of the readers can be server side only
-list(APPEND PV_ARGS "REQUIRED_ON_SERVER")
-
-ADD_PARAVIEW_PLUGIN( ${NAME} ${VERSION} ${PV_ARGS} )
-ENDFUNCTION(ADD_VISIT_PLUGIN_READER)
-
-FUNCTION(ADD_VISIT_INTERFACE_PLUGIN_READER NAME VERSION)
-
-set(INTERFACE_NAME "vtk${NAME}")
-set(INTERFACE_VERSION "${VERSION}")
-set(ARG_VISIT_READER_NAMES)
-set(ARG_VISIT_READER_TYPES)
-set(ARG_VISIT_READER_INCLUDES)
-set(ARG_VISIT_INTERFACE_CALL)
-set(ARG_VISIT_INTERFACE_FILE)
-set(ARG_VISIT_INTERFACE_EXEMPT_CLASSES)
-set(ARG_VISIT_READER_FILE_PATTERN)
-set(ARG_SERVER_SOURCES)
-
-PV_PLUGIN_PARSE_ARGUMENTS(ARG
-  "VISIT_READER_NAMES;VISIT_READER_TYPES;VISIT_READER_INCLUDES;VISIT_INTERFACE_CALL;VISIT_INTERFACE_FILE;VISIT_INTERFACE_EXEMPT_CLASSES;VISIT_READER_FILE_PATTERN;SERVER_SOURCES"
-    "" ${ARGN} )
-
-if ( NOT ARG_VISIT_INTERFACE_CALL OR NOT ARG_VISIT_INTERFACE_FILE )
-  MESSAGE(FATAL_ERROR "The macro file for the file interface needs to be defined.")
-endif()
-
-
-message(STATUS "Generating wrappings for ${INTERFACE_NAME}")
-include_directories(
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${VISITBRIDGE_INCLUDE_DIRS}
-  )
-
-#check reader types
-set(INTERFACE_SOURCES)
-set(INTERFACE_SMXML)
-set(INTERFACE_GUIXML)
-list(LENGTH ARG_VISIT_READER_NAMES NUM_READERS)
-foreach( index RANGE ${NUM_READERS})
-  if ( index LESS NUM_READERS )
-    list(GET ARG_VISIT_READER_NAMES ${index} ARG_VISIT_READER_NAME)
-    list(GET ARG_VISIT_READER_TYPES ${index} ARG_VISIT_READER_TYPE)
-    list(GET ARG_VISIT_READER_INCLUDES ${index} ARG_VISIT_INCLUDE_NAME)
-
-    #need to set up the vars needed by the configures
-    string(REGEX REPLACE "^avt|FileFormat$" "" TEMP_NAME ${ARG_VISIT_READER_NAME})
-    set(PLUGIN_NAME "vtk${TEMP_NAME}Reader")
-    set(XML_NAME "VisIt${TEMP_NAME}Reader")
-
-    #need to generate the VTK class wrapper
-    string(SUBSTRING ${ARG_VISIT_READER_TYPE} 0 2 READER_WRAPPER_TYPE)
-
-    #determine if this file is exempt from the interface CanReadFile macro
-    list(FIND ARG_VISIT_INTERFACE_EXEMPT_CLASSES ${ARG_VISIT_READER_NAME} EXEMPT_READER)
-    if ( EXEMPT_READER EQUAL -1 )
-      set(VISIT_READER_USES_INTERFACE ON)
-    else()
-      set(VISIT_READER_USES_INTERFACE OFF)
-    endif()
-
-    #we have to configure the macro file
-    configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_VISIT_INTERFACE_FILE}.h
-        ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}${ARG_VISIT_INTERFACE_FILE}.h @ONLY)
-
-    #configure the declspec header
-    configure_file(
-        ${VISIT_CMAKE_DIR}/VisItExport.h.in
-        ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}Export.h @ONLY)
-
-    #configure the header and implementation
-    configure_file(
-        ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}.h.in
-        ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}.h @ONLY)
-    configure_file(
-        ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}.cxx.in
-        ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}.cxx @ONLY)
-
-
-
-    #generate server manager xml file
-    configure_file(
-      ${VISIT_CMAKE_DIR}/VisIt${READER_WRAPPER_TYPE}SM.xml.in
-      ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}SM.xml @ONLY)
-
-    #generate reader xml
-    configure_file(
-      ${VISIT_CMAKE_DIR}/VisItGUI.xml.in
-      ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}GUI.xml @ONLY)
-
-    LIST(APPEND INTERFACE_SOURCES
-      ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}.cxx
-      ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}.h
-      )
-    LIST(APPEND INTERFACE_SMXML
-      ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}SM.xml
-      )
-    LIST(APPEND INTERFACE_GUIXML
-      ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_NAME}GUI.xml
-      )
-
-  endif()
-endforeach( index )
-
-#add the vtk classes to the argument list
-set(PV_ARGS ${ARGN})
-list(APPEND PV_ARGS "SERVER_MANAGER_SOURCES;${INTERFACE_SOURCES}")
-
-#now we need to add the XML info
-list(APPEND PV_ARGS "SERVER_MANAGER_XML;${INTERFACE_SMXML}")
-
-#all of the readers can be server side only
-list(APPEND PV_ARGS "REQUIRED_ON_SERVER")
-
-ADD_PARAVIEW_PLUGIN( ${NAME} ${VERSION} ${PV_ARGS} )
-
-ENDFUNCTION(ADD_VISIT_INTERFACE_PLUGIN_READER)
-
-#need to grab some helper macros from paraview plugin
-include(ParaViewPlugins)
-
 #set up MPI
-set(VISIT_PARALLEL ${PARAVIEW_USE_MPI})
-if(PARAVIEW_USE_MPI)
-  include(FindMPI)
-  include_directories(
-    ${MPI_INCLUDE_PATH}
-    )
-  set(VISIT_PARALLEL_LIBS ${MPI_LIBRARY})
-  if(MPI_EXTRA_LIBRARY)
-    set(VISIT_PARALLEL_LIBS ${VISIT_PARALLEL_LIBS} ${MPI_EXTRA_LIBRARY})
-  endif(MPI_EXTRA_LIBRARY)
-endif(PARAVIEW_USE_MPI)
+if (TARGET VTK::mpi)
+  set(VISIT_PARALLEL 1)
+  set(VISIT_PARALLEL_LIBS VTK::mpi)
+else ()
+  set(VISIT_PARALLEL 0)
+  set(VISIT_PARALLEL_LIBS VTK::mpi)
+endif ()
 
 # setup to use vtkzlib
-set(ZLIB_LIB ${vtkzlib_LIBRARIES})
+set(ZLIB_LIB VTK::zlib)
 
 #block out most of the warnings in visit on windows
 if (WIN32)
@@ -503,13 +135,9 @@ set(VISIT_COMMON_INCLUDES
     ${VISIT_SOURCE_DIR}/common/utility
   )
 
-#watch out, you need to make sure common/parser is always in front of
+# Watch out, you need to make sure common/parser is always in front of
 # python2.X includes
 include_directories(BEFORE ${VISIT_COMMON_INCLUDES})
-include_directories(${VTK_INCLUDE_DIR})
-include_directories(${HDF5_INCLUDE_DIR})
-
-set(VTK_BINARY_DIR ${PARAVIEW_VTK_DIR} )
 
 #-----------------------------------------------------------------------------
 # Setup Vars for visit-config.h
@@ -599,7 +227,7 @@ include(CheckTypeSize)
 include(CheckFunctionExists)
 include(CheckSymbolExists)
 include(TestBigEndian)
-include(FindOpenGL)
+#include(FindOpenGL)
 
 check_include_files (fcntl.h     HAVE_FCNTL_H)
 check_include_files (inttypes.h  HAVE_INTTYPES_H)

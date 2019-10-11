@@ -21,24 +21,25 @@
 #include "vtkColorTransferFunction.h"
 #include "vtkCommand.h"
 #include "vtkCompositeDataDisplayAttributes.h"
-#include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkCompositeDataSet.h"
-#include "vtkDataObjectTreeIterator.h"
+#include "vtkCompositeDataSetRange.h"
+#include "vtkDataObjectTree.h"
+#include "vtkDataObjectTreeRange.h"
 #include "vtkFloatArray.h"
 #include "vtkHardwareSelector.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkLookupTable.h"
-#include "vtkMultiBlockDataSet.h"
-#include "vtkMultiPieceDataSet.h"
 #include "vtkObjectFactory.h"
+#include "vtkOpenGLCellToVTKCellMap.h"
 #include "vtkOpenGLIndexBufferObject.h"
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenGLRenderer.h"
 #include "vtkOpenGLTexture.h"
 #include "vtkOpenGLVertexBufferObject.h"
 #include "vtkOpenGLVertexBufferObjectGroup.h"
+#include "vtkOpenGLShaderProperty.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 #include "vtkProperty.h"
@@ -65,6 +66,7 @@ vtkCompositeMapperHelper2::~vtkCompositeMapperHelper2()
     delete it->second;
   }
   this->Data.clear();
+  this->RenderedList.clear();
 }
 
 void vtkCompositeMapperHelper2::SetShaderValues(
@@ -152,6 +154,28 @@ void vtkCompositeMapperHelper2::SetShaderValues(
     {
       prog->SetUniformi("OverridesColor", hdata->OverridesColor);
     }
+  }
+}
+
+void vtkCompositeMapperHelper2::UpdateShaders(
+  vtkOpenGLHelper &cellBO, vtkRenderer *ren, vtkActor *act)
+{
+#ifndef VTK_LEGACY_REMOVE
+  // in cases where LegacyShaderProperty is not nullptr, it means someone has used
+  // legacy shader replacement functions, so we make sure the actor uses the same
+  // shader property. NOTE: this implies that it is not possible to use both legacy
+  // and new functionality on the same actor/mapper.
+  if( this->Parent->LegacyShaderProperty && act->GetShaderProperty() != this->Parent->LegacyShaderProperty )
+  {
+    act->SetShaderProperty( this->Parent->LegacyShaderProperty );
+  }
+#endif
+
+  Superclass::UpdateShaders(cellBO, ren, act);
+  if (cellBO.Program && this->Parent)
+  {
+    // allow the program to set what it wants
+    this->Parent->InvokeEvent(vtkCommand::UpdateShaderEvent, cellBO.Program);
   }
 }
 
@@ -297,7 +321,7 @@ void vtkCompositeMapperHelper2::DrawIBO(
   {
     if (pointSize > 0)
     {
-#if GL_ES_VERSION_3_0 != 1
+#ifndef GL_ES_VERSION_3_0
       glPointSize(pointSize); // need to use shader value
 #endif
     }
@@ -330,7 +354,6 @@ void vtkCompositeMapperHelper2::DrawIBO(
     //   prog->SetUniform3f("ambientColorUniform", ambientColor);
     // }
 
-    this->RenderedList.clear();
     bool selecting = (this->CurrentSelector ? true : false);
     for (dataIter it = this->Data.begin(); it != this->Data.end(); ++it)
     {
@@ -344,7 +367,7 @@ void vtkCompositeMapperHelper2::DrawIBO(
         if (primType <= PrimitiveTriStrips)
         {
           this->SetShaderValues(prog, starthdata,
-            starthdata->PrimOffsets[primType]);
+            starthdata->CellCellMap->GetPrimitiveOffsets()[primType]);
         }
         glDrawRangeElements(mode,
           static_cast<GLuint>(starthdata->StartVertex),
@@ -409,46 +432,12 @@ vtkCompositeMapperHelperData *vtkCompositeMapperHelper2::AddData(
     hdata->Marked = true;
     this->Data.insert(std::make_pair(pd, hdata));
     this->Modified();
+    this->RenderedList.push_back(pd);
     return hdata;
   }
+  found->second->FlatIndex = flatIndex;
   found->second->Marked = true;
   return found->second;
-}
-
-//-------------------------------------------------------------------------
-bool vtkCompositeMapperHelper2::GetNeedToRebuildBufferObjects(
-  vtkRenderer * /* ren */, vtkActor *act)
-{
-  // might need to loop of Data and check each one?  Or is that handled
-  // in parent Render
-
-
-  // we use a string instead of just mtime because
-  // we do not want to check the actor's mtime.  Actor
-  // changes mtime every time it's position changes. But
-  // changing an actor's position does not require us to
-  // rebuild all the VBO/IBOs. So we only watch the mtime
-  // of the property/texture. But if someone changes the
-  // Property on an actor the mtime may actually go down
-  // because the new property has an older mtime. So
-  // we watch the actual mtime, to see if it changes as
-  // opposed to just checking if it is greater.
-  std::ostringstream toString;
-  toString.str("");
-  toString.clear();
-  toString <<
-    act->GetProperty()->GetMTime() <<
-    'A' << (this->CurrentInput ? this->CurrentInput->GetMTime() : 0) <<
-    'B' << (act->GetTexture() ? act->GetTexture()->GetMTime() : 0);
-
-  if (this->VBOBuildString != toString.str() ||
-      this->VBOBuildTime < this->GetMTime() ||
-      (this->CurrentInput && this->VBOBuildTime < this->CurrentInput->GetMTime()))
-  {
-    this->VBOBuildString = toString.str();
-    return true;
-  }
-  return false;
 }
 
 //-------------------------------------------------------------------------
@@ -461,19 +450,6 @@ void vtkCompositeMapperHelper2::BuildBufferObjects(
   // create the cell scalar array adjusted for ogl Cells
   std::vector<unsigned char> newColors;
   std::vector<float> newNorms;
-
-  // check if this system is subject to the apple/amd primID bug
-  this->HaveAppleBug =
-    static_cast<vtkOpenGLRenderer *>(ren)->HaveApplePrimitiveIdBug();
-  if (this->HaveAppleBugForce == 1)
-  {
-    this->HaveAppleBug = false;
-  }
-  if (this->HaveAppleBugForce == 2)
-  {
-    this->HaveAppleBug = true;
-  }
-  this->AppleBugPrimIDs.resize(0);
 
   dataIter iter;
   this->VBOs->ClearAllVBOs();
@@ -488,6 +464,7 @@ void vtkCompositeMapperHelper2::BuildBufferObjects(
   double bounds[6];
   this->Data.begin()->second->Data->GetPoints()->GetBounds(bounds);
   bbox.SetBounds(bounds);
+  vtkCompositeMapperHelperData *prevhdata = nullptr;
   for (iter = this->Data.begin(); iter != this->Data.end(); ++iter)
   {
     vtkCompositeMapperHelperData *hdata = iter->second;
@@ -502,6 +479,9 @@ void vtkCompositeMapperHelper2::BuildBufferObjects(
     }
 
     vtkIdType voffset = 0;
+    // vert cell offset starts at the end of the last block
+    hdata->CellCellMap->SetStartOffset(
+      prevhdata ? prevhdata->CellCellMap->GetFinalOffset() : 0);
     this->AppendOneBufferObject(ren, act, hdata,
       voffset, newColors, newNorms);
     hdata->StartVertex = static_cast<unsigned int>(voffset);
@@ -511,6 +491,7 @@ void vtkCompositeMapperHelper2::BuildBufferObjects(
       hdata->NextIndex[i] =
         static_cast<unsigned int>(this->IndexArray[i].size());
     }
+    prevhdata = hdata;
   }
 
   // clear color cache
@@ -621,19 +602,6 @@ void vtkCompositeMapperHelper2::BuildBufferObjects(
     }
   }
 
-  if (this->HaveAppleBug &&
-      (this->HaveCellNormals || this->HaveCellScalars))
-  {
-    if (!this->AppleBugPrimIDBuffer)
-    {
-      this->AppleBugPrimIDBuffer = vtkOpenGLBufferObject::New();
-    }
-    this->AppleBugPrimIDBuffer->Bind();
-    this->AppleBugPrimIDBuffer->Upload(
-     this->AppleBugPrimIDs, vtkOpenGLBufferObject::ArrayBuffer);
-    this->AppleBugPrimIDBuffer->Release();
-  }
-
   this->VBOBuildTime.Modified();
 }
 
@@ -731,62 +699,12 @@ void vtkCompositeMapperHelper2::AppendOneBufferObject(
   prims[2] =  poly->GetPolys();
   prims[3] =  poly->GetStrips();
 
-  // vert cell offset starts at the end of the last block
-  hdata->PrimOffsets[0] = (!newColors.empty() ? newColors.size()/4 : newNorms.size()/4);
-  hdata->PrimOffsets[1] = hdata->PrimOffsets[0] +
-    prims[0]->GetNumberOfConnectivityEntries() -
-    prims[0]->GetNumberOfCells();
-
+  // needs to get a cell call map passed in
   this->AppendCellTextures(ren, act, prims, representation,
-    newColors, newNorms, poly);
+    newColors, newNorms, poly, hdata->CellCellMap);
 
-  hdata->PrimOffsets[2] = hdata->PrimOffsets[1] +
-    prims[1]->GetNumberOfConnectivityEntries() -
-    2*prims[1]->GetNumberOfCells();
-
-  hdata->PrimOffsets[4] = (!newColors.empty() ? newColors.size()/4 : newNorms.size()/4);
-
-  // we back compute the strip number
-  size_t triCount = prims[3]->GetNumberOfConnectivityEntries()
-    - 3*prims[3]->GetNumberOfCells();
-  hdata->PrimOffsets[3] = hdata->PrimOffsets[4] - triCount;
-
-  // on Apple Macs with the AMD PrimID bug <rdar://20747550>
-  // we use a slow painful approach to work around it (pre 10.11).
-  if (this->HaveAppleBug &&
-      (this->HaveCellNormals || this->HaveCellScalars))
-  {
-    poly = this->HandleAppleBug(poly, this->AppleBugPrimIDs);
-    prims[0] =  poly->GetVerts();
-    prims[1] =  poly->GetLines();
-    prims[2] =  poly->GetPolys();
-    prims[3] =  poly->GetStrips();
-
-#ifndef NDEBUG
-    static bool warnedAboutBrokenAppleDriver = false;
-    if (!warnedAboutBrokenAppleDriver)
-    {
-      vtkWarningMacro("VTK is working around a bug in Apple-AMD hardware related to gl_PrimitiveID.  This may cause significant memory and performance impacts. Your hardware has been identified as vendor "
-        << (const char *)glGetString(GL_VENDOR) << " with renderer of "
-        << (const char *)glGetString(GL_RENDERER) << " and version "
-        << (const char *)glGetString(GL_VERSION));
-      warnedAboutBrokenAppleDriver = true;
-    }
-#endif
-    if (n)
-    {
-      n = (act->GetProperty()->GetInterpolation() != VTK_FLAT) ?
-            poly->GetPointData()->GetNormals() : nullptr;
-    }
-    if (c)
-    {
-      this->Colors->Delete();
-      this->Colors = nullptr;
-      this->MapScalars(poly,1.0);
-      c = this->Colors;
-    }
-  }
-
+  hdata->CellCellMap->BuildPrimitiveOffsetsIfNeeded(
+    prims, representation, poly->GetPoints());
 
   // do we have texture maps?
   bool haveTextures = (this->ColorTextureMap || act->GetTexture() || act->GetProperty()->GetNumberOfTextures());
@@ -828,25 +746,30 @@ void vtkCompositeMapperHelper2::AppendOneBufferObject(
     }
   }
 
+  vtkFloatArray* tangents = vtkFloatArray::SafeDownCast(poly->GetPointData()->GetTangents());
+
   // Build the VBO
   vtkIdType offsetPos = 0;
   vtkIdType offsetNorm = 0;
   vtkIdType offsetColor = 0;
   vtkIdType offsetTex = 0;
+  vtkIdType offsetTangents = 0;
   vtkIdType totalOffset = 0;
   vtkIdType dummy = 0;
   bool exists =
     this->VBOs->ArrayExists("vertexMC", poly->GetPoints()->GetData(), offsetPos, totalOffset) &&
     this->VBOs->ArrayExists("normalMC", n, offsetNorm, dummy) &&
     this->VBOs->ArrayExists("scalarColor", c, offsetColor,dummy) &&
-    this->VBOs->ArrayExists("tcoord", tcoords, offsetTex, dummy);
+    this->VBOs->ArrayExists("tcoord", tcoords, offsetTex, dummy) &&
+    this->VBOs->ArrayExists("tangentMC", tangents, offsetTangents, dummy);
 
   // if all used arrays have the same offset and have already been added,
   // we can reuse them and save memory
   if (exists &&
     (offsetNorm == 0 || offsetPos == offsetNorm) &&
     (offsetColor == 0 || offsetPos == offsetColor) &&
-    (offsetTex == 0 || offsetPos == offsetTex))
+    (offsetTex == 0 || offsetPos == offsetTex) &&
+    (offsetTangents == 0 || offsetPos == offsetTangents))
   {
     voffset = offsetPos;
   }
@@ -856,6 +779,7 @@ void vtkCompositeMapperHelper2::AppendOneBufferObject(
     this->VBOs->AppendDataArray("normalMC", n, VTK_FLOAT);
     this->VBOs->AppendDataArray("scalarColor", c, VTK_UNSIGNED_CHAR);
     this->VBOs->AppendDataArray("tcoord", tcoords, VTK_FLOAT);
+    this->VBOs->AppendDataArray("tangentMC", tangents, VTK_FLOAT);
 
     voffset = totalOffset;
   }
@@ -961,12 +885,6 @@ void vtkCompositeMapperHelper2::AppendOneBufferObject(
     vtkOpenGLIndexBufferObject::AppendVertexIndexBuffer(
       this->IndexArray[PrimitiveVertices], prims, voffset);
   }
-
-  // free up polydata if allocated due to apple bug
-  if (poly != hdata->Data)
-  {
-    poly->Delete();
-  }
 }
 
 void vtkCompositeMapperHelper2::ProcessSelectorPixelBuffers(
@@ -985,7 +903,7 @@ void vtkCompositeMapperHelper2::ProcessSelectorPixelBuffers(
     return;
   }
 
-  if (PickPixels.size() == 0 && pixeloffsets.size())
+  if (PickPixels.empty() && !pixeloffsets.empty())
   {
     // preprocess the image to find matching pixels and
     // store them in a map of vectors based on flat index
@@ -1025,30 +943,11 @@ void vtkCompositeMapperHelper2::ProcessSelectorPixelBuffers(
   // for each block update the image
   for (dataIter it = this->Data.begin(); it != this->Data.end(); ++it)
   {
-    if (this->PickPixels[it->second->FlatIndex].size())
+    if (!this->PickPixels[it->second->FlatIndex].empty())
     {
       this->ProcessCompositePixelBuffers(sel, prop, it->second,
         this->PickPixels[it->second->FlatIndex]);
     }
-  }
-}
-
-namespace
-{
-  unsigned int convertToCells(
-    unsigned int *offset,
-    unsigned int *stride,
-    unsigned int inval )
-  {
-    if (inval < offset[0])
-    {
-      return inval;
-    }
-    if (inval < offset[1])
-    {
-      return offset[0] + (inval - offset[0]) / stride[0];
-    }
-    return offset[0] + (offset[1] - offset[0]) / stride[0] + (inval - offset[1]) / stride[1];
   }
 }
 
@@ -1203,17 +1102,6 @@ void vtkCompositeMapperHelper2::ProcessCompositePixelBuffers(
   unsigned char *rawclowdata = sel->GetRawPixelBuffer(vtkHardwareSelector::CELL_ID_LOW24);
   unsigned char *rawchighdata = sel->GetRawPixelBuffer(vtkHardwareSelector::CELL_ID_HIGH24);
 
-  // build the mapping of point primID to cell primID
-  // aka when we render triangles in point picking mode
-  // how do we map primid to what would normally be primid
-  unsigned int offset[2];
-  unsigned int stride[2];
-  offset[0] = static_cast<unsigned int>(this->Primitives[PrimitiveVertices].IBO->IndexCount);
-  stride[0] = representation == VTK_POINTS ? 1 : 2;
-  offset[1] = offset[0] + static_cast<unsigned int>(
-    this->Primitives[PrimitiveLines].IBO->IndexCount);
-  stride[1] = representation == VTK_POINTS ? 1 : representation == VTK_WIREFRAME ? 2 : 3;
-
   // do we need to do anything to the composite pass data?
   if (currPass == vtkHardwareSelector::COMPOSITE_INDEX_PASS)
   {
@@ -1226,11 +1114,7 @@ void vtkCompositeMapperHelper2::ProcessCompositePixelBuffers(
 
     if (compositedata && compositeArray && rawclowdata)
     {
-      this->UpdateCellMaps(this->HaveAppleBug,
-        poly,
-        prims,
-        representation,
-        poly->GetPoints());
+      hdata->CellCellMap->Update(prims, representation, poly->GetPoints());
 
       for (auto pos : pixeloffsets)
       {
@@ -1246,12 +1130,8 @@ void vtkCompositeMapperHelper2::ProcessCompositePixelBuffers(
         inval = inval << 8;
         inval |= rawclowdata[pos];
         inval -= 1;
-        inval -= static_cast<int>(hdata->PrimOffsets[0]);
-        if (pointPicking)
-        {
-          inval = convertToCells(offset, stride, inval);
-        }
-        vtkIdType vtkCellId = this->CellCellMap[inval];
+        vtkIdType vtkCellId = hdata->CellCellMap->
+          ConvertOpenGLCellIdToVTKCellId(pointPicking, inval);
         unsigned int outval =  compositeArray->GetValue(vtkCellId) + 1;
         compositedata[pos] = outval & 0xff;
         compositedata[pos + 1] = (outval & 0xff00) >> 8;
@@ -1269,11 +1149,7 @@ void vtkCompositeMapperHelper2::ProcessCompositePixelBuffers(
 
     if (rawclowdata)
     {
-      this->UpdateCellMaps(this->HaveAppleBug,
-        poly,
-        prims,
-        representation,
-        poly->GetPoints());
+      hdata->CellCellMap->Update(prims, representation, poly->GetPoints());
 
       for (auto pos : pixeloffsets)
       {
@@ -1289,12 +1165,8 @@ void vtkCompositeMapperHelper2::ProcessCompositePixelBuffers(
         inval = inval << 8;
         inval |= rawclowdata[pos];
         inval -= 1;
-        inval -= static_cast<int>(hdata->PrimOffsets[0]);
-        if (pointPicking)
-        {
-          inval = convertToCells(offset, stride, inval);
-        }
-        vtkIdType outval = this->CellCellMap[inval];
+        vtkIdType outval = hdata->CellCellMap->
+          ConvertOpenGLCellIdToVTKCellId(pointPicking, inval);
         if (cellArrayId)
         {
           outval = cellArrayId->GetValue(outval);
@@ -1316,11 +1188,7 @@ void vtkCompositeMapperHelper2::ProcessCompositePixelBuffers(
 
     if (rawchighdata)
     {
-      this->UpdateCellMaps(this->HaveAppleBug,
-        poly,
-        prims,
-        representation,
-        poly->GetPoints());
+      hdata->CellCellMap->Update(prims, representation, poly->GetPoints());
 
       for (auto pos : pixeloffsets)
       {
@@ -1333,12 +1201,8 @@ void vtkCompositeMapperHelper2::ProcessCompositePixelBuffers(
         inval = inval << 8;
         inval |= rawclowdata[pos];
         inval -= 1;
-        inval -= static_cast<int>(hdata->PrimOffsets[0]);
-        if (pointPicking)
-        {
-          inval = convertToCells(offset, stride, inval);
-        }
-        vtkIdType outval = this->CellCellMap[inval];
+        vtkIdType outval = hdata->CellCellMap->
+          ConvertOpenGLCellIdToVTKCellId(pointPicking, inval);
         if (cellArrayId)
         {
           outval = cellArrayId->GetValue(outval);
@@ -1435,11 +1299,10 @@ bool vtkCompositePolyDataMapper2::GetIsOpaque()
       (this->ColorMode == VTK_COLOR_MODE_DEFAULT ||
        this->ColorMode == VTK_COLOR_MODE_DIRECT_SCALARS))
   {
-    vtkSmartPointer<vtkCompositeDataIterator> iter;
-    iter.TakeReference(input->NewIterator());
-    for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
+    using Opts = vtk::CompositeDataSetOptions;
+    for (vtkDataObject *dObj : vtk::Range(input, Opts::SkipEmptyNodes))
     {
-      vtkPolyData *pd = vtkPolyData::SafeDownCast(iter->GetCurrentDataObject());
+      vtkPolyData *pd = vtkPolyData::SafeDownCast(dObj);
       if (pd)
       {
         int cellFlag;
@@ -1705,19 +1568,7 @@ void vtkCompositePolyDataMapper2::CopyMapperValuesToHelper(vtkCompositeMapperHel
   helper->SetCompositeIdArrayName(this->GetCompositeIdArrayName());
   helper->SetProcessIdArrayName(this->GetProcessIdArrayName());
   helper->SetCellIdArrayName(this->GetCellIdArrayName());
-  helper->SetVertexShaderCode(this->GetVertexShaderCode());
-  helper->SetGeometryShaderCode(this->GetGeometryShaderCode());
-  helper->SetFragmentShaderCode(this->GetFragmentShaderCode());
   helper->SetStatic(1);
-  helper->ClearAllShaderReplacements();
-  for (auto& repl : this->UserShaderReplacements)
-  {
-    const vtkShader::ReplacementSpec& spec = repl.first;
-    const vtkShader::ReplacementValue& values = repl.second;
-
-    helper->AddShaderReplacement(spec.ShaderType, spec.OriginalValue, spec.ReplaceFirst,
-      values.Replacement, values.ReplaceAll);
-  }
 }
 
 //-----------------------------------------------------------------------------
@@ -1942,6 +1793,7 @@ void vtkCompositePolyDataMapper2::Render(
     vtkCompositeMapperHelper2 *helper = hiter->second;
     helper->RenderPiece(ren,actor);
 
+    //update the list of rendered polydata that vtkValuePass relies on
     std::vector<vtkPolyData *> pdl = helper->GetRenderedList();
     for (unsigned int i = 0; i < pdl.size(); ++i)
     {
@@ -1993,23 +1845,20 @@ void vtkCompositePolyDataMapper2::BuildRenderValues(
   // block.
   flat_index++;
 
-  vtkMultiBlockDataSet *mbds = vtkMultiBlockDataSet::SafeDownCast(dobj);
-  vtkMultiPieceDataSet *mpds = vtkMultiPieceDataSet::SafeDownCast(dobj);
-  if (mbds || mpds)
+  auto dObjTree = vtkDataObjectTree::SafeDownCast(dobj);
+  if (dObjTree)
   {
-    unsigned int numChildren = mbds? mbds->GetNumberOfBlocks() :
-      mpds->GetNumberOfPieces();
-    for (unsigned int cc=0 ; cc < numChildren; cc++)
+    using Opts = vtk::DataObjectTreeOptions;
+    for (vtkDataObject *child : vtk::Range(dObjTree, Opts::None))
     {
-      vtkDataObject* child = mbds ? mbds->GetBlock(cc) : mpds->GetPiece(cc);
-      if (child == nullptr)
+      if (!child)
       {
-        // speeds things up when dealing with nullptr blocks (which is common with
-        // AMRs).
-        flat_index++;
-        continue;
+        ++flat_index;
       }
-      this->BuildRenderValues(renderer, actor, child, flat_index);
+      else
+      {
+        this->BuildRenderValues(renderer, actor, child, flat_index);
+      }
     }
   }
   else

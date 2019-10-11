@@ -31,32 +31,43 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ========================================================================*/
 #include "pqQVTKWidget.h"
 
-#include <QImage>
-#include <QMoveEvent>
-#include <QPainter>
-#include <QPixmap>
-#include <QPoint>
-#include <QPointer>
 #include <QResizeEvent>
 
+#include "pqApplicationCore.h"
+#include "pqEventDispatcher.h"
+#include "pqOptions.h"
 #include "pqUndoStack.h"
+#include "vtkPVLogger.h"
 #include "vtkRenderWindow.h"
-#include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
-#include "vtkSMProxy.h"
 #include "vtkSMSession.h"
+#include "vtkSMViewProxy.h"
+#include "vtksys/SystemTools.hxx"
 
-#include "QVTKInteractorAdapter.h"
+#include <chrono>
+#include <numeric>
 
 //----------------------------------------------------------------------------
 pqQVTKWidget::pqQVTKWidget(QWidget* parentObject, Qt::WindowFlags f)
   : Superclass(parentObject, f)
   , SizePropertyName("ViewSize")
 {
-  this->connect(this, SIGNAL(resized()), SLOT(updateSizeProperties()));
-
   // disable HiDPI if we are running tests
-  this->setEnableHiDPI(getenv("DASHBOARD_TEST_FROM_CTEST") ? false : true);
+  this->setEnableHiDPI(vtksys::SystemTools::GetEnv("DASHBOARD_TEST_FROM_CTEST") ? false : true);
+
+  // if active stereo requested, then we need to request appropriate context.
+  auto options = pqApplicationCore::instance()->getOptions();
+  if (options->GetStereoType() && strcmp(options->GetStereoType(), "Crystal Eyes") == 0)
+  {
+#if PARAVIEW_USING_QVTKOPENGLWIDGET
+    auto fmt = this->defaultFormat(/*supports_stereo =*/true);
+    this->setFormat(fmt);
+    vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "requesting stereo-capable context.");
+#else
+    vtkLogF(WARNING,
+      "we do not support stereo capable context on this platform; stereo request ignored.");
+#endif
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -65,31 +76,30 @@ pqQVTKWidget::~pqQVTKWidget()
 }
 
 //----------------------------------------------------------------------------
-void pqQVTKWidget::updateSizeProperties()
-{
-  if (this->ViewProxy)
-  {
-    BEGIN_UNDO_EXCLUDE();
-    int view_size[2];
-    view_size[0] = this->size().width() * this->GetInteractorAdapter()->GetDevicePixelRatio();
-    view_size[1] = this->size().height() * this->GetInteractorAdapter()->GetDevicePixelRatio();
-    vtkSMPropertyHelper(this->ViewProxy, this->SizePropertyName.toLocal8Bit().data())
-      .Set(view_size, 2);
-    this->ViewProxy->UpdateProperty(this->SizePropertyName.toLocal8Bit().data());
-    END_UNDO_EXCLUDE();
-  }
-}
-
-//----------------------------------------------------------------------------
 void pqQVTKWidget::setViewProxy(vtkSMProxy* view)
 {
-  this->ViewProxy = view;
+  if (view != this->ViewProxy)
+  {
+    this->VTKConnect->Disconnect();
+    this->ViewProxy = view;
+    if (view)
+    {
+      this->VTKConnect->Connect(
+        view, vtkSMViewProxy::PrepareContextForRendering, this, SLOT(prepareContextForRendering()));
+    }
+  }
 }
 
 //----------------------------------------------------------------------------
 void pqQVTKWidget::setSession(vtkSMSession* session)
 {
   this->Session = session;
+}
+
+//----------------------------------------------------------------------------
+bool pqQVTKWidget::renderVTK()
+{
+  return false;
 }
 
 //----------------------------------------------------------------------------
@@ -121,6 +131,57 @@ vtkTypeUInt32 pqQVTKWidget::getProxyId()
     return this->ViewProxy->GetGlobalID();
   }
   return 0;
+}
+
+//----------------------------------------------------------------------------
+#if PARAVIEW_USING_QVTKOPENGLWIDGET
+void pqQVTKWidget::resizeEvent(QResizeEvent* evt)
+{
+  this->Superclass::resizeEvent(evt);
+
+  if (this->ViewProxy)
+  {
+    BEGIN_UNDO_EXCLUDE();
+    // this is necessary only because resizeEvent are not propagated immediately
+    // from the QWidget to an embedded QOpenGLWindow and hence the vtkRenderWindow
+    // will not see updated size until Qt's event processing catches up. This can
+    // cause issues with test playback since the RenderWIndow size may not be
+    // correct just yet. So we manually update the render window size.
+    const QSize newsize = evt->size() * this->devicePixelRatioF();
+    const int inewsize[2] = { newsize.width(), newsize.height() };
+    vtkSMPropertyHelper(this->ViewProxy, "ViewSize").Set(inewsize, 2);
+    this->ViewProxy->UpdateVTKObjects();
+    END_UNDO_EXCLUDE();
+  }
+}
+#endif
+
+//----------------------------------------------------------------------------
+void pqQVTKWidget::prepareContextForRendering()
+{
+  if (!this->isVisible())
+  {
+    // if not visible, waiting for a bit isn't going to help with the context
+    // creation at all.
+    return;
+  }
+
+  auto start = std::chrono::system_clock::now();
+  while (!this->isValid())
+  {
+    pqEventDispatcher::processEventsAndWait(10);
+    auto end = std::chrono::system_clock::now();
+    const std::chrono::duration<double> diff = end - start;
+    if (diff.count() >= 5)
+    {
+      break;
+    }
+  }
+
+  if (!this->isValid())
+  {
+    qCritical("Failed to create a valid OpenGL context for 5 seconds....giving up!");
+  }
 }
 
 //----------------------------------------------------------------------------

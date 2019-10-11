@@ -1,6 +1,6 @@
 #*****************************************************************************
 #
-# Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+# Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 # Produced at the Lawrence Livermore National Laboratory
 # LLNL-CODE-442911
 # All rights reserved.
@@ -38,14 +38,14 @@
 #
 #****************************************************************************/
 
-PROJECT(visit_vtk)
+project(visit_vtk)
 
-ADD_SUBDIRECTORY(lightweight)
-ADD_SUBDIRECTORY(full)
+add_subdirectory(lightweight)
+add_subdirectory(full)
 
 if (FALSE)
-# if mesa is enabled, add our external mesa rendering lib
-IF(MESA_FOUND)
-    ADD_SUBDIRECTORY(osmesa)
-ENDIF(MESA_FOUND)
+# if osmesa or egl is enabled, add our offscreen rendering factory
+if(HAVE_OSMESA OR HAVE_EGL)
+    add_subdirectory(offscreen)
+endif()
 endif ()

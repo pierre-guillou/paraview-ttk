@@ -42,7 +42,7 @@ class VTKPVCLIENTSERVERCORECORE_EXPORT vtkProcessModule : public vtkObject
 public:
   static vtkProcessModule* New();
   vtkTypeMacro(vtkProcessModule, vtkObject);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   enum ProcessTypes
   {
@@ -258,11 +258,11 @@ public:
   /**
    * The full path to the current executable that is running (or empty if unknown).
    */
-  std::string GetProgramPath() const { return this->ProgramPath; }
+  const std::string& GetProgramPath() const { return this->ProgramPath; }
   /**
    * The directory containing the current executable (or empty if unknown).
    */
-  std::string GetSelfDir() const { return this->SelfDir; }
+  const std::string& GetSelfDir() const { return this->SelfDir; }
 
   //@{
   /**

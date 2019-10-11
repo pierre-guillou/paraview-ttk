@@ -55,7 +55,7 @@
 	_rl = INACTIVE_RUN_LENGTH(_runlengths);
 	_p += _rl;
 	if (_p > _pixels) {
-	    icetRaiseError("Corrupt compressed image.", ICET_INVALID_VALUE);
+            icetRaiseError(ICET_INVALID_VALUE, "Corrupt compressed image.");
 	    break;
 	}
 	DT_INCREMENT_INACTIVE_PIXELS(_rl);
@@ -64,7 +64,7 @@
 	_rl = ACTIVE_RUN_LENGTH(_runlengths);
 	_p += _rl;
 	if (_p > _pixels) {
-	    icetRaiseError("Corrupt compressed image.", ICET_INVALID_VALUE);
+            icetRaiseError(ICET_INVALID_VALUE, "Corrupt compressed image.");
 	    break;
 	}
 	for (_i = 0; _i < _rl; _i++) {

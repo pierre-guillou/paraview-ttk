@@ -46,7 +46,7 @@ class VTKIOVISITBRIDGE_EXPORT vtkAvtMTSDFileFormatAlgorithm : public vtkAvtSTSDF
 public:
   static vtkAvtMTSDFileFormatAlgorithm *New();
   vtkTypeMacro(vtkAvtMTSDFileFormatAlgorithm,vtkAvtSTSDFileFormatAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
 protected:
   vtkAvtMTSDFileFormatAlgorithm();
@@ -57,7 +57,7 @@ protected:
   // This is the method you should override.
   virtual int RequestData(vtkInformation* request,
                           vtkInformationVector** inputVector,
-                          vtkInformationVector* outputVector) VTK_OVERRIDE;
+                          vtkInformationVector* outputVector) override;
 
 private:
   vtkAvtMTSDFileFormatAlgorithm(const vtkAvtMTSDFileFormatAlgorithm&);

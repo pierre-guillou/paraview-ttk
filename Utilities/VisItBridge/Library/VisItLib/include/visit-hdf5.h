@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2017, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -155,7 +155,7 @@ static herr_t VisIt_H5Fclose(hid_t fid)
         {
             char name[256], tmp[256];
             H5Iget_name(ooids[i], name, sizeof(name));
-            SNPRINTF(tmp, sizeof(tmp), "\n    \"%.230s\" (id=%d)", name, ooids[i]);
+            SNPRINTF(tmp, sizeof(tmp), "\n    \"%.230s\" (id=%d)", name, (int) ooids[i]);
             if ((strlen(msg) + strlen(tmp) + 1) >= sizeof(msg))
                 break;
             strcat(msg, tmp);

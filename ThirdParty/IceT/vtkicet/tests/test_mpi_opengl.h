@@ -80,7 +80,7 @@ void init_mpi_opengl(int *argcp, char ***argvp)
 }
 
 #if defined(ICET_TESTS_USE_GLUT)
-static int (*g_test_function)(void);
+static int (*g_test_function)();
 
 static void no_op()
 {
@@ -102,13 +102,13 @@ static void glut_draw()
     exit(result);
 }
 
-int run_test(int (*test_function)(void))
+int run_test(int (*test_function)())
 {
   /* Record the test function so we can run it in the Glut draw callback. */
     g_test_function = test_function;
 
-    glutDisplayFunc(no_op);
-    glutIdleFunc(glut_draw);
+    glutDisplayFunc((void (*)(void))no_op);
+    glutIdleFunc((void (*)(void))glut_draw);
 
   /* Glut will reliably create the OpenGL context only after the main loop is
    * started.  This will create the window and then call our glut_draw function

@@ -383,7 +383,7 @@ void vtkHexahedron::Contour(double value, vtkDataArray *cellScalars,
                             vtkCellData *inCd, vtkIdType cellId,
                             vtkCellData *outCd)
 {
-  static int CASE_MASK[8] = {1,2,4,8,16,32,64,128};
+  static const int CASE_MASK[8] = {1,2,4,8,16,32,64,128};
   vtkMarchingCubesTriangleCases *triCase;
   EDGE_LIST  *edge;
   int i, j, index, *vert;
@@ -461,6 +461,15 @@ void vtkHexahedron::Contour(double value, vtkDataArray *cellScalars,
 int *vtkHexahedron::GetEdgeArray(int edgeId)
 {
   return edges[edgeId];
+}
+
+//----------------------------------------------------------------------------
+// Return the case table for table-based isocontouring (aka marching cubes
+// style implementations). A linear 3D cell with N vertices will have 2**N
+// cases. The cases list three edges in order to produce one output triangle.
+int *vtkHexahedron::GetTriangleCases(int caseId)
+{
+  return &(*(vtkMarchingCubesTriangleCases::GetCases() + caseId)->edges);
 }
 
 //----------------------------------------------------------------------------
@@ -762,4 +771,3 @@ void vtkHexahedron::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Quad:\n";
   this->Quad->PrintSelf(os,indent.GetNextIndent());
 }
-

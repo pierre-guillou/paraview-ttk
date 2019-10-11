@@ -36,7 +36,7 @@ class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkPVClientServerSynchronizedRendere
 public:
   static vtkPVClientServerSynchronizedRenderers* New();
   vtkTypeMacro(vtkPVClientServerSynchronizedRenderers, vtkSynchronizedRenderers);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // This flag is set by the renderer during still renderers. When set
@@ -63,13 +63,6 @@ protected:
   vtkPVClientServerSynchronizedRenderers();
   ~vtkPVClientServerSynchronizedRenderers() override;
 
-  /**
-   * Overridden to not clear the color buffer before pasting back image from
-   * the server. This ensures that any annotations rendered on the back of any
-   * 3D geometry will be preserved.
-   */
-  void PushImageToScreen() VTK_OVERRIDE;
-
   //@{
   /**
    * Set/Get the compressor object, it's setting can be manipulated directly.
@@ -81,9 +74,8 @@ protected:
   vtkUnsignedCharArray* Compress(vtkUnsignedCharArray*);
   void Decompress(vtkUnsignedCharArray* input, vtkUnsignedCharArray* outputBuffer);
 
-  void MasterEndRender() VTK_OVERRIDE;
-  void SlaveStartRender() VTK_OVERRIDE;
-  void SlaveEndRender() VTK_OVERRIDE;
+  void MasterEndRender() override;
+  void SlaveEndRender() override;
 
   vtkImageCompressor* Compressor;
   bool LossLessCompression;

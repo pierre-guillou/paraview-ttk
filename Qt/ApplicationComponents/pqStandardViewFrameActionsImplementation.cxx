@@ -41,17 +41,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqDataQueryReaction.h"
 #include "pqEditCameraReaction.h"
 #include "pqInterfaceTracker.h"
+#include "pqMultiViewWidget.h"
 #include "pqObjectBuilder.h"
 #include "pqRenameProxyReaction.h"
 #include "pqRenderView.h"
 #include "pqRenderViewSelectionReaction.h"
+#include "pqSaveScreenshotReaction.h"
 #include "pqServer.h"
 #include "pqSpreadSheetView.h"
 #include "pqSpreadSheetViewDecorator.h"
 #include "pqToggleInteractionViewMode.h"
 #include "pqUndoStack.h"
 #include "pqViewFrame.h"
-
 #include "vtkChart.h"
 #include "vtkCollection.h"
 #include "vtkPVProxyDefinitionIterator.h"
@@ -62,14 +63,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMRenderViewProxy.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMTooltipSelectionPipeline.h"
+#include "vtkSMViewLayoutProxy.h"
 #include "vtkSmartPointer.h"
 
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QPushButton>
 #include <QSet>
 #include <QShortcut>
 #include <QStyle>
+
+#include <cassert>
+
+namespace
+{
+template <typename T>
+T findParent(QObject* obj)
+{
+  if (auto view = qobject_cast<T>(obj))
+  {
+    return view;
+  }
+  else if (obj)
+  {
+    return findParent<T>(obj->parent());
+  }
+  return nullptr;
+}
+}
 
 //-----------------------------------------------------------------------------
 pqStandardViewFrameActionsImplementation::pqStandardViewFrameActionsImplementation(
@@ -111,7 +133,7 @@ pqStandardViewFrameActionsImplementation::~pqStandardViewFrameActionsImplementat
 //-----------------------------------------------------------------------------
 void pqStandardViewFrameActionsImplementation::frameConnected(pqViewFrame* frame, pqView* view)
 {
-  Q_ASSERT(frame != NULL);
+  assert(frame != NULL);
   if (view == NULL)
   {
     // Setup the UI shown when no view is present in the frame.
@@ -144,8 +166,8 @@ void pqStandardViewFrameActionsImplementation::addContextViewActions(
   pqViewFrame* frame, pqContextView* chart_view)
 {
   // Adding special selection controls for chart/context view
-  Q_ASSERT(chart_view);
-  Q_ASSERT(frame);
+  assert(chart_view);
+  assert(frame);
 
   QActionGroup* modeGroup = this->addSelectionModifierActions(frame, chart_view);
   QActionGroup* group = new QActionGroup(frame);
@@ -190,8 +212,8 @@ void pqStandardViewFrameActionsImplementation::addContextViewActions(
 QActionGroup* pqStandardViewFrameActionsImplementation::addSelectionModifierActions(
   pqViewFrame* frame, pqView* view)
 {
-  Q_ASSERT(view);
-  Q_ASSERT(frame);
+  assert(view);
+  assert(frame);
 
   QAction* toggleAction = NULL;
   QAction* minusAction = NULL;
@@ -262,8 +284,8 @@ void pqStandardViewFrameActionsImplementation::addSeparator(pqViewFrame* frame, 
 //-----------------------------------------------------------------------------
 void pqStandardViewFrameActionsImplementation::addGenericActions(pqViewFrame* frame, pqView* view)
 {
-  Q_ASSERT(frame);
-  Q_ASSERT(view);
+  assert(frame);
+  assert(view);
 
   /// Add convert-to menu.
   frame->contextMenu()->addSeparator();
@@ -292,6 +314,21 @@ void pqStandardViewFrameActionsImplementation::addGenericActions(pqViewFrame* fr
       forwardAction->setObjectName("actionForwardButton");
       new pqCameraUndoRedoReaction(forwardAction, false, view);
     }
+
+    this->addSeparator(frame, view);
+  }
+
+  if (view->supportsCapture())
+  {
+    if (this->isButtonVisible("captureViewAction", view))
+    {
+      QAction* captureViewAction = frame->addTitleBarAction(
+        QIcon(":/pqWidgets/Icons/pqCaptureScreenshot24.png"), "Capture to Clipboard or File");
+      captureViewAction->setObjectName("actionCaptureView");
+      captureViewAction->setToolTip("Capture screenshot to the clipboard or to a file if a "
+                                    "modifier key (Ctrl, Alt or Shift) is pressed.");
+      this->connect(captureViewAction, SIGNAL(triggered(bool)), SLOT(captureViewTriggered()));
+    }
   }
 }
 
@@ -299,8 +336,8 @@ void pqStandardViewFrameActionsImplementation::addGenericActions(pqViewFrame* fr
 void pqStandardViewFrameActionsImplementation::addRenderViewActions(
   pqViewFrame* frame, pqRenderView* renderView)
 {
-  Q_ASSERT(renderView);
-  Q_ASSERT(frame);
+  assert(renderView);
+  assert(frame);
 
   this->addSeparator(frame, renderView);
 
@@ -480,8 +517,8 @@ void pqStandardViewFrameActionsImplementation::addRenderViewActions(
 void pqStandardViewFrameActionsImplementation::addSpreadSheetViewActions(
   pqViewFrame* frame, pqSpreadSheetView* spreadSheet)
 {
-  Q_ASSERT(frame);
-  Q_ASSERT(spreadSheet);
+  assert(frame);
+  assert(spreadSheet);
   Q_UNUSED(frame);
   new pqSpreadSheetViewDecorator(spreadSheet);
 }
@@ -536,7 +573,7 @@ bool pqStandardViewFrameActionsImplementation::ViewTypeComparator(
   {
     return one.Label.toLower() < two.Label.toLower();
   }
-  Q_ASSERT(inone || intwo);
+  assert(inone || intwo);
   // one is less if it has "Render View", else two is less.
   return inone;
 }
@@ -577,16 +614,18 @@ void pqStandardViewFrameActionsImplementation::aboutToShowConvertMenu()
   if (menu)
   {
     menu->clear();
+
+    auto viewframe = ::findParent<pqViewFrame*>(menu);
+    assert(viewframe != nullptr);
+
     QList<ViewType> views = this->availableViewTypes();
     foreach (const ViewType& type, views)
     {
       QAction* view_action = new QAction(type.Label, menu);
-      view_action->setProperty("PV_VIEW_TYPE", type.Name);
-      view_action->setProperty("PV_VIEW_LABEL", type.Label);
-      view_action->setProperty("PV_COMMAND", "Convert To");
       menu->addAction(view_action);
-      QObject::connect(
-        view_action, SIGNAL(triggered()), this, SLOT(invoked()), Qt::QueuedConnection);
+      QObject::connect(view_action, &QAction::triggered, this,
+        [viewframe, type, this](bool) { this->invoked(viewframe, type, "Convert To"); },
+        Qt::QueuedConnection);
     }
   }
 }
@@ -597,46 +636,51 @@ void pqStandardViewFrameActionsImplementation::setupEmptyFrame(QWidget* frame)
   Ui::EmptyView ui;
   ui.setupUi(frame);
 
+  auto viewframe = ::findParent<pqViewFrame*>(frame);
+  assert(viewframe != nullptr);
+
   QList<ViewType> views = this->availableViewTypes();
   foreach (const ViewType& type, views)
   {
     QPushButton* button = new QPushButton(type.Label, ui.ConvertActionsFrame);
     button->setObjectName(type.Name);
-    button->setProperty("PV_VIEW_TYPE", type.Name);
-    button->setProperty("PV_VIEW_LABEL", type.Label);
-    button->setProperty("PV_COMMAND", "Create");
-
-    QObject::connect(button, SIGNAL(clicked()), this, SLOT(invoked()), Qt::QueuedConnection);
+    QObject::connect(button, &QPushButton::clicked, this,
+      [viewframe, type, this]() { this->invoked(viewframe, type, "Create"); },
+      Qt::QueuedConnection);
     ui.ConvertActionsFrame->layout()->addWidget(button);
   }
 }
 
 //-----------------------------------------------------------------------------
-void pqStandardViewFrameActionsImplementation::invoked()
+void pqStandardViewFrameActionsImplementation::invoked(pqViewFrame* viewframe,
+  const pqStandardViewFrameActionsImplementation::ViewType& vtype, const QString& command)
 {
-  QObject* osender = this->sender();
-  if (!osender)
+  if (!viewframe)
   {
     return;
   }
 
-  // either create a new view, or convert the existing one.
-  // This slot is called either from an action in the "Convert To" menu, or from
-  // the buttons on an empty frame.
-  QString type = osender->property("PV_VIEW_TYPE").toString();
-  QString label = osender->property("PV_VIEW_LABEL").toString();
-  QString command = osender->property("PV_COMMAND").toString();
+  // this implementation is a little hackish.
+  // pqStandardViewFrameActionsImplementation is ripe for refactoring.
+  auto pqmvwidget = ::findParent<pqMultiViewWidget*>(viewframe);
+  assert(pqmvwidget != nullptr);
 
-  BEGIN_UNDO_SET(QString("%1 %2").arg(command).arg(label));
-  ViewType vtype;
-  vtype.Label = label;
-  vtype.Name = type;
-  this->handleCreateView(vtype);
+  int frameIndex = viewframe->property("FRAME_INDEX").toInt();
+  viewframe = nullptr;
+
+  // either create a new view, or convert the existing one.
+  BEGIN_UNDO_SET(QString("%1 %2").arg(command).arg(vtype.Label));
+  if (auto view = this->handleCreateView(vtype))
+  {
+    // note: handleCreateView may destroy the pqViewFrame.
+    // assign it to layout.
+    pqmvwidget->layoutManager()->AssignViewToAnyCell(view->getViewProxy(), frameIndex);
+  }
   END_UNDO_SET();
 }
 
 //-----------------------------------------------------------------------------
-void pqStandardViewFrameActionsImplementation::handleCreateView(
+pqView* pqStandardViewFrameActionsImplementation::handleCreateView(
   const pqStandardViewFrameActionsImplementation::ViewType& viewType)
 {
   pqObjectBuilder* builder = pqApplicationCore::instance()->getObjectBuilder();
@@ -648,8 +692,9 @@ void pqStandardViewFrameActionsImplementation::handleCreateView(
   }
   if (viewType.Name != "None")
   {
-    builder->createView(viewType.Name, pqActiveObjects::instance().activeServer());
+    return builder->createView(viewType.Name, pqActiveObjects::instance().activeServer());
   }
+  return nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -788,7 +833,7 @@ void pqStandardViewFrameActionsImplementation::escapeableActionToggled(bool chec
 
   // User has entered into a selection mode. Let's add a shortcut to "catch" the
   // Esc key.
-  Q_ASSERT(checked && actn->isCheckable());
+  assert(checked && actn->isCheckable());
   this->ShortCutEsc->setEnabled(true);
   this->ShortCutEsc->setProperty("PV_ACTION", QVariant::fromValue<QObject*>(actn));
 }
@@ -802,5 +847,18 @@ void pqStandardViewFrameActionsImplementation::interactiveSelectionToggled(bool 
       vtkSMRenderViewProxy::SafeDownCast(pqActiveObjects::instance().activeView()->getViewProxy()));
     vtkSMTooltipSelectionPipeline::GetInstance()->Hide(
       vtkSMRenderViewProxy::SafeDownCast(pqActiveObjects::instance().activeView()->getViewProxy()));
+  }
+}
+
+//-----------------------------------------------------------------------------
+void pqStandardViewFrameActionsImplementation::captureViewTriggered()
+{
+  pqView* activeView = pqActiveObjects::instance().activeView();
+  if (activeView)
+  {
+    // If a modifier key is enabled, let's save screenshot to a file, otherwise
+    // copy the screenshot to the clipboard.
+    bool clipboardMode = QGuiApplication::queryKeyboardModifiers() == 0;
+    pqSaveScreenshotReaction::saveScreenshot(clipboardMode);
   }
 }

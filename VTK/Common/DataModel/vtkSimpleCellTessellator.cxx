@@ -483,7 +483,7 @@ public:
   }
 
   // Return true if (e1, e2) is an edge of the tri:
-  int IsAnEdge(vtkIdType e1, vtkIdType e2)
+  vtkTypeBool IsAnEdge(vtkIdType e1, vtkIdType e2)
   {
     int sum = 0;
     for(int i=0; i<3; i++)
@@ -718,7 +718,7 @@ public:
   vtkIdType GetPointId( int i ) { return this->PointId[i]; }
 
   // Return true if (e1, e2) is an edge of the tetra:
-  int IsAnEdge(vtkIdType e1, vtkIdType e2)
+  vtkTypeBool IsAnEdge(vtkIdType e1, vtkIdType e2)
   {
     int sum = 0;
     for(int i=0; i<4; i++)
@@ -1235,10 +1235,6 @@ int vtkTetraTile::Refine(vtkSimpleCellTessellator* tess,
       {
         for(k=0; k<4; k++)
         {
-          // This is the line that makes Visual Studio 7.0 to fail compiling
-          // a valid code in release mode. If we add the following line before
-          // the actual use of cases[k], everything works fine...
-          // line that fixes Visual Studio: cout<<cases[k]<<endl;
           tetra[k] = this->PointId[cases[k]];
         }
 
@@ -2524,7 +2520,7 @@ void vtkSimpleCellTessellator::TriangulateTriangle(vtkGenericAdaptorCell *cell,
   //this->EdgeTable->DumpTable();
 }
 
-//#define SLOW_API 1
+#define SLOW_API 0
 //-----------------------------------------------------------------------------
 // Return number of cells using edge #edgeId
 int vtkSimpleCellTessellator::GetNumberOfCellsUsingEdge( int edgeId )

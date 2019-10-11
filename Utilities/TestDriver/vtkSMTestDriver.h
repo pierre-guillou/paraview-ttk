@@ -94,14 +94,6 @@ private:
   std::vector<std::string> MPIPreFlags;
   std::vector<std::string> MPIPostFlags;
 
-  // ClientPostFlags are additional arguments sent to client.
-  std::vector<std::string> ClientPostFlags;
-
-  // MPIServerFlags allows you to specify flags specific for
-  // the client or the server
-  std::vector<std::string> MPIServerPreFlags;
-  std::vector<std::string> MPIServerPostFlags;
-
   // TDClientFlags / TDServerFlags allows you to specify flags specific for
   // the client or the server when running in tiled display mode
   std::vector<std::string> TDClientPreFlags;
@@ -133,9 +125,6 @@ private:
   int TestRenderServer;
   int TestServer;
   int TestScript; // additional process to run
-  int TestTiledDisplay;
-  std::string TestTiledDisplayTDX;
-  std::string TestTiledDisplayTDY;
   int AllowErrorInOutput;
   int ScriptIgnoreOutputErrors;
   int TestRemoteRendering;

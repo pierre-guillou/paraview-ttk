@@ -162,7 +162,9 @@ void vtkInitializationHelper::Initialize(const char* executable, int type, vtkPV
     argv.push_back(vtksys::SystemTools::DuplicateString("--mpi"));
   }
 
-  vtkInitializationHelper::Initialize(static_cast<int>(argv.size()), &argv[0], type, newoptions);
+  argv.push_back(nullptr);
+  vtkInitializationHelper::Initialize(
+    static_cast<int>(argv.size()) - 1, &argv[0], type, newoptions);
 
   for (auto tofree : argv)
   {
@@ -231,7 +233,7 @@ void vtkInitializationHelper::Initialize(int argc, char** argv, int type, vtkPVO
 
   // this has to happen after process module is initialized and options have
   // been set.
-  PARAVIEW_INITIALIZE();
+  paraview_initialize();
 
   // Set multi-server flag to vtkProcessModule
   vtkProcessModule::GetProcessModule()->SetMultipleSessionsSupport(
@@ -330,7 +332,8 @@ void vtkInitializationHelper::LoadSettings()
 
   // Load site-level settings
   vtkPVOptions* options = vtkProcessModule::GetProcessModule()->GetOptions();
-  std::string app_dir = options->GetApplicationPath();
+  const char* app_dir_p = options->GetApplicationPath();
+  std::string app_dir = app_dir_p ? app_dir_p : "";
   app_dir = vtksys::SystemTools::GetProgramPath(app_dir.c_str());
 
   // If the application path ends with lib/paraview-X.X, shared
@@ -382,7 +385,7 @@ std::string vtkInitializationHelper::GetUserSettingsDirectory()
   std::string organizationName(vtkInitializationHelper::GetOrganizationName());
   std::string applicationName(vtkInitializationHelper::GetApplicationName());
 #if defined(_WIN32)
-  const char* appData = getenv("APPDATA");
+  const char* appData = vtksys::SystemTools::GetEnv("APPDATA");
   if (!appData)
   {
     return std::string();

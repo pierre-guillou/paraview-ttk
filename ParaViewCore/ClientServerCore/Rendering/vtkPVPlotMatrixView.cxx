@@ -93,6 +93,7 @@ GENERATE_PLOT_TYPE_DEFINITION3(AxisColor, double, double, double);
 GENERATE_PLOT_TYPE_DEFINITION3(GridColor, double, double, double);
 GENERATE_PLOT_TYPE_DEFINITION(AxisLabelVisibility, bool);
 GENERATE_PLOT_TYPE_DEFINITION(AxisLabelFontFamily, const char*);
+GENERATE_PLOT_TYPE_DEFINITION(AxisLabelFontFile, const char*);
 GENERATE_PLOT_TYPE_DEFINITION(AxisLabelFontSize, int);
 GENERATE_PLOT_TYPE_DEFINITION(AxisLabelBold, bool);
 GENERATE_PLOT_TYPE_DEFINITION(AxisLabelItalic, bool);
@@ -192,22 +193,13 @@ void vtkPVPlotMatrixView::AddAnimationPath(int i, int j)
 //----------------------------------------------------------------------------
 void vtkPVPlotMatrixView::StartAnimationPath()
 {
-  this->PlotMatrix->BeginAnimationPath(this->RenderWindow->GetInteractor());
+  this->PlotMatrix->BeginAnimationPath(this->GetRenderWindow()->GetInteractor());
 }
 
 //----------------------------------------------------------------------------
 void vtkPVPlotMatrixView::AdvanceAnimationPath()
 {
   this->PlotMatrix->AdvanceAnimation();
-}
-
-//----------------------------------------------------------------------------
-void vtkPVPlotMatrixView::SetTitle(const char* title)
-{
-  if (this->PlotMatrix)
-  {
-    this->PlotMatrix->SetTitle(title);
-  }
 }
 
 //----------------------------------------------------------------------------
@@ -240,6 +232,16 @@ void vtkPVPlotMatrixView::SetTitleFontSize(int pointSize)
   {
     vtkTextProperty* prop = this->PlotMatrix->GetTitleProperties();
     prop->SetFontSize(pointSize);
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVPlotMatrixView::SetTitleFontFile(const char* file)
+{
+  if (this->PlotMatrix)
+  {
+    vtkTextProperty* prop = this->PlotMatrix->GetTitleProperties();
+    prop->SetFontFile(file);
   }
 }
 
@@ -445,6 +447,17 @@ void vtkPVPlotMatrixView::SetAxisLabelFontFamily(int plotType, const char* famil
 }
 
 //----------------------------------------------------------------------------
+void vtkPVPlotMatrixView::SetAxisLabelFontFile(int plotType, const char* file)
+{
+  if (this->PlotMatrix)
+  {
+    vtkTextProperty* prop = this->PlotMatrix->GetAxisLabelProperties(plotType);
+    prop->SetFontFile(file);
+    this->PlotMatrix->UpdateChartSettings(plotType);
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkPVPlotMatrixView::SetAxisLabelFontSize(int plotType, int pointSize)
 {
   if (this->PlotMatrix)
@@ -575,16 +588,23 @@ void vtkPVPlotMatrixView::UpdateSettings()
 //----------------------------------------------------------------------------
 const char* vtkPVPlotMatrixView::GetTitleFontFamily()
 {
-  return this->PlotMatrix ? this->PlotMatrix->GetTitleProperties()->GetFontFamilyAsString() : NULL;
+  return this->PlotMatrix ? this->PlotMatrix->GetTitleProperties()->GetFontFamilyAsString()
+                          : nullptr;
 }
+
+//----------------------------------------------------------------------------
 int vtkPVPlotMatrixView::GetTitleFontSize()
 {
   return this->PlotMatrix ? this->PlotMatrix->GetTitleProperties()->GetFontSize() : -1;
 }
+
+//----------------------------------------------------------------------------
 int vtkPVPlotMatrixView::GetTitleFontBold()
 {
   return this->PlotMatrix ? this->PlotMatrix->GetTitleProperties()->GetBold() : 0;
 }
+
+//----------------------------------------------------------------------------
 int vtkPVPlotMatrixView::GetTitleFontItalic()
 {
   return this->PlotMatrix ? this->PlotMatrix->GetTitleProperties()->GetItalic() : 0;
@@ -595,13 +615,7 @@ double* vtkPVPlotMatrixView::GetTitleColor()
 {
   // FIXME: Do we need this style of API? It means keeping around a double[3]
   // in order to support it. I don't like it, and would rather avoid it.
-  return this->PlotMatrix ? this->PlotMatrix->GetTitleProperties()->GetColor() : NULL;
-}
-
-//----------------------------------------------------------------------------
-const char* vtkPVPlotMatrixView::GetTitle()
-{
-  return this->PlotMatrix ? this->PlotMatrix->GetTitle() : NULL;
+  return this->PlotMatrix ? this->PlotMatrix->GetTitleProperties()->GetColor() : nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -648,16 +662,22 @@ const char* vtkPVPlotMatrixView::GetAxisLabelFontFamily(int plotType)
 {
   return this->PlotMatrix
     ? this->PlotMatrix->GetAxisLabelProperties(plotType)->GetFontFamilyAsString()
-    : NULL;
+    : nullptr;
 }
+
+//----------------------------------------------------------------------------
 int vtkPVPlotMatrixView::GetAxisLabelFontSize(int plotType)
 {
   return this->PlotMatrix ? this->PlotMatrix->GetAxisLabelProperties(plotType)->GetFontSize() : -1;
 }
+
+//----------------------------------------------------------------------------
 int vtkPVPlotMatrixView::GetAxisLabelFontBold(int plotType)
 {
   return this->PlotMatrix ? this->PlotMatrix->GetAxisLabelProperties(plotType)->GetBold() : 0;
 }
+
+//----------------------------------------------------------------------------
 int vtkPVPlotMatrixView::GetAxisLabelFontItalic(int plotType)
 {
   return this->PlotMatrix ? this->PlotMatrix->GetAxisLabelProperties(plotType)->GetItalic() : 0;
@@ -666,7 +686,8 @@ int vtkPVPlotMatrixView::GetAxisLabelFontItalic(int plotType)
 //----------------------------------------------------------------------------
 double* vtkPVPlotMatrixView::GetAxisLabelColor(int plotType)
 {
-  return this->PlotMatrix ? this->PlotMatrix->GetAxisLabelProperties(plotType)->GetColor() : NULL;
+  return this->PlotMatrix ? this->PlotMatrix->GetAxisLabelProperties(plotType)->GetColor()
+                          : nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -705,4 +726,15 @@ double* vtkPVPlotMatrixView::GetScatterPlotSelectedActiveColor()
   return this->PlotMatrix
     ? this->PlotMatrix->GetScatterPlotSelectedActiveColor().Cast<double>().GetData()
     : NULL;
+}
+
+//----------------------------------------------------------------------------
+void vtkPVPlotMatrixView::Render(bool interactive)
+{
+  if (!this->PlotMatrix)
+  {
+    return;
+  }
+  this->PlotMatrix->SetTitle(this->GetFormattedTitle());
+  this->Superclass::Render(interactive);
 }

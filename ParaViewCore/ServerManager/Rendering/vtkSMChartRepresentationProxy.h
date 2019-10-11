@@ -32,7 +32,7 @@ class VTKPVSERVERMANAGERRENDERING_EXPORT vtkSMChartRepresentationProxy
 public:
   static vtkSMChartRepresentationProxy* New();
   vtkTypeMacro(vtkSMChartRepresentationProxy, vtkSMRepresentationProxy);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Returns client side representation object.
@@ -42,7 +42,7 @@ public:
   /**
    * Overridden to handle links with subproxy properties.
    */
-  int ReadXMLAttributes(vtkSMSessionProxyManager* pm, vtkPVXMLElement* element) VTK_OVERRIDE;
+  int ReadXMLAttributes(vtkSMSessionProxyManager* pm, vtkPVXMLElement* element) override;
 
 protected:
   vtkSMChartRepresentationProxy();
@@ -52,8 +52,13 @@ protected:
    * Overridden to ensure that whenever "Input" property changes, we update the
    * "Input" properties for all internal representations (including setting up
    * of the link to the extract-selection representation).
+   * Two selection input properties are available. The standard one, created by
+   * vtkPVExtractSelection, is named "SelectionInput". The other one, which is just the
+   * original input selection, is named "OriginalSelectionInput".
+   * see views_and_representations.xml::HistogramChartRepresentation::SelectionRepresentation
+   * for an example usage.
    */
-  void SetPropertyModifiedFlag(const char* name, int flag) VTK_OVERRIDE;
+  void SetPropertyModifiedFlag(const char* name, int flag) override;
 
 private:
   vtkSMChartRepresentationProxy(const vtkSMChartRepresentationProxy&) = delete;

@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -28,96 +28,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Author: kenton@google.com (Kenton Varda)
-//
-// emulates google3/base/once.h
-//
-// This header is intended to be included only by internal .cc files and
-// generated .pb.cc files.  Users should not use this directly.
-//
-// This is basically a portable version of pthread_once().
-//
-// This header declares three things:
-// * A type called ProtobufOnceType.
-// * A macro GOOGLE_PROTOBUF_DECLARE_ONCE() which declares a variable of type
-//   ProtobufOnceType.  This is the only legal way to declare such a variable.
-//   The macro may only be used at the global scope (you cannot create local
-//   or class member variables of this type).
-// * A function GogoleOnceInit(ProtobufOnceType* once, void (*init_func)()).
-//   This function, when invoked multiple times given the same ProtobufOnceType
-//   object, will invoke init_func on the first call only, and will make sure
-//   none of the calls return before that first call to init_func has finished.
-//
-// This implements a way to perform lazy initialization.  It's more efficient
-// than using mutexes as no lock is needed if initialization has already
-// happened.
-//
-// Example usage:
-//   void Init();
-//   GOOGLE_PROTOBUF_DECLARE_ONCE(once_init);
-//
-//   // Calls Init() exactly once.
-//   void InitOnce() {
-//     GoogleOnceInit(&once_init, &Init);
-//   }
-//
-// Note that if GoogleOnceInit() is called before main() has begun, it must
-// only be called by the thread that will eventually call main() -- that is,
-// the thread that performs dynamic initialization.  In general this is a safe
-// assumption since people don't usually construct threads before main() starts,
-// but it is technically not guaranteed.  Unfortunately, Win32 provides no way
-// whatsoever to statically-initialize its synchronization primitives, so our
-// only choice is to assume that dynamic initialization is single-threaded.
-
 #ifndef GOOGLE_PROTOBUF_STUBS_ONCE_H__
 #define GOOGLE_PROTOBUF_STUBS_ONCE_H__
 
-#include <google/protobuf/stubs/common.h>
+#include <mutex>
+#include <utility>
 
-#ifndef _WIN32
-#include <pthread.h>
-#endif
+#include <google/protobuf/port_def.inc>
 
 namespace google {
 namespace protobuf {
+namespace internal {
 
-#ifdef _WIN32
-
-struct ProtobufOnceInternal;
-
-struct LIBPROTOBUF_EXPORT ProtobufOnceType {
-  ProtobufOnceType();
-  ~ProtobufOnceType();
-  void Init(void (*init_func)());
-
-  volatile bool initialized_;
-  ProtobufOnceInternal* internal_;
-};
-
-#define GOOGLE_PROTOBUF_DECLARE_ONCE(NAME)                    \
-  ::google::protobuf::ProtobufOnceType NAME
-
-inline void GoogleOnceInit(ProtobufOnceType* once, void (*init_func)()) {
-  // Note:  Double-checked locking is safe on x86.
-  if (!once->initialized_) {
-    once->Init(init_func);
-  }
+using once_flag = std::once_flag;
+template <typename... Args>
+void call_once(Args&&... args ) {
+  std::call_once(std::forward<Args>(args)...);
 }
 
-#else
-
-typedef pthread_once_t ProtobufOnceType;
-
-#define GOOGLE_PROTOBUF_DECLARE_ONCE(NAME)                    \
-  pthread_once_t NAME = PTHREAD_ONCE_INIT
-
-inline void GoogleOnceInit(ProtobufOnceType* once, void (*init_func)()) {
-  pthread_once(once, init_func);
-}
-
-#endif
-
+}  // namespace internal
 }  // namespace protobuf
 }  // namespace google
+
+#include <google/protobuf/port_undef.inc>
 
 #endif  // GOOGLE_PROTOBUF_STUBS_ONCE_H__

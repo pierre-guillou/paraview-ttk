@@ -29,12 +29,11 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================*/
-#include "vtkPVConfig.h"
 #ifdef PARAVIEW_ENABLE_PYTHON
-extern "C" {
-void vtkPVInitializePythonModules();
-}
+#include "pvpythonmodules.h"
 #endif
+
+#include "vtkPVConfig.h"
 
 #include "ParaViewMainWindow.h"
 #include "ui_ParaViewMainWindow.h"
@@ -43,8 +42,7 @@ void vtkPVInitializePythonModules();
 #include "pqApplicationCore.h"
 #include "pqCoreUtilities.h"
 #include "pqDeleteReaction.h"
-#include "pqLoadDataReaction.h"
-#include "pqLoadStateReaction.h"
+#include "pqMainWindowEventManager.h"
 #include "pqOptions.h"
 #include "pqParaViewBehaviors.h"
 #include "pqParaViewMenuBuilders.h"
@@ -57,10 +55,7 @@ void vtkPVInitializePythonModules();
 #include "vtkPVPlugin.h"
 #include "vtkProcessModule.h"
 #include "vtkSMSettings.h"
-
-#ifndef BUILD_SHARED_LIBS
-#include "pvStaticPluginsInit.h"
-#endif
+#include "vtksys/SystemTools.hxx"
 
 #ifdef PARAVIEW_USE_QTHELP
 #include "pqHelpReaction.h"
@@ -69,16 +64,15 @@ void vtkPVInitializePythonModules();
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMessageBox>
-#include <QMimeData>
 #include <QTextCodec>
-#include <QUrl>
+#include <QtDebug>
 
 #ifdef PARAVIEW_ENABLE_EMBEDDED_DOCUMENTATION
 #include "ParaViewDocumentationInitializer.h"
 #endif
 
 #ifdef PARAVIEW_ENABLE_PYTHON
-#include "pqCatalystExportInspector.h"
+#include "pqExportInspector.h"
 #include "pqPythonDebugLeaksView.h"
 #include "pqPythonShell.h"
 typedef pqPythonDebugLeaksView DebugLeaksViewType;
@@ -92,6 +86,7 @@ class ParaViewMainWindow::pqInternals : public Ui::pqClientMainWindow
 public:
   bool FirstShow;
   int CurrentGUIFontSize;
+  QFont DefaultApplicationFont; // will be initialized to default app font in constructor.
   pqTimer UpdateFontSizeTimer;
   pqInternals()
     : FirstShow(true)
@@ -108,7 +103,7 @@ ParaViewMainWindow::ParaViewMainWindow()
   // the debug leaks view should be constructed as early as possible
   // so that it can monitor vtk objects created at application startup.
   DebugLeaksViewType* leaksView = nullptr;
-  if (getenv("PV_DEBUG_LEAKS_VIEW"))
+  if (vtksys::SystemTools::GetEnv("PV_DEBUG_LEAKS_VIEW"))
   {
     leaksView = new DebugLeaksViewType(this);
     leaksView->setWindowFlags(Qt::Window);
@@ -116,12 +111,12 @@ ParaViewMainWindow::ParaViewMainWindow()
   }
 
 #ifdef PARAVIEW_ENABLE_PYTHON
-  vtkPVInitializePythonModules();
+  pvpythonmodules_load();
 #endif
 
 #ifdef PARAVIEW_ENABLE_EMBEDDED_DOCUMENTATION
   // init the ParaView embedded documentation.
-  PARAVIEW_DOCUMENTATION_INIT();
+  paraview_documentation_initialize();
 #endif
 
   this->Internals = new pqInternals();
@@ -139,7 +134,7 @@ ParaViewMainWindow::ParaViewMainWindow()
 #endif
 
 #ifdef PARAVIEW_ENABLE_PYTHON
-  pqCatalystExportInspector* catalystInspector = new pqCatalystExportInspector(this);
+  pqExportInspector* catalystInspector = new pqExportInspector(this);
   this->Internals->catalystInspectorDock->setWidget(catalystInspector);
   this->Internals->catalystInspectorDock->hide();
 #else
@@ -312,48 +307,20 @@ void ParaViewMainWindow::showHelpForProxy(const QString& groupname, const QStrin
 //-----------------------------------------------------------------------------
 void ParaViewMainWindow::dragEnterEvent(QDragEnterEvent* evt)
 {
-  evt->acceptProposedAction();
+  pqApplicationCore::instance()->getMainWindowEventManager()->dragEnterEvent(evt);
 }
 
 //-----------------------------------------------------------------------------
 void ParaViewMainWindow::dropEvent(QDropEvent* evt)
 {
-  QList<QUrl> urls = evt->mimeData()->urls();
-  if (urls.isEmpty())
-  {
-    return;
-  }
-
-  QList<QString> files;
-
-  foreach (QUrl url, urls)
-  {
-    if (!url.toLocalFile().isEmpty())
-    {
-      QString path = url.toLocalFile();
-      if (path.endsWith(".pvsm", Qt::CaseInsensitive))
-      {
-        pqLoadStateReaction::loadState(path);
-      }
-      else
-      {
-        files.append(url.toLocalFile());
-      }
-    }
-  }
-
-  // If we have no file we return
-  if (files.empty() || files.first().isEmpty())
-  {
-    return;
-  }
-  pqLoadDataReaction::loadData(files);
+  pqApplicationCore::instance()->getMainWindowEventManager()->dropEvent(evt);
 }
 
 //-----------------------------------------------------------------------------
 void ParaViewMainWindow::showEvent(QShowEvent* evt)
 {
   this->Superclass::showEvent(evt);
+
   if (this->Internals->FirstShow)
   {
     this->Internals->FirstShow = false;
@@ -368,22 +335,14 @@ void ParaViewMainWindow::showEvent(QShowEvent* evt)
       this->updateFontSize();
     }
   }
+
+  pqApplicationCore::instance()->getMainWindowEventManager()->showEvent(evt);
 }
 
 //-----------------------------------------------------------------------------
 void ParaViewMainWindow::closeEvent(QCloseEvent* evt)
 {
-  pqApplicationCore* core = pqApplicationCore::instance();
-  if (core->settings()->value("GeneralSettings.ShowSaveStateOnExit", false).toBool())
-  {
-    if (QMessageBox::question(this, "Exit ParaView?",
-          "Do you want to save the state before exiting ParaView?",
-          QMessageBox::Save | QMessageBox::Discard) == QMessageBox::Save)
-    {
-      pqSaveStateReaction::saveState();
-    }
-  }
-  evt->accept();
+  pqApplicationCore::instance()->getMainWindowEventManager()->closeEvent(evt);
 }
 
 //-----------------------------------------------------------------------------
@@ -396,31 +355,35 @@ void ParaViewMainWindow::showWelcomeDialog()
 //-----------------------------------------------------------------------------
 void ParaViewMainWindow::updateFontSize()
 {
+  auto& internals = *this->Internals;
   vtkPVGeneralSettings* gsSettings = vtkPVGeneralSettings::GetInstance();
-  bool overrideFontSize = gsSettings->GetGUIOverrideFont();
-  int fontSize = overrideFontSize ? gsSettings->GetGUIFontSize() : 0;
-  if (this->Internals->CurrentGUIFontSize != fontSize)
+  int fontSize = internals.DefaultApplicationFont.pointSize();
+  if (gsSettings->GetGUIOverrideFont() && gsSettings->GetGUIFontSize() > 0)
   {
-    if (fontSize > 0) // note vtkPVGeneralSettings clamps it to [8, INT_MAX)
-    {
-      this->setStyleSheet(QString("* { font-size: %1pt }").arg(fontSize));
-    }
-    else
-    {
-      this->setStyleSheet(QString());
-    }
+    fontSize = gsSettings->GetGUIFontSize();
+  }
+  if (fontSize <= 0)
+  {
+    qDebug() << "Ignoring invalid font size: " << fontSize;
+    return;
+  }
+
+  if (internals.CurrentGUIFontSize != fontSize)
+  {
+    QFont newFont = this->font();
+    newFont.setPointSize(fontSize);
+    this->setFont(newFont);
     this->Internals->CurrentGUIFontSize = fontSize;
   }
 
-  // Console font size
-  int defaultFontSize = 12;
-#if defined(PARAVIEW_ENABLE_PYTHON)
+// Console font size
+#ifdef PARAVIEW_ENABLE_PYTHON
   pqPythonShell* shell = qobject_cast<pqPythonShell*>(this->Internals->pythonShellDock->widget());
-  shell->setFontSize(fontSize == 0 ? defaultFontSize : fontSize);
+  shell->setFontSize(fontSize);
 #endif
   pqOutputWidget* outputWidget =
     qobject_cast<pqOutputWidget*>(this->Internals->outputWidgetDock->widget());
-  outputWidget->setFontSize(fontSize == 0 ? defaultFontSize : fontSize);
+  outputWidget->setFontSize(fontSize);
 }
 
 //-----------------------------------------------------------------------------

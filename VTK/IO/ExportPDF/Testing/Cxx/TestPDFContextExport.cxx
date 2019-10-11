@@ -66,6 +66,9 @@ int TestPDFContextExport(int, char*[])
   vtkOpenGLContextDevice2D::SafeDownCast(view->GetContext()->GetDevice())
       ->SetStringRendererToFreeType();
 
+  vtkNew<vtkRenderWindowInteractor> iren;
+  iren->SetRenderWindow(view->GetRenderWindow());
+  view->GetRenderWindow()->GetInteractor()->Initialize();
   view->GetRenderWindow()->SetMultiSamples(0);
   view->GetRenderWindow()->Render();
 
@@ -78,10 +81,7 @@ int TestPDFContextExport(int, char*[])
   exp->SetFileName(filename.c_str());
   exp->Write();
 
-  vtkNew<vtkRenderWindowInteractor> iren;
-  iren->SetRenderWindow(view->GetRenderWindow());
-  view->GetRenderWindow()->SetMultiSamples(0);
-  view->GetRenderWindow()->GetInteractor()->Initialize();
+  view->GetRenderWindow()->Render();
   view->GetRenderWindow()->GetInteractor()->Start();
 
   return EXIT_SUCCESS;
@@ -134,7 +134,7 @@ bool ContextPDFTest::Paint(vtkContext2D *painter)
   painter->GetPen()->SetWidth(10);
   for (int i = 0; i < 10; ++i)
   {
-    painter->GetPen()->SetLineType(i % (vtkPen::DASH_DOT_DOT_LINE+1));
+    painter->GetPen()->SetLineType(i % (vtkPen::DENSE_DOT_LINE+1));
     painter->GetPen()->SetColor(255,
                                 static_cast<unsigned char>(float(i)*25.0),
                                 0);

@@ -81,6 +81,7 @@ struct ExchangeBoundsWorker : public WorkerBase
   ExchangeBoundsWorker(vtkMPIController* subController) :
     WorkerBase(subController)
   {
+    memset(this->Bounds, 0, sizeof(this->Bounds));
   }
 
   bool Execute(const double bounds[6], const vtkSmartPointer<vtkDataArray> & allBoundsArray)
@@ -128,8 +129,9 @@ protected:
 struct FindMyNeighborsWorker : public WorkerBase
 {
   FindMyNeighborsWorker(vtkMPIController* subController) :
-    WorkerBase(subController)
+    WorkerBase(subController), MyNeighbors(nullptr)
   {
+    memset(this->Bounds, 0, sizeof(this->Bounds));
   }
 
   bool Execute(const double bounds[6],
@@ -198,7 +200,8 @@ protected:
 struct AssemblePointsAndRegionIdsWorker : public WorkerBase
 {
   AssemblePointsAndRegionIdsWorker(vtkMPIController* subController) :
-    WorkerBase(subController)
+    WorkerBase(subController), RegionStarts(nullptr),
+    PointsForMyNeighbors(nullptr), RegionIdsForMyNeighbors(nullptr)
   {
   }
 
@@ -290,7 +293,8 @@ struct SendReceivePointsWorker : public WorkerBase
 {
 
   SendReceivePointsWorker(vtkMPIController* subController) :
-    WorkerBase(subController)
+    WorkerBase(subController), PointsFromMyNeighbors(nullptr),
+    RegionIdsFromMyNeighbors(nullptr)
   {
   }
 
@@ -478,11 +482,13 @@ int vtkPConnectivityFilter::RequestData(
     int saveScalarConnectivity = this->ScalarConnectivity;
     int saveExtractionMode = this->ExtractionMode;
     int saveColorRegions = this->ColorRegions;
+    int saveRegionIdAssignmentMode = this->RegionIdAssignmentMode;
 
     // Overwrite custom member variables temporarily.
     this->ScalarConnectivity = 0;
     this->ExtractionMode = VTK_EXTRACT_ALL_REGIONS;
     this->ColorRegions = 1;
+    this->RegionIdAssignmentMode = UNSPECIFIED;
 
     // Invoke the connectivity algorithm in the superclass.
     success = this->Superclass::RequestData(request, inputVector, outputVector);
@@ -490,6 +496,7 @@ int vtkPConnectivityFilter::RequestData(
     this->ScalarConnectivity = saveScalarConnectivity;
     this->ExtractionMode = saveExtractionMode;
     this->ColorRegions = saveColorRegions;
+    this->RegionIdAssignmentMode = saveRegionIdAssignmentMode;
   }
   else
   {
@@ -790,9 +797,15 @@ int vtkPConnectivityFilter::RequestData(
   std::vector< vtkIdType > localRegionSizes(numContiguousLabels, 0);
   if (cellRegionIds)
   {
-    // Iterate over cells and count how many are in different regions.
+    // Iterate over cells and count how many are in different regions. Count only non-ghost cells.
+    vtkUnsignedCharArray* cellGhostArray = output->GetCellGhostArray();
     for (vtkIdType i = 0; i < cellRegionIds->GetNumberOfValues(); ++i)
     {
+      if (cellGhostArray && cellGhostArray->GetTypedComponent(i, 0) &
+        vtkDataSetAttributes::DUPLICATECELL)
+      {
+        continue;
+      }
       localRegionSizes[cellRegionIds->GetValue(i)]++;
     }
   }
@@ -811,15 +824,26 @@ int vtkPConnectivityFilter::RequestData(
     this->RegionSizes->SetTypedTuple(i, &globalRegionSizes[i]);
   }
 
+  // Potentially reorder RegionIds in the output arrays.
+  this->OrderRegionIds(pointRegionIds, cellRegionIds);
+
   if (this->ExtractionMode == VTK_EXTRACT_LARGEST_REGION ||
       this->ExtractionMode == VTK_EXTRACT_CLOSEST_POINT_REGION)
   {
     double threshold = 0.0;
     if (this->ExtractionMode == VTK_EXTRACT_LARGEST_REGION)
     {
-      vtkIdType largestRegionId =
-        std::distance(globalRegionSizes.begin(),
-          std::max_element(globalRegionSizes.begin(), globalRegionSizes.end()));
+      vtkIdType largestRegionCount = 0;
+      vtkIdType largestRegionId = 0;
+      for (vtkIdType i = 0; i < this->RegionSizes->GetNumberOfTuples(); ++i)
+      {
+        vtkIdType candidateCount = this->RegionSizes->GetValue(i);
+        if (candidateCount > largestRegionCount)
+        {
+          largestRegionCount = candidateCount;
+          largestRegionId = i;
+        }
+      }
       threshold = largestRegionId;
     }
     else if (this->ExtractionMode == VTK_EXTRACT_CLOSEST_POINT_REGION)

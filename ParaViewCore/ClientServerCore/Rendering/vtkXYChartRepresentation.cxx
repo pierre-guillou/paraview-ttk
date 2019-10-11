@@ -48,7 +48,7 @@ protected:
 public:
   static SortTableFilter* New();
   int RequestData(
-    vtkInformation*, vtkInformationVector** inVector, vtkInformationVector* outVector) VTK_OVERRIDE
+    vtkInformation*, vtkInformationVector** inVector, vtkInformationVector* outVector) override
   {
     vtkTable* in = vtkTable::GetData(inVector[0], 0);
     vtkTable* out = vtkTable::GetData(outVector, 0);
@@ -362,11 +362,6 @@ void vtkXYChartRepresentation::PrepareForRendering()
   }
 
   this->PlotDataHasChanged = false;
-
-  if (this->GetChartType() == vtkChart::FUNCTIONALBAG)
-  {
-    chartXY->SetSelectionMethod(vtkChart::SELECTION_COLUMNS);
-  }
   chartXY->SetSelectionMethod(this->GetChartType() == vtkChart::FUNCTIONALBAG
       ? vtkChart::SELECTION_COLUMNS
       : vtkChart::SELECTION_ROWS);

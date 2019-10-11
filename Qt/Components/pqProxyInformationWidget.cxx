@@ -50,13 +50,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPVCompositeDataInformation.h"
 #include "vtkPVDataInformation.h"
 #include "vtkPVDataSetAttributesInformation.h"
+#include "vtkPVLogger.h"
 #include "vtkSMDomain.h"
 #include "vtkSMDomainIterator.h"
 #include "vtkSMDoubleVectorProperty.h"
 #include "vtkSMOutputPort.h"
 #include "vtkSMPropertyIterator.h"
 #include "vtkSmartPointer.h"
-#include "vtkTimerLog.h"
 
 #include "vtkPVGeneralSettings.h"
 
@@ -157,9 +157,6 @@ pqOutputPort* pqProxyInformationWidget::getOutputPort()
 //-----------------------------------------------------------------------------
 void pqProxyInformationWidget::updateInformation()
 {
-  vtkTimerLogScope mark("pqProxyInformationWidget::updateInformation");
-  (void)mark;
-
   this->Ui->compositeTreeModel->reset(nullptr);
   this->Ui->compositeTree->setVisible(false);
   this->Ui->filename->setText(tr("NA"));
@@ -182,9 +179,13 @@ void pqProxyInformationWidget::updateInformation()
 
   if (!source || !dataInformation)
   {
+    vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "update-information-panel (nullptr)");
     this->fillDataInformation(0);
     return;
   }
+
+  vtkVLogScopeF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "update-information-panel for `%s`",
+    source->getProxy()->GetLogNameOrDefault());
 
   if (this->Ui->compositeTreeModel->reset(dataInformation))
   {
@@ -281,6 +282,8 @@ void pqProxyInformationWidget::fillDataInformation(vtkPVDataInformation* dataInf
   this->Ui->numberOfTrees->setText(tr("NA"));
   this->Ui->numberOfVertices->setText(tr("NA"));
   this->Ui->numberOfLeaves->setText(tr("NA"));
+  this->Ui->numberOfGraphVertices->setText(tr("NA"));
+  this->Ui->numberOfGraphEdges->setText(tr("NA"));
   this->Ui->memory->setText(tr("NA"));
 
   this->Ui->dataArrays->clear();
@@ -323,6 +326,11 @@ void pqProxyInformationWidget::fillDataInformation(vtkPVDataInformation* dataInf
   QString numLeaves = QString("%1").arg(dataInformation->GetNumberOfLeaves());
   this->Ui->numberOfLeaves->setText(numLeaves);
 
+  this->Ui->numberOfGraphVertices->setText(numVertices);
+
+  QString numBonds = QString("%1").arg(dataInformation->GetNumberOfEdges());
+  this->Ui->numberOfGraphEdges->setText(numBonds);
+
   switch (dataInformation->GetDataSetType())
   {
     case VTK_TABLE:
@@ -333,6 +341,19 @@ void pqProxyInformationWidget::fillDataInformation(vtkPVDataInformation* dataInf
       this->Ui->dataTypeProperties->setCurrentWidget(this->Ui->HyperTreeGrid);
       break;
 
+    case VTK_DIRECTED_GRAPH:
+    case VTK_UNDIRECTED_GRAPH:
+    case VTK_GRAPH:
+      this->Ui->graphVertexLabel->setText("Number of Vertices");
+      this->Ui->graphEdgeLabel->setText("Number of Edges");
+      this->Ui->dataTypeProperties->setCurrentWidget(this->Ui->Graph);
+      break;
+
+    case VTK_MOLECULE:
+      this->Ui->graphVertexLabel->setText("Number of Atoms");
+      this->Ui->graphEdgeLabel->setText("Number of Bonds");
+      this->Ui->dataTypeProperties->setCurrentWidget(this->Ui->Graph);
+      break;
     default:
       this->Ui->dataTypeProperties->setCurrentWidget(this->Ui->DataSet);
       break;

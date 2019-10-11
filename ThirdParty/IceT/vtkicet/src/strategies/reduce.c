@@ -382,8 +382,8 @@ group_sizes[(tile)]++;
             }
 #ifdef DEBUG
             if (num_contributors != contrib_counts[tile]) {
-                icetRaiseError("Miscounted number of tile contributions",
-                               ICET_SANITY_CHECK_FAIL);
+                icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                               "Miscounted number of tile contributions");
             }
 #endif
 
@@ -408,8 +408,8 @@ group_sizes[(tile)]++;
                     }
 #ifdef DEBUG
                     if (j < 0) {
-                        icetRaiseError("node_assignment/proc_group mismatch",
-                                       ICET_SANITY_CHECK_FAIL);
+                        icetRaiseError(ICET_SANITY_CHECK_FAIL,
+                                       "node_assignment/proc_group mismatch");
                     }
 #endif
                 }
@@ -426,8 +426,9 @@ group_sizes[(tile)]++;
                 }
 #ifdef DEBUG
                 if (i == group_sizes[tile]) {
-                    icetRaiseError("Display process not participating in tile?",
-                                   ICET_SANITY_CHECK_FAIL);
+                    icetRaiseError(
+                        ICET_SANITY_CHECK_FAIL,
+                        "Display process not participating in tile?");
                 }
 #endif
             }

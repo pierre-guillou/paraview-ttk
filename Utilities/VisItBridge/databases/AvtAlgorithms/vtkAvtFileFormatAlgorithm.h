@@ -74,7 +74,7 @@ class VTKIOVISITBRIDGE_EXPORT vtkAvtFileFormatAlgorithm : public vtkCompositeDat
 public:
   static vtkAvtFileFormatAlgorithm *New();
   vtkTypeMacro(vtkAvtFileFormatAlgorithm,vtkCompositeDataSetAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Get the number of point or cell arrays available in the input.
@@ -123,30 +123,30 @@ protected:
   //level piece loading
   int ProcessRequest(vtkInformation* request,
                      vtkInformationVector** inputVector,
-                     vtkInformationVector* outputVector) VTK_OVERRIDE;
+                     vtkInformationVector* outputVector) override;
   // Description:
   // This is called by the superclass.
   // This is the method you should override.
   int RequestInformation(vtkInformation* request,
                          vtkInformationVector** inputVector,
-                         vtkInformationVector* outputVector) VTK_OVERRIDE;
+                         vtkInformationVector* outputVector) override;
 
   // Description:
   // This is called by the superclass.
   // This is the method you should override.
   int RequestData(vtkInformation* request,
                   vtkInformationVector** inputVector,
-                  vtkInformationVector* outputVector) VTK_OVERRIDE;
+                  vtkInformationVector* outputVector) override;
 
   // Description:
   // This is called by the superclass.
   // This is the method you should override.
   int RequestUpdateExtent(vtkInformation*,
                           vtkInformationVector**,
-                          vtkInformationVector*) VTK_OVERRIDE;
+                          vtkInformationVector*) override;
 
   // see algorithm for more info
-  int FillOutputPortInformation(int port, vtkInformation* info) VTK_OVERRIDE;
+  int FillOutputPortInformation(int port, vtkInformation* info) override;
 
   //methods that setup selection arrays that the client will interact with
   void SetupDataArraySelections();

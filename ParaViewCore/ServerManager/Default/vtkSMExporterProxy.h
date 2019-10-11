@@ -35,7 +35,7 @@ class VTKPVSERVERMANAGERDEFAULT_EXPORT vtkSMExporterProxy : public vtkSMProxy
 {
 public:
   vtkTypeMacro(vtkSMExporterProxy, vtkSMProxy);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -63,21 +63,13 @@ public:
   const std::vector<std::string>& GetFileExtensions() const { return this->FileExtensions; };
   //@}
 
-  //@{
-  /**
-   * Returns the suggested file extension for this exporter.
-   * @deprecated in ParaView 5.5. Use `GetFileExtensions` instead.
-   */
-  VTK_LEGACY(const char* GetFileExtension());
-  //@}
-
 protected:
   vtkSMExporterProxy();
   ~vtkSMExporterProxy() override;
   /**
    * Read attributes from an XML element.
    */
-  int ReadXMLAttributes(vtkSMSessionProxyManager* pm, vtkPVXMLElement* element) VTK_OVERRIDE;
+  int ReadXMLAttributes(vtkSMSessionProxyManager* pm, vtkPVXMLElement* element) override;
 
   vtkSMViewProxy* View;
   std::vector<std::string> FileExtensions;

@@ -92,6 +92,7 @@ JAVADOC_AUTOBRIEF    = YES
 SORT_MEMBER_DOCS     = NO
 DISTRIBUTE_GROUP_DOC = YES
 TAB_SIZE             = 3
+HTML_TIMESTAMP       = YES
 SHORT_NAMES          = @DOXYGEN_SHORT_NAMES@
 # PAPER_TYPE           = letter
 
@@ -178,8 +179,8 @@ PREDEFINED  = "vtkSetMacro(name,type)= \
                    private: \
                    virtual const char* GetClassNameInternal() const; \
                    public: \
-                   static int IsTypeOf(const char *type); \
-                   virtual int IsA(const char *type); \
+                   static vtkTypeBool IsTypeOf(const char *type); \
+                   virtual vtkTypeBool IsA(const char *type); \
                    static thisClass* SafeDownCast(vtkObjectBase *o); \
                    protected: \
                    virtual vtkObjectBase *NewInstanceInternal() const; \

@@ -257,7 +257,7 @@ void vtkTetra::Contour(double value, vtkDataArray *cellScalars,
                        vtkPointData *inPd, vtkPointData *outPd,
                        vtkCellData *inCd, vtkIdType cellId, vtkCellData *outCd)
 {
-  static int CASE_MASK[4] = {1,2,4,8};
+  static const int CASE_MASK[4] = {1,2,4,8};
   TRIANGLE_CASES *triCase;
   EDGE_LIST  *edge;
   int i, j, index, *vert, v1, v2, newCellId;
@@ -334,6 +334,15 @@ void vtkTetra::Contour(double value, vtkDataArray *cellScalars,
 int *vtkTetra::GetEdgeArray(int edgeId)
 {
   return edges[edgeId];
+}
+
+//----------------------------------------------------------------------------
+// Return the case table for table-based isocontouring (aka marching cubes
+// style implementations). A linear 3D cell with N vertices will have 2**N
+// cases. The cases list three edges in order to produce one output triangle.
+int *vtkTetra::GetTriangleCases(int caseId)
+{
+  return triCases[caseId].edges;
 }
 
 //----------------------------------------------------------------------------
@@ -830,7 +839,7 @@ void vtkTetra::Clip(double value, vtkDataArray *cellScalars,
                     vtkCellData *inCD, vtkIdType cellId, vtkCellData *outCD,
                     int insideOut)
 {
-  static int CASE_MASK[4] = {1,2,4,8};
+  static const int CASE_MASK[4] = {1,2,4,8};
   TETRA_CASES *tetraCase;
   TETRA_EDGE_LIST  *edge;
   int i, j, index, *vert, newCellId;
