@@ -57,9 +57,9 @@ endif()
 set(SUPPORT_STATIC_PLUGINS TRUE)
 
 if (PARAVIEW_VERSION_NICKNAME)
-  set(title "ParaView ${PARAVIEW_VERSION_NICKNAME} ${PARAVIEW_BUILD_ARCHITECTURE}-bit")
+  set(title "TTK 0.9.8 - ParaView ${PARAVIEW_VERSION_NICKNAME} ${PARAVIEW_BUILD_ARCHITECTURE}-bit")
 else()
-  set(title "ParaView ${PARAVIEW_VERSION_FULL} ${PARAVIEW_BUILD_ARCHITECTURE}-bit")
+  set(title "TTK 0.9.8 - ParaView ${PARAVIEW_VERSION_FULL} ${PARAVIEW_BUILD_ARCHITECTURE}-bit")
 endif()
 
 #------------------------------------------------------------------------------
@@ -67,7 +67,7 @@ endif()
 build_paraview_client(paraview
     APPLICATION_NAME "ParaView"
     TITLE ${title}
-    ORGANIZATION  "ParaView"
+    ORGANIZATION  "TTK"
     VERSION_MAJOR ${PARAVIEW_VERSION_MAJOR}
     VERSION_MINOR ${PARAVIEW_VERSION_MINOR}
     VERSION_PATCH ${PARAVIEW_VERSION_PATCH}

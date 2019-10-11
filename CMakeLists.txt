@@ -986,3 +986,17 @@ if (NOT WIN32 AND is_git)
   add_dependencies(paraview-source-tgz paraview-source-txz)
   add_dependencies(paraview-source-txz paraview-source-zip)
 endif ()
+
+#-----------------------------------------------------------------------------
+# Install TTK example data
+install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example1.vti
+  DESTINATION ${VTK_INSTALL_DATA_DIR}/data/
+  COMPONENT Development)
+
+install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example2.vti
+  DESTINATION ${VTK_INSTALL_DATA_DIR}/data/
+  COMPONENT Development)
+
+install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example3.vti
+  DESTINATION ${VTK_INSTALL_DATA_DIR}/data/
+  COMPONENT Development)
