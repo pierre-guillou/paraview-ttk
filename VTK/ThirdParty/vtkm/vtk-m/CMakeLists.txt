@@ -302,7 +302,7 @@ if(NOT VTKm_INSTALL_ONLY_LIBRARIES)
     )
 endif()
 
-vtkm_option(VTKm_ENABLE_CPACK "Enable CPack packaging of VTKm" ON)
+vtkm_option(VTKm_ENABLE_CPACK "Enable CPack packaging of VTKm" OFF)
 if (VTKm_ENABLE_CPACK)
   # Enable CPack packaging
   set(CPACK_PACKAGE_DESCRIPTION_FILE ${VTKm_SOURCE_DIR}/README.md)
