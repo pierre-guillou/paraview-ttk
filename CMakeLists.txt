@@ -1000,3 +1000,18 @@ install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example2.vti
 install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example3.vti
   DESTINATION ${VTK_INSTALL_DATA_DIR}/data/
   COMPONENT Development)
+
+#-----------------------------------------------------------------------------
+# Generate a .deb package
+set(CPACK_PACKAGE_NAME "TTK-ParaView")
+set(CPACK_PACKAGE_FILE_NAME "TTK-ParaView")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ParaView built with TTK patches")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "/home/pierre/Projects/paraview/README.md")
+set(CPACK_PACKAGE_VERSION "5.6.1")
+set(CPACK_PACKAGE_VERSION_MAJOR "5")
+set(CPACK_PACKAGE_VERSION_MINOR "6")
+set(CPACK_PACKAGE_VERSION_PATCH "1")
+set(CPACK_GENERATOR "DEB")
+set(CPACK_PACKAGE_CONTACT "Julien Tierny <julien.tierny@sorbonne-universite.fr>")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libvtk7-dev, qt5-default, qttools5-dev, libqt5x11extras5-dev")
+include(CPack)
