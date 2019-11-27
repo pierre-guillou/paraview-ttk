@@ -4,6 +4,7 @@ function install_build_deb {
     sudo apt install -y \
          ccache \
          cmake-curses-gui \
+         dpkg-dev \
          g++ \
          git \
          libegl1-mesa-dev \

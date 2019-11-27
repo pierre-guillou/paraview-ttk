@@ -1012,5 +1012,6 @@ set(CPACK_PACKAGE_VERSION_MINOR "6")
 set(CPACK_PACKAGE_VERSION_PATCH "1")
 set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGE_CONTACT "Julien Tierny <julien.tierny@sorbonne-universite.fr>")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libpython3.6, qt5-default, libqt5x11extras5, libegl1-mesa, libxt6")
+# autogenerate dependency information
+set (CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 include(CPack)
