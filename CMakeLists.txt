@@ -1112,3 +1112,17 @@ endif()
 if (PARAVIEW_ENABLE_EXAMPLES)
   add_subdirectory(Examples)
 endif ()
+
+#-----------------------------------------------------------------------------
+# Install TTK example data
+install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example1.vti
+  DESTINATION share/paraview-5.7/examples/
+  COMPONENT Development)
+
+install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example2.vti
+  DESTINATION share/paraview-5.7/examples/
+  COMPONENT Development)
+
+install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example3.vti
+  DESTINATION share/paraview-5.7/examples/
+  COMPONENT Development)
