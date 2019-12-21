@@ -51,8 +51,8 @@ endif ()
 get_property(generator_is_multi_config GLOBAL
   PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if (NOT CMAKE_BUILD_TYPE AND NOT generator_is_multi_config)
-  message(STATUS "Setting build type to 'Debug' as none was specified.")
-  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+  message(STATUS "Setting build type to 'Release' as none was specified.")
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
   # Set the possible values of build type for cmake-gui
   set_property(CACHE CMAKE_BUILD_TYPE
     PROPERTY
@@ -167,7 +167,7 @@ option(PARAVIEW_BUILD_DEVELOPER_DOCUMENTATION "Build ParaView C++/Python docs" O
 option(PARAVIEW_BUILD_QT_GUI "Enable ParaView Qt-based client" ON)
 option(PARAVIEW_USE_MPI "Enable MPI support for parallel computing" OFF)
 option(PARAVIEW_USE_VTKM "Enable VTK-m accelerated algorithms" ON)
-set(raytracing_default OFF)
+set(raytracing_default ON)
 if (DEFINED PARAVIEW_USE_OSPRAY)
   message(DEPRECATION
     "PARAVIEW_USE_OSPRAY has been renamed to PARAVIEW_USE_RAYTRACING.")
@@ -183,7 +183,7 @@ mark_as_advanced(PARAVIEW_INSTALL_DEVELOPMENT_FILES)
 option(PARAVIEW_RELOCATABLE_INSTALL "Do not embed hard-coded paths into the install" ON)
 mark_as_advanced(PARAVIEW_RELOCATABLE_INSTALL)
 
-option(PARAVIEW_ENABLE_PYTHON "Enable/Disable Python scripting support" OFF)
+option(PARAVIEW_ENABLE_PYTHON "Enable/Disable Python scripting support" ON)
 
 set(paraview_web_default ON)
 if (PARAVIEW_ENABLE_PYTHON AND WIN32)
