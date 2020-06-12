@@ -17,7 +17,7 @@
 // Needed so we can conditionally include components
 #include <thrust/version.h>
 
-#if THRUST_VERSION >= 100900
+#if THRUST_VERSION >= 100900 && THRUST_VERSION < 100906
 //So for thrust 1.9.0+ ( CUDA 9.X+ ) the aligned_reinterpret_cast has a bug
 //where it is not marked as __host__device__. To fix this we add a new
 //overload for void* with the correct markup (which is what everyone calls).
@@ -131,6 +131,9 @@ ALIGN_RE_T(vtkm::Int16);
 ALIGN_RE_T(vtkm::UInt16);
 ALIGN_RE_T(vtkm::Int32);
 ALIGN_RE_T(vtkm::UInt32);
+// Need these for vtk. don't need long long, since those are used for [U]Int64.
+ALIGN_RE_T(long);
+ALIGN_RE_T(unsigned long);
 ALIGN_RE_T(vtkm::Int64);
 ALIGN_RE_T(vtkm::UInt64);
 ALIGN_RE_T(vtkm::Float32);
@@ -144,6 +147,9 @@ ALIGN_RE_VEC(vtkm::Int16);
 ALIGN_RE_VEC(vtkm::UInt16);
 ALIGN_RE_VEC(vtkm::Int32);
 ALIGN_RE_VEC(vtkm::UInt32);
+// Need these for vtk. don't need long long, since those are used for [U]Int64.
+ALIGN_RE_VEC(long);
+ALIGN_RE_VEC(unsigned long);
 ALIGN_RE_VEC(vtkm::Int64);
 ALIGN_RE_VEC(vtkm::UInt64);
 ALIGN_RE_VEC(vtkm::Float32);

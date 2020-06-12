@@ -40,7 +40,7 @@
  * This class was modified by Philippe Pebay, 2016
  * This work was supported by Commissariat a l'Energie Atomique (CEA/DIF)
  * CEA, DAM, DIF, F-91297 Arpajon, France.
-*/
+ */
 
 #ifndef vtkHyperTreeGridSource_h
 #define vtkHyperTreeGridSource_h
@@ -48,8 +48,8 @@
 #include "vtkFiltersSourcesModule.h" // For export macro
 #include "vtkHyperTreeGridAlgorithm.h"
 
+#include <map>    // STL Header
 #include <string> // STL Header
-#include <map> // STL Header
 #include <vector> // STL Header
 
 class vtkBitArray;
@@ -63,16 +63,22 @@ class vtkQuadric;
 class VTKFILTERSSOURCES_EXPORT vtkHyperTreeGridSource : public vtkHyperTreeGridAlgorithm
 {
 public:
-  vtkTypeMacro(vtkHyperTreeGridSource,vtkHyperTreeGridAlgorithm);
+  vtkTypeMacro(vtkHyperTreeGridSource, vtkHyperTreeGridAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   static vtkHyperTreeGridSource* New();
+
+  // @deprecated Replaced by GetMaxDepth() as of VTK 9
+  VTK_LEGACY(unsigned int GetMaximumLevel());
+
+  // @deprecated Replaced by SetMaxDepth() as of VTK 9
+  VTK_LEGACY(void SetMaximumLevel(unsigned int levels));
 
   /**
    * Return the maximum number of levels of the hypertree.
    * \post positive_result: result>=1
    */
-  unsigned int GetMaximumLevel();
+  unsigned int GetMaxDepth();
 
   /**
    * Set the maximum number of levels of the hypertrees.
@@ -80,7 +86,7 @@ public:
    * \post is_set: this->GetLevels()==levels
    * \post min_is_valid: this->GetMinLevels()<this->GetLevels()
    */
-  void SetMaximumLevel( unsigned int levels );
+  void SetMaxDepth(unsigned int levels);
 
   //@{
   /**
@@ -96,15 +102,15 @@ public:
    */
   vtkSetVector3Macro(GridScale, double);
   vtkGetVector3Macro(GridScale, double);
-  void SetGridScale( double scale ) { this->SetGridScale( scale, scale, scale); }
+  void SetGridScale(double scale) { this->SetGridScale(scale, scale, scale); }
   //@}
 
   //@{
   /**
    * Set/Get the number of root cells + 1 in each dimension of the grid
    */
-  void SetDimensions( const unsigned int *dims );
-  void SetDimensions( unsigned int, unsigned int, unsigned int );
+  void SetDimensions(const unsigned int* dims);
+  void SetDimensions(unsigned int, unsigned int, unsigned int);
   vtkGetVector3Macro(Dimensions, unsigned int);
   //@}
 
@@ -187,28 +193,28 @@ public:
   /**
    * Set/Get the bitarray used to describe the grid.
    */
-  virtual void SetDescriptorBits( vtkBitArray* );
-  vtkGetObjectMacro( DescriptorBits, vtkBitArray );
+  virtual void SetDescriptorBits(vtkBitArray*);
+  vtkGetObjectMacro(DescriptorBits, vtkBitArray);
   //@}
 
   /**
    * Set the index array used to as a material mask.
    */
-  virtual void SetLevelZeroMaterialIndex( vtkIdTypeArray* );
+  virtual void SetLevelZeroMaterialIndex(vtkIdTypeArray*);
 
   //@{
   /**
    * Set/Get the bitarray used as a material mask.
    */
-  virtual void SetMaskBits( vtkBitArray* );
-  vtkGetObjectMacro( MaskBits, vtkBitArray );
+  virtual void SetMaskBits(vtkBitArray*);
+  vtkGetObjectMacro(MaskBits, vtkBitArray);
   //@}
 
   //@{
   /**
    * Set/Get the quadric function.
    */
-  virtual void SetQuadric( vtkQuadric* );
+  virtual void SetQuadric(vtkQuadric*);
   vtkGetObjectMacro(Quadric, vtkQuadric);
   //@}
 
@@ -216,8 +222,8 @@ public:
   /**
    * Helpers to set/get the 10 coefficients of the quadric function
    */
-  void SetQuadricCoefficients( double[10] );
-  void GetQuadricCoefficients( double[10] );
+  void SetQuadricCoefficients(double[10]);
+  void GetQuadricCoefficients(double[10]);
   double* GetQuadricCoefficients();
   //@}
 
@@ -230,29 +236,24 @@ public:
   /**
    * Helpers to convert string descriptors & mask to bit arrays
    */
-  vtkBitArray* ConvertDescriptorStringToBitArray( const std::string& );
-  vtkBitArray* ConvertMaskStringToBitArray( const std::string& );
+  vtkBitArray* ConvertDescriptorStringToBitArray(const std::string&);
+  vtkBitArray* ConvertMaskStringToBitArray(const std::string&);
   //@}
 
 protected:
   vtkHyperTreeGridSource();
   ~vtkHyperTreeGridSource() override;
 
-  int RequestInformation( vtkInformation*,
-                          vtkInformationVector**,
-                          vtkInformationVector* ) override;
+  int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-  int RequestData( vtkInformation*,
-                   vtkInformationVector**,
-                   vtkInformationVector* ) override;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-  int FillOutputPortInformation( int, vtkInformation* ) override;
+  int FillOutputPortInformation(int, vtkInformation*) override;
 
   /**
    * Main routine to process individual trees in the grid
    */
-  int ProcessTrees( vtkHyperTreeGrid*,
-                    vtkDataObject* ) override;
+  int ProcessTrees(vtkHyperTreeGrid*, vtkDataObject*) override;
 
   /**
    * Initialize grid from descriptor string when it is to be used
@@ -267,56 +268,42 @@ protected:
   /**
    * Initialize tree grid from descriptor and call subdivide if needed
    */
-  void InitTreeFromDescriptor( vtkHyperTreeGrid* output,
-                               vtkHyperTreeGridNonOrientedCursor* cursor,
-                               int treeIdx,
-                               int idx[3] );
+  void InitTreeFromDescriptor(
+    vtkHyperTreeGrid* output, vtkHyperTreeGridNonOrientedCursor* cursor, int treeIdx, int idx[3]);
 
   /**
    * Subdivide grid from descriptor string when it is to be used
    */
-  void SubdivideFromStringDescriptor( vtkHyperTreeGrid* output,
-                                      vtkHyperTreeGridNonOrientedCursor* cursor,
-                                      unsigned int level,
-                                      int treeIdx,
-                                      int childIdx,
-                                      int idx[3],
-                                      int parentPos );
+  void SubdivideFromStringDescriptor(vtkHyperTreeGrid* output,
+    vtkHyperTreeGridNonOrientedCursor* cursor, unsigned int level, int treeIdx, int childIdx,
+    int idx[3], int parentPos);
 
   /**
    * Subdivide grid from descriptor string when it is to be used
    */
-  void SubdivideFromBitsDescriptor( vtkHyperTreeGrid* output,
-                                    vtkHyperTreeGridNonOrientedCursor* cursor,
-                                    unsigned int level,
-                                    int treeIdx,
-                                    int childIdx,
-                                    int idx[3],
-                                    int parentPos );
+  void SubdivideFromBitsDescriptor(vtkHyperTreeGrid* output,
+    vtkHyperTreeGridNonOrientedCursor* cursor, unsigned int level, int treeIdx, int childIdx,
+    int idx[3], int parentPos);
 
   /**
    * Subdivide grid from quadric when descriptor is not used
    */
-  void SubdivideFromQuadric( vtkHyperTreeGrid* output,
-                             vtkHyperTreeGridNonOrientedCursor* cursor,
-                             unsigned int level,
-                             int treeIdx,
-                             const int idx[3],
-                             double origin[3],
-                             double size[3] );
+  void SubdivideFromQuadric(vtkHyperTreeGrid* output, vtkHyperTreeGridNonOrientedCursor* cursor,
+    unsigned int level, int treeIdx, const int idx[3], double origin[3], double size[3]);
 
   /**
    * Evaluate quadric at given point coordinates
    */
-  double EvaluateQuadric( double[3] );
+  double EvaluateQuadric(double[3]);
 
   double Origin[3];
   double GridScale[3];
   unsigned int Dimension;
+
 protected:
   unsigned int Dimensions[3];
   bool TransposedRootIndexing;
-  unsigned int MaximumLevel;
+  unsigned int MaxDepth;
 
   unsigned int Orientation;
   unsigned int BranchFactor;

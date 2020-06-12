@@ -97,6 +97,7 @@ public:
     : ParentWidget(qobject_cast<QWidget*>(widgetOrWindow))
     , ParentWindow(qobject_cast<QWindow*>(widgetOrWindow))
     , Self(self)
+    , InteractorAdapter(widgetOrWindow)
     , RenderWindow(renWin)
     , Context(cntxt)
     , Surface(nullptr)
@@ -123,26 +124,27 @@ public:
     // that to this method.
     this->Surface = this->Context->surface();
 
-    this->RenderWindowObserverIds.push_back(
-      renWin->AddObserver(vtkCommand::WindowMakeCurrentEvent, this, &QVTKInternals::renderWindowEventHandler));
-    this->RenderWindowObserverIds.push_back(
-      renWin->AddObserver(vtkCommand::WindowIsCurrentEvent, this, &QVTKInternals::renderWindowEventHandler));
-    this->RenderWindowObserverIds.push_back(
-      renWin->AddObserver(vtkCommand::WindowFrameEvent, this, &QVTKInternals::renderWindowEventHandler));
+    this->RenderWindowObserverIds.push_back(renWin->AddObserver(
+      vtkCommand::WindowMakeCurrentEvent, this, &QVTKInternals::renderWindowEventHandler));
+    this->RenderWindowObserverIds.push_back(renWin->AddObserver(
+      vtkCommand::WindowIsCurrentEvent, this, &QVTKInternals::renderWindowEventHandler));
+    this->RenderWindowObserverIds.push_back(renWin->AddObserver(
+      vtkCommand::WindowFrameEvent, this, &QVTKInternals::renderWindowEventHandler));
     this->RenderWindowObserverIds.push_back(
       renWin->AddObserver(vtkCommand::StartEvent, this, &QVTKInternals::renderWindowEventHandler));
     this->RenderWindowObserverIds.push_back(
       renWin->AddObserver(vtkCommand::EndEvent, this, &QVTKInternals::renderWindowEventHandler));
-    this->RenderWindowObserverIds.push_back(
-      renWin->AddObserver(vtkCommand::CursorChangedEvent, this, &QVTKInternals::renderWindowEventHandler));
+    this->RenderWindowObserverIds.push_back(renWin->AddObserver(
+      vtkCommand::CursorChangedEvent, this, &QVTKInternals::renderWindowEventHandler));
 
     // First and foremost, make sure vtkRenderWindow is not using offscreen
     // buffers as that throws off all logic to render in the buffers we're
     // building and frankly unnecessary.
     if (this->RenderWindow->GetUseOffScreenBuffers())
     {
-      vtkGenericWarningMacro("disabling `UseOffScreenBuffers` since QVTKRenderWindowAdapter already "
-          "uses offscreen buffers (FBO) for rendering");
+      vtkGenericWarningMacro(
+        "disabling `UseOffScreenBuffers` since QVTKRenderWindowAdapter already "
+        "uses offscreen buffers (FBO) for rendering");
       this->RenderWindow->SetUseOffScreenBuffers(false);
     }
 
@@ -166,7 +168,6 @@ public:
     QVTKInternalsDebugMacro("destructor");
     Q_ASSERT(this->RenderWindow);
     Q_ASSERT(this->Context);
-    this->makeCurrent();
     this->Logger.reset(nullptr);
     for (const auto& id : this->RenderWindowObserverIds)
     {
@@ -234,6 +235,7 @@ public:
     else
     {
       this->FBO->bind();
+      this->RenderWindow->GetState()->ResetFramebufferBindings();
     }
   }
 
@@ -298,14 +300,15 @@ public:
       // if we're using double buffer, but explicitly rendering to back buffer,
       // means that we don't want the thing we rendered displayed on the screen.
       // in which case, we ignore this frame result.
-      vtkLogF(TRACE, "frame using_double_buffer=%d, swap_buffers=%d -- ignored", using_double_buffer, this->RenderWindow->GetSwapBuffers());
+      vtkLogF(TRACE, "frame using_double_buffer=%d, swap_buffers=%d -- ignored",
+        using_double_buffer, this->RenderWindow->GetSwapBuffers());
       return;
     }
 
-    vtkLogF(TRACE, "frame using_double_buffer=%d, swap_buffers=%d", using_double_buffer, this->RenderWindow->GetSwapBuffers());
+    vtkLogF(TRACE, "frame using_double_buffer=%d, swap_buffers=%d", using_double_buffer,
+      this->RenderWindow->GetSwapBuffers());
     if (using_double_buffer)
     {
-      SWAP_BUFFER_IDS(this->RenderWindow, FrontBuffer, BackBuffer);
       SWAP_BUFFER_IDS(this->RenderWindow, FrontLeftBuffer, BackLeftBuffer);
       SWAP_BUFFER_IDS(this->RenderWindow, FrontRightBuffer, BackRightBuffer);
     }
@@ -324,7 +327,7 @@ public:
     }
   }
 
-  bool blit(unsigned int targetId, int targetAttachement, const QRect& targetRect, bool left)
+  bool blit(unsigned int targetId, int targetAttachment, const QRect& targetRect, bool left)
   {
     QVTKInternalsDebugMacro("blit");
     if (!this->Context || !this->FBO)
@@ -338,11 +341,13 @@ public:
     }
 
     f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, targetId);
-    f->glDrawBuffer(targetAttachement);
+    f->glDrawBuffer(targetAttachment);
 
     f->glBindFramebuffer(GL_READ_FRAMEBUFFER, this->FBO->handle());
     f->glReadBuffer(
       left ? this->RenderWindow->GetFrontLeftBuffer() : this->RenderWindow->GetFrontRightBuffer());
+
+    this->RenderWindow->GetState()->ResetFramebufferBindings();
 
     GLboolean scissorTest = f->glIsEnabled(GL_SCISSOR_TEST);
     if (scissorTest == GL_TRUE)
@@ -549,14 +554,12 @@ void QVTKRenderWindowAdapter::QVTKInternals::recreateFBO()
 
   int attachmentIncrement = 0;
   renWin->SetFrontLeftBuffer(GL_COLOR_ATTACHMENT0 + attachmentIncrement);
-  renWin->SetFrontBuffer(GL_COLOR_ATTACHMENT0 + attachmentIncrement);
   if (renWin->GetDoubleBuffer())
   {
     this->FBO->addColorAttachment(size);
     attachmentIncrement++;
   }
   renWin->SetBackLeftBuffer(GL_COLOR_ATTACHMENT0 + attachmentIncrement);
-  renWin->SetBackBuffer(GL_COLOR_ATTACHMENT0 + attachmentIncrement);
 
   if (/*this->Context->format().stereo() &&*/ renWin->GetStereoCapableWindow())
   {
@@ -575,9 +578,10 @@ void QVTKRenderWindowAdapter::QVTKInternals::recreateFBO()
     renWin->SetFrontRightBuffer(GL_COLOR_ATTACHMENT0 + attachmentIncrement);
     renWin->SetBackRightBuffer(GL_COLOR_ATTACHMENT0 + attachmentIncrement);
   }
+  renWin->OpenGLInitState();
   this->FBO->bind();
   renWin->SetDefaultFrameBufferId(this->FBO->handle());
-  renWin->OpenGLInitState();
+  renWin->GetState()->ResetFramebufferBindings();
 }
 
 //-----------------------------------------------------------------------------
@@ -737,7 +741,7 @@ QSurfaceFormat QVTKRenderWindowAdapter::defaultFormat(bool stereo_capable)
   fmt.setAlphaBufferSize(8);
   fmt.setStencilBufferSize(0);
   fmt.setStereo(stereo_capable);
-  fmt.setSamples(0); // we never need multisampling in the context since the FBO can support multisamples
-                     // independently
+  fmt.setSamples(0); // we never need multisampling in the context since the FBO can support
+                     // multisamples independently
   return fmt;
 }

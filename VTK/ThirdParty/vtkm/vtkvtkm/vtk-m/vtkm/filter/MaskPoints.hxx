@@ -8,23 +8,8 @@
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
 
-namespace
-{
-
-// Needed to CompactPoints
-template <typename BasePolicy>
-struct CellSetSingleTypePolicy : public BasePolicy
-{
-  using AllCellSetList = vtkm::cont::CellSetListTagUnstructured;
-};
-
-template <typename DerivedPolicy>
-inline vtkm::filter::PolicyBase<CellSetSingleTypePolicy<DerivedPolicy>> GetCellSetSingleTypePolicy(
-  const vtkm::filter::PolicyBase<DerivedPolicy>&)
-{
-  return vtkm::filter::PolicyBase<CellSetSingleTypePolicy<DerivedPolicy>>();
-}
-}
+#ifndef vtk_m_filter_MaskPoints_hxx
+#define vtk_m_filter_MaskPoints_hxx
 
 namespace vtkm
 {
@@ -46,17 +31,17 @@ inline VTKM_CONT vtkm::cont::DataSet MaskPoints::DoExecute(
   vtkm::filter::PolicyBase<DerivedPolicy> policy)
 {
   // extract the input cell set
-  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet(this->GetActiveCellSetIndex());
+  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet();
 
   // run the worklet on the cell set and input field
   vtkm::cont::CellSetSingleType<> outCellSet;
   vtkm::worklet::MaskPoints worklet;
 
-  outCellSet = worklet.Run(vtkm::filter::ApplyPolicy(cells, policy), this->Stride);
+  outCellSet = worklet.Run(vtkm::filter::ApplyPolicyCellSet(cells, policy), this->Stride);
 
   // create the output dataset
   vtkm::cont::DataSet output;
-  output.AddCellSet(outCellSet);
+  output.SetCellSet(outCellSet);
   output.AddCoordinateSystem(input.GetCoordinateSystem(this->GetActiveCoordinateSystemIndex()));
 
   // compact the unused points in the output dataset
@@ -64,7 +49,7 @@ inline VTKM_CONT vtkm::cont::DataSet MaskPoints::DoExecute(
   {
     this->Compactor.SetCompactPointFields(true);
     this->Compactor.SetMergePoints(false);
-    return this->Compactor.DoExecute(output, GetCellSetSingleTypePolicy(policy));
+    return this->Compactor.Execute(output, PolicyDefault{});
   }
   else
   {
@@ -98,3 +83,4 @@ inline VTKM_CONT bool MaskPoints::DoMapField(vtkm::cont::DataSet& result,
 }
 }
 }
+#endif

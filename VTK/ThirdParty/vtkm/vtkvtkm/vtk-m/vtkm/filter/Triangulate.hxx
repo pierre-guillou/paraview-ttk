@@ -7,8 +7,8 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
-
-#include <vtkm/worklet/DispatcherMapField.h>
+#ifndef vtk_m_filter_Triangulate_hxx
+#define vtk_m_filter_Triangulate_hxx
 
 namespace
 {
@@ -26,11 +26,25 @@ public:
   }
 
   template <typename CellSetType>
-  void operator()(const CellSetType& cellset) const
+  void operator()(const CellSetType& vtkmNotUsed(cellset)) const
   {
-    this->OutCellSet = Worklet.Run(cellset);
   }
 };
+template <>
+void DeduceCellSet::operator()(const vtkm::cont::CellSetExplicit<>& cellset) const
+{
+  this->OutCellSet = Worklet.Run(cellset);
+}
+template <>
+void DeduceCellSet::operator()(const vtkm::cont::CellSetStructured<2>& cellset) const
+{
+  this->OutCellSet = Worklet.Run(cellset);
+}
+template <>
+void DeduceCellSet::operator()(const vtkm::cont::CellSetStructured<3>& cellset) const
+{
+  this->OutCellSet = Worklet.Run(cellset);
+}
 }
 
 namespace vtkm
@@ -51,16 +65,16 @@ inline VTKM_CONT vtkm::cont::DataSet Triangulate::DoExecute(
   const vtkm::cont::DataSet& input,
   vtkm::filter::PolicyBase<DerivedPolicy> policy)
 {
-  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet(this->GetActiveCellSetIndex());
+  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet();
 
   vtkm::cont::CellSetSingleType<> outCellSet;
   DeduceCellSet triangulate(this->Worklet, outCellSet);
 
-  vtkm::cont::CastAndCall(vtkm::filter::ApplyPolicy(cells, policy), triangulate);
+  vtkm::cont::CastAndCall(vtkm::filter::ApplyPolicyCellSet(cells, policy), triangulate);
 
   // create the output dataset
   vtkm::cont::DataSet output;
-  output.AddCellSet(outCellSet);
+  output.SetCellSet(outCellSet);
   output.AddCoordinateSystem(input.GetCoordinateSystem(this->GetActiveCoordinateSystemIndex()));
 
   return output;
@@ -93,3 +107,4 @@ inline VTKM_CONT bool Triangulate::DoMapField(vtkm::cont::DataSet& result,
 }
 }
 }
+#endif

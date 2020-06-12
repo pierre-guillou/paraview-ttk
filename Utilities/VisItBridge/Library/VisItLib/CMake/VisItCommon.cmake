@@ -189,32 +189,11 @@ endif(VISIT_STATIC)
 # Setup lib settings
 #-----------------------------------------------------------------------------
 
-# Set up boost (interval) library
-find_package(Boost 1.40 REQUIRED) #only need header libraries
-if (Boost_Found)
-  set(HAVE_BILIB 1)
-else (Boost_Found)
-  set(HAVE_BILIB 0)
-endif(Boost_Found)
-
-
 #setup non third party vtk utilities
 set(HAVE_LIBHDF5 1)
 set(HAVE_LIBNETCDF 1)
 set(HAVE_NETCDF_H 1)
 set(HAVE_LIBEXODUSII 1)
-
-# Setup SILO
-find_package(SILO QUIET)
-if(SILO_FOUND)
-  set(HAVE_LIBSILO ${SILO_FOUND})
-endif(SILO_FOUND)
-
-# Setup Mili
-find_package(Mili QUIET)
-if(Mili_FOUND)
-  set(HAVE_LIBMILI ${Mili_FOUND})
-endif(Mili_FOUND)
 
 #-----------------------------------------------------------------------------
 # Detect packages here. We could probably write macros that we can include from

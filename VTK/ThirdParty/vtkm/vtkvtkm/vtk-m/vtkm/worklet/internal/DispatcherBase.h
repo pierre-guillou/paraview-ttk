@@ -23,12 +23,12 @@
 #include <vtkm/cont/arg/ControlSignatureTagBase.h>
 #include <vtkm/cont/arg/Transport.h>
 #include <vtkm/cont/arg/TypeCheck.h>
-#include <vtkm/cont/internal/DynamicTransform.h>
 
 #include <vtkm/exec/arg/ExecutionSignatureTagBase.h>
 
 #include <vtkm/internal/brigand.hpp>
 
+#include <vtkm/worklet/internal/DecayHelpers.h>
 #include <vtkm/worklet/internal/WorkletBase.h>
 
 #include <sstream>
@@ -49,7 +49,7 @@ namespace vtkm
 namespace worklet
 {
 template <typename T>
-class VTKM_ALWAYS_EXPORT Keys;
+class Keys;
 namespace internal
 {
 
@@ -167,12 +167,6 @@ template <int Value>
 struct ReportValueOnError<Value, true> : std::true_type
 {
 };
-
-template <typename T>
-using remove_pointer_and_decay = typename std::remove_pointer<typename std::decay<T>::type>::type;
-
-template <typename T>
-using remove_cvref = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
 
 // Is designed as a brigand fold operation.
 template <typename Type, typename State>
@@ -494,8 +488,12 @@ private:
 protected:
   using ControlInterface =
     vtkm::internal::FunctionInterface<typename WorkletType::ControlSignature>;
-  using ExecutionInterface =
-    vtkm::internal::FunctionInterface<typename WorkletType::ExecutionSignature>;
+
+  // We go through the GetExecSig as that generates a default ExecutionSignature
+  // if one doesn't exist on the worklet
+  using ExecutionSignature =
+    typename vtkm::placeholders::GetExecSig<WorkletType>::ExecutionSignature;
+  using ExecutionInterface = vtkm::internal::FunctionInterface<ExecutionSignature>;
 
   static constexpr vtkm::IdComponent NUM_INVOKE_PARAMS = ControlInterface::ARITY;
 
@@ -510,8 +508,7 @@ private:
   template <typename... Args>
   VTKM_CONT void StartInvoke(Args&&... args) const
   {
-    using ParameterInterface =
-      vtkm::internal::FunctionInterface<void(detail::remove_cvref<Args>...)>;
+    using ParameterInterface = vtkm::internal::FunctionInterface<void(remove_cvref<Args>...)>;
 
     VTKM_STATIC_ASSERT_MSG(ParameterInterface::ARITY == NUM_INVOKE_PARAMS,
                            "Dispatcher Invoke called with wrong number of arguments.");
@@ -556,8 +553,7 @@ private:
   template <typename... Args>
   VTKM_CONT void StartInvokeDynamic(std::false_type, Args&&... args) const
   {
-    using ParameterInterface =
-      vtkm::internal::FunctionInterface<void(detail::remove_cvref<Args>...)>;
+    using ParameterInterface = vtkm::internal::FunctionInterface<void(remove_cvref<Args>...)>;
 
     //Nothing requires a conversion from dynamic to static types, so
     //next we need to verify that each argument's type is correct. If not
@@ -578,7 +574,7 @@ private:
     static_assert(isAllValid::value == expectedLen::value,
                   "All arguments failed the TypeCheck pass");
 
-    auto fi = vtkm::internal::make_FunctionInterface<void, detail::remove_cvref<Args>...>(args...);
+    auto fi = vtkm::internal::make_FunctionInterface<void, remove_cvref<Args>...>(args...);
     auto ivc = vtkm::internal::Invocation<ParameterInterface,
                                           ControlInterface,
                                           ExecutionInterface,
@@ -763,23 +759,27 @@ private:
 
     // Replace the parameters in the invocation with the execution object and
     // pass to next step of Invoke. Also add the scatter information.
-    this->InvokeSchedule(invocation.ChangeParameters(execObjectParameters)
-                           .ChangeOutputToInputMap(outputToInputMap.PrepareForInput(device))
-                           .ChangeVisitArray(visitArray.PrepareForInput(device))
-                           .ChangeThreadToOutputMap(threadToOutputMap.PrepareForInput(device)),
-                         threadRange,
-                         device);
+    vtkm::internal::Invocation<ExecObjectParameters,
+                               typename Invocation::ControlInterface,
+                               typename Invocation::ExecutionInterface,
+                               Invocation::InputDomainIndex,
+                               decltype(outputToInputMap.PrepareForInput(device)),
+                               decltype(visitArray.PrepareForInput(device)),
+                               decltype(threadToOutputMap.PrepareForInput(device)),
+                               DeviceAdapter>
+      changedInvocation(execObjectParameters,
+                        outputToInputMap.PrepareForInput(device),
+                        visitArray.PrepareForInput(device),
+                        threadToOutputMap.PrepareForInput(device));
+
+    this->InvokeSchedule(changedInvocation, threadRange, device);
   }
 
   template <typename Invocation, typename RangeType, typename DeviceAdapter>
-  VTKM_CONT void InvokeSchedule(const Invocation& invocation,
-                                RangeType range,
-                                DeviceAdapter device) const
+  VTKM_CONT void InvokeSchedule(const Invocation& invocation, RangeType range, DeviceAdapter) const
   {
     using Algorithm = vtkm::cont::DeviceAdapterAlgorithm<DeviceAdapter>;
     using TaskTypes = typename vtkm::cont::DeviceTaskTypes<DeviceAdapter>;
-
-    auto invocationForDevice = invocation.ChangeDeviceAdapterTag(device);
 
     // The TaskType class handles the magic of fetching values
     // for each instance and calling the worklet's function.
@@ -788,7 +788,7 @@ private:
     // vtkm::exec::internal::TaskSingular
     // vtkm::exec::internal::TaskTiling1D
     // vtkm::exec::internal::TaskTiling3D
-    auto task = TaskTypes::MakeTask(this->Worklet, invocationForDevice, range);
+    auto task = TaskTypes::MakeTask(this->Worklet, invocation, range);
     Algorithm::ScheduleTask(task, range);
   }
 };

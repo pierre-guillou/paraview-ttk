@@ -30,7 +30,7 @@ PURPOSE.  See the above copyright Nonice for more information.
 vtkHyperTreeGridNonOrientedSuperCursorLight* vtkHyperTreeGridNonOrientedSuperCursorLight::Clone()
 {
   vtkHyperTreeGridNonOrientedSuperCursorLight* clone = this->NewInstance();
-  assert("post: clone_exists" && clone != 0);
+  assert("post: clone_exists" && clone != nullptr);
   // Copy
   clone->Grid = this->Grid;
   clone->CentralCursor->Initialize(this->CentralCursor.Get());
@@ -458,12 +458,6 @@ vtkHyperTreeGridNonOrientedSuperCursorLight::vtkHyperTreeGridNonOrientedSuperCur
 }
 
 //-----------------------------------------------------------------------------
-vtkHyperTreeGridNonOrientedSuperCursorLight::~vtkHyperTreeGridNonOrientedSuperCursorLight()
-{
-#ifndef NDEBUG
-  std::cerr << "  Reference Entries Size: " << this->ReferenceEntries.size() << std::endl;
-  std::cerr << "  Real Entries Size     : " << this->Entries.size() << std::endl;
-#endif
-}
+vtkHyperTreeGridNonOrientedSuperCursorLight::~vtkHyperTreeGridNonOrientedSuperCursorLight() {}
 
 //-----------------------------------------------------------------------------

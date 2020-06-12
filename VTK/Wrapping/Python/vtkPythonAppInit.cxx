@@ -19,8 +19,8 @@
 #include "vtkPythonCompatibility.h"
 
 #ifdef VTK_COMPILED_USING_MPI
-# include <mpi.h>
-# include "vtkMPIController.h"
+#include "vtkMPIController.h"
+#include <vtk_mpi.h>
 #endif // VTK_COMPILED_USING_MPI
 
 #include "vtkOutputWindow.h"
@@ -33,22 +33,20 @@
 #include <string>
 
 #ifdef VTK_COMPILED_USING_MPI
-class vtkMPICleanup {
+class vtkMPICleanup
+{
 public:
-  vtkMPICleanup()
+  vtkMPICleanup() { this->Controller = nullptr; }
+  void Initialize(int* argc, char*** argv)
   {
-      this->Controller = nullptr;
-  }
-  void Initialize(int* argc, char ***argv)
-  {
-      MPI_Init(argc, argv);
-      this->Controller = vtkMPIController::New();
-      this->Controller->Initialize(argc, argv, 1);
-      vtkMultiProcessController::SetGlobalController(this->Controller);
+    MPI_Init(argc, argv);
+    this->Controller = vtkMPIController::New();
+    this->Controller->Initialize(argc, argv, 1);
+    vtkMultiProcessController::SetGlobalController(this->Controller);
   }
   void Cleanup()
   {
-    if ( this->Controller )
+    if (this->Controller)
     {
       this->Controller->Finalize();
       this->Controller->Delete();
@@ -56,13 +54,10 @@ public:
       vtkMultiProcessController::SetGlobalController(nullptr);
     }
   }
-  ~vtkMPICleanup()
-  {
-    this->Cleanup();
-  }
+  ~vtkMPICleanup() { this->Cleanup(); }
 
 private:
-  vtkMPIController *Controller;
+  vtkMPIController* Controller;
 };
 
 static vtkMPICleanup VTKMPICleanup;
@@ -74,7 +69,7 @@ static void AtExitCallback()
 }
 #endif // VTK_COMPILED_USING_MPI
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
 #ifdef VTK_COMPILED_USING_MPI
   VTKMPICleanup.Initialize(&argc, &argv);
@@ -101,7 +96,14 @@ int main(int argc, char **argv)
   if (argc > 0 && vtksys::SystemTools::FindProgramPath(argv[0], fullpath, error))
   {
     const auto dir = vtksys::SystemTools::GetProgramPath(fullpath);
+#if defined(VTK_BUILD_SHARED_LIBS)
     vtkPythonInterpreter::PrependPythonPath(dir.c_str(), "vtkmodules/__init__.py");
+#else
+    // since there may be other packages not zipped (e.g. mpi4py), we added path to _vtk.zip
+    // to the search path as well.
+    vtkPythonInterpreter::PrependPythonPath(dir.c_str(), "_vtk.zip", /*add_landmark=*/false);
+    vtkPythonInterpreter::PrependPythonPath(dir.c_str(), "_vtk.zip", /*add_landmark=*/true);
+#endif
   }
 
   return vtkPythonInterpreter::PyMain(argc, argv);

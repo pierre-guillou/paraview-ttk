@@ -49,7 +49,7 @@ class FacetedSurfaceNormals
 {
 public:
   template <typename NormalFnctr = detail::Normal>
-  class Worklet : public vtkm::worklet::WorkletMapPointToCell
+  class Worklet : public vtkm::worklet::WorkletVisitCellsWithPoints
   {
   public:
     using ControlSignature = void(CellSetIn cellset, FieldInPoint points, FieldOutCell normals);
@@ -133,7 +133,7 @@ public:
 
   template <typename CellSetType, typename NormalCompType>
   void Run(const CellSetType& cellset,
-           const vtkm::cont::VariantArrayHandleBase<vtkm::TypeListTagFieldVec3>& points,
+           const vtkm::cont::VariantArrayHandleBase<vtkm::TypeListFieldVec3>& points,
            vtkm::cont::ArrayHandle<vtkm::Vec<NormalCompType, 3>>& normals)
   {
     if (this->Normalize)
@@ -154,7 +154,7 @@ private:
 class SmoothSurfaceNormals
 {
 public:
-  class Worklet : public vtkm::worklet::WorkletMapCellToPoint
+  class Worklet : public vtkm::worklet::WorkletVisitPointsWithCells
   {
   public:
     using ControlSignature = void(CellSetIn cellset,

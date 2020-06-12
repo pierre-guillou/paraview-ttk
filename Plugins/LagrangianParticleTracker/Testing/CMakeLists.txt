@@ -1,4 +1,4 @@
-if (PARAVIEW_BUILD_QT_GUI AND BUILD_SHARED_LIBS)
+if (PARAVIEW_USE_QT AND BUILD_SHARED_LIBS)
   ExternalData_Expand_Arguments("ParaViewData" _
     "DATA{Data/LagrangianParticleTracker/,REGEX:.*}"
     "DATA{Data/LagrangianParticleTracker/flow/,REGEX:.*}"
@@ -10,6 +10,7 @@ if (PARAVIEW_BUILD_QT_GUI AND BUILD_SHARED_LIBS)
     "DATA{Data/Baseline/LagrangianParticleTracker_InterG.png}"
     "DATA{Data/Baseline/LagrangianParticleTracker_InterI.png}"
     "DATA{Data/Baseline/LagrangianParticleTracker_InterJ.png}"
+    "DATA{Data/Baseline/LagrangianParticleTracker_InterK.png}"
 
     "DATA{Data/Baseline/LagrangianParticleTrackerParallel_InterA.png}"
     "DATA{Data/Baseline/LagrangianParticleTrackerParallel_InterB.png}"

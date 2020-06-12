@@ -25,7 +25,7 @@
 namespace test_explicit
 {
 
-class MaxPointOrCellValue : public vtkm::worklet::WorkletMapPointToCell
+class MaxPointOrCellValue : public vtkm::worklet::WorkletVisitCellsWithPoints
 {
 public:
   using ControlSignature = void(FieldInCell inCells,
@@ -82,16 +82,15 @@ static void TestMaxPointOrCell()
   std::cout << "Testing MaxPointOfCell worklet" << std::endl;
   vtkm::cont::testing::MakeTestDataSet testDataSet;
   vtkm::cont::DataSet dataSet = testDataSet.Make3DExplicitDataSet0();
-  auto cellset = dataSet.GetCellSet(0).Cast<vtkm::cont::CellSetExplicit<>>();
+  auto cellset = dataSet.GetCellSet().Cast<vtkm::cont::CellSetExplicit<>>();
 
   vtkm::cont::ArrayHandle<vtkm::Float32> result;
 
   vtkm::worklet::DispatcherMapTopology<::test_explicit::MaxPointOrCellValue> dispatcher;
-  dispatcher.Invoke(
-    dataSet.GetField("cellvar").GetData().ResetTypes(vtkm::TypeListTagFieldScalar()),
-    dataSet.GetField("pointvar").GetData().ResetTypes(vtkm::TypeListTagFieldScalar()),
-    &cellset,
-    result);
+  dispatcher.Invoke(dataSet.GetField("cellvar").GetData().ResetTypes(vtkm::TypeListFieldScalar()),
+                    dataSet.GetField("pointvar").GetData().ResetTypes(vtkm::TypeListFieldScalar()),
+                    &cellset,
+                    result);
 
   std::cout << "Make sure we got the right answer." << std::endl;
   VTKM_TEST_ASSERT(test_equal(result.GetPortalConstControl().Get(0), 100.1f),

@@ -16,12 +16,13 @@
 #include "vtkCoordinate.h"
 #include "vtkInteractorObserver.h"
 #include "vtkObjectFactory.h"
-#include "vtkRenderer.h"
-#include "vtkRenderWindow.h"
 #include "vtkPointPlacer.h"
+#include "vtkRenderWindow.h"
+#include "vtkRenderer.h"
 
+#include "assert.h"
 
-vtkCxxSetObjectMacro(vtkHandleRepresentation, PointPlacer, vtkPointPlacer );
+vtkCxxSetObjectMacro(vtkHandleRepresentation, PointPlacer, vtkPointPlacer);
 
 //----------------------------------------------------------------------
 vtkHandleRepresentation::vtkHandleRepresentation()
@@ -41,6 +42,8 @@ vtkHandleRepresentation::vtkHandleRepresentation()
 
   this->DisplayPositionTime.Modified();
   this->WorldPositionTime.Modified();
+
+  this->TranslationAxis = Axis::NONE;
 }
 
 //----------------------------------------------------------------------
@@ -56,11 +59,10 @@ void vtkHandleRepresentation::SetDisplayPosition(double displyPos[3])
 {
   if (this->Renderer && this->PointPlacer)
   {
-    if (this->PointPlacer->ValidateDisplayPosition( this->Renderer, displyPos ))
+    if (this->PointPlacer->ValidateDisplayPosition(this->Renderer, displyPos))
     {
       double worldPos[3], worldOrient[9];
-      if (this->PointPlacer->ComputeWorldPosition(
-            this->Renderer, displyPos, worldPos, worldOrient ))
+      if (this->PointPlacer->ComputeWorldPosition(this->Renderer, displyPos, worldPos, worldOrient))
       {
         this->DisplayPosition->SetValue(displyPos);
         this->WorldPosition->SetValue(worldPos);
@@ -82,12 +84,13 @@ void vtkHandleRepresentation::GetDisplayPosition(double pos[3])
   // position is a convenience to go back and forth between coordinate systems.
   // Also note that the window size may have changed, so it's important to
   // update the display position.
-  if ( this->Renderer && (this->WorldPositionTime > this->DisplayPositionTime ||
-                          (this->Renderer->GetVTKWindow() &&
-                           this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime)) )
+  if (this->Renderer &&
+    (this->WorldPositionTime > this->DisplayPositionTime ||
+      (this->Renderer->GetVTKWindow() &&
+        this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime)))
   {
-    int *p = this->WorldPosition->GetComputedDisplayValue(this->Renderer);
-    this->DisplayPosition->SetValue(p[0],p[1],p[2]);
+    int* p = this->WorldPosition->GetComputedDisplayValue(this->Renderer);
+    this->DisplayPosition->SetValue(p[0], p[1], p[2]);
   }
   this->DisplayPosition->GetValue(pos);
 }
@@ -99,12 +102,13 @@ double* vtkHandleRepresentation::GetDisplayPosition()
   // position is a convenience to go back and forth between coordinate systems.
   // Also note that the window size may have changed, so it's important to
   // update the display position.
-  if ( this->Renderer && (this->WorldPositionTime > this->DisplayPositionTime ||
-                          (this->Renderer->GetVTKWindow() &&
-                           this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime)) )
+  if (this->Renderer &&
+    (this->WorldPositionTime > this->DisplayPositionTime ||
+      (this->Renderer->GetVTKWindow() &&
+        this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime)))
   {
-    int *p = this->WorldPosition->GetComputedDisplayValue(this->Renderer);
-    this->DisplayPosition->SetValue(p[0],p[1],p[2]);
+    int* p = this->WorldPosition->GetComputedDisplayValue(this->Renderer);
+    this->DisplayPosition->SetValue(p[0], p[1], p[2]);
   }
   return this->DisplayPosition->GetValue();
 }
@@ -114,7 +118,7 @@ void vtkHandleRepresentation::SetWorldPosition(double pos[3])
 {
   if (this->Renderer && this->PointPlacer)
   {
-    if (this->PointPlacer->ValidateWorldPosition( pos ))
+    if (this->PointPlacer->ValidateWorldPosition(pos))
     {
       this->WorldPosition->SetValue(pos);
       this->WorldPositionTime.Modified();
@@ -140,14 +144,14 @@ double* vtkHandleRepresentation::GetWorldPosition()
 }
 
 //----------------------------------------------------------------------
-int vtkHandleRepresentation::CheckConstraint(vtkRenderer *vtkNotUsed(renderer),
-                                             double vtkNotUsed(pos)[2])
+int vtkHandleRepresentation::CheckConstraint(
+  vtkRenderer* vtkNotUsed(renderer), double vtkNotUsed(pos)[2])
 {
   return 1;
 }
 
 //----------------------------------------------------------------------
-void vtkHandleRepresentation::SetRenderer(vtkRenderer *ren)
+void vtkHandleRepresentation::SetRenderer(vtkRenderer* ren)
 {
   this->DisplayPosition->SetViewport(ren);
   this->WorldPosition->SetViewport(ren);
@@ -156,19 +160,72 @@ void vtkHandleRepresentation::SetRenderer(vtkRenderer *ren)
   // Okay this is weird. If a display position was set previously before
   // the renderer was specified, then the coordinate systems are not
   // synchronized.
-  if ( this->DisplayPositionTime > this->WorldPositionTime )
+  if (this->DisplayPositionTime > this->WorldPositionTime)
   {
     double p[3];
     this->DisplayPosition->GetValue(p);
-    this->SetDisplayPosition(p); //side affect updated world pos
+    this->SetDisplayPosition(p); // side affect updated world pos
   }
 }
 
 //----------------------------------------------------------------------
-void vtkHandleRepresentation::DeepCopy(vtkProp *prop)
+void vtkHandleRepresentation::GetTranslationVector(
+  const double* p1, const double* p2, double* v) const
 {
-  vtkHandleRepresentation *rep = vtkHandleRepresentation::SafeDownCast(prop);
-  if ( rep )
+  if (this->TranslationAxis == Axis::NONE)
+  {
+    for (int i = 0; i < 3; ++i)
+    {
+      v[i] = p2[i] - p1[i];
+    }
+  }
+  else
+  {
+    for (int i = 0; i < 3; ++i)
+    {
+      if (this->TranslationAxis == i)
+      {
+        v[i] = p2[i] - p1[i];
+      }
+      else
+      {
+        v[i] = 0.0;
+      }
+    }
+  }
+}
+
+//----------------------------------------------------------------------
+void vtkHandleRepresentation::Translate(const double* p1, const double* p2)
+{
+  double v[3];
+  this->GetTranslationVector(p1, p2, v);
+  this->Translate(v);
+}
+
+//----------------------------------------------------------------------
+void vtkHandleRepresentation::Translate(const double* v)
+{
+  if (this->TranslationAxis == Axis::NONE)
+  {
+    for (int i = 0; i < 3; ++i)
+    {
+      WorldPosition->GetValue()[i] += v[i];
+    }
+  }
+  else
+  {
+    assert(this->TranslationAxis > -1 && this->TranslationAxis < 3 &&
+      "this->TranslationAxis out of bounds");
+    WorldPosition->GetValue()[this->TranslationAxis] += v[this->TranslationAxis];
+  }
+}
+
+//----------------------------------------------------------------------
+void vtkHandleRepresentation::DeepCopy(vtkProp* prop)
+{
+  vtkHandleRepresentation* rep = vtkHandleRepresentation::SafeDownCast(prop);
+  if (rep)
   {
     this->SetTolerance(rep->GetTolerance());
     this->SetActiveRepresentation(rep->GetActiveRepresentation());
@@ -179,10 +236,10 @@ void vtkHandleRepresentation::DeepCopy(vtkProp *prop)
 }
 
 //----------------------------------------------------------------------
-void vtkHandleRepresentation::ShallowCopy(vtkProp *prop)
+void vtkHandleRepresentation::ShallowCopy(vtkProp* prop)
 {
-  vtkHandleRepresentation *rep = vtkHandleRepresentation::SafeDownCast(prop);
-  if ( rep )
+  vtkHandleRepresentation* rep = vtkHandleRepresentation::SafeDownCast(prop);
+  if (rep)
   {
     this->SetTolerance(rep->GetTolerance());
     this->SetActiveRepresentation(rep->GetActiveRepresentation());
@@ -194,11 +251,11 @@ void vtkHandleRepresentation::ShallowCopy(vtkProp *prop)
 //----------------------------------------------------------------------
 vtkMTimeType vtkHandleRepresentation::GetMTime()
 {
-  vtkMTimeType mTime=this->Superclass::GetMTime();
-  vtkMTimeType wMTime=this->WorldPosition->GetMTime();
-  mTime = ( wMTime > mTime ? wMTime : mTime );
-  vtkMTimeType dMTime=this->DisplayPosition->GetMTime();
-  mTime = ( dMTime > mTime ? dMTime : mTime );
+  vtkMTimeType mTime = this->Superclass::GetMTime();
+  vtkMTimeType wMTime = this->WorldPosition->GetMTime();
+  mTime = (wMTime > mTime ? wMTime : mTime);
+  vtkMTimeType dMTime = this->DisplayPosition->GetMTime();
+  mTime = (dMTime > mTime ? dMTime : mTime);
 
   return mTime;
 }
@@ -206,30 +263,26 @@ vtkMTimeType vtkHandleRepresentation::GetMTime()
 //----------------------------------------------------------------------
 void vtkHandleRepresentation::PrintSelf(ostream& os, vtkIndent indent)
 {
-  //Superclass typedef defined in vtkTypeMacro() found in vtkSetGet.h
-  this->Superclass::PrintSelf(os,indent);
+  // Superclass typedef defined in vtkTypeMacro() found in vtkSetGet.h
+  this->Superclass::PrintSelf(os, indent);
 
   double p[3];
   this->GetDisplayPosition(p);
-  os << indent << "Display Position: (" << p[0] << ", "
-               << p[1] << ", " << p[2] << ")\n";
+  os << indent << "Display Position: (" << p[0] << ", " << p[1] << ", " << p[2] << ")\n";
 
   this->GetWorldPosition(p);
-  os << indent << "World Position: (" << p[0] << ", "
-               << p[1] << ", " << p[2] << ")\n";
+  os << indent << "World Position: (" << p[0] << ", " << p[1] << ", " << p[2] << ")\n";
 
-  os << indent << "Constrained: "
-     << (this->Constrained ? "On" : "Off") << "\n";
+  os << indent << "Constrained: " << (this->Constrained ? "On" : "Off") << "\n";
 
   os << indent << "Tolerance: " << this->Tolerance << "\n";
 
-  os << indent << "Active Representation: "
-     << (this->ActiveRepresentation ? "On" : "Off") << "\n";
+  os << indent << "Active Representation: " << (this->ActiveRepresentation ? "On" : "Off") << "\n";
 
-  if ( this->PointPlacer )
+  if (this->PointPlacer)
   {
     os << indent << "PointPlacer:\n";
-    this->PointPlacer->PrintSelf( os, indent.GetNextIndent() );
+    this->PointPlacer->PrintSelf(os, indent.GetNextIndent());
   }
   else
   {

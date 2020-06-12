@@ -23,7 +23,7 @@
  *
  *
  * Implements vtkSQLQuery using an underlying QSQLQuery.
-*/
+ */
 
 #ifndef vtkQtSQLQuery_h
 #define vtkQtSQLQuery_h
@@ -89,22 +89,20 @@ public:
 
 protected:
   vtkQtSQLQuery();
-  ~vtkQtSQLQuery();
+  ~vtkQtSQLQuery() override;
 
   vtkQtSQLQueryInternals* Internals;
   friend class vtkQtSQLDatabase;
 
 private:
-
   // Using the convenience function internally
   vtkSetStringMacro(LastErrorText);
 
   char* LastErrorText;
 
-  vtkQtSQLQuery(const vtkQtSQLQuery &) = delete;
-  void operator=(const vtkQtSQLQuery &) = delete;
+  vtkQtSQLQuery(const vtkQtSQLQuery&) = delete;
+  void operator=(const vtkQtSQLQuery&) = delete;
 };
 
 #endif // (QT_EDITION & QT_MODULE_SQL)
 #endif // vtkQtSQLQuery_h
-

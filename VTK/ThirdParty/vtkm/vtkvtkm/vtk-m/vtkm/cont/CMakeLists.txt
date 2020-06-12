@@ -11,6 +11,7 @@
 set(headers
   Algorithm.h
   ArrayCopy.h
+  ArrayGetValues.h
   ArrayHandle.h
   ArrayHandleBitField.h
   ArrayHandleCartesianProduct.h
@@ -19,14 +20,19 @@ set(headers
   ArrayHandleConcatenate.h
   ArrayHandleConstant.h
   ArrayHandleCounting.h
+  ArrayHandleDecorator.h
   ArrayHandleDiscard.h
   ArrayHandleExtractComponent.h
+  ArrayHandleExtrudeCoords.h
+  ArrayHandleExtrudeField.h
   ArrayHandleGroupVec.h
   ArrayHandleGroupVecVariable.h
   ArrayHandleImplicit.h
   ArrayHandleIndex.h
+  ArrayHandleMultiplexer.h
   ArrayHandlePermutation.h
   ArrayHandleReverse.h
+  ArrayHandleSOA.h
   ArrayHandleStreaming.h
   ArrayHandleSwizzle.h
   ArrayHandleTransform.h
@@ -38,7 +44,7 @@ set(headers
   ArrayPortal.h
   ArrayPortalToIterators.h
   ArrayRangeCompute.h
-  AssignerMultiBlock.h
+  AssignerPartitionedDataSet.h
   AtomicArray.h
   BitField.h
   BoundsCompute.h
@@ -52,6 +58,8 @@ set(headers
   CellLocatorUniformGrid.h
   CellSet.h
   CellSetExplicit.h
+  CellSetExtrude.h
+  CellSetList.h
   CellSetListTag.h
   CellSetPermutation.h
   CellSetSingleType.h
@@ -66,6 +74,7 @@ set(headers
   DataSetFieldAdd.h
   DeviceAdapter.h
   DeviceAdapterAlgorithm.h
+  DeviceAdapterList.h
   DeviceAdapterListTag.h
   DeviceAdapterTag.h
   DynamicCellSet.h
@@ -85,8 +94,9 @@ set(headers
   FieldRangeGlobalCompute.h
   ImplicitFunctionHandle.h
   Initialize.h
+  Invoker.h
   Logging.h
-  MultiBlock.h
+  PartitionedDataSet.h
   PointLocator.h
   PointLocatorUniformGrid.h
   RuntimeDeviceInformation.h
@@ -94,7 +104,9 @@ set(headers
   Serialization.h
   Storage.h
   StorageBasic.h
+  StorageExtrude.h
   StorageImplicit.h
+  StorageList.h
   StorageListTag.h
   StorageVirtual.h
   Timer.h
@@ -109,6 +121,7 @@ set(template_sources
   ArrayHandleVirtual.hxx
   ArrayRangeCompute.hxx
   CellSetExplicit.hxx
+  CellSetExtrude.hxx
   CellSetStructured.hxx
   ColorTable.hxx
   CoordinateSystem.hxx
@@ -121,6 +134,7 @@ set(template_sources
 
 set(sources
   ArrayHandle.cxx
+  ArrayHandleSOA.cxx
   ColorTablePresets.cxx
   DeviceAdapterTag.cxx
   EnvironmentTracker.cxx
@@ -142,7 +156,7 @@ set(sources
   set(device_sources
   ArrayHandleVirtual.cxx
   ArrayRangeCompute.cxx
-  AssignerMultiBlock.cxx
+  AssignerPartitionedDataSet.cxx
   BoundsCompute.cxx
   BoundsGlobalCompute.cxx
   CellLocator.cxx
@@ -153,6 +167,7 @@ set(sources
   CellLocatorUniformGrid.cxx
   CellSet.cxx
   CellSetExplicit.cxx
+  CellSetExtrude.cxx
   CellSetStructured.cxx
   ColorTable.cxx
   CoordinateSystem.cxx
@@ -164,7 +179,7 @@ set(sources
   Field.cxx
   FieldRangeCompute.cxx
   FieldRangeGlobalCompute.cxx
-  MultiBlock.cxx
+  PartitionedDataSet.cxx
   PointLocator.cxx
   PointLocatorUniformGrid.cxx
   RuntimeDeviceInformation.cxx
@@ -177,7 +192,7 @@ vtkm_library( NAME vtkm_cont
               SOURCES ${sources}
               TEMPLATE_SOURCES ${template_sources}
               HEADERS ${headers}
-              WRAP_FOR_CUDA ${device_sources}
+              DEVICE_SOURCES ${device_sources}
             )
 
 add_subdirectory(internal)
@@ -188,7 +203,6 @@ add_subdirectory(openmp)
 add_subdirectory(cuda)
 
 set(backends )
-set (DL_LIBS )
 if(TARGET vtkm::tbb)
   list(APPEND backends vtkm::tbb)
 endif()
@@ -198,14 +212,11 @@ endif()
 if(TARGET vtkm::openmp)
   list(APPEND backends vtkm::openmp)
 endif()
-if (VTKm_ENABLE_LOGGING)
-  list(APPEND DL_LIBS ${CMAKE_DL_LIBS} Threads::Threads) # dladdr function
-endif()
-target_link_libraries(vtkm_cont PUBLIC vtkm_compiler_flags ${backends} ${DL_LIBS})
-target_link_libraries(vtkm_cont PUBLIC vtkm_taotuple vtkm_optionparser)
-if(TARGET vtkm_diy)
-  # This will become a required dependency eventually.
-  target_link_libraries(vtkm_cont PUBLIC vtkm_diy)
+
+target_link_libraries(vtkm_cont PUBLIC vtkm_compiler_flags ${backends})
+target_link_libraries(vtkm_cont PUBLIC vtkm_taotuple vtkm_optionparser vtkm_diy vtkm_lcl)
+if(TARGET vtkm_loguru)
+  target_link_libraries(vtkm_cont PRIVATE vtkm_loguru)
 endif()
 
 #-----------------------------------------------------------------------------

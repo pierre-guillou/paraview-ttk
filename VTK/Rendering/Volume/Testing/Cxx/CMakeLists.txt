@@ -34,6 +34,8 @@ set (VolumeCxxTests
   TestGPURayCastImageSampleXY.cxx
   TestGPURayCastIndependentComponentsLightParameters.cxx
   TestGPURayCastIndependentVectorMode.cxx
+  TestGPURayCastLabelMap.cxx
+  TestGPURayCastLabelMap1Label.cxx
   TestGPURayCastLargeColorTransferFunction.cxx
   TestGPURayCastMIPBinaryMask.cxx
   TestGPURayCastMIPToComposite.cxx
@@ -44,6 +46,7 @@ set (VolumeCxxTests
   TestGPURayCastMultiVolumeOverlapping.cxx
   TestGPURayCastMultiVolumeTransfer2D.cxx
   TestGPURayCastNearestDataTypesMIP.cxx
+  TestGPURayCastOrientedVolume.cxx
   TestGPURayCastPerspectiveParallel.cxx
   TestGPURayCastPositionalLights.cxx
   TestGPURayCastReleaseResources.cxx

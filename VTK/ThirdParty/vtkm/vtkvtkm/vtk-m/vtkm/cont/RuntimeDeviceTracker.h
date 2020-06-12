@@ -110,6 +110,8 @@ public:
   ///
   VTKM_CONT void ForceDevice(DeviceAdapterId deviceId);
 
+  VTKM_CONT void PrintSummary(std::ostream& out) const;
+
 private:
   friend struct ScopedRuntimeDeviceTracker;
 
@@ -129,6 +131,9 @@ private:
 
   VTKM_CONT
   void SetDeviceState(vtkm::cont::DeviceAdapterId deviceId, bool state);
+
+  VTKM_CONT
+  void LogEnabledDevices() const;
 };
 
 

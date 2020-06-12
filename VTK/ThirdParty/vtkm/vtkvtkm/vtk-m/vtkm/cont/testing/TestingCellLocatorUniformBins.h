@@ -15,7 +15,7 @@
 #include <vtkm/cont/DataSetBuilderUniform.h>
 #include <vtkm/cont/testing/Testing.h>
 
-#include <vtkm/exec/CellInterpolate.h>
+#include <vtkm/exec/ParametricCoordinates.h>
 
 #include <vtkm/worklet/DispatcherMapField.h>
 #include <vtkm/worklet/DispatcherMapTopology.h>
@@ -33,11 +33,11 @@
 namespace
 {
 
-using PointType = vtkm::Vec<vtkm::FloatDefault, 3>;
+using PointType = vtkm::Vec3f;
 
 std::default_random_engine RandomGenerator;
 
-class ParametricToWorldCoordinates : public vtkm::worklet::WorkletMapPointToCell
+class ParametricToWorldCoordinates : public vtkm::worklet::WorkletVisitCellsWithPoints
 {
 public:
   using ControlSignature = void(CellSetIn cellset,
@@ -60,17 +60,13 @@ public:
                             const PointType& pc,
                             PointType& wc) const
   {
-    wc = vtkm::exec::CellInterpolate(points, pc, cellShape, *this);
+    wc = vtkm::exec::ParametricCoordinatesToWorldCoordinates(points, pc, cellShape, *this);
   }
 };
 
 template <vtkm::IdComponent DIMENSIONS>
 vtkm::cont::DataSet MakeTestDataSet(const vtkm::Vec<vtkm::Id, DIMENSIONS>& dims)
 {
-  using Connectivity = vtkm::internal::ConnectivityStructuredInternals<DIMENSIONS>;
-
-  const vtkm::IdComponent PointsPerCell = 1 << DIMENSIONS;
-
   auto uniformDs =
     vtkm::cont::DataSetBuilderUniform::Create(dims,
                                               vtkm::Vec<vtkm::FloatDefault, DIMENSIONS>(0.0f),
@@ -80,29 +76,11 @@ vtkm::cont::DataSet MakeTestDataSet(const vtkm::Vec<vtkm::Id, DIMENSIONS>& dims)
   vtkm::cont::ArrayHandle<PointType> points;
   vtkm::cont::ArrayCopy(uniformDs.GetCoordinateSystem().GetData(), points);
 
-  vtkm::Id numberOfCells = uniformDs.GetCellSet().GetNumberOfCells();
-  vtkm::Id numberOfIndices = numberOfCells * PointsPerCell;
-
-  Connectivity structured;
-  structured.SetPointDimensions(dims);
-
-  // copy connectivity
-  vtkm::cont::ArrayHandle<vtkm::Id> connectivity;
-  connectivity.Allocate(numberOfIndices);
-  for (vtkm::Id i = 0, idx = 0; i < numberOfCells; ++i)
-  {
-    auto ptids = structured.GetPointsOfCell(i);
-    for (vtkm::IdComponent j = 0; j < PointsPerCell; ++j, ++idx)
-    {
-      connectivity.GetPortalControl().Set(idx, ptids[j]);
-    }
-  }
-
   auto uniformCs =
     uniformDs.GetCellSet().template Cast<vtkm::cont::CellSetStructured<DIMENSIONS>>();
-  vtkm::cont::CellSetSingleType<> cellset;
 
   // triangulate the cellset
+  vtkm::cont::CellSetSingleType<> cellset;
   switch (DIMENSIONS)
   {
     case 2:
@@ -115,19 +93,15 @@ vtkm::cont::DataSet MakeTestDataSet(const vtkm::Vec<vtkm::Id, DIMENSIONS>& dims)
       VTKM_ASSERT(false);
   }
 
-  // It is possible that the warping will result in invalid cells. So use a
-  // local random generator with a known seed that does not create invalid cells.
-  std::default_random_engine rgen;
-
   // Warp the coordinates
-  std::uniform_real_distribution<vtkm::FloatDefault> warpFactor(-0.25f, 0.25f);
+  std::uniform_real_distribution<vtkm::FloatDefault> warpFactor(-0.10f, 0.10f);
   auto pointsPortal = points.GetPortalControl();
   for (vtkm::Id i = 0; i < pointsPortal.GetNumberOfValues(); ++i)
   {
     PointType warpVec(0);
     for (vtkm::IdComponent c = 0; c < DIMENSIONS; ++c)
     {
-      warpVec[c] = warpFactor(rgen);
+      warpVec[c] = warpFactor(RandomGenerator);
     }
     pointsPortal.Set(i, pointsPortal.Get(i) + warpVec);
   }
@@ -135,7 +109,7 @@ vtkm::cont::DataSet MakeTestDataSet(const vtkm::Vec<vtkm::Id, DIMENSIONS>& dims)
   // build dataset
   vtkm::cont::DataSet out;
   out.AddCoordinateSystem(vtkm::cont::CoordinateSystem("coords", points));
-  out.AddCellSet(cellset);
+  out.SetCellSet(cellset);
   return out;
 }
 
@@ -146,7 +120,7 @@ void GenerateRandomInput(const vtkm::cont::DataSet& ds,
                          vtkm::cont::ArrayHandle<PointType>& pcoords,
                          vtkm::cont::ArrayHandle<PointType>& wcoords)
 {
-  vtkm::Id numberOfCells = ds.GetCellSet().GetNumberOfCells();
+  vtkm::Id numberOfCells = ds.GetNumberOfCells();
 
   std::uniform_int_distribution<vtkm::Id> cellIdGen(0, numberOfCells - 1);
 
@@ -159,7 +133,7 @@ void GenerateRandomInput(const vtkm::cont::DataSet& ds,
     cellIds.GetPortalControl().Set(i, cellIdGen(RandomGenerator));
 
     PointType pc(0.0f);
-    vtkm::FloatDefault minPc = 1e-3f;
+    vtkm::FloatDefault minPc = 1e-2f;
     vtkm::FloatDefault sum = 0.0f;
     for (vtkm::IdComponent c = 0; c < DIMENSIONS; ++c)
     {
@@ -187,10 +161,10 @@ public:
   using ExecutionSignature = void(_1, _2, _3, _4);
 
   template <typename LocatorType>
-  VTKM_EXEC void operator()(const vtkm::Vec<vtkm::FloatDefault, 3>& point,
+  VTKM_EXEC void operator()(const vtkm::Vec3f& point,
                             const LocatorType& locator,
                             vtkm::Id& cellId,
-                            vtkm::Vec<vtkm::FloatDefault, 3>& pcoords) const
+                            vtkm::Vec3f& pcoords) const
   {
     locator->FindCell(point, cellId, pcoords, *this);
   }
@@ -201,8 +175,7 @@ void TestCellLocator(const vtkm::Vec<vtkm::Id, DIMENSIONS>& dim, vtkm::Id number
 {
   auto ds = MakeTestDataSet(dim);
 
-  std::cout << "Testing " << DIMENSIONS << "D dataset with " << ds.GetCellSet().GetNumberOfCells()
-            << " cells\n";
+  std::cout << "Testing " << DIMENSIONS << "D dataset with " << ds.GetNumberOfCells() << " cells\n";
 
   vtkm::cont::CellLocatorUniformBins locator;
   locator.SetDensityL1(64.0f);

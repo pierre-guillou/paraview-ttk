@@ -46,6 +46,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPVXMLElement.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxyGroupDomain.h"
+#include "vtkSMTrace.h"
 
 // Qt Includes
 #include <QVBoxLayout>
@@ -89,20 +90,25 @@ pqTextureSelectorPropertyWidget::pqTextureSelectorPropertyWidget(
   vtkPVXMLElement* hints = smProperty->GetHints()
     ? smProperty->GetHints()->FindNestedElementByName("TextureSelectorWidget")
     : NULL;
-  if (hints && strcmp(hints->GetAttributeOrDefault("check_tcoords", ""), "1") == 0)
+  if (hints)
   {
+    bool checkTCoords = strcmp(hints->GetAttributeOrDefault("check_tcoords", ""), "1") == 0;
+    bool checkTangents = strcmp(hints->GetAttributeOrDefault("check_tangents", ""), "1") == 0;
+
     this->Representation = smm->findItem<pqDataRepresentation*>(smProxy);
     if (this->Representation)
     {
-      QObject::connect(this->Representation, SIGNAL(dataUpdated()), this, SLOT(checkTCoords()));
+      QObject::connect(this->Representation, &pqDataRepresentation::dataUpdated, this,
+        [=] { this->checkAttributes(checkTCoords, checkTangents); });
     }
-    this->checkTCoords();
+    this->checkAttributes(checkTCoords, checkTangents);
   }
 }
 
 //-----------------------------------------------------------------------------
 void pqTextureSelectorPropertyWidget::onTextureChanged(vtkSMProxy* texture)
 {
+  SM_SCOPED_TRACE(ChooseTexture).arg(this->proxy()).arg(texture).arg(this->property());
   BEGIN_UNDO_SET("Texture Change");
   vtkSMPropertyHelper(this->property()).Set(texture);
   this->proxy()->UpdateVTKObjects();
@@ -120,22 +126,28 @@ void pqTextureSelectorPropertyWidget::onPropertyChanged()
 }
 
 //-----------------------------------------------------------------------------
-void pqTextureSelectorPropertyWidget::checkTCoords()
+void pqTextureSelectorPropertyWidget::checkAttributes(bool tcoords, bool tangents)
 {
-  bool enable = false;
+  bool enable = true;
   // Enable only if we have point texture coordinates.
   vtkPVDataInformation* dataInfo = this->Representation->getRepresentedDataInformation();
   if (dataInfo)
   {
     vtkPVDataSetAttributesInformation* pdInfo = dataInfo->GetPointDataInformation();
-    if (pdInfo && pdInfo->GetAttributeInformation(vtkDataSetAttributes::TCOORDS))
+    if (pdInfo)
     {
-      enable = true;
+      if (tcoords && pdInfo->GetAttributeInformation(vtkDataSetAttributes::TCOORDS) == nullptr)
+      {
+        enable = false;
+        this->setToolTip("No tcoords present in the data. Cannot apply texture.");
+      }
+      else if (tangents &&
+        pdInfo->GetAttributeInformation(vtkDataSetAttributes::TANGENTS) == nullptr)
+      {
+        enable = false;
+        this->setToolTip("No tangents present in the data. Cannot apply texture.");
+      }
     }
   }
-  this->setEnabled(enable);
-  if (!enable)
-  {
-    this->setToolTip("No texture coordinates present in the data. Cannot apply texture.");
-  }
+  this->Selector->setEnabled(enable);
 }

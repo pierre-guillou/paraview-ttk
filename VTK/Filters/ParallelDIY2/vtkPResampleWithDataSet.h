@@ -20,14 +20,13 @@
  * filter
  * @sa
  * vtkResampleWithDataSet vtkPResampleToImage
-*/
+ */
 
 #ifndef vtkPResampleWithDataSet_h
 #define vtkPResampleWithDataSet_h
 
 #include "vtkFiltersParallelDIY2Module.h" // For export macro
 #include "vtkResampleWithDataSet.h"
-
 
 class vtkMultiProcessController;
 
@@ -37,7 +36,7 @@ public:
   vtkTypeMacro(vtkPResampleWithDataSet, vtkResampleWithDataSet);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  static vtkPResampleWithDataSet *New();
+  static vtkPResampleWithDataSet* New();
 
   //@{
   /**
@@ -69,14 +68,12 @@ public:
 
 protected:
   vtkPResampleWithDataSet();
-  ~vtkPResampleWithDataSet();
+  ~vtkPResampleWithDataSet() override;
 
-  int RequestData(vtkInformation *, vtkInformationVector **,
-                          vtkInformationVector *) override;
-  int RequestUpdateExtent(vtkInformation *, vtkInformationVector **,
-                          vtkInformationVector *) override;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-  vtkMultiProcessController *Controller;
+  vtkMultiProcessController* Controller;
   bool UseBalancedPartitionForPointsLookup;
 
 private:

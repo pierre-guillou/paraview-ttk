@@ -218,15 +218,11 @@ class Clip
 {
   // Add support for invert
 public:
-  struct TypeClipStats : vtkm::ListTagBase<ClipStats>
-  {
-  };
+  using TypeClipStats = vtkm::List<ClipStats>;
 
-  struct TypeEdgeInterp : vtkm::ListTagBase<EdgeInterpolation>
-  {
-  };
+  using TypeEdgeInterp = vtkm::List<EdgeInterpolation>;
 
-  class ComputeStats : public vtkm::worklet::WorkletMapPointToCell
+  class ComputeStats : public vtkm::worklet::WorkletVisitCellsWithPoints
   {
   public:
     VTKM_CONT
@@ -315,7 +311,7 @@ public:
     bool Invert;
   };
 
-  class GenerateCellSet : public vtkm::worklet::WorkletMapPointToCell
+  class GenerateCellSet : public vtkm::worklet::WorkletVisitCellsWithPoints
   {
   public:
     VTKM_CONT
@@ -341,7 +337,7 @@ public:
 
     using ExecutionSignature = void(CellShape,
                                     WorkIndex,
-                                    FromIndices,
+                                    PointIndices,
                                     _2,
                                     _3,
                                     _4,
@@ -692,7 +688,10 @@ public:
     vtkm::cont::CellSetExplicit<> output;
     vtkm::Id numberOfPoints = scalars.GetNumberOfValues() +
       this->EdgePointsInterpolation.GetNumberOfValues() + total.NumberOfInCellPoints;
-    output.Fill(numberOfPoints, shapes, numberOfIndices, connectivity);
+
+    vtkm::cont::ConvertNumIndicesToOffsets(numberOfIndices, offsets);
+
+    output.Fill(numberOfPoints, shapes, connectivity, offsets);
     return output;
   }
 
@@ -754,9 +753,7 @@ public:
   {
   public:
     using ValueType = typename ArrayHandleType::ValueType;
-    struct TypeMappedValue : vtkm::ListTagBase<ValueType>
-    {
-    };
+    using TypeMappedValue = vtkm::List<ValueType>;
 
     InterpolateField(vtkm::cont::ArrayHandle<EdgeInterpolation> edgeInterpolationArray,
                      vtkm::cont::ArrayHandle<vtkm::Id> inCellInterpolationKeys,

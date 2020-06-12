@@ -24,7 +24,7 @@
 namespace
 {
 
-using EdgeType = vtkm::Vec<vtkm::IdComponent, 2>;
+using EdgeType = vtkm::IdComponent2;
 
 void MakeEdgeCanonical(EdgeType& edge)
 {
@@ -213,6 +213,14 @@ struct TestCellFacesFunctor
   void operator()(CellShapeTag) const
   {
     this->TryShapeWithNumPoints(vtkm::CellTraits<CellShapeTag>::NUM_POINTS, CellShapeTag());
+  }
+
+  void operator()(vtkm::CellShapeTagPolyLine) const
+  {
+    for (vtkm::IdComponent numPoints = 3; numPoints < 7; numPoints++)
+    {
+      this->TryShapeWithNumPoints(numPoints, vtkm::CellShapeTagPolyLine());
+    }
   }
 
   void operator()(vtkm::CellShapeTagPolygon) const

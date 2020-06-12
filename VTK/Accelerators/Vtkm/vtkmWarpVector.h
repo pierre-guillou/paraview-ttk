@@ -22,28 +22,27 @@
  * profiles or mechanical deformation.
  *
  * The filter passes both its point data and cell data to its output.
-*/
+ */
 
 #ifndef vtkmWarpVector_h
 #define vtkmWarpVector_h
 
-#include "vtkWarpVector.h"
 #include "vtkAcceleratorsVTKmModule.h" // required for correct export
+#include "vtkWarpVector.h"
 
 class VTKACCELERATORSVTKM_EXPORT vtkmWarpVector : public vtkWarpVector
 {
 public:
-  vtkTypeMacro(vtkmWarpVector, vtkWarpVector)
+  vtkTypeMacro(vtkmWarpVector, vtkWarpVector);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   static vtkmWarpVector* New();
 
 protected:
   vtkmWarpVector();
-  ~vtkmWarpVector();
+  ~vtkmWarpVector() override;
 
-  int RequestData(vtkInformation* , vtkInformationVector**,
-                          vtkInformationVector*) override;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 private:
   vtkmWarpVector(const vtkmWarpVector&) = delete;

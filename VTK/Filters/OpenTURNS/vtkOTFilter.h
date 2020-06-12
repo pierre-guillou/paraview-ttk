@@ -21,7 +21,7 @@
  * converts it to a openturns structure and then process it
  * The inherited classes are responsible of filling up the output
  * table in the Process() method.
-*/
+ */
 
 #ifndef vtkOTFilter_h
 #define vtkOTFilter_h
@@ -42,15 +42,14 @@ public:
 
 protected:
   vtkOTFilter();
-  ~vtkOTFilter();
+  ~vtkOTFilter() override;
 
   /**
    * Set the input of this filter, a vtkTable
    */
   virtual int FillInputPortInformation(int port, vtkInformation* info) override;
 
-  virtual int RequestData(vtkInformation* request,
-    vtkInformationVector** inputVector,
+  virtual int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
   /**

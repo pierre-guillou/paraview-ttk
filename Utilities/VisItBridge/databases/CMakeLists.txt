@@ -93,64 +93,40 @@ endforeach(db)
 
 add_definitions("-DRC_CPP_VISIT_BUILD")
 
-# set of xmls for readers enabled.
+# set of libraries xmls for readers enabled.
+set(visit_libraries)
 set(visit_readers_xmls
   visit_readers.xml)
 
 #-----------------------------------------------------------------------------
 visit_include_reader_source(Silo OFF)
 if(VISIT_BUILD_READER_Silo)
-  #if we currently don't have silo setup make it required
-  find_package(SILO REQUIRED)
-  if(NOT SILO_FOUND)
-    message(FATAL_ERROR "Unable to locate Silo library.")
-  endif(NOT SILO_FOUND)
+  vtk_module_find_package(PACKAGE SILO)
+  list(APPEND visit_libraries
+    SILO::SILO)
   list(APPEND visit_readers_xmls
     visit_silo_reader.xml)
-endif(VISIT_BUILD_READER_Silo)
+endif()
 
 #-----------------------------------------------------------------------------
 if(VISIT_BUILD_READER_Boxlib3D)
-  if(NOT Boxlib_FOUND)
-    find_package(Boxlib REQUIRED)
-  endif(NOT Boxlib_FOUND)
-  if(NOT GFortran_FOUND)
-    find_package(GFortran REQUIRED)
-  endif()
-  if(NOT MPI_CXX_FOUND)
-    find_package(MPI REQUIRED)
-  endif()
-  if(NOT MPI_Fortran_FOUND)
-    find_package(MPI REQUIRED COMPONENTS Fortran)
-  endif()
+  vtk_module_find_package(PACKAGE Boxlib)
+  list(APPEND visit_libraries
+    Boxlib::Boxlib)
   list(APPEND visit_readers_xmls
     visit_boxlib3d_reader.xml)
-endif(VISIT_BUILD_READER_Boxlib3D)
+endif()
 visit_include_reader_source(Boxlib3D OFF)
 
 #-----------------------------------------------------------------------------
 visit_include_reader_source(Mili OFF)
 if(VISIT_BUILD_READER_Mili)
-  #if we currently don't have mili setup make it required
-  find_package(Mili REQUIRED)
-  if(NOT Mili_FOUND)
-    message(FATAL_ERROR "Unable to locate Mili library.")
-  endif(NOT Mili_FOUND)
+  vtk_module_find_package(PACKAGE Mili)
+  list(APPEND visit_libraries
+    Mili::Mili)
   list(APPEND visit_readers_xmls
     visit_mili_reader.xml)
-endif(VISIT_BUILD_READER_Mili)
-
-if(HAVE_LIBSILO AND VISIT_BUILD_READER_Silo)
-  include_directories(${SILO_INCLUDE_DIR})
-endif(HAVE_LIBSILO AND VISIT_BUILD_READER_Silo)
-
-if(Boxlib_FOUND AND VISIT_BUILD_READER_Boxlib3D)
-  include_directories(${Boxlib_INCLUDE_DIR})
-endif(Boxlib_FOUND AND VISIT_BUILD_READER_Boxlib3D)
-
-if(HAVE_LIBMILI AND VISIT_BUILD_READER_Mili)
-  include_directories(${Mili_INCLUDE_DIR})
-endif(HAVE_LIBMILI AND VISIT_BUILD_READER_Mili)
+endif()
 
 set(sources
   AvtAlgorithms/vtkAvtFileFormatAlgorithm.cxx
@@ -193,18 +169,7 @@ paraview_add_server_manager_xmls(
 
 # Required for paraDIS.
 find_package(Boost REQUIRED)
-vtk_module_link(ParaView::IOVisItBridge PRIVATE Boost::boost)
-
-if(HAVE_LIBSILO AND VISIT_BUILD_READER_Silo)
-  vtk_module_link(ParaView::IOVisItBridge PRIVATE ${SILO_LIBRARIES})
-endif(HAVE_LIBSILO AND VISIT_BUILD_READER_Silo)
-
-if(Boxlib_FOUND AND VISIT_BUILD_READER_Boxlib3D)
-  vtk_module_link(ParaView::IOVisItBridge PRIVATE ${Boxlib_LIBRARIES} ${Boxlib_LIBRARIES})
-  vtk_module_link(ParaView::IOVisItBridge PRIVATE ${GFortran_LIBRARIES})
-  vtk_module_link(ParaView::IOVisItBridge PRIVATE ${MPI_Fortran_LIBRARIES})
-endif(Boxlib_FOUND AND VISIT_BUILD_READER_Boxlib3D)
-
-if(HAVE_LIBMILI AND VISIT_BUILD_READER_Mili)
-  vtk_module_link(ParaView::IOVisItBridge PRIVATE ${Mili_LIBRARIES})
-endif(HAVE_LIBMILI AND VISIT_BUILD_READER_Mili)
+vtk_module_link(ParaView::IOVisItBridge
+  PRIVATE
+    Boost::boost
+    ${visit_libraries})

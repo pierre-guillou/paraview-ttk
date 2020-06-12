@@ -7,6 +7,8 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
+#ifndef vtk_m_filter_VertexClustering_hxx
+#define vtk_m_filter_VertexClustering_hxx
 
 namespace vtkm
 {
@@ -32,7 +34,7 @@ inline VTKM_CONT vtkm::cont::DataSet VertexClustering::DoExecute(
   vtkm::Bounds bounds = input.GetCoordinateSystem().GetBounds();
 
   vtkm::cont::DataSet outDataSet =
-    this->Worklet.Run(vtkm::filter::ApplyPolicyUnstructured(input.GetCellSet(), policy),
+    this->Worklet.Run(vtkm::filter::ApplyPolicyCellSetUnstructured(input.GetCellSet(), policy),
                       input.GetCoordinateSystem(),
                       bounds,
                       this->GetNumberOfDivisions());
@@ -70,3 +72,4 @@ inline VTKM_CONT bool VertexClustering::DoMapField(
 }
 }
 }
+#endif

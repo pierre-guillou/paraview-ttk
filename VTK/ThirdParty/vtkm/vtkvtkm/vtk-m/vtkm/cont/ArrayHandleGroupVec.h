@@ -25,6 +25,8 @@ namespace internal
 template <typename PortalType, vtkm::IdComponent N_COMPONENTS>
 class VTKM_ALWAYS_EXPORT ArrayPortalGroupVec
 {
+  using Writable = vtkm::internal::PortalSupportsSets<PortalType>;
+
 public:
   static constexpr vtkm::IdComponent NUM_COMPONENTS = N_COMPONENTS;
   using SourcePortalType = PortalType;
@@ -79,8 +81,9 @@ public:
   }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
-  VTKM_EXEC_CONT
-  void Set(vtkm::Id index, const ValueType& value) const
+  template <typename Writable_ = Writable,
+            typename = typename std::enable_if<Writable_::value>::type>
+  VTKM_EXEC_CONT void Set(vtkm::Id index, const ValueType& value) const
   {
     vtkm::Id sourceIndex = index * NUM_COMPONENTS;
     for (vtkm::IdComponent componentIndex = 0; componentIndex < NUM_COMPONENTS; componentIndex++)
@@ -106,19 +109,19 @@ namespace vtkm
 namespace cont
 {
 
-namespace internal
-{
-
-template <typename SourceArrayHandleType, vtkm::IdComponent NUM_COMPONENTS>
+template <typename SourceStorageTag, vtkm::IdComponent NUM_COMPONENTS>
 struct VTKM_ALWAYS_EXPORT StorageTagGroupVec
 {
 };
 
-template <typename SourceArrayHandleType, vtkm::IdComponent NUM_COMPONENTS>
-class Storage<vtkm::Vec<typename SourceArrayHandleType::ValueType, NUM_COMPONENTS>,
-              vtkm::cont::internal::StorageTagGroupVec<SourceArrayHandleType, NUM_COMPONENTS>>
+namespace internal
 {
-  using ComponentType = typename SourceArrayHandleType::ValueType;
+
+template <typename ComponentType, vtkm::IdComponent NUM_COMPONENTS, typename SourceStorageTag>
+class Storage<vtkm::Vec<ComponentType, NUM_COMPONENTS>,
+              vtkm::cont::StorageTagGroupVec<SourceStorageTag, NUM_COMPONENTS>>
+{
+  using SourceArrayHandleType = vtkm::cont::ArrayHandle<ComponentType, SourceStorageTag>;
 
 public:
   using ValueType = vtkm::Vec<ComponentType, NUM_COMPONENTS>;
@@ -206,19 +209,22 @@ private:
   bool Valid;
 };
 
-template <typename SourceArrayHandleType, vtkm::IdComponent NUM_COMPONENTS, typename Device>
-class ArrayTransfer<vtkm::Vec<typename SourceArrayHandleType::ValueType, NUM_COMPONENTS>,
-                    vtkm::cont::internal::StorageTagGroupVec<SourceArrayHandleType, NUM_COMPONENTS>,
+template <typename ComponentType,
+          vtkm::IdComponent NUM_COMPONENTS,
+          typename SourceStorageTag,
+          typename Device>
+class ArrayTransfer<vtkm::Vec<ComponentType, NUM_COMPONENTS>,
+                    vtkm::cont::StorageTagGroupVec<SourceStorageTag, NUM_COMPONENTS>,
                     Device>
 {
 public:
-  using ComponentType = typename SourceArrayHandleType::ValueType;
   using ValueType = vtkm::Vec<ComponentType, NUM_COMPONENTS>;
 
 private:
-  using StorageTag =
-    vtkm::cont::internal::StorageTagGroupVec<SourceArrayHandleType, NUM_COMPONENTS>;
+  using StorageTag = vtkm::cont::StorageTagGroupVec<SourceStorageTag, NUM_COMPONENTS>;
   using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
+
+  using SourceArrayHandleType = vtkm::cont::ArrayHandle<ComponentType, SourceStorageTag>;
 
 public:
   using PortalControl = typename StorageType::PortalType;
@@ -317,7 +323,7 @@ template <typename SourceArrayHandleType, vtkm::IdComponent NUM_COMPONENTS>
 class ArrayHandleGroupVec
   : public vtkm::cont::ArrayHandle<
       vtkm::Vec<typename SourceArrayHandleType::ValueType, NUM_COMPONENTS>,
-      vtkm::cont::internal::StorageTagGroupVec<SourceArrayHandleType, NUM_COMPONENTS>>
+      vtkm::cont::StorageTagGroupVec<typename SourceArrayHandleType::StorageTag, NUM_COMPONENTS>>
 {
   VTKM_IS_ARRAY_HANDLE(SourceArrayHandleType);
 
@@ -327,7 +333,7 @@ public:
     (ArrayHandleGroupVec<SourceArrayHandleType, NUM_COMPONENTS>),
     (vtkm::cont::ArrayHandle<
       vtkm::Vec<typename SourceArrayHandleType::ValueType, NUM_COMPONENTS>,
-      vtkm::cont::internal::StorageTagGroupVec<SourceArrayHandleType, NUM_COMPONENTS>>));
+      vtkm::cont::StorageTagGroupVec<typename SourceArrayHandleType::StorageTag, NUM_COMPONENTS>>));
 
   using ComponentType = typename SourceArrayHandleType::ValueType;
 
@@ -358,6 +364,7 @@ VTKM_CONT vtkm::cont::ArrayHandleGroupVec<ArrayHandleType, NUM_COMPONENTS> make_
 
 //=============================================================================
 // Specializations of serialization related classes
+/// @cond SERIALIZATION
 namespace vtkm
 {
 namespace cont
@@ -374,11 +381,11 @@ struct SerializableTypeString<vtkm::cont::ArrayHandleGroupVec<AH, NUM_COMPS>>
   }
 };
 
-template <typename AH, vtkm::IdComponent NUM_COMPS>
+template <typename T, vtkm::IdComponent NUM_COMPS, typename ST>
 struct SerializableTypeString<
-  vtkm::cont::ArrayHandle<vtkm::Vec<typename AH::ValueType, NUM_COMPS>,
-                          vtkm::cont::internal::StorageTagGroupVec<AH, NUM_COMPS>>>
-  : SerializableTypeString<vtkm::cont::ArrayHandleGroupVec<AH, NUM_COMPS>>
+  vtkm::cont::ArrayHandle<vtkm::Vec<T, NUM_COMPS>, vtkm::cont::StorageTagGroupVec<ST, NUM_COMPS>>>
+  : SerializableTypeString<
+      vtkm::cont::ArrayHandleGroupVec<vtkm::cont::ArrayHandle<T, ST>, NUM_COMPS>>
 {
 };
 }
@@ -409,14 +416,14 @@ public:
   }
 };
 
-template <typename AH, vtkm::IdComponent NUM_COMPS>
+template <typename T, vtkm::IdComponent NUM_COMPS, typename ST>
 struct Serialization<
-  vtkm::cont::ArrayHandle<vtkm::Vec<typename AH::ValueType, NUM_COMPS>,
-                          vtkm::cont::internal::StorageTagGroupVec<AH, NUM_COMPS>>>
-  : Serialization<vtkm::cont::ArrayHandleGroupVec<AH, NUM_COMPS>>
+  vtkm::cont::ArrayHandle<vtkm::Vec<T, NUM_COMPS>, vtkm::cont::StorageTagGroupVec<ST, NUM_COMPS>>>
+  : Serialization<vtkm::cont::ArrayHandleGroupVec<vtkm::cont::ArrayHandle<T, ST>, NUM_COMPS>>
 {
 };
 
 } // diy
+/// @endcond SERIALIZATION
 
 #endif //vtk_m_cont_ArrayHandleGroupVec_h

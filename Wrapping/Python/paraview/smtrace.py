@@ -216,6 +216,11 @@ class Trace(object):
                         "# uncomment following to set a specific view size",
                         "# %s" % viewSizeAccessor.get_property_trace(in_ctor=False)])
                 cls.Output.append_separated(trace.raw_data())
+                # good idea to grab the layout accessor, if any, right now. This avoids the issue
+                # described in BUG #19403.
+                layout = simple.GetLayout(view=obj)
+                if layout:
+                    cls.get_accessor(layout)
                 return True
         if obj.SMProxy.IsA("vtkSMRepresentationProxy"):
             # handle representations.
@@ -303,7 +308,15 @@ class Trace(object):
                     "# get the material library",
                     "%s = GetMaterialLibrary()" % tkAccessor])
             return True
-
+        if obj.GetVTKClassName() == "vtkTexture":
+            pname = obj.SMProxy.GetSessionProxyManager().GetProxyName("textures", obj.SMProxy)
+            if pname:
+                accessor = ProxyAccessor(cls.get_varname(pname), obj)
+                filename = obj.FileName
+                cls.Output.append_separated([\
+                        "# a texture",
+                                             "%s = CreateTexture(\"%s\")" % (accessor, filename)])
+            return True
 
         return False
 
@@ -665,6 +678,9 @@ class PropertyTraceHelper(object):
         servermanager.Proxy.GetPropertyValue()."""
         return self.ProxyAccessor.get_object().GetPropertyValue(self.get_property_name())
 
+    def get_proxy(self):
+        return self.ProxyAccessor.get_object()
+
     def create_multiline_string(self, astr):
         """helper to convert a string representation into a multiline string"""
         if '\\n' in astr:
@@ -696,9 +712,20 @@ class ProxyFilter(object):
             return True
         # if a property is "linked" to settings, then skip it here too. We
         # should eventually add an option for user to save, yes, save these too.
+        # Note, however, any property that is linked with `unlink_if_modified`
+        # set to 1 should be traced if the link no longer persists -- indicating
+        # the user manually changed it (and hence broke the link).
         if prop.get_object().GetHints():
             plink = prop.get_object().GetHints().FindNestedElementByName("PropertyLink")
-            return True if plink and plink.GetAttribute("group") == "settings" else False
+            if plink and plink.GetAttribute("group") == "settings":
+                if plink.GetAttribute("unlink_if_modified") != "1":
+                    return True
+                proxy = prop.get_proxy()
+                pxm = proxy.GetSessionProxyManager()
+                settings = pxm.GetProxy("settings", plink.GetAttribute("proxy"))
+                if settings and settings.GetSourcePropertyName(proxy.SMProxy, prop.get_property_name()):
+                    # the settings link still exists, skip tracing
+                    return True
         return False
 
     def should_trace_in_create(self, prop, user_can_modify_in_create=True):
@@ -742,6 +769,13 @@ class ExodusIIReaderFilter(PipelineProxyFilter):
         # I am opting to ignore those properties when tracing.
         return prop.get_property_name() in [\
             "FilePrefix", "XMLFileName", "FilePattern", "FileRange"]
+
+class ExtractSelectionFilter(PipelineProxyFilter):
+    def should_never_trace(self, prop):
+        if PipelineProxyFilter.should_never_trace(self, prop): return True
+
+        # Selections are not registered with the proxy manager, so we will not try to trace them.
+        return prop.get_property_name() in ["Selection"]
 
 class RepresentationProxyFilter(PipelineProxyFilter):
     def should_trace_in_ctor(self, prop): return False
@@ -870,8 +904,13 @@ class RegisterPipelineProxy(TraceItem):
         ctor = sm._make_name_valid(self.Proxy.GetXMLLabel())
         trace = TraceOutput()
         trace.append("# create a new '%s'" % self.Proxy.GetXMLLabel())
-        filter_type = ExodusIIReaderFilter() \
-            if isinstance(self.Proxy, sm.ExodusIIReaderProxy) else PipelineProxyFilter()
+        if isinstance(self.Proxy, sm.ExodusIIReaderProxy):
+            filter_type = ExodusIIReaderFilter()
+        elif self.Proxy.GetXMLLabel() == "Extract Selection":
+            filter_type = ExtractSelectionFilter()
+        else:
+            filter_type = PipelineProxyFilter()
+
         trace.append(accessor.trace_ctor(ctor, filter_type))
         Trace.Output.append_separated(trace.raw_data())
         TraceItem.finalize(self)
@@ -1013,11 +1052,13 @@ class Show(TraceItem):
         else:
             output.append("# show data in view")
         if port > 0:
-            output.append("%s = Show(OutputPort(%s, %d), %s)" % \
-                (str(accessor), str(self.ProducerAccessor), port, str(self.ViewAccessor)))
+            output.append("%s = Show(OutputPort(%s, %d), %s, '%s')" % \
+                (str(accessor), str(self.ProducerAccessor), port, str(self.ViewAccessor), \
+                str(display.GetXMLName())))
         else:
-            output.append("%s = Show(%s, %s)" % \
-                (str(accessor), str(self.ProducerAccessor), str(self.ViewAccessor)))
+            output.append("%s = Show(%s, %s, '%s')" % \
+                (str(accessor), str(self.ProducerAccessor), str(self.ViewAccessor), \
+                str(display.GetXMLName())))
         Trace.Output.append_separated(output.raw_data())
 
         output = TraceOutput()
@@ -1461,6 +1502,19 @@ class CallFunction(TraceItem):
         args += ["%s=%s" % (key, CallMethod.marshall(val)) for key, val in kwargs.items()]
         to_trace.append("%s(%s)" % (functionname, ", ".join(args)))
         Trace.Output.append_separated(to_trace)
+
+class ChooseTexture(TraceItem):
+    """Traces changes of texture object selection. For example renderview background."""
+    def __init__(self, owner, texture, prop):
+        TraceItem.__init__(self)
+        owner = sm._getPyProxy(owner)
+        texture = sm._getPyProxy(texture)
+        ownerAccessor = Trace.get_accessor(owner)
+        textureAccessor = Trace.get_accessor(texture)
+
+        Trace.Output.append_separated([\
+                                       "# change texture",
+                                       "%s.%s = %s" % (str(ownerAccessor), prop.GetXMLName(), str(textureAccessor))])
 
 class SaveCameras(BookkeepingItem):
     """This is used to request recording of cameras in trace"""

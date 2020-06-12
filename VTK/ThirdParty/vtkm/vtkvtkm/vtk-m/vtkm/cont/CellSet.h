@@ -27,28 +27,14 @@ namespace cont
 class VTKM_CONT_EXPORT CellSet
 {
 public:
-  VTKM_CONT
-  CellSet(const std::string& name)
-    : Name(name)
-  {
-  }
+  CellSet() = default;
+  CellSet(const CellSet& src) = default;
+  CellSet(CellSet&& src) noexcept = default;
 
-  VTKM_CONT
-  CellSet(const vtkm::cont::CellSet& src)
-    : Name(src.Name)
-  {
-  }
-
-  VTKM_CONT
-  CellSet& operator=(const vtkm::cont::CellSet& src)
-  {
-    this->Name = src.Name;
-    return *this;
-  }
+  CellSet& operator=(const CellSet& src) = default;
+  CellSet& operator=(CellSet&& src) noexcept = default;
 
   virtual ~CellSet();
-
-  std::string GetName() const { return this->Name; }
 
   virtual vtkm::Id GetNumberOfCells() const = 0;
 
@@ -68,9 +54,6 @@ public:
   virtual void PrintSummary(std::ostream&) const = 0;
 
   virtual void ReleaseResourcesExecution() = 0;
-
-protected:
-  std::string Name;
 };
 
 namespace internal

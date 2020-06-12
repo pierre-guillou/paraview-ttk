@@ -3,7 +3,9 @@
 import os
 import re
 import sys
-from paraview.modules.vtkPVServerManagerDefault import *
+from paraview.modules.vtkRemotingServerManager import *
+from paraview.modules.vtkRemotingApplication import *
+from paraview.modules.vtkRemotingMisc import *
 
 # we get different behavior based on how we import servermanager
 # so we want to import servermanager the same way in this module
@@ -126,6 +128,37 @@ def DoRegressionTesting(rmProxy=None):
     return True
   return Error("Regression Test Failed!")
 
+
+def GetUniqueTempDirectory(prefix):
+    """A convenience method to generate a temporary directory unique to the
+    current ParaView process (or MPI group of processes)"""
+    global TempDir
+    pm = servermanager.vtkProcessModule.GetProcessModule()
+    if pm.GetNumberOfLocalPartitions() > 1 and pm.GetSymmetricMPIMode():
+        if pm.GetPartitionId() == 0:
+            import os
+            pid = os.getpid()
+        else:
+            pid = None
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        pid = comm.bcast(pid, root=0)
+    else:
+        import os
+        pid = os.getpid()
+
+    import os.path
+    tempdir = os.path.join(TempDir, "%s%d" % (prefix,pid))
+    if pm.GetPartitionId() == 0:
+        try:
+            os.makedirs(tempdir)
+        except OSError:
+            pass
+    if pm.GetNumberOfLocalPartitions() > 1 and pm.GetSymmetricMPIMode():
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        comm.Barrier()
+    return tempdir
 
 if __name__ == "__main__":
   # This script loads the state, saves out a temp state and loads the saved state.

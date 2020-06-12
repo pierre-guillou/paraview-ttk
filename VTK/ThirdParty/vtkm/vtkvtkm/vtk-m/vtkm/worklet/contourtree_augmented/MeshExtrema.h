@@ -58,7 +58,7 @@
 // local includes
 #include <vtkm/cont/Algorithm.h>
 #include <vtkm/cont/ArrayHandleConstant.h>
-#include <vtkm/worklet/Invoker.h>
+#include <vtkm/cont/Invoker.h>
 #include <vtkm/worklet/contourtree_augmented/PointerDoubling.h>
 #include <vtkm/worklet/contourtree_augmented/PrintVectors.h>
 #include <vtkm/worklet/contourtree_augmented/Types.h>
@@ -79,7 +79,7 @@ namespace contourtree_augmented
 class MeshExtrema
 { // MeshExtrema
 public:
-  vtkm::worklet::Invoker Invoke;
+  vtkm::cont::Invoker Invoke;
   // arrays for peaks & pits
   IdArrayType peaks;
   IdArrayType pits;
@@ -134,7 +134,7 @@ inline void MeshExtrema::BuildRegularChains(bool isMaximal)
   IdArrayType& extrema = isMaximal ? peaks : pits;
 
   // Create the PointerDoubling worklet and corresponding dispatcher
-  PointerDoubling pointerDoubler;
+  vtkm::worklet::contourtree_augmented::PointerDoubling pointerDoubler;
 
   // Iterate to perform pointer-doubling to build chains to extrema (i.e., maxima or minima)
   // depending on whether we are computing a JoinTree or a SplitTree
@@ -152,13 +152,14 @@ inline void MeshExtrema::SetStarts(MeshType& mesh, bool isMaximal)
 {
   mesh.setPrepareForExecutionBehavior(isMaximal);
   mesh_extrema_inc_ns::SetStarts setStartsWorklet;
+  vtkm::cont::ArrayHandleIndex sortIndexArray(mesh.nVertices);
   if (isMaximal)
   {
-    this->Invoke(setStartsWorklet, mesh.sortIndices, mesh, peaks);
+    this->Invoke(setStartsWorklet, sortIndexArray, mesh, peaks);
   }
   else
   {
-    this->Invoke(setStartsWorklet, mesh.sortIndices, mesh, pits);
+    this->Invoke(setStartsWorklet, sortIndexArray, mesh, pits);
   }
   DebugPrint("Regular Starts Set", __FILE__, __LINE__);
 }

@@ -23,33 +23,31 @@
  * can be oriented arbitrarily. A typical example is to generate scalars based
  * on elevation or height above a plane.
  *
-*/
+ */
 
 #ifndef vtkmPointElevation_h
 #define vtkmPointElevation_h
 
-#include "vtkElevationFilter.h"
 #include "vtkAcceleratorsVTKmModule.h" // required for correct export
+#include "vtkElevationFilter.h"
 
 class VTKACCELERATORSVTKM_EXPORT vtkmPointElevation : public vtkElevationFilter
 {
 public:
-  vtkTypeMacro(vtkmPointElevation, vtkElevationFilter)
+  vtkTypeMacro(vtkmPointElevation, vtkElevationFilter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   static vtkmPointElevation* New();
 
 protected:
   vtkmPointElevation();
-  ~vtkmPointElevation();
+  ~vtkmPointElevation() override;
 
-  virtual int RequestData(vtkInformation* , vtkInformationVector**,
-                          vtkInformationVector*) override;
+  virtual int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 private:
   vtkmPointElevation(const vtkmPointElevation&) = delete;
   void operator=(const vtkmPointElevation&) = delete;
-
 };
 
 #endif // vtkmPointElevation_h

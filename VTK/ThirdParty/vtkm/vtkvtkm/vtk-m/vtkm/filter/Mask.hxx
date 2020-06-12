@@ -7,6 +7,8 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
+#ifndef vtk_m_filter_Mask_hxx
+#define vtk_m_filter_Mask_hxx
 
 namespace
 {
@@ -51,15 +53,15 @@ template <typename DerivedPolicy>
 inline VTKM_CONT vtkm::cont::DataSet Mask::DoExecute(const vtkm::cont::DataSet& input,
                                                      vtkm::filter::PolicyBase<DerivedPolicy> policy)
 {
-  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet(this->GetActiveCellSetIndex());
+  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet();
   vtkm::cont::DynamicCellSet cellOut;
   CallWorklet workletCaller(this->Stride, cellOut, this->Worklet);
-  vtkm::filter::ApplyPolicy(cells, policy).CastAndCall(workletCaller);
+  vtkm::filter::ApplyPolicyCellSet(cells, policy).CastAndCall(workletCaller);
 
   // create the output dataset
   vtkm::cont::DataSet output;
   output.AddCoordinateSystem(input.GetCoordinateSystem(this->GetActiveCoordinateSystemIndex()));
-  output.AddCellSet(cellOut);
+  output.SetCellSet(cellOut);
   return output;
 }
 
@@ -90,3 +92,4 @@ inline VTKM_CONT bool Mask::DoMapField(vtkm::cont::DataSet& result,
 }
 }
 }
+#endif

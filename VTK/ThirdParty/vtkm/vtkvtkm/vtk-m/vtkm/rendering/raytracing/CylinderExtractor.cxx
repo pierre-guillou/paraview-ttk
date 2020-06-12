@@ -26,7 +26,7 @@ namespace raytracing
 namespace detail
 {
 
-class CountSegments : public vtkm::worklet::WorkletMapPointToCell
+class CountSegments : public vtkm::worklet::WorkletVisitCellsWithPoints
 {
 public:
   VTKM_CONT
@@ -58,10 +58,15 @@ public:
   {
     points = 0;
   }
+  VTKM_EXEC
+  void operator()(vtkm::CellShapeTagWedge vtkmNotUsed(shapeType), vtkm::Id& points) const
+  {
+    points = 0;
+  }
 
 }; // ClassCountSegments
 
-class Pointify : public vtkm::worklet::WorkletMapPointToCell
+class Pointify : public vtkm::worklet::WorkletVisitCellsWithPoints
 {
 
 public:
@@ -73,6 +78,15 @@ public:
   template <typename VecType, typename OutputPortal>
   VTKM_EXEC void operator()(const vtkm::Id& vtkmNotUsed(pointOffset),
                             vtkm::CellShapeTagQuad vtkmNotUsed(shapeType),
+                            const VecType& vtkmNotUsed(cellIndices),
+                            const vtkm::Id& vtkmNotUsed(cellId),
+                            OutputPortal& vtkmNotUsed(outputIndices)) const
+  {
+  }
+
+  template <typename VecType, typename OutputPortal>
+  VTKM_EXEC void operator()(const vtkm::Id& vtkmNotUsed(pointOffset),
+                            vtkm::CellShapeTagWedge vtkmNotUsed(shapeType),
                             const VecType& vtkmNotUsed(cellIndices),
                             const vtkm::Id& vtkmNotUsed(cellId),
                             OutputPortal& vtkmNotUsed(outputIndices)) const
@@ -272,7 +286,7 @@ void CylinderExtractor::SetVaryingRadius(const vtkm::Float32 minRadius,
   Radii.Allocate(this->CylIds.GetNumberOfValues());
   vtkm::worklet::DispatcherMapField<detail::FieldRadius>(
     detail::FieldRadius(minRadius, maxRadius, range))
-    .Invoke(this->CylIds, this->Radii, field.GetData().ResetTypes(vtkm::TypeListTagFieldScalar()));
+    .Invoke(this->CylIds, this->Radii, field.GetData().ResetTypes(vtkm::TypeListFieldScalar()));
 }
 
 

@@ -11,7 +11,6 @@
 #define vtk_m_worklet_internal_WorkletBase_h
 
 #include <vtkm/TopologyElementTag.h>
-#include <vtkm/TypeListTag.h>
 
 #include <vtkm/exec/FunctorBase.h>
 #include <vtkm/exec/arg/BasicArg.h>
@@ -40,18 +39,10 @@
 
 #include <vtkm/worklet/MaskNone.h>
 #include <vtkm/worklet/ScatterIdentity.h>
+#include <vtkm/worklet/internal/Placeholders.h>
 
 namespace vtkm
 {
-namespace placeholders
-{
-
-template <int ControlSignatureIndex>
-struct Arg : vtkm::exec::arg::BasicArg<ControlSignatureIndex>
-{
-};
-}
-
 namespace worklet
 {
 namespace internal
@@ -61,7 +52,7 @@ namespace internal
 /// operator() const is added to implement an algorithm in VTK-m. Different
 /// worklets have different calling semantics.
 ///
-class WorkletBase : public vtkm::exec::FunctorBase
+class VTKM_ALWAYS_EXPORT WorkletBase : public vtkm::exec::FunctorBase
 {
 public:
   using _1 = vtkm::placeholders::Arg<1>;
@@ -247,13 +238,15 @@ public:
   /// operator argument with one of the default args. This can be used to
   /// global lookup for arbitrary topology information
 
-  using Cell = vtkm::TopologyElementTagCell;
   using Point = vtkm::TopologyElementTagPoint;
-  template <typename FromType = Point, typename ToType = Cell>
+  using Cell = vtkm::TopologyElementTagCell;
+  using Edge = vtkm::TopologyElementTagEdge;
+  using Face = vtkm::TopologyElementTagFace;
+  template <typename VisitTopology = Cell, typename IncidentTopology = Point>
   struct WholeCellSetIn : vtkm::cont::arg::ControlSignatureTagBase
   {
     using TypeCheckTag = vtkm::cont::arg::TypeCheckTagCellSet;
-    using TransportTag = vtkm::cont::arg::TransportTagCellSetIn<FromType, ToType>;
+    using TransportTag = vtkm::cont::arg::TransportTagCellSetIn<VisitTopology, IncidentTopology>;
     using FetchTag = vtkm::exec::arg::FetchTagWholeCellSetIn;
   };
 

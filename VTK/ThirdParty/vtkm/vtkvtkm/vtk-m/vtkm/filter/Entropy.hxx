@@ -8,10 +8,10 @@
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
 
-#include <vtkm/worklet/DispatcherMapField.h>
-#include <vtkm/worklet/FieldEntropy.h>
+#ifndef vtk_m_filter_Entropy_hxx
+#define vtk_m_filter_Entropy_hxx
 
-#include <vtkm/filter/internal/CreateResult.h>
+#include <vtkm/worklet/FieldEntropy.h>
 
 namespace vtkm
 {
@@ -42,11 +42,9 @@ inline VTKM_CONT vtkm::cont::DataSet Entropy::DoExecute(
   entropy.Allocate(1);
   entropy.GetPortalControl().Set(0, e);
 
-  return internal::CreateResult(inDataSet,
-                                entropy,
-                                this->GetOutputFieldName(),
-                                fieldMetadata.GetAssociation(),
-                                fieldMetadata.GetCellSetName());
+  return CreateResult(inDataSet, entropy, this->GetOutputFieldName(), fieldMetadata);
 }
 }
 } // namespace vtkm::filter
+
+#endif

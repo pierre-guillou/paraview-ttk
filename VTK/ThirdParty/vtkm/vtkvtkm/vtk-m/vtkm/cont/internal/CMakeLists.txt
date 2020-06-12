@@ -16,15 +16,12 @@ set(headers
   ArrayManagerExecution.h
   ArrayManagerExecutionShareWithControl.h
   ArrayPortalFromIterators.h
-  ArrayPortalShrink.h
   ArrayTransfer.h
   AtomicInterfaceControl.h
   AtomicInterfaceExecution.h
   ConnectivityExplicitInternals.h
   DeviceAdapterAlgorithmGeneral.h
-  DeviceAdapterAtomicArrayImplementation.h
   DeviceAdapterListHelpers.h
-  DynamicTransform.h
   FunctorsGeneral.h
   IteratorFromArrayPortal.h
   KXSort.h

@@ -7,26 +7,13 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
+#ifndef vtk_m_filter_ThresholdPoints_hxx
+#define vtk_m_filter_ThresholdPoints_hxx
 
 #include <vtkm/cont/ErrorFilterExecution.h>
 
 namespace
 {
-
-// Needed to CompactPoints
-template <typename BasePolicy>
-struct CellSetSingleTypePolicy : public BasePolicy
-{
-  using AllCellSetList = vtkm::cont::CellSetListTagUnstructured;
-};
-
-template <typename DerivedPolicy>
-inline vtkm::filter::PolicyBase<CellSetSingleTypePolicy<DerivedPolicy>> GetCellSetSingleTypePolicy(
-  const vtkm::filter::PolicyBase<DerivedPolicy>&)
-{
-  return vtkm::filter::PolicyBase<CellSetSingleTypePolicy<DerivedPolicy>>();
-}
-
 // Predicate for values less than minimum
 class ValuesBelow
 {
@@ -143,7 +130,7 @@ inline VTKM_CONT vtkm::cont::DataSet ThresholdPoints::DoExecute(
   vtkm::filter::PolicyBase<DerivedPolicy> policy)
 {
   // extract the input cell set
-  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet(this->GetActiveCellSetIndex());
+  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet();
 
   // field to threshold on must be a point field
   if (fieldMeta.IsPointField() == false)
@@ -159,20 +146,22 @@ inline VTKM_CONT vtkm::cont::DataSet ThresholdPoints::DoExecute(
   {
     case THRESHOLD_BELOW:
     {
-      outCellSet = worklet.Run(
-        vtkm::filter::ApplyPolicy(cells, policy), field, ValuesBelow(this->GetLowerThreshold()));
+      outCellSet = worklet.Run(vtkm::filter::ApplyPolicyCellSet(cells, policy),
+                               field,
+                               ValuesBelow(this->GetLowerThreshold()));
       break;
     }
     case THRESHOLD_ABOVE:
     {
-      outCellSet = worklet.Run(
-        vtkm::filter::ApplyPolicy(cells, policy), field, ValuesAbove(this->GetUpperThreshold()));
+      outCellSet = worklet.Run(vtkm::filter::ApplyPolicyCellSet(cells, policy),
+                               field,
+                               ValuesAbove(this->GetUpperThreshold()));
       break;
     }
     case THRESHOLD_BETWEEN:
     default:
     {
-      outCellSet = worklet.Run(vtkm::filter::ApplyPolicy(cells, policy),
+      outCellSet = worklet.Run(vtkm::filter::ApplyPolicyCellSet(cells, policy),
                                field,
                                ValuesBetween(this->GetLowerThreshold(), this->GetUpperThreshold()));
       break;
@@ -181,7 +170,7 @@ inline VTKM_CONT vtkm::cont::DataSet ThresholdPoints::DoExecute(
 
   // create the output dataset
   vtkm::cont::DataSet output;
-  output.AddCellSet(outCellSet);
+  output.SetCellSet(outCellSet);
   output.AddCoordinateSystem(input.GetCoordinateSystem(this->GetActiveCoordinateSystemIndex()));
 
   // compact the unused points in the output dataset
@@ -189,7 +178,7 @@ inline VTKM_CONT vtkm::cont::DataSet ThresholdPoints::DoExecute(
   {
     this->Compactor.SetCompactPointFields(true);
     this->Compactor.SetMergePoints(true);
-    return this->Compactor.DoExecute(output, GetCellSetSingleTypePolicy(policy));
+    return this->Compactor.Execute(output, PolicyDefault{});
   }
   else
   {
@@ -224,3 +213,4 @@ inline VTKM_CONT bool ThresholdPoints::DoMapField(
 }
 }
 }
+#endif

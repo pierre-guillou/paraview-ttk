@@ -7,9 +7,8 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
-
-#include <vtkm/filter/internal/CreateResult.h>
-#include <vtkm/worklet/DispatcherMapField.h>
+#ifndef vtk_m_filter_VectorMagnitude_hxx
+#define vtk_m_filter_VectorMagnitude_hxx
 
 #include <vtkm/Math.h>
 
@@ -17,14 +16,6 @@ namespace vtkm
 {
 namespace filter
 {
-
-//-----------------------------------------------------------------------------
-inline VTKM_CONT VectorMagnitude::VectorMagnitude()
-  : vtkm::filter::FilterField<VectorMagnitude>()
-  , Worklet()
-{
-  this->SetOutputFieldName("magnitude");
-}
 
 //-----------------------------------------------------------------------------
 template <typename T, typename StorageType, typename DerivedPolicy>
@@ -37,15 +28,10 @@ inline VTKM_CONT vtkm::cont::DataSet VectorMagnitude::DoExecute(
   using ReturnType = typename ::vtkm::detail::FloatingPointReturnType<T>::Type;
   vtkm::cont::ArrayHandle<ReturnType> outArray;
 
-  vtkm::worklet::DispatcherMapField<vtkm::worklet::Magnitude> dispatcher(this->Worklet);
+  this->Invoke(this->Worklet, field, outArray);
 
-  dispatcher.Invoke(field, outArray);
-
-  return internal::CreateResult(inDataSet,
-                                outArray,
-                                this->GetOutputFieldName(),
-                                fieldMetadata.GetAssociation(),
-                                fieldMetadata.GetCellSetName());
+  return CreateResult(inDataSet, outArray, this->GetOutputFieldName(), fieldMetadata);
 }
 }
 } // namespace vtkm::filter
+#endif

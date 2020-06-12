@@ -89,7 +89,7 @@ public:
   pqPresetDialogTableModel(QObject* parentObject)
     : Superclass(parentObject)
   {
-    this->Presets = vtkSmartPointer<vtkSMTransferFunctionPresets>::New();
+    this->Presets = vtkSMTransferFunctionPresets::GetInstance();
     this->Pixmaps.reserve(this->Presets->GetNumberOfPresets());
     this->GroupManager = qobject_cast<pqPresetGroupsManager*>(
       pqApplicationCore::instance()->manager("PRESET_GROUP_MANAGER"));
@@ -111,7 +111,7 @@ public:
   void reset()
   {
     this->beginResetModel();
-    this->Presets = vtkSmartPointer<vtkSMTransferFunctionPresets>::New();
+    this->Presets->ReloadPresets();
     this->Pixmaps.clear();
     this->Pixmaps.reserve(this->Presets->GetNumberOfPresets());
     this->endResetModel();
@@ -813,8 +813,10 @@ void pqPresetDialog::triggerApply(const QModelIndex& _proxyIndex)
   QModelIndex idx = internals.ReflowModel->mapToSource(proxyIndex);
   idx = internals.ProxyModel->mapToSource(idx);
   const Json::Value& preset = internals.Model->Presets->GetPreset(idx.row());
-  assert(preset.empty() == false);
-  emit this->applyPreset(preset);
+  if (preset.empty() == false)
+  {
+    emit this->applyPreset(preset);
+  }
 }
 
 //-----------------------------------------------------------------------------

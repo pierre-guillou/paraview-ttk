@@ -46,34 +46,43 @@ A simple example::
 #
 #==============================================================================
 from __future__ import print_function
-import paraview, re, os, os.path, types, sys, atexit
+import paraview, re, os, os.path, types, sys
 
 # prefer `vtk` from `paraview` since it doesn't import all
 # vtk modules.
 from paraview import vtk
 from paraview import _backwardscompatibilityhelper as _bc
 
-from paraview.modules.vtkPVServerImplementationCore import *
-from paraview.modules.vtkPVClientServerCoreCore import *
-from paraview.modules.vtkPVServerManagerCore import *
+from paraview.modules.vtkPVVTKExtensionsCore import *
+from paraview.modules.vtkRemotingCore import *
+from paraview.modules.vtkRemotingServerManager import *
+from paraview.modules.vtkRemotingSettings import *
+from paraview.modules.vtkRemotingApplication import *
 
 try:
-  from paraview.modules.vtkPVServerManagerDefault import *
-except:
-  paraview.print_error("Error: Cannot import vtkPVServerManagerDefault")
+    from paraview.modules.vtkRemotingViews import *
+except ImportError:
+    pass
+
 try:
-  from paraview.modules.vtkPVServerManagerRendering import *
-except:
-  paraview.print_error("Error: Cannot import vtkPVServerManagerRendering")
+    from paraview.modules.vtkRemotingAnimation import *
+except ImportError:
+    pass
+
 try:
-  from paraview.modules.vtkPVServerManagerApplication import *
-except:
-  paraview.print_error("Error: Cannot import vtkPVServerManagerApplication")
+    from paraview.modules.vtkRemotingExport import *
+except ImportError:
+    pass
+
 try:
-  from paraview.modules.vtkPVAnimation import *
-except:
-  paraview.print_error("Error: Cannot import vtkPVAnimation")
-from paraview.modules.vtkPVCore import *
+    from paraview.modules.vtkRemotingMisc import *
+except ImportError:
+    pass
+
+try:
+    from paraview.modules.vtkRemotingLive import *
+except ImportError:
+    pass
 
 def _wrap_property(proxy, smproperty):
     """ Internal function.
@@ -351,11 +360,17 @@ class Proxy(object):
         """Returns a scalar for properties with 1 elements, the property
         itself for vectors."""
         p = self.GetProperty(name)
-        if isinstance(p, VectorProperty):
-            if paraview.compatibility.GetVersion() <= 4.1 and name == "ColorArrayName":
-              # Return ColorArrayName as just the array name for backwards compatibility.
-              return p[1]
-            elif p.GetNumberOfElements() == 1 and not p.GetRepeatable():
+        if isinstance(p, VectorProperty) and paraview.compatibility.GetVersion() <= 4.1 and name == "ColorArrayName":
+            # Return ColorArrayName as just the array name for backwards compatibility.
+            return p[1]
+        if isinstance(p, EnumerationProperty) or \
+          isinstance(p, ArraySelectionProperty) or \
+          isinstance(p, StringListProperty) or \
+          isinstance(p, ArrayListProperty):
+            # with domain based property, return the property to provide access to Available method
+            return p
+        elif isinstance(p, VectorProperty):
+            if p.GetNumberOfElements() == 1 and not p.GetRepeatable():
                 if p.SMProperty.IsA("vtkSMStringVectorProperty") or not p.GetArgumentIsArray():
                     return p[0]
         elif isinstance(p, InputProperty):
@@ -423,16 +438,34 @@ class Proxy(object):
             return retVal
 
     def __GetActiveCamera(self):
-        """ This method handles GetActiveCamera specially. It adds
-        an observer to the camera such that everytime it is modified
-        the render view updated"""
+        """ This method handles GetActiveCamera specially.
+            We return a decorated vtkCamera object so that whenever
+            the Camera is directly modified using Python API,
+            we ensure that the Camera properties on the corresponding
+            view proxy are synchronized with the underlying vtkCamera.
+        """
         import weakref
-        c = self.SMProxy.GetActiveCamera()
-        if not c.HasObserver("ModifiedEvent"):
-            self.ObserverTag =c.AddObserver("ModifiedEvent", \
-                              _makeUpdateCameraMethod(weakref.ref(self)))
-            self.Observed = c
-        return c
+        camera = self.SMProxy.GetActiveCamera()
+        proxy = weakref.ref(self)
+
+        from functools import wraps
+        def _camera_sync(method):
+            @wraps(method)
+            def newfunc(*args, **kwargs):
+                result = method(*args, **kwargs)
+                if proxy():
+                    proxy().SynchronizeCameraProperties()
+                return result
+            return newfunc
+
+        class _camera_wrapper(object):
+            def __getattribute__(self, s):
+                try:
+                    return super(_camera_wrapper, self).__getattribute__(s)
+                except AttributeError:
+                    return _camera_sync(camera.__getattribute__(s))
+
+        return _camera_wrapper()
 
     def __setattr__(self, name, value):
         try:
@@ -658,6 +691,16 @@ class Property(object):
         import weakref
         self.SMProperty = smproperty
         self.Proxy = proxy
+
+    def __eq__(self, other):
+        "Returns true if the properties or properties values are the same."
+        return ((self is None and other is None) or
+                (self is not None and other is not None and self.__repr__() == other.__repr__()))
+
+    if sys.version_info < (3,):
+        def __ne__(self, other):
+            "Returns true if the properties or properties values are not the same."
+            return not self.__eq__(other)
 
     def __repr__(self):
         """Returns a string representation containing property name
@@ -2289,7 +2332,7 @@ if sys.version_info < (3, 3):
                 raise
             return module
 else:
-    import importlib
+    import importlib, importlib.abc
     class ParaViewMetaPathFinder(importlib.abc.MetaPathFinder):
         def __init__(self):
             self._loader = ParaViewLoader()
@@ -2548,19 +2591,6 @@ def _getPyProxy(smproxy, outputPort=0):
         else:
             retVal = Proxy(proxy=smproxy, port=outputPort)
     return retVal
-
-def _makeUpdateCameraMethod(rv):
-    """ This internal method is used to create observer methods """
-    if not hasattr(rv(), "BlockUpdateCamera"):
-        rv().add_attribute("BlockUpdateCamera", False)
-    def UpdateCamera(obj, string):
-        if not rv().BlockUpdateCamera:
-          # used to avoid some nasty recursion that occurs when interacting in
-          # the GUI.
-          rv().BlockUpdateCamera = True
-          rv().SynchronizeCameraProperties()
-          rv().BlockUpdateCamera = False
-    return UpdateCamera
 
 def _createInitialize(group, name):
     """Internal method to create an Initialize() method for the sub-classes
@@ -3232,6 +3262,10 @@ if not vtkProcessModule.GetProcessModule():
       pvoptions.SetForceNoMPIInitOnClient(1)
       vtkInitializationHelper.Initialize(sys.executable,
           vtkProcessModule.PROCESS_CLIENT, pvoptions)
+
+    # since we initialized paraview, lets ensure that we finalize it too
+    import atexit
+    atexit.register(Finalize)
 
 # Initialize progress printing. Can be turned off by calling
 # ToggleProgressPrinting() again.

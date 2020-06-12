@@ -30,16 +30,14 @@ namespace cont
 namespace testing
 {
 
-struct CustomTypeList : vtkm::ListTagBase<vtkm::Vec<Int32, 3>,
-                                          vtkm::Vec<Int64, 3>,
-                                          vtkm::Vec<Float32, 3>,
-                                          vtkm::Vec<Float64, 3>,
-                                          vtkm::Vec<Int32, 9>,
-                                          vtkm::Vec<Int64, 9>,
-                                          vtkm::Vec<Float32, 9>,
-                                          vtkm::Vec<Float64, 9>>
-{
-};
+using CustomTypeList = vtkm::List<vtkm::Vec<Int32, 3>,
+                                  vtkm::Vec<Int64, 3>,
+                                  vtkm::Vec<Float32, 3>,
+                                  vtkm::Vec<Float64, 3>,
+                                  vtkm::Vec<Int32, 9>,
+                                  vtkm::Vec<Int64, 9>,
+                                  vtkm::Vec<Float32, 9>,
+                                  vtkm::Vec<Float64, 9>>;
 
 template <typename DeviceAdapterTag>
 class TestingComputeRange
@@ -97,8 +95,8 @@ private:
   {
     vtkm::cont::CoordinateSystem field("TestField",
                                        vtkm::Id3(10, 20, 5),
-                                       vtkm::Vec<vtkm::FloatDefault, 3>(0.0f, -5.0f, 4.0f),
-                                       vtkm::Vec<vtkm::FloatDefault, 3>(1.0f, 0.5f, 2.0f));
+                                       vtkm::Vec3f(0.0f, -5.0f, 4.0f),
+                                       vtkm::Vec3f(1.0f, 0.5f, 2.0f));
 
     vtkm::Bounds result = field.GetBounds();
 

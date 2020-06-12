@@ -31,10 +31,12 @@
 #include <vector> // for ivar
 
 class pqOpenVRControls;
+class vtkActor;
 class vtkBoxWidget2;
 class vtkCallbackCommand;
 class vtkDataSet;
 class vtkDistanceWidget;
+class vtkEventData;
 class vtkImplicitPlaneWidget2;
 class vtkOpenVRCameraPose;
 class vtkOpenVRInteractorStyle;
@@ -43,6 +45,8 @@ class vtkOpenVRPanelRepresentation;
 class vtkOpenVRRenderWindowInteractor;
 class vtkOpenVRRenderer;
 class vtkOpenVRRenderWindow;
+class vtkPlaneSource;
+class vtkProp;
 class vtkPropCollection;
 class vtkPVOpenVRCollaborationClient;
 class vtkPVDataRepresentation;
@@ -52,6 +56,8 @@ class vtkQWidgetWidget;
 class vtkSMProxy;
 class vtkSMProxyLocator;
 class vtkSMViewProxy;
+class vtkTextActor3D;
+class vtkTexture;
 class vtkTransform;
 
 // helper class to store information per location
@@ -85,6 +91,9 @@ public:
 
   // if in VR close out the event loop
   void Quit();
+
+  // reset all prop positions
+  void ResetPositions();
 
   // if running update the props to the current props
   // on the View
@@ -138,7 +147,7 @@ public:
   //@}
 
   // show the billboard with the provided text
-  void ShowBillboard(std::string const& text);
+  void ShowBillboard(std::string const& text, bool updatePosition, std::string const& tfile);
 
   // add a point to the currently selected source in PV
   // if it accepts points
@@ -160,6 +169,13 @@ public:
 
   // set what the right trigger will do when pressed
   void SetRightTriggerMode(std::string const& mode);
+
+  vtkGetObjectMacro(Renderer, vtkOpenVRRenderer);
+
+  void SaveCameraPose(int loc);
+  void LoadCameraPose(int loc);
+  void SetScaleFactor(float val);
+  void SetMotionFactor(float val);
 
 protected:
   vtkPVOpenVRHelper();
@@ -183,6 +199,7 @@ protected:
   vtkDataSet* LastPickedDataSet;
   vtkIdType LastPickedCellId;
   vtkPVDataRepresentation* LastPickedRepresentation;
+  vtkProp* LastPickedProp;
   vtkDataSet* PreviousPickedDataSet;
   vtkIdType PreviousPickedCellId;
   vtkPVDataRepresentation* PreviousPickedRepresentation;
@@ -190,6 +207,9 @@ protected:
 
   vtkNew<vtkOpenVRPanelWidget> NavWidget;
   vtkNew<vtkOpenVRPanelRepresentation> NavRepresentation;
+  vtkNew<vtkTextActor3D> TextActor3D;
+  vtkNew<vtkPlaneSource> ImagePlane;
+  vtkNew<vtkActor> ImageActor;
 
   std::set<vtkImplicitPlaneWidget2*> CropPlanes;
   std::set<vtkBoxWidget2*> ThickCrops;
@@ -198,6 +218,13 @@ protected:
   vtkOpenVRRenderWindowInteractor* Interactor;
   bool InteractorEventCallback(vtkObject* object, unsigned long event, void* calldata);
   bool EventCallback(vtkObject* object, unsigned long event, void* calldata);
+
+  void HideBillboard();
+  void HandleDeleteEvent(vtkObject* caller);
+  void HandlePickEvent(vtkObject* caller, void* calldata);
+  void MoveToNextImage();
+  void MoveToNextCell();
+  void UpdateBillboard(bool updatePosition);
 
   vtkDistanceWidget* DistanceWidget;
   vtkPVRenderView* View;
@@ -214,6 +241,8 @@ protected:
   int LoadLocationValue;
 
   std::map<int, vtkPVOpenVRHelperLocation> Locations;
+
+  vtkEventData* LastEventData;
 
 private:
   vtkPVOpenVRHelper(const vtkPVOpenVRHelper&) = delete;

@@ -18,8 +18,8 @@
 #include "vtkMathUtilities.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkPoints.h"
 #include "vtkPointData.h"
+#include "vtkPoints.h"
 #include "vtkPolyData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
@@ -49,6 +49,8 @@ vtkEllipseArcSource::vtkEllipseArcSource()
   // Default resolution
   this->Resolution = 100;
 
+  this->Close = false;
+
   this->OutputPointsPrecision = SINGLE_PRECISION;
 
   // Default Ratio
@@ -60,8 +62,7 @@ vtkEllipseArcSource::vtkEllipseArcSource()
 
 // --------------------------------------------------------------------------
 int vtkEllipseArcSource::RequestData(vtkInformation* vtkNotUsed(request),
-  vtkInformationVector** vtkNotUsed(inputVector),
-  vtkInformationVector* outputVector)
+  vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
 {
   int numLines = this->Resolution;
   int numPts = this->Resolution + 1;
@@ -71,8 +72,7 @@ int vtkEllipseArcSource::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
 
   // get the output
-  vtkPolyData* output =
-    vtkPolyData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
+  vtkPolyData* output = vtkPolyData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
   double a = 1.0, b = 1.0;
   double majorRadiusVect[3];
@@ -132,7 +132,12 @@ int vtkEllipseArcSource::RequestData(vtkInformation* vtkNotUsed(request),
   newTCoords->Allocate(2 * numPts);
   newTCoords->SetName("Texture Coordinates");
   vtkNew<vtkCellArray> newLines;
-  newLines->Allocate(newLines->EstimateSize(numLines, 2));
+  newLines->AllocateEstimate(numLines, 2);
+
+  // Should we skip adding the last point in the loop? Yes if the segment angle is a full
+  // 360 degrees and we want to close the loop because the last point will be coincident
+  // with the first.
+  bool skipLastPoint = this->Close && fabs(this->SegmentAngle - 360.0) < 1e-5;
 
   double theta = startAngleRad;
   double thetaEllipse;
@@ -147,7 +152,7 @@ int vtkEllipseArcSource::RequestData(vtkInformation* vtkNotUsed(request),
     // result range: -pi/2, pi/2
     thetaEllipse = atan(tan(theta) * this->Ratio);
 
-    //theta range: 0, 2 * pi
+    // theta range: 0, 2 * pi
     if (theta > vtkMath::Pi() / 2 && theta <= vtkMath::Pi())
     {
       thetaEllipse += vtkMath::Pi();
@@ -159,22 +164,34 @@ int vtkEllipseArcSource::RequestData(vtkInformation* vtkNotUsed(request),
 
     const double cosTheta = cos(thetaEllipse);
     const double sinTheta = sin(thetaEllipse);
-    double p[3] =
-      {
-      this->Center[0] + a * cosTheta * majorRadiusVect[0] + b * sinTheta * orthogonalVect[0],
+    double p[3] = { this->Center[0] + a * cosTheta * majorRadiusVect[0] +
+        b * sinTheta * orthogonalVect[0],
       this->Center[1] + a * cosTheta * majorRadiusVect[1] + b * sinTheta * orthogonalVect[1],
-      this->Center[2] + a * cosTheta * majorRadiusVect[2] + b * sinTheta * orthogonalVect[2]
-      };
+      this->Center[2] + a * cosTheta * majorRadiusVect[2] + b * sinTheta * orthogonalVect[2] };
 
     tc[0] = static_cast<double>(i) / this->Resolution;
-    newPoints->InsertPoint(i , p);
-    newTCoords->InsertTuple(i, tc);
+
+    // Skip adding a point at the end if it is going to be coincident with the first
+    if (i != this->Resolution || !skipLastPoint)
+    {
+      newPoints->InsertPoint(i, p);
+      newTCoords->InsertTuple(i, tc);
+    }
   }
 
   newLines->InsertNextCell(numPts);
-  for (int k = 0; k < numPts; ++ k)
+  for (int k = 0; k < numPts - 1; ++k)
   {
     newLines->InsertCellPoint(k);
+  }
+
+  if (this->Close)
+  {
+    newLines->InsertCellPoint(0);
+  }
+  else
+  {
+    newLines->InsertCellPoint(newPoints->GetNumberOfPoints() - 1);
   }
 
   output->SetPoints(newPoints);
@@ -190,17 +207,14 @@ void vtkEllipseArcSource::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Resolution: " << this->Resolution << "\n";
 
-  os << indent << "Center: (" << this->Center[0] << ", "
-    << this->Center[1] << ", "
-    << this->Center[2] << ")\n";
+  os << indent << "Center: (" << this->Center[0] << ", " << this->Center[1] << ", "
+     << this->Center[2] << ")\n";
 
-  os << indent << "Normal: (" << this->Normal[0] << ", "
-    << this->Normal[1] << ", "
-    << this->Normal[2] << ")\n";
+  os << indent << "Normal: (" << this->Normal[0] << ", " << this->Normal[1] << ", "
+     << this->Normal[2] << ")\n";
 
   os << indent << "Major Radius Vector: (" << this->MajorRadiusVector[0] << ", "
-    << this->MajorRadiusVector[1] << ", "
-    << this->MajorRadiusVector[2] << ")\n";
+     << this->MajorRadiusVector[1] << ", " << this->MajorRadiusVector[2] << ")\n";
 
   os << indent << "StartAngle: " << this->StartAngle << "\n";
   os << indent << "SegmentAngle: " << this->SegmentAngle << "\n";

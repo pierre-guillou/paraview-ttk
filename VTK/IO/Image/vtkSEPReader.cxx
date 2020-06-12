@@ -15,6 +15,7 @@
 #include "vtkInformationVector.h"
 #include "vtkObjectFactory.h"
 #include "vtkUnstructuredGrid.h"
+#include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include <iostream>
@@ -26,7 +27,7 @@ vtkStandardNewMacro(vtkSEPReader);
 namespace
 {
 //----------------------------------------------------------------------------
-void TrimString(std::string &s)
+void TrimString(std::string& s)
 {
   // trim trailing spaces
   std::size_t pos = s.find_last_not_of(" \t");
@@ -51,42 +52,38 @@ vtkSEPReader::vtkSEPReader()
 }
 
 //-----------------------------------------------------------------------------
-int vtkSEPReader::CanReadFile(const char *filename)
+int vtkSEPReader::CanReadFile(const char* filename)
 {
-  std::string extension =
-    vtksys::SystemTools::GetFilenameLastExtension(filename);
+  std::string extension = vtksys::SystemTools::GetFilenameLastExtension(filename);
   return (extension == ".H") ? 1 : 0;
 }
 
 //-----------------------------------------------------------------------------
-int vtkSEPReader::RequestInformation(vtkInformation *request,
-                                     vtkInformationVector **inputVector,
-                                     vtkInformationVector *outputVector)
+int vtkSEPReader::RequestInformation(
+  vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
   if (!this->ReadHeader())
   {
     return 0;
   }
 
-  return this->Superclass::RequestInformation(request, inputVector,
-                                              outputVector);
+  return this->Superclass::RequestInformation(request, inputVector, outputVector);
 }
 
 //-----------------------------------------------------------------------------
-void vtkSEPReader::PrintSelf(ostream &os, vtkIndent indent)
+void vtkSEPReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << "DataFile: " << this->DataFile << std::endl;
 }
 
 //-----------------------------------------------------------------------------
-int vtkSEPReader::RequestData(vtkInformation *request,
-                              vtkInformationVector **inputVector,
-                              vtkInformationVector *outputVector)
+int vtkSEPReader::RequestData(
+  vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
   // Replace the filename with the data file and delegate the reading of this
   // raw data to the underlying vtkImageReader
-  char * const fileName = this->FileName;
+  char* const fileName = this->FileName;
 
   // This `const_cast` is valid because the `RequestData` of
   // `Superclass` does not try to modify the string pointed by
@@ -117,7 +114,7 @@ int vtkSEPReader::ReadHeader()
     return 0;
   }
 
-  ifstream file(this->FileName, ios::in | ios::binary);
+  vtksys::ifstream file(this->FileName, ios::in | ios::binary);
   if (file.fail())
   {
     vtkErrorMacro(<< "Could not open file " << this->FileName);
@@ -191,10 +188,8 @@ int vtkSEPReader::ReadHeader()
         }
         else
         {
-          vtksys::SystemTools::LocateFileInDir(
-            value.c_str(),
-            vtksys::SystemTools::GetParentDirectory(this->FileName).c_str(),
-            this->DataFile);
+          vtksys::SystemTools::LocateFileInDir(value.c_str(),
+            vtksys::SystemTools::GetParentDirectory(this->FileName).c_str(), this->DataFile);
         }
       }
     }

@@ -34,9 +34,6 @@
 /* Define if you are using PDB proper instead of PDB lite. */
 #cmakedefine HAVE_PDB_PROPER
 
-/* Define if you have silo. */
-#cmakedefine HAVE_LIBSILO
-
 /* Define to identify the variant of PDB Lite (in silo) */
 #cmakedefine PDB_LITE_HAS_LONG_LONG
 

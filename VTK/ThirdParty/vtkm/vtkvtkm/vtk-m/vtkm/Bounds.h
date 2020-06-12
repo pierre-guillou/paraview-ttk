@@ -108,9 +108,9 @@ struct Bounds
   /// are empty, the results are undefined.
   ///
   VTKM_EXEC_CONT
-  vtkm::Vec<vtkm::Float64, 3> Center() const
+  vtkm::Vec3f_64 Center() const
   {
-    return vtkm::Vec<vtkm::Float64, 3>(this->X.Center(), this->Y.Center(), this->Z.Center());
+    return vtkm::Vec3f_64(this->X.Center(), this->Y.Center(), this->Z.Center());
   }
 
   /// \b Expand bounds to include a point.
@@ -170,13 +170,13 @@ struct Bounds
   }
 };
 
-} // namespace vtkm
-
 /// Helper function for printing bounds during testing
 ///
 static inline VTKM_CONT std::ostream& operator<<(std::ostream& stream, const vtkm::Bounds& bounds)
 {
   return stream << "{ X:" << bounds.X << ", Y:" << bounds.Y << ", Z:" << bounds.Z << " }";
 }
+
+} // namespace vtkm
 
 #endif //vtk_m_Bounds_h

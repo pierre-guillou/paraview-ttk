@@ -17,8 +17,10 @@
 
 #include "vtkGLTFUtils.h"
 #include "vtkMath.h"
+#include "vtkMathUtilities.h"
 #include "vtkTransform.h"
 #include "vtk_jsoncpp.h"
+#include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include <algorithm>
@@ -35,7 +37,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadBuffer(
   }
 
   int byteLength = 0;
-  ifstream fin;
+  vtksys::ifstream fin;
 
   std::string name = "";
   vtkGLTFUtils::GetStringValue(root["name"], name);
@@ -113,7 +115,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadFileMetaData(
   }
 
   std::stringstream JSONstream;
-  std::ifstream fin;
+  vtksys::ifstream fin;
   if (extension == ".glb")
   {
     // Get base information
@@ -133,7 +135,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadFileMetaData(
     }
 
     // Open the file in binary mode
-    fin.open(fileName, std::ios::binary | std::ios::in);
+    fin.open(fileName.c_str(), std::ios::binary | std::ios::in);
     if (!fin.is_open())
     {
       vtkErrorWithObjectMacro(this->Self, "Error opening file " << fileName);
@@ -151,7 +153,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadFileMetaData(
   else
   {
     // Copy whole file into string
-    fin.open(fileName);
+    fin.open(fileName.c_str());
     if (!fin.is_open())
     {
       vtkErrorWithObjectMacro(this->Self, "Error opening file " << fileName);
@@ -852,14 +854,19 @@ bool vtkGLTFDocumentLoaderInternals::LoadNode(
     }
     if (vtkGLTFUtils::GetFloatArray(root["rotation"], node.InitialRotation))
     {
+      float rotationLengthSquared = 0;
       for (float rotationValue : node.InitialRotation)
       {
-        if (rotationValue < -1 || rotationValue > 1)
+        rotationLengthSquared += rotationValue * rotationValue;
+      }
+      if (!vtkMathUtilities::NearlyEqual<float>(rotationLengthSquared, 1))
+      {
+        vtkWarningWithObjectMacro(this->Self,
+          "Invalid node.rotation value. Using normalized rotation for node " << node.Name);
+        float rotationLength = sqrt(rotationLengthSquared);
+        for (float& rotationValue : node.InitialRotation)
         {
-          vtkWarningWithObjectMacro(this->Self,
-            "Invalid node.rotation value. Using default rotation for node " << node.Name);
-          node.InitialRotation.clear();
-          break;
+          rotationValue /= rotationLength;
         }
       }
       if (node.InitialRotation.size() !=

@@ -71,14 +71,9 @@ public:
   VTKM_CONT
   RemoveUnusedPoints() {}
 
-  template <typename ShapeStorage,
-            typename NumIndicesStorage,
-            typename ConnectivityStorage,
-            typename OffsetsStorage>
-  VTKM_CONT RemoveUnusedPoints(const vtkm::cont::CellSetExplicit<ShapeStorage,
-                                                                 NumIndicesStorage,
-                                                                 ConnectivityStorage,
-                                                                 OffsetsStorage>& inCellSet)
+  template <typename ShapeStorage, typename ConnectivityStorage, typename OffsetsStorage>
+  VTKM_CONT RemoveUnusedPoints(
+    const vtkm::cont::CellSetExplicit<ShapeStorage, ConnectivityStorage, OffsetsStorage>& inCellSet)
   {
     this->FindPointsStart();
     this->FindPoints(inCellSet);
@@ -93,14 +88,9 @@ public:
   /// points are those that are not found in any cell sets passed to this
   /// method.
   ///
-  template <typename ShapeStorage,
-            typename NumIndicesStorage,
-            typename ConnectivityStorage,
-            typename OffsetsStorage>
-  VTKM_CONT void FindPoints(const vtkm::cont::CellSetExplicit<ShapeStorage,
-                                                              NumIndicesStorage,
-                                                              ConnectivityStorage,
-                                                              OffsetsStorage>& inCellSet)
+  template <typename ShapeStorage, typename ConnectivityStorage, typename OffsetsStorage>
+  VTKM_CONT void FindPoints(
+    const vtkm::cont::CellSetExplicit<ShapeStorage, ConnectivityStorage, OffsetsStorage>& inCellSet)
   {
     if (this->MaskArray.GetNumberOfValues() < 1)
     {
@@ -112,8 +102,8 @@ public:
     VTKM_ASSERT(this->MaskArray.GetNumberOfValues() == inCellSet.GetNumberOfPoints());
 
     vtkm::worklet::DispatcherMapField<GeneratePointMask> dispatcher;
-    dispatcher.Invoke(inCellSet.GetConnectivityArray(vtkm::TopologyElementTagPoint(),
-                                                     vtkm::TopologyElementTagCell()),
+    dispatcher.Invoke(inCellSet.GetConnectivityArray(vtkm::TopologyElementTagCell(),
+                                                     vtkm::TopologyElementTagPoint()),
                       this->MaskArray);
   }
 
@@ -133,18 +123,11 @@ public:
   /// returns a new cell set with cell points transformed to use the indices of
   /// the new reduced point arrays.
   ///
-  template <typename ShapeStorage,
-            typename NumIndicesStorage,
-            typename ConnectivityStorage,
-            typename OffsetsStorage>
-  VTKM_CONT vtkm::cont::CellSetExplicit<ShapeStorage,
-                                        NumIndicesStorage,
-                                        VTKM_DEFAULT_CONNECTIVITY_STORAGE_TAG,
-                                        OffsetsStorage>
-  MapCellSet(const vtkm::cont::CellSetExplicit<ShapeStorage,
-                                               NumIndicesStorage,
-                                               ConnectivityStorage,
-                                               OffsetsStorage>& inCellSet) const
+  template <typename ShapeStorage, typename ConnectivityStorage, typename OffsetsStorage>
+  VTKM_CONT
+    vtkm::cont::CellSetExplicit<ShapeStorage, VTKM_DEFAULT_CONNECTIVITY_STORAGE_TAG, OffsetsStorage>
+    MapCellSet(const vtkm::cont::CellSetExplicit<ShapeStorage, ConnectivityStorage, OffsetsStorage>&
+                 inCellSet) const
   {
     VTKM_ASSERT(this->PointScatter);
 
@@ -166,41 +149,34 @@ public:
   /// of \c MapCellSet.
   ///
   template <typename ShapeStorage,
-            typename NumIndicesStorage,
             typename ConnectivityStorage,
             typename OffsetsStorage,
             typename MapStorage>
   VTKM_CONT static vtkm::cont::CellSetExplicit<ShapeStorage,
-                                               NumIndicesStorage,
                                                VTKM_DEFAULT_CONNECTIVITY_STORAGE_TAG,
                                                OffsetsStorage>
-  MapCellSet(const vtkm::cont::CellSetExplicit<ShapeStorage,
-                                               NumIndicesStorage,
-                                               ConnectivityStorage,
-                                               OffsetsStorage>& inCellSet,
-             const vtkm::cont::ArrayHandle<vtkm::Id, MapStorage>& inputToOutputPointMap,
-             vtkm::Id numberOfPoints)
+  MapCellSet(
+    const vtkm::cont::CellSetExplicit<ShapeStorage, ConnectivityStorage, OffsetsStorage>& inCellSet,
+    const vtkm::cont::ArrayHandle<vtkm::Id, MapStorage>& inputToOutputPointMap,
+    vtkm::Id numberOfPoints)
   {
-    using FromTopology = vtkm::TopologyElementTagPoint;
-    using ToTopology = vtkm::TopologyElementTagCell;
+    using VisitTopology = vtkm::TopologyElementTagCell;
+    using IncidentTopology = vtkm::TopologyElementTagPoint;
 
     using NewConnectivityStorage = VTKM_DEFAULT_CONNECTIVITY_STORAGE_TAG;
 
     vtkm::cont::ArrayHandle<vtkm::Id, NewConnectivityStorage> newConnectivityArray;
 
     vtkm::worklet::DispatcherMapField<TransformPointIndices> dispatcher;
-    dispatcher.Invoke(inCellSet.GetConnectivityArray(FromTopology(), ToTopology()),
+    dispatcher.Invoke(inCellSet.GetConnectivityArray(VisitTopology(), IncidentTopology()),
                       inputToOutputPointMap,
                       newConnectivityArray);
 
-    vtkm::cont::
-      CellSetExplicit<ShapeStorage, NumIndicesStorage, NewConnectivityStorage, OffsetsStorage>
-        outCellSet(inCellSet.GetName());
+    vtkm::cont::CellSetExplicit<ShapeStorage, NewConnectivityStorage, OffsetsStorage> outCellSet;
     outCellSet.Fill(numberOfPoints,
-                    inCellSet.GetShapesArray(FromTopology(), ToTopology()),
-                    inCellSet.GetNumIndicesArray(FromTopology(), ToTopology()),
+                    inCellSet.GetShapesArray(VisitTopology(), IncidentTopology()),
                     newConnectivityArray,
-                    inCellSet.GetIndexOffsetArray(FromTopology(), ToTopology()));
+                    inCellSet.GetOffsetsArray(VisitTopology(), IncidentTopology()));
 
     return outCellSet;
   }

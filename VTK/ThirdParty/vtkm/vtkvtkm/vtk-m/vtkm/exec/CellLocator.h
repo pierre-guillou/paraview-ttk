@@ -19,7 +19,7 @@ namespace vtkm
 namespace exec
 {
 
-class CellLocator : public vtkm::VirtualObjectBase
+class VTKM_ALWAYS_EXPORT CellLocator : public vtkm::VirtualObjectBase
 {
 public:
   VTKM_EXEC_CONT virtual ~CellLocator() noexcept
@@ -29,9 +29,9 @@ public:
   }
 
   VTKM_EXEC
-  virtual void FindCell(const vtkm::Vec<vtkm::FloatDefault, 3>& point,
+  virtual void FindCell(const vtkm::Vec3f& point,
                         vtkm::Id& cellId,
-                        vtkm::Vec<vtkm::FloatDefault, 3>& parametric,
+                        vtkm::Vec3f& parametric,
                         const vtkm::exec::FunctorBase& worklet) const = 0;
 };
 

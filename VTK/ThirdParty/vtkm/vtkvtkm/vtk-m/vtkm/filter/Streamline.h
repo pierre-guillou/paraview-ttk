@@ -27,17 +27,19 @@ namespace filter
 class Streamline : public vtkm::filter::FilterDataSetWithField<Streamline>
 {
 public:
+  using SupportedTypes = vtkm::TypeListFieldVec3;
+
   VTKM_CONT
   Streamline();
 
   VTKM_CONT
-  void SetStepSize(vtkm::worklet::particleadvection::ScalarType s) { this->StepSize = s; }
+  void SetStepSize(vtkm::FloatDefault s) { this->StepSize = s; }
 
   VTKM_CONT
   void SetNumberOfSteps(vtkm::Id n) { this->NumberOfSteps = n; }
 
   VTKM_CONT
-  void SetSeeds(vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::FloatDefault, 3>>& seeds);
+  void SetSeeds(vtkm::cont::ArrayHandle<vtkm::Particle>& seeds);
 
   template <typename T, typename StorageType, typename DerivedPolicy>
   VTKM_CONT vtkm::cont::DataSet DoExecute(
@@ -55,21 +57,10 @@ public:
                             vtkm::filter::PolicyBase<DerivedPolicy> policy);
 
 private:
-  vtkm::worklet::Streamline Worklet;
-  vtkm::worklet::particleadvection::ScalarType StepSize;
   vtkm::Id NumberOfSteps;
-  vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::FloatDefault, 3>> Seeds;
-};
-
-template <>
-class FilterTraits<Streamline>
-{
-public:
-  struct TypeListTagStreamline
-    : vtkm::ListTagBase<vtkm::Vec<vtkm::Float32, 3>, vtkm::Vec<vtkm::Float64, 3>>
-  {
-  };
-  using InputFieldTypeList = TypeListTagStreamline;
+  vtkm::FloatDefault StepSize;
+  vtkm::cont::ArrayHandle<vtkm::Particle> Seeds;
+  vtkm::worklet::Streamline Worklet;
 };
 }
 } // namespace vtkm::filter

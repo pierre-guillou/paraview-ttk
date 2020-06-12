@@ -49,6 +49,17 @@ void vtkPBRPrefilterTexture::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PrefilterSamples: " << this->PrefilterSamples << endl;
 }
 
+// ---------------------------------------------------------------------------
+// Release the graphics resources used by this texture.
+void vtkPBRPrefilterTexture::ReleaseGraphicsResources(vtkWindow* win)
+{
+  if (this->InputCubeMap)
+  {
+    this->InputCubeMap->ReleaseGraphicsResources(win);
+  }
+  this->Superclass::ReleaseGraphicsResources(win);
+}
+
 //------------------------------------------------------------------------------
 void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
 {
@@ -65,7 +76,8 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
 
   this->InputCubeMap->Render(ren);
 
-  if (this->GetMTime() > this->LoadTime.GetMTime())
+  if (this->GetMTime() > this->LoadTime.GetMTime() ||
+    this->InputCubeMap->GetMTime() > this->LoadTime.GetMTime())
   {
     if (this->TextureObject == nullptr)
     {
@@ -90,20 +102,8 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
     vtkOpenGLState* state = renWin->GetState();
     vtkOpenGLState::ScopedglViewport svp(state);
     vtkOpenGLState::ScopedglEnableDisable sdepth(state, GL_DEPTH_TEST);
-    vtkOpenGLState::ScopedglEnableDisable sblend(state, GL_DEPTH_TEST);
+    vtkOpenGLState::ScopedglEnableDisable sblend(state, GL_BLEND);
     vtkOpenGLState::ScopedglEnableDisable sscissor(state, GL_SCISSOR_TEST);
-
-    vtkNew<vtkOpenGLFramebufferObject> fbo;
-    fbo->SetContext(renWin);
-    fbo->Bind();
-    fbo->SaveCurrentBindingsAndBuffers();
-
-    for (int i = 0; i < 6; i++)
-    {
-      fbo->AddColorAttachment(i, this->TextureObject, 0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i);
-    }
-    fbo->ActivateDrawBuffers(6);
-    fbo->Start(this->PrefilterSize, this->PrefilterSize);
 
     std::string FSSource = vtkOpenGLRenderUtilities::GetFullScreenQuadFragmentShaderTemplate();
 
@@ -111,6 +111,10 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
       "uniform samplerCube cubeMap;\n"
       "uniform float roughness;\n"
       "const float PI = 3.14159265359;\n"
+      "vec3 ColorSpaceConvert(vec3 col)\n"
+      "{\n"
+      "  //VTK::COLORSPACE::Decl\n"
+      "}\n"
       "float RadicalInverse_VdC(uint bits)\n"
       "{\n"
       "  bits = (bits << 16u) | (bits >> 16u);\n"
@@ -140,6 +144,16 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
       "  vec3 sampleVec = tangent * H.x + bitangent * H.y + N * H.z;\n"
       "  return normalize(sampleVec);\n"
       "}\n");
+
+    if (this->ConvertToLinear)
+    {
+      vtkShaderProgram::Substitute(
+        FSSource, "//VTK::COLORSPACE::Decl", "return pow(col, vec3(2.2));");
+    }
+    else
+    {
+      vtkShaderProgram::Substitute(FSSource, "//VTK::COLORSPACE::Decl", "return col;");
+    }
 
     std::stringstream fsImpl;
     fsImpl
@@ -186,12 +200,12 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
          "    float d_ny = max(dot(n_ny, l_ny), 0.0);\n"
          "    float d_pz = max(dot(n_pz, l_pz), 0.0);\n"
          "    float d_nz = max(dot(n_nz, l_nz), 0.0);\n"
-         "    p_px += texture(cubeMap, l_px).rgb * d_px;\n"
-         "    p_nx += texture(cubeMap, l_nx).rgb * d_nx;\n"
-         "    p_py += texture(cubeMap, l_py).rgb * d_py;\n"
-         "    p_ny += texture(cubeMap, l_ny).rgb * d_ny;\n"
-         "    p_pz += texture(cubeMap, l_pz).rgb * d_pz;\n"
-         "    p_nz += texture(cubeMap, l_nz).rgb * d_nz;\n"
+         "    p_px += ColorSpaceConvert(texture(cubeMap, l_px).rgb) * d_px;\n"
+         "    p_nx += ColorSpaceConvert(texture(cubeMap, l_nx).rgb) * d_nx;\n"
+         "    p_py += ColorSpaceConvert(texture(cubeMap, l_py).rgb) * d_py;\n"
+         "    p_ny += ColorSpaceConvert(texture(cubeMap, l_ny).rgb) * d_ny;\n"
+         "    p_pz += ColorSpaceConvert(texture(cubeMap, l_pz).rgb) * d_pz;\n"
+         "    p_nz += ColorSpaceConvert(texture(cubeMap, l_nz).rgb) * d_nz;\n"
          "    w_px += d_px;\n"
          "    w_nx += d_nx;\n"
          "    w_py += d_py;\n"
@@ -220,9 +234,14 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
       this->InputCubeMap->GetTextureObject()->Activate();
       quadHelper.Program->SetUniformi("cubeMap", this->InputCubeMap->GetTextureUnit());
 
+      vtkNew<vtkOpenGLFramebufferObject> fbo;
+      fbo->SetContext(renWin);
+
+      renWin->GetState()->PushFramebufferBindings();
+      fbo->Bind();
+
       for (unsigned int mip = 0; mip < this->PrefilterLevels; mip++)
       {
-        fbo->SaveCurrentBindingsAndBuffers();
         fbo->RemoveColorAttachments(6);
         for (int i = 0; i < 6; i++)
         {
@@ -237,12 +256,12 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
         quadHelper.Program->SetUniformf("roughness", roughness);
 
         quadHelper.Render();
-        fbo->RestorePreviousBindingsAndBuffers();
       }
+
+      renWin->GetState()->PopFramebufferBindings();
 
       this->InputCubeMap->GetTextureObject()->Deactivate();
     }
-    fbo->RestorePreviousBindingsAndBuffers();
     this->LoadTime.Modified();
   }
 

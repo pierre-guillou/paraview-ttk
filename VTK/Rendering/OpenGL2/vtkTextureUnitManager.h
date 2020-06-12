@@ -25,35 +25,29 @@
  *
  * @sa
  * vtkOpenGLRenderWindow
-*/
+ */
 
 #ifndef vtkTextureUnitManager_h
 #define vtkTextureUnitManager_h
 
-#include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkObject.h"
+#include "vtkRenderingOpenGL2Module.h" // For export macro
 
 class vtkOpenGLRenderWindow;
 
 class VTKRENDERINGOPENGL2_EXPORT vtkTextureUnitManager : public vtkObject
 {
 public:
-  vtkTypeMacro(vtkTextureUnitManager,vtkObject);
+  vtkTypeMacro(vtkTextureUnitManager, vtkObject);
 
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  static vtkTextureUnitManager *New();
+  static vtkTextureUnitManager* New();
 
-  //@{
   /**
-   * Get/Set the context. This does not increase the reference count of the
-   * context to avoid reference loops.
-   * SetContext() may raise an error is the OpenGL context does not support the
-   * required OpenGL extensions.
+   * Update the number of hardware texture units for the current context
    */
-  void SetContext(vtkOpenGLRenderWindow *context);
-  vtkGetObjectMacro(Context,vtkOpenGLRenderWindow);
-  //@}
+  void Initialize();
 
   /**
    * Number of texture units supported by the OpenGL context.
@@ -84,7 +78,8 @@ public:
 
   /**
    * Tell if texture unit `textureUnitId' is already allocated.
-   * \pre valid_textureUnitId_range : textureUnitId>=0 && textureUnitId<this->GetNumberOfTextureUnits()
+   * \pre valid_textureUnitId_range : textureUnitId>=0 &&
+   * textureUnitId<this->GetNumberOfTextureUnits()
    */
   bool IsAllocated(int textureUnitId);
 
@@ -112,10 +107,8 @@ protected:
    */
   void DeleteTable();
 
-  vtkOpenGLRenderWindow *Context;
-
   int NumberOfTextureUnits;
-  bool *TextureUnits;
+  bool* TextureUnits;
 
 private:
   vtkTextureUnitManager(const vtkTextureUnitManager&) = delete;

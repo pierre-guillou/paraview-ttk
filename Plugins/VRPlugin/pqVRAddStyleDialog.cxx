@@ -50,6 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QtCore/QDebug>
 #include <QtCore/QStringList>
 
+#include <algorithm>
 #include <map>
 #include <string>
 
@@ -150,9 +151,9 @@ pqVRAddStyleDialog::pqVRAddStyleDialog(QWidget* parentObject, Qt::WindowFlags f)
     }
   }
 
-  qSort(this->Internals->AnalogNames);
-  qSort(this->Internals->ButtonNames);
-  qSort(this->Internals->TrackerNames);
+  std::sort(this->Internals->AnalogNames.begin(), this->Internals->AnalogNames.end());
+  std::sort(this->Internals->ButtonNames.begin(), this->Internals->ButtonNames.end());
+  std::sort(this->Internals->TrackerNames.begin(), this->Internals->TrackerNames.end());
 }
 
 //-----------------------------------------------------------------------------
@@ -173,22 +174,22 @@ void pqVRAddStyleDialog::setInteractorStyle(vtkVRInteractorStyle* style, const Q
   for (int i = 0; i < roles->GetNumberOfStrings(); ++i)
   {
     vtkStdString role(roles->GetString(i));
-    vtkStdString name(style->GetAnalogName(role));
-    this->Internals->AddInput(this, pqInternals::Analog, role, name);
+    vtkStdString analogName(style->GetAnalogName(role));
+    this->Internals->AddInput(this, pqInternals::Analog, role, analogName);
   }
   style->GetButtonRoles(roles.GetPointer());
   for (int i = 0; i < roles->GetNumberOfStrings(); ++i)
   {
     vtkStdString role(roles->GetString(i));
-    vtkStdString name(style->GetButtonName(role));
-    this->Internals->AddInput(this, pqInternals::Button, role, name);
+    vtkStdString buttonName(style->GetButtonName(role));
+    this->Internals->AddInput(this, pqInternals::Button, role, buttonName);
   }
   style->GetTrackerRoles(roles.GetPointer());
   for (int i = 0; i < roles->GetNumberOfStrings(); ++i)
   {
     vtkStdString role(roles->GetString(i));
-    vtkStdString name(style->GetTrackerName(role));
-    this->Internals->AddInput(this, pqInternals::Tracker, role, name);
+    vtkStdString trackerName(style->GetTrackerName(role));
+    this->Internals->AddInput(this, pqInternals::Tracker, role, trackerName);
   }
 
   this->Internals->CanConfigure = (this->Internals->Inputs.size() != 0);

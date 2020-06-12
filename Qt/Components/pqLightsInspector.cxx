@@ -176,16 +176,16 @@ public:
       QWidget* widget = new QWidget(self);
       widget->setObjectName(QString("LightContainer%1").arg(i));
       QVBoxLayout* vbox = new QVBoxLayout(widget);
-      vbox->setContentsMargins(0, pqPropertiesPanel::suggestedVerticalSpacing(), 0, 0);
-      vbox->setSpacing(0);
+      vbox->setContentsMargins(pqPropertiesPanel::suggestedMargins());
+      vbox->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
       vbox->addWidget(pqProxyWidget::newGroupLabelWidget(QString("Light %1").arg(i), widget));
 
       // some buttons.
       QWidget* buttonWidget = new QWidget(widget);
       buttonWidget->setObjectName("ButtonContainer");
       QHBoxLayout* hbox = new QHBoxLayout(buttonWidget);
-      hbox->setContentsMargins(0, 0, 0, 0);
-      hbox->setSpacing(0);
+      hbox->setContentsMargins(pqPropertiesPanel::suggestedMargins());
+      hbox->setSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
       vbox->addWidget(buttonWidget);
 
       // Add a button to sync this light with the camera.
@@ -197,6 +197,15 @@ public:
       connect(syncButton, SIGNAL(clicked()), self, SLOT(syncLightToCamera()));
       hbox->addWidget(syncButton);
       this->updateMoveToCamera(i, light);
+
+      // Add a button to reset this light.
+      QPushButton* resetButton = new QPushButton("Reset Light");
+      resetButton->setObjectName("ResetLight");
+      // which light does this button affect?
+      resetButton->setProperty("LightIndex", i);
+      resetButton->setToolTip("Reset this light parameters to default");
+      connect(resetButton, SIGNAL(clicked()), self, SLOT(resetLight()));
+      hbox->addWidget(resetButton);
 
       // Add a button to remove this light.
       QPushButton* removeButton = new QPushButton("Remove Light");
@@ -375,7 +384,7 @@ void pqLightsInspector::removeLight(vtkSMProxy* lightProxy)
 }
 
 //-----------------------------------------------------------------------------
-void pqLightsInspector::syncLightToCamera(vtkSMProxy* lightProxy)
+void pqLightsInspector::resetLight(vtkSMProxy* lightProxy)
 {
   vtkSMRenderViewProxy* view = this->Internals->getActiveView();
   if (!view)
@@ -386,6 +395,28 @@ void pqLightsInspector::syncLightToCamera(vtkSMProxy* lightProxy)
   {
     auto syncButton = sender();
     int index = syncButton->property("LightIndex").toInt();
+
+    lightProxy = vtkSMPropertyHelper(view, "AdditionalLights").GetAsProxy(index);
+  }
+
+  SM_SCOPED_TRACE(PropertiesModified).arg("proxy", lightProxy).arg("comment", "reset a light");
+  lightProxy->ResetPropertiesToDefault();
+  lightProxy->UpdateVTKObjects();
+  this->render();
+}
+
+//-----------------------------------------------------------------------------
+void pqLightsInspector::syncLightToCamera(vtkSMProxy* lightProxy)
+{
+  vtkSMRenderViewProxy* view = this->Internals->getActiveView();
+  if (!view)
+  {
+    return;
+  }
+  if (!lightProxy)
+  {
+    auto resetButton = sender();
+    int index = resetButton->property("LightIndex").toInt();
 
     lightProxy = vtkSMPropertyHelper(view, "AdditionalLights").GetAsProxy(index);
   }

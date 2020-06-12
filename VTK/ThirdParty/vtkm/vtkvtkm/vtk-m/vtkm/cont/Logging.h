@@ -50,9 +50,11 @@
 /// functions to help format common types of log data such as byte counts and
 /// type names.
 ///
-/// Logging is enabled by setting the CMake variable VTKm_ENABLE_LOGGING. When
-/// this flag is enabled, any messages logged to the Info, Warn, Error, and
-/// Fatal levels are printed to stderr by default.
+/// Logging is enabled via the CMake option VTKm_ENABLE_LOGGING by default.
+/// The default log level is set to only log Warn and Error messages; Fatal
+/// levels are printed to stderr by default. The logging system will need
+/// to be initialized through a call to either vtkm::cont::Initialize or
+/// vtkm::cont::InitLogging.
 ///
 /// Additional logging features are enabled by calling vtkm::cont::InitLogging
 /// (or preferably, vtkm::cont::Initialize) in an executable. This will:
@@ -81,7 +83,7 @@
 /// vtkm::cont::SetThreadName. This will appear in the log output so that
 /// per-thread messages can be easily tracked.
 ///
-/// By default, only Info, Warn, Error, and Fatal messages are printed to
+/// By default, only Warn, Error, and Fatal messages are printed to
 /// stderr. This can be changed at runtime by passing the '-v' flag to an
 /// executable that calls vtkm::cont::InitLogging. Alternatively, the
 /// application can explicitly call vtkm::cont::SetStderrLogLevel to change the
@@ -104,6 +106,8 @@
 ///   execution environments, respectively.
 /// - MemTransfer: This level logs memory transfers between the control and host
 ///   environments.
+/// - KernelLaunches: This level logs details about each device side kernel launch
+///   such as the CUDA PTX, Warps, and Grids used.
 /// - Cast: Logs details of dynamic object resolution.
 ///
 /// The log may be shared and extended by applications that use VTK-m. There
@@ -189,6 +193,18 @@
 /// \param deviceId The device tag / id for the device on which the functor
 /// failed.
 
+/// \def VTKM_DEFINE_USER_LOG_LEVEL(name, offset)
+/// \brief Convenience macro for creating a custom log level that is usable
+/// in the other macros.  If logging is disabled this macro does nothing.
+/// \param name The name to give the new log level
+/// \param offset The offset from the vtkm::cont::LogLevel::UserFirst value
+/// from the LogLevel enum.  Additionally moduloed against the
+/// vtkm::cont::LogLevel::UserLast value
+/// \note This macro is to be used for quickly setting log levels.  For a
+/// more maintainable solution it is recommended to create a custom enum class
+/// and then cast appropriately, as described here:
+/// https://gitlab.kitware.com/vtk/vtk-m/issues/358#note_550157
+
 #if defined(VTKM_ENABLE_LOGGING)
 
 #define VTKM_LOG_S(level, ...) VLOG_S(static_cast<loguru::Verbosity>(level)) << __VA_ARGS__
@@ -235,6 +251,14 @@
   VTKM_LOG_S(vtkm::cont::LogLevel::Error, "Failing device: " << deviceId.GetName());               \
   VTKM_LOG_S(vtkm::cont::LogLevel::Error, "The failing device has been disabled.")
 
+// Custom log level
+#define VTKM_DEFINE_USER_LOG_LEVEL(name, offset)                                                   \
+  static constexpr vtkm::cont::LogLevel name = static_cast<vtkm::cont::LogLevel>(                  \
+    static_cast<typename std::underlying_type<vtkm::cont::LogLevel>::type>(                        \
+      vtkm::cont::LogLevel::UserFirst) +                                                           \
+    offset % static_cast<typename std::underlying_type<vtkm::cont::LogLevel>::type>(               \
+               vtkm::cont::LogLevel::UserLast))
+
 #else // VTKM_ENABLE_LOGGING
 
 #define VTKM_LOG_S(level, ...)
@@ -246,6 +270,7 @@
 #define VTKM_LOG_ERROR_CONTEXT(desc, data)
 #define VTKM_LOG_CAST_SUCC(inObj, outObj)
 #define VTKM_LOG_CAST_FAIL(inObj, outType)
+#define VTKM_DEFINE_USER_LOG_LEVEL(name, offset)
 
 // Always emitted. When logging is disabled, std::cerr is used.
 
@@ -297,6 +322,9 @@ enum class LogLevel
   /// The range 1-255 are reserved to application use.
   UserLast = 255,
 
+  /// Information about which devices are enabled/disabled
+  DevicesEnabled,
+
   /// General timing data and algorithm flow information, such as filter
   /// execution, worklet dispatches, and device algorithm calls.
   Perf,
@@ -309,6 +337,9 @@ enum class LogLevel
 
   /// Host->device / device->host data copies
   MemTransfer,
+
+  /// Details on Device-side Kernel Launches
+  KernelLaunches,
 
   /// When a dynamic object is (or isn't) resolved via CastAndCall, etc.
   Cast,
@@ -325,7 +356,8 @@ enum class LogLevel
  *
  * Initializes logging. Sets up custom log level and thread names. Parses any
  * "-v [LogLevel]" arguments to set the stderr log level. This argument may
- * be either numeric, or the 4-character string printed in the output.
+ * be either numeric, or the 4-character string printed in the output. Note that
+ * loguru will consume the "-v [LogLevel]" argument and shrink the arg list.
  *
  * If the parameterless overload is used, the `-v` parsing is not used, but
  * other functionality should still work.
@@ -349,6 +381,13 @@ void InitLogging();
 VTKM_CONT_EXPORT
 VTKM_CONT
 void SetStderrLogLevel(vtkm::cont::LogLevel level);
+
+/**
+ * Get the active highest log level that will be printed to stderr.
+ */
+VTKM_CONT_EXPORT
+VTKM_CONT
+vtkm::cont::LogLevel GetStderrLogLevel();
 
 /**
  * Register a custom name to identify a log level. The name will be truncated
@@ -398,6 +437,7 @@ VTKM_CONT_EXPORT
 VTKM_CONT
 std::string GetStackTrace(vtkm::Int32 skip = 0);
 
+//@{
 /// Convert a size in bytes to a human readable string (e.g. "64 bytes",
 /// "1.44 MiB", "128 GiB", etc). @a prec controls the fixed point precision
 /// of the stringified number.
@@ -405,31 +445,49 @@ VTKM_CONT_EXPORT
 VTKM_CONT
 std::string GetHumanReadableSize(vtkm::UInt64 bytes, int prec = 2);
 
+template <typename T>
+VTKM_CONT inline std::string GetHumanReadableSize(T&& bytes, int prec = 2)
+{
+  return GetHumanReadableSize(static_cast<vtkm::UInt64>(std::forward<T>(bytes)), prec);
+}
+//@}
+
+//@{
 /// Returns "%1 (%2 bytes)" where %1 is the result from GetHumanReadableSize
 /// and two is the exact number of bytes.
 VTKM_CONT_EXPORT
 VTKM_CONT
 std::string GetSizeString(vtkm::UInt64 bytes, int prec = 2);
 
+template <typename T>
+VTKM_CONT inline std::string GetSizeString(T&& bytes, int prec = 2)
+{
+  return GetSizeString(static_cast<vtkm::UInt64>(std::forward<T>(bytes)), prec);
+}
+//@}
+
 /**
  * Use RTTI information to retrieve the name of the type T. If logging is
  * enabled and the platform supports it, the type name will also be demangled.
  * @{
  */
-template <typename T>
-static inline VTKM_CONT std::string TypeToString()
+inline VTKM_CONT std::string TypeToString(const std::type_info& t)
 {
 #ifdef VTKM_ENABLE_LOGGING
-  return loguru::demangle(typeid(T).name()).c_str();
+  return loguru::demangle(t.name()).c_str();
 #else  // VTKM_ENABLE_LOGGING
-  return typeid(T).name();
+  return t.name();
 #endif // VTKM_ENABLE_LOGGING
 }
-
 template <typename T>
-static inline VTKM_CONT std::string TypeToString(const T&)
+inline VTKM_CONT std::string TypeToString()
 {
-  return TypeToString<T>();
+  return TypeToString(typeid(T));
+}
+template <typename T>
+inline VTKM_CONT std::string TypeToString(const T&)
+{
+  return TypeToString(typeid(T));
 }
 /**@}*/
 }

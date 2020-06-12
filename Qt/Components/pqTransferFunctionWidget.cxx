@@ -53,12 +53,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPiecewiseControlPointsItem.h"
 #include "vtkPiecewiseFunction.h"
 #include "vtkPiecewiseFunctionItem.h"
+#include "vtkRangeHandlesItem.h"
 #include "vtkSMCoreUtilities.h"
 #include "vtkSmartPointer.h"
 #include "vtkVector.h"
+#include "vtkWeakPointer.h"
 
 #include <QColorDialog>
+#include <QMainWindow>
 #include <QPointer>
+#include <QStatusBar>
 #include <QSurfaceFormat>
 #include <QVBoxLayout>
 
@@ -81,8 +85,8 @@ namespace
 class vtkTransferFunctionChartXY : public vtkChartXY
 {
   vtkVector2d XRange;
-  vtkVector2d XRangePrevious;
   bool DataValid;
+  bool NeedUpdate;
 
   bool IsDataRangeValid(const double r[2]) const
   {
@@ -96,16 +100,25 @@ public:
   static vtkTransferFunctionChartXY* New();
   vtkTypeMacro(vtkTransferFunctionChartXY, vtkChartXY);
 
-  void SetTFRange(const vtkVector2d& range) { this->XRange = range; }
+  bool SetTFRange(const vtkVector2d& range)
+  {
+    if (range != this->XRange)
+    {
+      this->XRange = range;
+      this->NeedUpdate = true;
+      return true;
+    }
+    return false;
+  }
 
   void Update() override
   {
     this->Superclass::Update();
-    if (this->XRange != this->XRangePrevious)
+    if (this->NeedUpdate)
     {
-      this->XRangePrevious = this->XRange;
       this->DataValid = this->IsDataRangeValid(this->XRange.GetData());
       this->AdjustAxes();
+      this->NeedUpdate = false;
     }
   }
   bool PaintChildren(vtkContext2D* painter) override
@@ -150,7 +163,8 @@ public:
 protected:
   vtkTransferFunctionChartXY()
   {
-    this->XRange = this->XRangePrevious = vtkVector2d(0, 0);
+    this->XRange = vtkVector2d(0, 0);
+    this->NeedUpdate = false;
     this->DataValid = false;
   }
   ~vtkTransferFunctionChartXY() override {}
@@ -185,10 +199,15 @@ public:
   vtkNew<vtkEventQtSlotConnect> VTKConnect;
 
   pqTimer Timer;
+  pqTimer RangeTimer;
 
+  vtkSmartPointer<vtkRangeHandlesItem> RangeHandlesItem;
   vtkSmartPointer<vtkScalarsToColorsItem> TransferFunctionItem;
   vtkSmartPointer<vtkControlPointsItem> ControlPointsItem;
   unsigned long CurrentPointEditEventId;
+
+  vtkWeakPointer<vtkScalarsToColors> ScalarsToColors;
+  vtkWeakPointer<vtkPiecewiseFunction> PiecewiseFunction;
 
   pqInternals(pqTransferFunctionWidget* editor)
     : Widget(new QVTKOpenGLNativeWidget(editor))
@@ -197,17 +216,20 @@ public:
     this->Timer.setSingleShot(true);
     this->Timer.setInterval(0);
 
+    this->RangeTimer.setSingleShot(true);
+    this->RangeTimer.setInterval(0);
+
     this->Window->SetMultiSamples(8);
 
     this->Widget->setEnableHiDPI(true);
     this->Widget->setObjectName("1QVTKWidget0");
-    this->Widget->setRenderWindow(this->Window.Get());
-    this->ContextView->SetRenderWindow(this->Window.Get());
+    this->Widget->setRenderWindow(this->Window);
+    this->ContextView->SetRenderWindow(this->Window);
 
     this->ChartXY->SetAutoSize(true);
     this->ChartXY->SetShowLegend(false);
     this->ChartXY->SetZoomWithMouseWheel(false);
-    this->ContextView->GetScene()->AddItem(this->ChartXY.GetPointer());
+    this->ContextView->GetScene()->AddItem(this->ChartXY);
     this->ContextView->SetInteractor(this->Widget->interactor());
     this->ContextView->GetRenderWindow()->SetLineSmoothing(true);
 
@@ -233,6 +255,7 @@ public:
 
   void cleanup()
   {
+    this->RangeTimer.disconnect();
     this->VTKConnect->Disconnect();
     this->ChartXY->ClearPlots();
     if (this->ControlPointsItem && this->CurrentPointEditEventId)
@@ -240,8 +263,9 @@ public:
       this->ControlPointsItem->RemoveObserver(this->CurrentPointEditEventId);
       this->CurrentPointEditEventId = 0;
     }
-    this->TransferFunctionItem = NULL;
-    this->ControlPointsItem = NULL;
+    this->TransferFunctionItem = nullptr;
+    this->RangeHandlesItem = nullptr;
+    this->ControlPointsItem = nullptr;
   }
 };
 
@@ -264,7 +288,19 @@ pqTransferFunctionWidget::pqTransferFunctionWidget(QWidget* parentObject)
 pqTransferFunctionWidget::~pqTransferFunctionWidget()
 {
   delete this->Internals;
-  this->Internals = NULL;
+  this->Internals = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+vtkScalarsToColors* pqTransferFunctionWidget::scalarsToColors() const
+{
+  return this->Internals->ScalarsToColors;
+}
+
+//-----------------------------------------------------------------------------
+vtkPiecewiseFunction* pqTransferFunctionWidget::piecewiseFunction() const
+{
+  return this->Internals->PiecewiseFunction;
 }
 
 //-----------------------------------------------------------------------------
@@ -272,16 +308,22 @@ void pqTransferFunctionWidget::initialize(
   vtkScalarsToColors* stc, bool stc_editable, vtkPiecewiseFunction* pwf, bool pwf_editable)
 {
   this->Internals->cleanup();
+  this->Internals->ScalarsToColors = stc;
+  this->Internals->PiecewiseFunction = pwf;
 
   // TODO: If needed, we can support vtkLookupTable.
   vtkColorTransferFunction* ctf = vtkColorTransferFunction::SafeDownCast(stc);
 
-  if (ctf != NULL && pwf == NULL)
+  if (ctf != nullptr && pwf == nullptr)
   {
     vtkNew<vtkColorTransferFunctionItem> item;
     item->SetColorTransferFunction(ctf);
+    this->Internals->TransferFunctionItem = item;
 
-    this->Internals->TransferFunctionItem = item.GetPointer();
+    vtkNew<vtkRangeHandlesItem> handlesItem;
+    handlesItem->SetColorTransferFunction(ctf);
+    handlesItem->SetHandleWidth(4.0);
+    this->Internals->RangeHandlesItem = handlesItem;
 
     if (stc_editable)
     {
@@ -291,19 +333,19 @@ void pqTransferFunctionWidget::initialize(
       cpItem->SetEndPointsXMovable(false);
       cpItem->SetEndPointsYMovable(false);
       cpItem->SetLabelFormat("%.3f");
-      this->Internals->ControlPointsItem = cpItem.GetPointer();
+      this->Internals->ControlPointsItem = cpItem;
 
       this->Internals->CurrentPointEditEventId =
         cpItem->AddObserver(vtkControlPointsItem::CurrentPointEditEvent, this,
           &pqTransferFunctionWidget::onCurrentPointEditEvent);
     }
   }
-  else if (ctf == NULL && pwf != NULL)
+  else if (ctf == nullptr && pwf != nullptr)
   {
     vtkNew<vtkPiecewiseFunctionItem> item;
     item->SetPiecewiseFunction(pwf);
 
-    this->Internals->TransferFunctionItem = item.GetPointer();
+    this->Internals->TransferFunctionItem = item;
 
     if (pwf_editable)
     {
@@ -312,17 +354,21 @@ void pqTransferFunctionWidget::initialize(
       cpItem->SetEndPointsXMovable(false);
       cpItem->SetEndPointsYMovable(true);
       cpItem->SetLabelFormat("%.3f: %.3f");
-      this->Internals->ControlPointsItem = cpItem.GetPointer();
+      this->Internals->ControlPointsItem = cpItem;
     }
   }
-  else if (ctf != NULL && pwf != NULL)
+  else if (ctf != nullptr && pwf != nullptr)
   {
     vtkNew<vtkCompositeTransferFunctionItem> item;
     item->SetOpacityFunction(pwf);
     item->SetColorTransferFunction(ctf);
     item->SetMaskAboveCurve(true);
+    this->Internals->TransferFunctionItem = item;
 
-    this->Internals->TransferFunctionItem = item.GetPointer();
+    vtkNew<vtkRangeHandlesItem> handlesItem;
+    handlesItem->SetColorTransferFunction(ctf);
+    this->Internals->RangeHandlesItem = handlesItem;
+
     if (pwf_editable && stc_editable)
     {
       // NOTE: this hasn't been tested yet.
@@ -334,7 +380,7 @@ void pqTransferFunctionWidget::initialize(
       cpItem->SetEndPointsYMovable(true);
       cpItem->SetUseOpacityPointHandles(true);
       cpItem->SetLabelFormat("%.3f: %.3f");
-      this->Internals->ControlPointsItem = cpItem.GetPointer();
+      this->Internals->ControlPointsItem = cpItem;
     }
     else if (pwf_editable)
     {
@@ -346,7 +392,7 @@ void pqTransferFunctionWidget::initialize(
       cpItem->SetEndPointsYMovable(true);
       cpItem->SetUseOpacityPointHandles(true);
       cpItem->SetLabelFormat("%.3f: %.3f");
-      this->Internals->ControlPointsItem = cpItem.GetPointer();
+      this->Internals->ControlPointsItem = cpItem;
     }
   }
   else
@@ -355,6 +401,23 @@ void pqTransferFunctionWidget::initialize(
   }
 
   this->Internals->ChartXY->AddPlot(this->Internals->TransferFunctionItem);
+
+  if (this->Internals->ControlPointsItem)
+  {
+    this->Internals->ControlPointsItem->UseAddPointItemOn();
+    this->Internals->ChartXY->AddPlot(this->Internals->ControlPointsItem->GetAddPointItem());
+  }
+
+  if (this->Internals->RangeHandlesItem)
+  {
+    pqCoreUtilities::connect(this->Internals->RangeHandlesItem, vtkCommand::EndInteractionEvent,
+      this, SLOT(onRangeHandlesRangeChanged()));
+    pqCoreUtilities::connect(this->Internals->RangeHandlesItem,
+      vtkCommand::LeftButtonDoubleClickEvent, this, SIGNAL(rangeHandlesDoubleClicked()));
+    pqCoreUtilities::connect(
+      this->Internals->RangeHandlesItem, vtkCommand::HighlightEvent, this, SLOT(showUsageStatus()));
+    this->Internals->ChartXY->AddPlot(this->Internals->RangeHandlesItem);
+  }
 
   if (this->Internals->ControlPointsItem)
   {
@@ -368,32 +431,43 @@ void pqTransferFunctionWidget::initialize(
       SIGNAL(controlPointsModified()));
   }
 
-  // If the transfer functions change, we need to re-render the view. This
-  // ensures that.
-  if (ctf)
-  {
-    this->Internals->VTKConnect->Connect(
-      ctf, vtkCommand::ModifiedEvent, this, SIGNAL(ctfModified()));
-    QObject::connect(this, &pqTransferFunctionWidget::ctfModified, [ctf, this]() {
-      auto chartXY = this->Internals->ChartXY.GetPointer();
-      chartXY->SetTFRange(vtkVector2d(ctf->GetRange()));
-      this->render();
-    });
-    auto chartXY = this->Internals->ChartXY.GetPointer();
-    chartXY->SetTFRange(vtkVector2d(ctf->GetRange()));
-  }
+  // If the transfer functions change, we need to re-render the view. This ensures that.
+  // In some cases, the delta can be called for the pwf and the ctf, but it is not a problem.
   if (pwf)
   {
     this->Internals->VTKConnect->Connect(
-      pwf, vtkCommand::ModifiedEvent, this, SIGNAL(pwfModified()));
-    QObject::connect(this, &pqTransferFunctionWidget::pwfModified, [pwf, this]() {
-      auto chartXY = this->Internals->ChartXY.GetPointer();
-      chartXY->SetTFRange(vtkVector2d(pwf->GetRange()));
-      this->render();
+      pwf, vtkCommand::ModifiedEvent, &this->Internals->RangeTimer, SLOT(start()));
+
+    // whenever the range timer times out, we try to change the range
+    QObject::connect(&this->Internals->RangeTimer, &QTimer::timeout, [pwf, this]() {
+      if (this->Internals->ChartXY->SetTFRange(vtkVector2d(pwf->GetRange())))
+      {
+        // The range have actually been changed, rerender and emit the signal
+        this->render();
+        emit this->chartRangeModified();
+      }
     });
-    auto chartXY = this->Internals->ChartXY.GetPointer();
-    chartXY->SetTFRange(vtkVector2d(pwf->GetRange()));
+    this->Internals->ChartXY->SetTFRange(vtkVector2d(pwf->GetRange()));
   }
+  if (ctf)
+  {
+    this->Internals->VTKConnect->Connect(
+      ctf, vtkCommand::ModifiedEvent, &this->Internals->RangeTimer, SLOT(start()));
+
+    // whenever the range timer times out, we try to change the range
+    QObject::connect(&this->Internals->RangeTimer, &QTimer::timeout, [ctf, this]() {
+      if (this->Internals->ChartXY->SetTFRange(vtkVector2d(ctf->GetRange())))
+      {
+        // The range has actually been changed, rerender and emit the signal
+        this->render();
+        emit this->chartRangeModified();
+      }
+    });
+    this->Internals->ChartXY->SetTFRange(vtkVector2d(ctf->GetRange()));
+  }
+
+  pqCoreUtilities::connect(
+    this->Internals->ChartXY, vtkCommand::MouseMoveEvent, this, SLOT(showUsageStatus()));
 }
 
 //-----------------------------------------------------------------------------
@@ -401,7 +475,7 @@ void pqTransferFunctionWidget::onCurrentPointEditEvent()
 {
   vtkColorTransferControlPointsItem* cpitem =
     vtkColorTransferControlPointsItem::SafeDownCast(this->Internals->ControlPointsItem);
-  if (cpitem == NULL)
+  if (cpitem == nullptr)
   {
     return;
   }
@@ -413,7 +487,7 @@ void pqTransferFunctionWidget::onCurrentPointEditEvent()
   }
 
   vtkColorTransferFunction* ctf = cpitem->GetColorTransferFunction();
-  assert(ctf != NULL);
+  assert(ctf != nullptr);
 
   double xrgbms[6];
   ctf->GetNodeValue(currentIdx, xrgbms);
@@ -518,5 +592,35 @@ void pqTransferFunctionWidget::setCurrentPointPosition(double xpos)
   {
     point[0] = xpos;
     this->Internals->ControlPointsItem->SetControlPoint(currentPid, point);
+  }
+}
+
+//-----------------------------------------------------------------------------
+void pqTransferFunctionWidget::setHistogramTable(vtkTable* table)
+{
+  this->Internals->TransferFunctionItem->SetHistogramTable(table);
+  this->render();
+}
+
+//-----------------------------------------------------------------------------
+void pqTransferFunctionWidget::onRangeHandlesRangeChanged()
+{
+  if (this->Internals->RangeHandlesItem)
+  {
+    double range[2];
+    this->Internals->RangeHandlesItem->GetHandlesRange(range);
+    emit this->rangeHandlesRangeChanged(range[0], range[1]);
+  }
+}
+
+//-----------------------------------------------------------------------------
+void pqTransferFunctionWidget::showUsageStatus()
+{
+  QMainWindow* mainWindow = qobject_cast<QMainWindow*>(pqCoreUtilities::mainWidget());
+  if (mainWindow)
+  {
+    mainWindow->statusBar()->showMessage(tr("Grab and move a handle to interactively change the "
+                                            "range. Double click on it to set custom range."),
+      2000);
   }
 }

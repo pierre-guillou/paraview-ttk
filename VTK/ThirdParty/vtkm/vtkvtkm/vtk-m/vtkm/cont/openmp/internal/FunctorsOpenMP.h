@@ -36,6 +36,18 @@
 #define VTKM_OPENMP_DIRECTIVE(directive)
 #endif // _OPENMP
 
+// See "OpenMP data sharing" section of
+// https://www.gnu.org/software/gcc/gcc-9/porting_to.html. OpenMP broke
+// backwards compatibility regarding const variable handling.
+// tl;dr, put all const variables accessed from openmp blocks in a
+// VTKM_OPENMP_SHARED_CONST(var1, var2, ...) macro. This will do The Right Thing
+// on all gcc.
+#if defined(VTKM_GCC) && (__GNUC__ < 9)
+#define VTKM_OPENMP_SHARED_CONST(...)
+#else
+#define VTKM_OPENMP_SHARED_CONST(...) shared(__VA_ARGS__)
+#endif
+
 // When defined, supported type / operator combinations will use the OpenMP
 // reduction(...) clause. Otherwise, all reductions use the general
 // implementation with a manual reduction once the threads complete.
@@ -50,8 +62,8 @@ namespace cont
 namespace openmp
 {
 
-constexpr static vtkm::Id CACHE_LINE_SIZE = 64;
-constexpr static vtkm::Id PAGE_SIZE = 4096;
+constexpr static vtkm::Id VTKM_CACHE_LINE_SIZE = 64;
+constexpr static vtkm::Id VTKM_PAGE_SIZE = 4096;
 
 // Returns ceil(num/den) for integral types
 template <typename T>
@@ -71,11 +83,11 @@ static void ComputeChunkSize(const vtkm::Id numVals,
 {
   // try to evenly distribute pages across chunks:
   const vtkm::Id bytesIn = numVals * bytesPerValue;
-  const vtkm::Id pagesIn = CeilDivide(bytesIn, PAGE_SIZE);
+  const vtkm::Id pagesIn = CeilDivide(bytesIn, VTKM_PAGE_SIZE);
   // If we don't have enough pages to honor chunksPerThread, ignore it:
   numChunks = (pagesIn > numThreads * chunksPerThread) ? numThreads * chunksPerThread : numThreads;
   const vtkm::Id pagesPerChunk = CeilDivide(pagesIn, numChunks);
-  valuesPerChunk = CeilDivide(pagesPerChunk * PAGE_SIZE, bytesPerValue);
+  valuesPerChunk = CeilDivide(pagesPerChunk * VTKM_PAGE_SIZE, bytesPerValue);
 }
 
 template <typename T, typename U>
@@ -124,7 +136,8 @@ static void CopyHelper(InPortalT inPortal,
   auto outIter = vtkm::cont::ArrayPortalToIteratorBegin(outPortal) + outStart;
   vtkm::Id valuesPerChunk;
 
-  VTKM_OPENMP_DIRECTIVE(parallel default(none) shared(inIter, outIter, valuesPerChunk, numVals))
+  VTKM_OPENMP_DIRECTIVE(parallel default(none) shared(inIter, outIter, valuesPerChunk, numVals)
+                          VTKM_OPENMP_SHARED_CONST(isSame))
   {
 
     VTKM_OPENMP_DIRECTIVE(single)
@@ -136,12 +149,12 @@ static void CopyHelper(InPortalT inPortal,
         numVals, omp_get_num_threads(), 8, sizeof(InValueT), numChunks, valuesPerChunk);
     }
 
-VTKM_OPENMP_DIRECTIVE(for schedule(static))
-for (vtkm::Id i = 0; i < numVals; i += valuesPerChunk)
-{
-  vtkm::Id chunkSize = std::min(numVals - i, valuesPerChunk);
-  DoCopy(inIter + i, outIter + i, chunkSize, isSame);
-}
+    VTKM_OPENMP_DIRECTIVE(for schedule(static))
+    for (vtkm::Id i = 0; i < numVals; i += valuesPerChunk)
+    {
+      vtkm::Id chunkSize = std::min(numVals - i, valuesPerChunk);
+      DoCopy(inIter + i, outIter + i, chunkSize, isSame);
+    }
   }
 }
 
@@ -266,6 +279,23 @@ using OpenMPReductionSupported = std::false_type;
 
 struct ReduceHelper
 {
+  // std::is_integral, but adapted to see through vecs and pairs.
+  template <typename T>
+  struct IsIntegral : public std::is_integral<T>
+  {
+  };
+
+  template <typename T, vtkm::IdComponent Size>
+  struct IsIntegral<vtkm::Vec<T, Size>> : public std::is_integral<T>
+  {
+  };
+
+  template <typename T, typename U>
+  struct IsIntegral<vtkm::Pair<T, U>>
+    : public std::integral_constant<bool, std::is_integral<T>::value && std::is_integral<U>::value>
+  {
+  };
+
   // Generic implementation:
   template <typename PortalT, typename ReturnType, typename Functor>
   static ReturnType Execute(PortalT portal, ReturnType init, Functor functorIn, std::false_type)
@@ -279,8 +309,8 @@ struct ReduceHelper
     int numThreads = 0;
     std::unique_ptr<ReturnType[]> threadData;
 
-    VTKM_OPENMP_DIRECTIVE(parallel default(none) firstprivate(f)
-                            shared(data, doParallel, numThreads, threadData))
+    VTKM_OPENMP_DIRECTIVE(parallel default(none) firstprivate(f) shared(
+      data, doParallel, numThreads, threadData) VTKM_OPENMP_SHARED_CONST(numVals))
     {
 
       int tid = omp_get_thread_num();
@@ -291,24 +321,17 @@ struct ReduceHelper
         if (numVals >= numThreads * 2)
         {
           doParallel = true;
-          threadData.reset(new ReturnType[numThreads]);
+          threadData.reset(new ReturnType[static_cast<std::size_t>(numThreads)]);
         }
       }
 
       if (doParallel)
       {
-        // Use the first (numThreads*2) values for initializing:
-        ReturnType accum;
-        accum = f(data[2 * tid], data[2 * tid + 1]);
+        // Static dispatch to unroll non-integral types:
+        const ReturnType localResult = ReduceHelper::DoParallelReduction<ReturnType>(
+          data, numVals, tid, numThreads, f, IsIntegral<ReturnType>{});
 
-        // Assign each thread chunks of the remaining values for local reduction
-        VTKM_OPENMP_DIRECTIVE(for schedule(static))
-        for (vtkm::Id i = numThreads * 2; i < numVals; i++)
-        {
-          accum = f(accum, data[i]);
-        }
-
-        threadData[static_cast<std::size_t>(tid)] = accum;
+        threadData[static_cast<std::size_t>(tid)] = localResult;
       }
     } // end parallel
 
@@ -330,6 +353,65 @@ struct ReduceHelper
     }
 
     return init;
+  }
+
+  // non-integer reduction: unroll loop manually.
+  // This gives faster code for floats and non-trivial types.
+  template <typename ReturnType, typename IterType, typename FunctorType>
+  static ReturnType DoParallelReduction(IterType data,
+                                        vtkm::Id numVals,
+                                        int tid,
+                                        int numThreads,
+                                        FunctorType f,
+                                        std::false_type /* isIntegral */)
+  {
+    // Use the first (numThreads*2) values for initializing:
+    ReturnType accum = f(data[2 * tid], data[2 * tid + 1]);
+
+    vtkm::Id i = numThreads * 2;
+    const vtkm::Id unrollEnd = ((numVals / 4) * 4) - 4;
+    VTKM_OPENMP_DIRECTIVE(for schedule(static))
+    for (i = numThreads * 2; i < unrollEnd; i += 4)
+    {
+      const auto t1 = f(data[i], data[i + 1]);
+      const auto t2 = f(data[i + 2], data[i + 3]);
+      accum = f(accum, t1);
+      accum = f(accum, t2);
+    }
+    // Let the last thread mop up any remaining values as it would
+    // have just accessed the adjacent data
+    if (tid == numThreads - 1)
+    {
+      for (i = unrollEnd; i < numVals; ++i)
+      {
+        accum = f(accum, data[i]);
+      }
+    }
+
+    return accum;
+  }
+
+  // Integer reduction: no unrolling. Ints vectorize easily and unrolling can
+  // hurt performance.
+  template <typename ReturnType, typename IterType, typename FunctorType>
+  static ReturnType DoParallelReduction(IterType data,
+                                        vtkm::Id numVals,
+                                        int tid,
+                                        int numThreads,
+                                        FunctorType f,
+                                        std::true_type /* isIntegral */)
+  {
+    // Use the first (numThreads*2) values for initializing:
+    ReturnType accum = f(data[2 * tid], data[2 * tid + 1]);
+
+    // Assign each thread chunks of the remaining values for local reduction
+    VTKM_OPENMP_DIRECTIVE(for schedule(static))
+    for (vtkm::Id i = numThreads * 2; i < numVals; i++)
+    {
+      accum = f(accum, data[i]);
+    }
+
+    return accum;
   }
 
 #ifdef VTKM_OPENMP_USE_NATIVE_REDUCTION
@@ -412,7 +494,7 @@ void ReduceByKeyHelper(KeysInArray keysInArray,
   vtkm::Id outIdx = 0;
 
   VTKM_OPENMP_DIRECTIVE(parallel default(none) firstprivate(keysIn, valuesIn, keysOut, valuesOut, f)
-                          shared(outIdx))
+                          shared(outIdx) VTKM_OPENMP_SHARED_CONST(numValues))
   {
     int tid = omp_get_thread_num();
     int numThreads = omp_get_num_threads();
@@ -512,8 +594,8 @@ struct UniqueHelper
 
     // Pad the node out to the size of a cache line to prevent false sharing:
     static constexpr size_t DataSize = 2 * sizeof(vtkm::Id2);
-    static constexpr size_t NumCacheLines = CeilDivide<size_t>(DataSize, CACHE_LINE_SIZE);
-    static constexpr size_t PaddingSize = NumCacheLines * CACHE_LINE_SIZE - DataSize;
+    static constexpr size_t NumCacheLines = CeilDivide<size_t>(DataSize, VTKM_CACHE_LINE_SIZE);
+    static constexpr size_t PaddingSize = NumCacheLines * VTKM_CACHE_LINE_SIZE - DataSize;
     unsigned char Padding[PaddingSize];
   };
 

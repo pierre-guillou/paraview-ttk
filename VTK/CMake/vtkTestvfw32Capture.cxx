@@ -1,4 +1,5 @@
 #include "windows.h"
+
 #include "vfw.h"
 
 // Can vtkWin32VideoSource.cxx be compiled?
@@ -22,13 +23,13 @@ int main()
 {
   vtkWin32VideoSourceInternal internal;
 
-  internal.CapWnd = capCreateCaptureWindow(
-    "Capture", WS_CHILD|WS_VISIBLE, 0, 0, 100, 100, NULL, 1);
+  internal.CapWnd =
+    capCreateCaptureWindow("Capture", WS_CHILD | WS_VISIBLE, 0, 0, 100, 100, nullptr, 1);
 
-//  capDriverConnect
-//  capDriverGetCaps
-//  capCaptureGetSetup
-//  capCaptureSetSetup
+  //  capDriverConnect
+  //  capDriverGetCaps
+  //  capCaptureGetSetup
+  //  capCaptureSetSetup
   // test if constants used in vtkWin32VideoSource exist.
   int controlcallback_preroll = CONTROLCALLBACK_PREROLL;
   int controlcallback_capturing = CONTROLCALLBACK_CAPTURING;
@@ -38,15 +39,15 @@ int main()
 
   capSetUserData(internal.CapWnd, &internal);
 
-//  capSetCallbackOnCapControl
-//  capSetCallbackOnFrame
-//  capSetCallbackOnVideoStream
-//  capSetCallbackOnStatus
-//  capSetCallbackOnError
+  //  capSetCallbackOnCapControl
+  //  capSetCallbackOnFrame
+  //  capSetCallbackOnVideoStream
+  //  capSetCallbackOnStatus
+  //  capSetCallbackOnError
 
-  (void) capOverlay(internal.CapWnd, TRUE);
+  (void)capOverlay(internal.CapWnd, TRUE);
 
-  (void) capGetUserData(internal.CapWnd);
+  (void)capGetUserData(internal.CapWnd);
 
   return 0;
 }

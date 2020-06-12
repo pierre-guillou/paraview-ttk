@@ -7,7 +7,6 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
-
 #ifndef vtk_m_cont_ColorTable_hxx
 #define vtk_m_cont_ColorTable_hxx
 
@@ -16,7 +15,7 @@
 #include <vtkm/cont/TryExecute.h>
 #include <vtkm/cont/VirtualObjectHandle.h>
 
-#include <vtkm/worklet/Invoker.h>
+#include <vtkm/cont/Invoker.h>
 #include <vtkm/worklet/colorconversion/LookupTable.h>
 #include <vtkm/worklet/colorconversion/Portals.h>
 #include <vtkm/worklet/colorconversion/TransferFunction.h>
@@ -80,7 +79,7 @@ struct map_color_table
   inline bool operator()(DeviceAdapter device, ColorTable&& colors, Args&&... args) const
   {
     vtkm::worklet::colorconversion::TransferFunction transfer(colors->PrepareForExecution(device));
-    vtkm::worklet::Invoker invoke(device);
+    vtkm::cont::Invoker invoke(device);
     invoke(transfer, std::forward<Args>(args)...);
     return true;
   }
@@ -91,14 +90,14 @@ struct map_color_table
 template <typename T, typename S>
 bool ColorTable::Map(const vtkm::cont::ArrayHandle<T, S>& values,
                      const vtkm::cont::ColorTableSamplesRGBA& samples,
-                     vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 4>>& rgbaOut) const
+                     vtkm::cont::ArrayHandle<vtkm::Vec4ui_8>& rgbaOut) const
 {
   if (samples.NumberOfSamples <= 0)
   {
     return false;
   }
   vtkm::worklet::colorconversion::LookupTable lookupTable(samples);
-  vtkm::worklet::Invoker invoke(vtkm::cont::DeviceAdapterTagAny{});
+  vtkm::cont::Invoker invoke(vtkm::cont::DeviceAdapterTagAny{});
   invoke(lookupTable, values, samples.Samples, rgbaOut);
   return true;
 }
@@ -106,14 +105,14 @@ bool ColorTable::Map(const vtkm::cont::ArrayHandle<T, S>& values,
 template <typename T, typename S>
 bool ColorTable::Map(const vtkm::cont::ArrayHandle<T, S>& values,
                      const vtkm::cont::ColorTableSamplesRGB& samples,
-                     vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 3>>& rgbOut) const
+                     vtkm::cont::ArrayHandle<vtkm::Vec3ui_8>& rgbOut) const
 {
   if (samples.NumberOfSamples <= 0)
   {
     return false;
   }
   vtkm::worklet::colorconversion::LookupTable lookupTable(samples);
-  vtkm::worklet::Invoker invoke(vtkm::cont::DeviceAdapterTagAny{});
+  vtkm::cont::Invoker invoke(vtkm::cont::DeviceAdapterTagAny{});
   invoke(lookupTable, values, samples.Samples, rgbOut);
   return true;
 }
@@ -121,7 +120,7 @@ bool ColorTable::Map(const vtkm::cont::ArrayHandle<T, S>& values,
 template <typename T, int N, typename S>
 bool ColorTable::MapMagnitude(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>& values,
                               const vtkm::cont::ColorTableSamplesRGBA& samples,
-                              vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 4>>& rgbaOut) const
+                              vtkm::cont::ArrayHandle<vtkm::Vec4ui_8>& rgbaOut) const
 {
   using namespace vtkm::worklet::colorconversion;
   return this->Map(
@@ -132,7 +131,7 @@ bool ColorTable::MapMagnitude(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>&
 template <typename T, int N, typename S>
 bool ColorTable::MapMagnitude(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>& values,
                               const vtkm::cont::ColorTableSamplesRGB& samples,
-                              vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 3>>& rgbOut) const
+                              vtkm::cont::ArrayHandle<vtkm::Vec3ui_8>& rgbOut) const
 {
   using namespace vtkm::worklet::colorconversion;
   return this->Map(
@@ -143,7 +142,7 @@ template <typename T, int N, typename S>
 bool ColorTable::MapComponent(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>& values,
                               vtkm::IdComponent comp,
                               const vtkm::cont::ColorTableSamplesRGBA& samples,
-                              vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 4>>& rgbaOut) const
+                              vtkm::cont::ArrayHandle<vtkm::Vec4ui_8>& rgbaOut) const
 {
   using namespace vtkm::worklet::colorconversion;
   return this->Map(
@@ -154,7 +153,7 @@ template <typename T, int N, typename S>
 bool ColorTable::MapComponent(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>& values,
                               vtkm::IdComponent comp,
                               const vtkm::cont::ColorTableSamplesRGB& samples,
-                              vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 3>>& rgbOut) const
+                              vtkm::cont::ArrayHandle<vtkm::Vec3ui_8>& rgbOut) const
 {
   using namespace vtkm::worklet::colorconversion;
   return this->Map(
@@ -164,21 +163,21 @@ bool ColorTable::MapComponent(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>&
 //---------------------------------------------------------------------------
 template <typename T, typename S>
 bool ColorTable::Map(const vtkm::cont::ArrayHandle<T, S>& values,
-                     vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 4>>& rgbaOut) const
+                     vtkm::cont::ArrayHandle<vtkm::Vec4ui_8>& rgbaOut) const
 {
   return vtkm::cont::TryExecute(detail::map_color_table{}, this, values, rgbaOut);
 }
 //---------------------------------------------------------------------------
 template <typename T, typename S>
 bool ColorTable::Map(const vtkm::cont::ArrayHandle<T, S>& values,
-                     vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 3>>& rgbOut) const
+                     vtkm::cont::ArrayHandle<vtkm::Vec3ui_8>& rgbOut) const
 {
   return vtkm::cont::TryExecute(detail::map_color_table{}, this, values, rgbOut);
 }
 //---------------------------------------------------------------------------
 template <typename T, int N, typename S>
 bool ColorTable::MapMagnitude(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>& values,
-                              vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 4>>& rgbaOut) const
+                              vtkm::cont::ArrayHandle<vtkm::Vec4ui_8>& rgbaOut) const
 {
   using namespace vtkm::worklet::colorconversion;
   return this->Map(vtkm::cont::make_ArrayHandleTransform(values, MagnitudePortal()), rgbaOut);
@@ -186,7 +185,7 @@ bool ColorTable::MapMagnitude(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>&
 //---------------------------------------------------------------------------
 template <typename T, int N, typename S>
 bool ColorTable::MapMagnitude(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>& values,
-                              vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 3>>& rgbOut) const
+                              vtkm::cont::ArrayHandle<vtkm::Vec3ui_8>& rgbOut) const
 {
   using namespace vtkm::worklet::colorconversion;
   return this->Map(vtkm::cont::make_ArrayHandleTransform(values, MagnitudePortal()), rgbOut);
@@ -195,7 +194,7 @@ bool ColorTable::MapMagnitude(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>&
 template <typename T, int N, typename S>
 bool ColorTable::MapComponent(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>& values,
                               vtkm::IdComponent comp,
-                              vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 4>>& rgbaOut) const
+                              vtkm::cont::ArrayHandle<vtkm::Vec4ui_8>& rgbaOut) const
 {
   using namespace vtkm::worklet::colorconversion;
   return this->Map(vtkm::cont::make_ArrayHandleTransform(values, ComponentPortal(comp)), rgbaOut);
@@ -204,7 +203,7 @@ bool ColorTable::MapComponent(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>&
 template <typename T, int N, typename S>
 bool ColorTable::MapComponent(const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, S>& values,
                               vtkm::IdComponent comp,
-                              vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 3>>& rgbOut) const
+                              vtkm::cont::ArrayHandle<vtkm::Vec3ui_8>& rgbOut) const
 {
   using namespace vtkm::worklet::colorconversion;
   return this->Map(vtkm::cont::make_ArrayHandleTransform(values, ComponentPortal(comp)), rgbOut);
@@ -325,7 +324,7 @@ bool ColorTable::Sample(vtkm::Int32 numSamples,
 
 //---------------------------------------------------------------------------
 bool ColorTable::Sample(vtkm::Int32 numSamples,
-                        vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 4>>& colors,
+                        vtkm::cont::ArrayHandle<vtkm::Vec4ui_8>& colors,
                         double tolerance) const
 {
   if (numSamples <= 1)
@@ -337,7 +336,7 @@ bool ColorTable::Sample(vtkm::Int32 numSamples,
 
 //---------------------------------------------------------------------------
 bool ColorTable::Sample(vtkm::Int32 numSamples,
-                        vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::UInt8, 3>>& colors,
+                        vtkm::cont::ArrayHandle<vtkm::Vec3ui_8>& colors,
                         double tolerance) const
 {
   if (numSamples <= 1)

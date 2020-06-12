@@ -82,6 +82,8 @@ class ProducerAccessor(smtrace.RealProxyAccessor):
         trace.append("%s = coprocessor.CreateProducer(datadescription, '%s')" % \
             (self, self.SimulationInputName))
 
+        # self.varname has .'s and *'s stripped. Knowing this, the key in cpstate_globals.cinema_arrays
+        # should also be stripped of .'s and *'s. Refers to /Qt/ApplicationComponents/pqExportCatalystScript.cxx
         if self.varname in cpstate_globals.cinema_arrays:
             arrays = cpstate_globals.cinema_arrays[self.varname]
             trace.append_separated(["# define target arrays of filters."])
@@ -345,9 +347,6 @@ class NewStyleWriters(object):
     def make_trace(self):
         """gather trace for the writer proxies that are not in the trace pipeline but
         rather in the new export state.
-
-        aDIOSWriter1 = servermanager.writers.ADIOSWriter(Input=wavelet1)
-        coprocessor.RegisterWriter(aDIOSWriter1, filename='filename.vta', freq=1, paddingamount=0)
         """
         res = []
         res.append("")
@@ -366,7 +365,16 @@ class NewStyleWriters(object):
                 # skip the array and property export information we stuff in this proxy
                 continue
 
-            inputname = xs.split('|')[0].lower().replace("*","").replace(".","")
+            # note: this logic is not truly correct. the way this is setup,
+            # there is no good way to really find the variable name used for the input since the names
+            # that smtrace assigns are already cleaned up at this point.
+            # Ideally, this class should have been written as a true `Accessor` so it could
+            # be traced correctly. Right now, I am hacking this to attempt to get a reasonable name
+            # that works in most cases.
+            inputname = xs.split('|')[0]
+            inputname = servermanager._make_name_valid(inputname)
+            inputname = inputname[0].lower() + inputname[1:]
+
             writername = xs.split('|')[1]
 
             xmlgroup = pxy.GetXMLGroup()
@@ -404,6 +412,21 @@ class NewStyleWriters(object):
                 varname = self.__make_name(xmlname)
             else:
                 varname = self.__make_name(prototype.GetXMLLabel())
+            # Write pass array proxy
+            if pxy.GetProperty("ChooseArraysToWrite").GetElement(0) == 1:
+                point_arrays = []
+                cell_arrays = []
+                arrays_property = pxy.GetProperty("PointDataArrays")
+                for i in range(arrays_property.GetNumberOfElements()):
+                    point_arrays.append(arrays_property.GetElement(i))
+                arrays_property = pxy.GetProperty("CellDataArrays")
+                for i in range(arrays_property.GetNumberOfElements()):
+                    cell_arrays.append(arrays_property.GetElement(i))
+                f = "%s_arrays = PassArrays(Input=%s, PointDataArrays=%s, CellDataArrays=%s)" % \
+                    (inputname, inputname, str(point_arrays), str(cell_arrays))
+                inputname = "%s_arrays" % inputname
+                res.append(f)
+            # Actual writer
             f = "%s = servermanager.writers.%s(Input=%s)" % (varname, writername, inputname)
             res.append(f)
             if self.__make_temporal_script:
@@ -495,7 +518,7 @@ def DumpPipeline(export_rendering, simulation_input_map, screenshot_info,
             # we update the write_frequencies datastructure accordingly.
             sim_inputs = locate_simulation_inputs_for_view(view)
             for sim_input_name in sim_inputs:
-                if not image_write_frequency in cpstate_globals.write_frequencies:
+                if not image_write_frequency in cpstate_globals.write_frequencies[sim_input_name]:
                     cpstate_globals.write_frequencies[sim_input_name].append(image_write_frequency)
                     cpstate_globals.write_frequencies[sim_input_name].sort()
 
@@ -505,7 +528,7 @@ def DumpPipeline(export_rendering, simulation_input_map, screenshot_info,
     if enable_live_viz:
         for key in simulation_input_map:
             sim_input_name = simulation_input_map[key]
-            if not live_viz_frequency in cpstate_globals.write_frequencies:
+            if not live_viz_frequency in cpstate_globals.write_frequencies[sim_input_name]:
                 cpstate_globals.write_frequencies[sim_input_name].append(live_viz_frequency)
                 cpstate_globals.write_frequencies[sim_input_name].sort()
 

@@ -9,18 +9,18 @@ if (USE_CATALYST)
 
   if (NOT TARGET ParaView::PythonCatalyst)
     message(STATUS
-      "${CMAKE_PROJECT_NAME} requires ParaView to be built with Catalyst and "
-      "Python support enabled. Please rebuild ParaView (or point to a "
-      "different build of ParaView) with PARAVIEW_ENABLE_CATALYST and "
-      "PARAVIEW_ENABLE_PYTHON set to TRUE")
+      "Skipping example: ${CMAKE_PROJECT_NAME} requires ParaView to be built "
+      "with Catalyst and Python support enabled. Please rebuild ParaView (or "
+      "point to a different build of ParaView) with PARAVIEW_USE_PYTHON set "
+      "to TRUE")
     return ()
   endif()
 
   if (NOT PARAVIEW_USE_MPI)
     message(STATUS
-      "${CMAKE_PROJECT_NAME} requires ParaView to be built with MPI support "
-      "enabled. Please rebuild ParaView (or point to a different build of "
-      "ParaView) with PARAVIEW_USE_MPI set to TRUE")
+      "Skipping example: ${CMAKE_PROJECT_NAME} requires ParaView to be built "
+      "with MPI support enabled. Please rebuild ParaView (or point to a "
+      "different build of ParaView) with PARAVIEW_USE_MPI set to TRUE")
     return ()
   endif ()
 
@@ -30,8 +30,8 @@ else ()
   find_package(MPI COMPONENTS C)
   if (NOT MPI_FOUND)
     message(STATUS
-      "${CMAKE_PROJECT_NAME} requires MPI support, but none was found. "
-      "Skipping ${CMAKE_PROJECT_NAME} examples.")
+      "Skipping example: ${CMAKE_PROJECT_NAME} requires MPI support, but none "
+      "was found.")
     return ()
   endif ()
 endif ()
@@ -57,7 +57,9 @@ add_subdirectory(CxxOverlappingAMRExample)
 add_subdirectory(CxxPVSMPipelineExample)
 add_subdirectory(CxxParticlePathExample)
 add_subdirectory(CxxSOADataArrayExample)
-add_subdirectory(CxxVTKPipelineExample)
+if (TARGET ParaView::VTKExtensionsFiltersGeneral)
+  add_subdirectory(CxxVTKPipelineExample)
+endif()
 add_subdirectory(MPISubCommunicatorExample)
 add_subdirectory(PythonDolfinExample)
 #add_subdirectory(PythonFullExample)

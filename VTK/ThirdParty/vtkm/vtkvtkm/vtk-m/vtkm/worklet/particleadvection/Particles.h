@@ -11,11 +11,11 @@
 #ifndef vtk_m_worklet_particleadvection_Particles_h
 #define vtk_m_worklet_particleadvection_Particles_h
 
-class ParticleExecutionObjectType;
-
+#include <vtkm/Particle.h>
 #include <vtkm/Types.h>
 #include <vtkm/cont/DeviceAdapter.h>
 #include <vtkm/cont/ExecutionObjectBase.h>
+#include <vtkm/worklet/particleadvection/IntegratorStatus.h>
 
 namespace vtkm
 {
@@ -23,194 +23,100 @@ namespace worklet
 {
 namespace particleadvection
 {
-
-using ScalarType = vtkm::FloatDefault;
-
-enum ParticleStatus
-{
-  STATUS_OK = 1,
-  TERMINATED = 1 << 1,
-  AT_SPATIAL_BOUNDARY = 1 << 2,
-  AT_TEMPORAL_BOUNDARY = 1 << 3,
-  EXITED_SPATIAL_BOUNDARY = 1 << 4,
-  EXITED_TEMPORAL_BOUNDARY = 1 << 5,
-  STATUS_ERROR = 1 << 6
-};
-
 template <typename Device>
 class ParticleExecutionObject
 {
 public:
-  using ScalarType = vtkm::worklet::particleadvection::ScalarType;
-  using VectorType = vtkm::Vec<ScalarType, 3>;
-
-private:
-  using IdPortal =
-    typename vtkm::cont::ArrayHandle<vtkm::Id>::template ExecutionTypes<Device>::Portal;
-  using PositionPortal =
-    typename vtkm::cont::ArrayHandle<VectorType>::template ExecutionTypes<Device>::Portal;
-  using FloatPortal =
-    typename vtkm::cont::ArrayHandle<ScalarType>::template ExecutionTypes<Device>::Portal;
-
-public:
   VTKM_EXEC_CONT
   ParticleExecutionObject()
-    : Pos()
-    , Steps()
-    , Status()
-    , Time()
+    : Particles()
     , MaxSteps(0)
   {
   }
 
-  ParticleExecutionObject(vtkm::cont::ArrayHandle<VectorType> posArray,
-                          vtkm::cont::ArrayHandle<vtkm::Id> stepsArray,
-                          vtkm::cont::ArrayHandle<vtkm::Id> statusArray,
-                          vtkm::cont::ArrayHandle<ScalarType> timeArray,
-                          vtkm::Id maxSteps)
+  ParticleExecutionObject(vtkm::cont::ArrayHandle<vtkm::Particle> particleArray, vtkm::Id maxSteps)
   {
-    Pos = posArray.PrepareForInPlace(Device());
-    Steps = stepsArray.PrepareForInPlace(Device());
-    Status = statusArray.PrepareForInPlace(Device());
-    Time = timeArray.PrepareForInPlace(Device());
+    Particles = particleArray.PrepareForInPlace(Device());
     MaxSteps = maxSteps;
   }
 
   VTKM_EXEC
-  void TakeStep(const vtkm::Id& idx, const VectorType& pt, ParticleStatus vtkmNotUsed(status))
-  {
-    // Irrespective of what the advected status of the particle is,
-    // we need to set the output position as the last step taken by
-    // the particle, and increase the number of steps take by 1.
-    Pos.Set(idx, pt);
-    vtkm::Id nSteps = Steps.Get(idx);
-    Steps.Set(idx, ++nSteps);
+  vtkm::Particle GetParticle(const vtkm::Id& idx) { return this->Particles.Get(idx); }
 
-    // Check if the particle has completed the maximum steps required.
-    // If yes, set it to terminated.
-    if (nSteps == MaxSteps)
-      SetTerminated(idx);
-  }
+  VTKM_EXEC
+  void PreStepUpdate(const vtkm::Id& vtkmNotUsed(idx)) {}
 
-  /* Set/Change Status */
   VTKM_EXEC
-  void SetOK(const vtkm::Id& idx)
+  void StepUpdate(const vtkm::Id& idx, vtkm::FloatDefault time, const vtkm::Vec3f& pt)
   {
-    Clear(idx);
-    Status.Set(idx, STATUS_OK);
-  }
-  VTKM_EXEC
-  void SetTerminated(const vtkm::Id& idx)
-  {
-    ClearBit(idx, STATUS_OK);
-    SetBit(idx, TERMINATED);
-  }
-  VTKM_EXEC
-  void SetExitedSpatialBoundary(const vtkm::Id& idx)
-  {
-    ClearBit(idx, STATUS_OK);
-    SetBit(idx, EXITED_SPATIAL_BOUNDARY);
-  }
-  VTKM_EXEC
-  void SetExitedTemporalBoundary(const vtkm::Id& idx)
-  {
-    ClearBit(idx, STATUS_OK);
-    SetBit(idx, EXITED_TEMPORAL_BOUNDARY);
-  }
-  VTKM_EXEC
-  void SetError(const vtkm::Id& idx)
-  {
-    ClearBit(idx, STATUS_OK);
-    SetBit(idx, STATUS_ERROR);
-  }
-
-  /* Check Status */
-  VTKM_EXEC
-  bool OK(const vtkm::Id& idx) { return CheckBit(idx, STATUS_OK); }
-  VTKM_EXEC
-  bool Terminated(const vtkm::Id& idx) { return CheckBit(idx, TERMINATED); }
-  VTKM_EXEC
-  bool ExitedSpatialBoundary(const vtkm::Id& idx) { return CheckBit(idx, EXITED_SPATIAL_BOUNDARY); }
-  VTKM_EXEC
-  bool ExitedTemporalBoundary(const vtkm::Id& idx)
-  {
-    return CheckBit(idx, EXITED_TEMPORAL_BOUNDARY);
-  }
-  VTKM_EXEC
-  bool Error(const vtkm::Id& idx) { return CheckBit(idx, STATUS_ERROR); }
-  VTKM_EXEC
-  bool Integrateable(const vtkm::Id& idx)
-  {
-    return OK(idx) &&
-      !(Terminated(idx) || ExitedSpatialBoundary(idx) || ExitedTemporalBoundary(idx));
-  }
-  VTKM_EXEC
-  bool Done(const vtkm::Id& idx) { return !Integrateable(idx); }
-
-  /* Bit Operations */
-  VTKM_EXEC
-  void Clear(const vtkm::Id& idx) { Status.Set(idx, 0); }
-  VTKM_EXEC
-  void SetBit(const vtkm::Id& idx, const ParticleStatus& b)
-  {
-    Status.Set(idx, Status.Get(idx) | b);
-  }
-  VTKM_EXEC
-  void ClearBit(const vtkm::Id& idx, const ParticleStatus& b)
-  {
-    Status.Set(idx, Status.Get(idx) & ~b);
-  }
-  VTKM_EXEC
-  bool CheckBit(const vtkm::Id& idx, const ParticleStatus& b) const
-  {
-    return (Status.Get(idx) & b) != 0;
+    vtkm::Particle p = this->GetParticle(idx);
+    p.Pos = pt;
+    p.Time = time;
+    p.NumSteps++;
+    this->Particles.Set(idx, p);
   }
 
   VTKM_EXEC
-  VectorType GetPos(const vtkm::Id& idx) const { return Pos.Get(idx); }
+  void StatusUpdate(const vtkm::Id& idx,
+                    const vtkm::worklet::particleadvection::IntegratorStatus& status,
+                    vtkm::Id maxSteps)
+  {
+    vtkm::Particle p = this->GetParticle(idx);
+
+    if (p.NumSteps == maxSteps)
+      p.Status.SetTerminate();
+
+    if (status.CheckFail())
+      p.Status.SetFail();
+    if (status.CheckSpatialBounds())
+      p.Status.SetSpatialBounds();
+    if (status.CheckTemporalBounds())
+      p.Status.SetTemporalBounds();
+    this->Particles.Set(idx, p);
+  }
+
   VTKM_EXEC
-  vtkm::Id GetStep(const vtkm::Id& idx) const { return Steps.Get(idx); }
+  bool CanContinue(const vtkm::Id& idx)
+  {
+    vtkm::Particle p = this->GetParticle(idx);
+
+    return (p.Status.CheckOk() && !p.Status.CheckTerminate() && !p.Status.CheckSpatialBounds() &&
+            !p.Status.CheckTemporalBounds());
+  }
+
   VTKM_EXEC
-  vtkm::Id GetStatus(const vtkm::Id& idx) const { return Status.Get(idx); }
-  VTKM_EXEC
-  ScalarType GetTime(const vtkm::Id& idx) const { return Time.Get(idx); }
-  VTKM_EXEC
-  void SetTime(const vtkm::Id& idx, ScalarType time) const { Time.Set(idx, time); }
+  void UpdateTookSteps(const vtkm::Id& idx, bool val)
+  {
+    vtkm::Particle p = this->GetParticle(idx);
+    if (val)
+      p.Status.SetTookAnySteps();
+    else
+      p.Status.ClearTookAnySteps();
+    this->Particles.Set(idx, p);
+  }
 
 protected:
-  PositionPortal Pos;
-  IdPortal Steps, Status;
-  FloatPortal Time;
+  using ParticlePortal =
+    typename vtkm::cont::ArrayHandle<vtkm::Particle>::template ExecutionTypes<Device>::Portal;
+
+  ParticlePortal Particles;
   vtkm::Id MaxSteps;
 };
 
-
 class Particles : public vtkm::cont::ExecutionObjectBase
 {
-private:
-  using ScalarType = vtkm::worklet::particleadvection::ScalarType;
-  using VectorType = vtkm::Vec<ScalarType, 3>;
-
 public:
   template <typename Device>
   VTKM_CONT vtkm::worklet::particleadvection::ParticleExecutionObject<Device> PrepareForExecution(
     Device) const
   {
-
-    return vtkm::worklet::particleadvection::ParticleExecutionObject<Device>(
-      this->PosArray, this->StepsArray, this->StatusArray, this->TimeArray, this->MaxSteps);
+    return vtkm::worklet::particleadvection::ParticleExecutionObject<Device>(this->ParticleArray,
+                                                                             this->MaxSteps);
   }
 
   VTKM_CONT
-  Particles(vtkm::cont::ArrayHandle<VectorType>& posArray,
-            vtkm::cont::ArrayHandle<vtkm::Id>& stepsArray,
-            vtkm::cont::ArrayHandle<vtkm::Id>& statusArray,
-            vtkm::cont::ArrayHandle<ScalarType>& timeArray,
-            const vtkm::Id& maxSteps)
-    : PosArray(posArray)
-    , StepsArray(stepsArray)
-    , StatusArray(statusArray)
-    , TimeArray(timeArray)
+  Particles(vtkm::cont::ArrayHandle<vtkm::Particle>& pArray, vtkm::Id& maxSteps)
+    : ParticleArray(pArray)
     , MaxSteps(maxSteps)
   {
   }
@@ -218,231 +124,143 @@ public:
   Particles() {}
 
 protected:
-  bool fromArray = false;
-
-protected:
-  vtkm::cont::ArrayHandle<VectorType> PosArray;
-  vtkm::cont::ArrayHandle<vtkm::Id> StepsArray;
-  vtkm::cont::ArrayHandle<vtkm::Id> StatusArray;
-  vtkm::cont::ArrayHandle<ScalarType> TimeArray;
+  vtkm::cont::ArrayHandle<vtkm::Particle> ParticleArray;
   vtkm::Id MaxSteps;
 };
 
 
 template <typename Device>
-class StateRecordingParticleExecutionObject
+class StateRecordingParticleExecutionObject : public ParticleExecutionObject<Device>
 {
-  using ScalarType = vtkm::worklet::particleadvection::ScalarType;
-  using VectorType = vtkm::Vec<ScalarType, 3>;
-
-private:
-  using IdPortal =
-    typename vtkm::cont::ArrayHandle<vtkm::Id>::template ExecutionTypes<Device>::Portal;
-  using IdComponentPortal =
-    typename vtkm::cont::ArrayHandle<vtkm::IdComponent>::template ExecutionTypes<Device>::Portal;
-  using PositionPortal =
-    typename vtkm::cont::ArrayHandle<VectorType>::template ExecutionTypes<Device>::Portal;
-  using FloatPortal =
-    typename vtkm::cont::ArrayHandle<ScalarType>::template ExecutionTypes<Device>::Portal;
-
 public:
   VTKM_EXEC_CONT
   StateRecordingParticleExecutionObject()
-    : Pos()
-    , Steps()
-    , Status()
-    , Time()
-    , MaxSteps(0)
-    , Length(0)
+    : ParticleExecutionObject<Device>()
     , History()
+    , Length(0)
+    , StepCount()
     , ValidPoint()
   {
   }
 
-  StateRecordingParticleExecutionObject(vtkm::cont::ArrayHandle<VectorType> posArray,
-                                        vtkm::cont::ArrayHandle<VectorType> historyArray,
-                                        vtkm::cont::ArrayHandle<vtkm::Id> stepsArray,
-                                        vtkm::cont::ArrayHandle<vtkm::Id> statusArray,
-                                        vtkm::cont::ArrayHandle<ScalarType> timeArray,
+  StateRecordingParticleExecutionObject(vtkm::cont::ArrayHandle<vtkm::Particle> pArray,
+                                        vtkm::cont::ArrayHandle<vtkm::Vec3f> historyArray,
                                         vtkm::cont::ArrayHandle<vtkm::Id> validPointArray,
+                                        vtkm::cont::ArrayHandle<vtkm::Id> stepCountArray,
                                         vtkm::Id maxSteps)
+    : ParticleExecutionObject<Device>(pArray, maxSteps)
+    , Length(maxSteps + 1)
   {
-    Pos = posArray.PrepareForInPlace(Device());
-    Steps = stepsArray.PrepareForInPlace(Device());
-    Status = statusArray.PrepareForInPlace(Device());
-    Time = timeArray.PrepareForInPlace(Device());
-    MaxSteps = maxSteps;
-    Length = maxSteps;
-    vtkm::Id numPos = posArray.GetNumberOfValues();
+    vtkm::Id numPos = pArray.GetNumberOfValues();
     History = historyArray.PrepareForOutput(numPos * Length, Device());
     ValidPoint = validPointArray.PrepareForInPlace(Device());
-  }
-
-  VTKM_EXEC_CONT
-  void TakeStep(const vtkm::Id& idx, const VectorType& pt, ParticleStatus vtkmNotUsed(status))
-  {
-    // Irrespective of what the advected status of the particle is,
-    // we need to set the output position as the last step taken by
-    // the particle.
-    Pos.Set(idx, pt);
-    vtkm::Id nSteps = Steps.Get(idx);
-
-    // Update the step for streamline storing portals.
-    // This includes updating the history and the valid points.
-    vtkm::Id loc = idx * Length + nSteps;
-    History.Set(loc, pt);
-    ValidPoint.Set(loc, 1);
-
-    // Increase the number of steps take by 1.
-    Steps.Set(idx, ++nSteps);
-
-    // Check if the particle has completed the maximum steps required.
-    // If yes, set it to terminated.
-    if (nSteps == MaxSteps)
-      SetTerminated(idx);
-  }
-
-  /* Set/Change Status */
-  VTKM_EXEC
-  void SetOK(const vtkm::Id& idx)
-  {
-    Clear(idx);
-    Status.Set(idx, STATUS_OK);
-  }
-  VTKM_EXEC
-  void SetTerminated(const vtkm::Id& idx)
-  {
-    ClearBit(idx, STATUS_OK);
-    SetBit(idx, TERMINATED);
-  }
-  VTKM_EXEC
-  void SetExitedSpatialBoundary(const vtkm::Id& idx)
-  {
-    ClearBit(idx, STATUS_OK);
-    SetBit(idx, EXITED_SPATIAL_BOUNDARY);
-  }
-  VTKM_EXEC
-  void SetExitedTemporalBoundary(const vtkm::Id& idx)
-  {
-    ClearBit(idx, STATUS_OK);
-    SetBit(idx, EXITED_TEMPORAL_BOUNDARY);
-  }
-  VTKM_EXEC
-  void SetError(const vtkm::Id& idx)
-  {
-    ClearBit(idx, STATUS_OK);
-    SetBit(idx, STATUS_ERROR);
-  }
-
-  /* Check Status */
-  VTKM_EXEC
-  bool OK(const vtkm::Id& idx) { return CheckBit(idx, STATUS_OK); }
-  VTKM_EXEC
-  bool Terminated(const vtkm::Id& idx) { return CheckBit(idx, TERMINATED); }
-  VTKM_EXEC
-  bool ExitedSpatialBoundary(const vtkm::Id& idx) { return CheckBit(idx, EXITED_SPATIAL_BOUNDARY); }
-  VTKM_EXEC
-  bool ExitedTemporalBoundary(const vtkm::Id& idx)
-  {
-    return CheckBit(idx, EXITED_TEMPORAL_BOUNDARY);
-  }
-  VTKM_EXEC
-  bool Error(const vtkm::Id& idx) { return CheckBit(idx, STATUS_ERROR); }
-  VTKM_EXEC
-  bool Integrateable(const vtkm::Id& idx)
-  {
-    return OK(idx) &&
-      !(Terminated(idx) || ExitedSpatialBoundary(idx) || ExitedTemporalBoundary(idx));
-  }
-  VTKM_EXEC
-  bool Done(const vtkm::Id& idx) { return !Integrateable(idx); }
-
-  /* Bit Operations */
-  VTKM_EXEC
-  void Clear(const vtkm::Id& idx) { Status.Set(idx, 0); }
-  VTKM_EXEC
-  void SetBit(const vtkm::Id& idx, const ParticleStatus& b)
-  {
-    Status.Set(idx, Status.Get(idx) | b);
-  }
-  VTKM_EXEC
-  void ClearBit(const vtkm::Id& idx, const ParticleStatus& b)
-  {
-    Status.Set(idx, Status.Get(idx) & ~b);
-  }
-  VTKM_EXEC
-  bool CheckBit(const vtkm::Id& idx, const ParticleStatus& b) const
-  {
-    return (Status.Get(idx) & b) != 0;
+    StepCount = stepCountArray.PrepareForInPlace(Device());
   }
 
   VTKM_EXEC
-  VectorType GetPos(const vtkm::Id& idx) const { return Pos.Get(idx); }
-  VTKM_EXEC
-  vtkm::Id GetStep(const vtkm::Id& idx) const { return Steps.Get(idx); }
-  VTKM_EXEC
-  vtkm::Id GetStatus(const vtkm::Id& idx) const { return Status.Get(idx); }
-  VTKM_EXEC
-  ScalarType GetTime(const vtkm::Id& idx) const { return Time.Get(idx); }
-  VTKM_EXEC
-  void SetTime(const vtkm::Id& idx, ScalarType time) const { Time.Set(idx, time); }
-  VectorType GetHistory(const vtkm::Id& idx, const vtkm::Id& step) const
+  void PreStepUpdate(const vtkm::Id& idx)
   {
-    return History.Get(idx * Length + step);
+    vtkm::Particle p = this->ParticleExecutionObject<Device>::GetParticle(idx);
+    if (p.NumSteps == 0)
+    {
+      vtkm::Id loc = idx * Length;
+      this->History.Set(loc, p.Pos);
+      this->ValidPoint.Set(loc, 1);
+      this->StepCount.Set(idx, 1);
+    }
   }
 
+  VTKM_EXEC
+  void StepUpdate(const vtkm::Id& idx, vtkm::FloatDefault time, const vtkm::Vec3f& pt)
+  {
+    this->ParticleExecutionObject<Device>::StepUpdate(idx, time, pt);
 
-private:
-  PositionPortal Pos;
-  IdPortal Steps, Status;
-  FloatPortal Time;
-  vtkm::Id MaxSteps;
+    //local step count.
+    vtkm::Id stepCount = this->StepCount.Get(idx);
+
+    vtkm::Id loc = idx * Length + stepCount;
+    this->History.Set(loc, pt);
+    this->ValidPoint.Set(loc, 1);
+    this->StepCount.Set(idx, stepCount + 1);
+  }
+
+protected:
+  using IdPortal =
+    typename vtkm::cont::ArrayHandle<vtkm::Id>::template ExecutionTypes<Device>::Portal;
+  using HistoryPortal =
+    typename vtkm::cont::ArrayHandle<vtkm::Vec3f>::template ExecutionTypes<Device>::Portal;
+
+  HistoryPortal History;
   vtkm::Id Length;
-  PositionPortal History;
+  IdPortal StepCount;
   IdPortal ValidPoint;
 };
 
 class StateRecordingParticles : vtkm::cont::ExecutionObjectBase
 {
 public:
-  using ScalarType = vtkm::worklet::particleadvection::ScalarType;
-  using VectorType = vtkm::Vec<ScalarType, 3>;
+  //Helper functor for compacting history
+  struct IsOne
+  {
+    template <typename T>
+    VTKM_EXEC_CONT bool operator()(const T& x) const
+    {
+      return x == T(1);
+    }
+  };
+
 
   template <typename Device>
   VTKM_CONT vtkm::worklet::particleadvection::StateRecordingParticleExecutionObject<Device>
     PrepareForExecution(Device) const
   {
     return vtkm::worklet::particleadvection::StateRecordingParticleExecutionObject<Device>(
-      PosArray, HistoryArray, StepsArray, StatusArray, TimeArray, ValidPointArray, MaxSteps);
+      this->ParticleArray,
+      this->HistoryArray,
+      this->ValidPointArray,
+      this->StepCountArray,
+      this->MaxSteps);
+  }
+  VTKM_CONT
+  StateRecordingParticles(vtkm::cont::ArrayHandle<vtkm::Particle>& pArray, const vtkm::Id& maxSteps)
+    : MaxSteps(maxSteps)
+    , ParticleArray(pArray)
+  {
+    vtkm::Id numParticles = static_cast<vtkm::Id>(pArray.GetNumberOfValues());
+
+    //Create ValidPointArray initialized to zero.
+    vtkm::cont::ArrayHandleConstant<vtkm::Id> tmp(0, (this->MaxSteps + 1) * numParticles);
+    vtkm::cont::ArrayCopy(tmp, this->ValidPointArray);
+
+    //Create StepCountArray initialized to zero.
+    vtkm::cont::ArrayHandleConstant<vtkm::Id> tmp2(0, numParticles);
+    vtkm::cont::ArrayCopy(tmp2, this->StepCountArray);
   }
 
   VTKM_CONT
-  StateRecordingParticles(vtkm::cont::ArrayHandle<VectorType>& posArray,
-                          vtkm::cont::ArrayHandle<VectorType>& historyArray,
-                          vtkm::cont::ArrayHandle<vtkm::Id>& stepsArray,
-                          vtkm::cont::ArrayHandle<vtkm::Id>& statusArray,
-                          vtkm::cont::ArrayHandle<ScalarType>& timeArray,
+  StateRecordingParticles(vtkm::cont::ArrayHandle<vtkm::Particle>& pArray,
+                          vtkm::cont::ArrayHandle<vtkm::Vec3f>& historyArray,
                           vtkm::cont::ArrayHandle<vtkm::Id>& validPointArray,
-                          const vtkm::Id& maxSteps)
+                          vtkm::Id& maxSteps)
   {
-    PosArray = posArray;
+    ParticleArray = pArray;
     HistoryArray = historyArray;
-    StepsArray = stepsArray;
-    StatusArray = statusArray;
-    TimeArray = timeArray;
     ValidPointArray = validPointArray;
     MaxSteps = maxSteps;
   }
 
+  VTKM_CONT
+  void GetCompactedHistory(vtkm::cont::ArrayHandle<vtkm::Vec3f>& positions)
+  {
+    vtkm::cont::Algorithm::CopyIf(this->HistoryArray, this->ValidPointArray, positions, IsOne());
+  }
 
 protected:
-  vtkm::cont::ArrayHandle<vtkm::Id> StepsArray;
-  vtkm::cont::ArrayHandle<vtkm::Id> StatusArray;
-  vtkm::cont::ArrayHandle<ScalarType> TimeArray;
-  vtkm::cont::ArrayHandle<vtkm::Id> ValidPointArray;
-  vtkm::cont::ArrayHandle<VectorType> HistoryArray;
-  vtkm::cont::ArrayHandle<VectorType> PosArray;
+  vtkm::cont::ArrayHandle<vtkm::Vec3f> HistoryArray;
   vtkm::Id MaxSteps;
+  vtkm::cont::ArrayHandle<vtkm::Particle> ParticleArray;
+  vtkm::cont::ArrayHandle<vtkm::Id> StepCountArray;
+  vtkm::cont::ArrayHandle<vtkm::Id> ValidPointArray;
 };
 
 

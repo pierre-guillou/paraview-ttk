@@ -11,9 +11,8 @@
 #ifndef vtkm_m_filter_CellSetConnectivity_hxx
 #define vtkm_m_filter_CellSetConnectivity_hxx
 
-#include <vtkm/filter/CellSetConnectivity.h>
-#include <vtkm/filter/internal/CreateResult.h>
-#include <vtkm/worklet/DispatcherMapField.h>
+#include <vtkm/filter/CreateResult.h>
+#include <vtkm/worklet/connectivities/CellSetConnectivity.h>
 
 namespace vtkm
 {
@@ -21,28 +20,21 @@ namespace filter
 {
 
 VTKM_CONT CellSetConnectivity::CellSetConnectivity()
+  : OutputFieldName("component")
 {
-  this->SetOutputFieldName("component");
 }
 
-template <typename T, typename StorageType, typename DerivedPolicy>
+template <typename Policy>
 inline VTKM_CONT vtkm::cont::DataSet CellSetConnectivity::DoExecute(
   const vtkm::cont::DataSet& input,
-  const vtkm::cont::ArrayHandle<T, StorageType>&,
-  const vtkm::filter::FieldMetadata& fieldMetadata,
-  const vtkm::filter::PolicyBase<DerivedPolicy>& policy)
+  vtkm::filter::PolicyBase<Policy> policy)
 {
   vtkm::cont::ArrayHandle<vtkm::Id> component;
 
   vtkm::worklet::connectivity::CellSetConnectivity().Run(
-    vtkm::filter::ApplyPolicy(input.GetCellSet(this->GetActiveCellSetIndex()), policy), component);
+    vtkm::filter::ApplyPolicyCellSet(input.GetCellSet(), policy), component);
 
-  auto result = internal::CreateResult(input,
-                                       component,
-                                       this->GetOutputFieldName(),
-                                       vtkm::cont::Field::Association::CELL_SET,
-                                       fieldMetadata.GetCellSetName());
-  return result;
+  return CreateResultFieldCell(input, component, this->GetOutputFieldName());
 }
 }
 }

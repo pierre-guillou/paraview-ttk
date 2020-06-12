@@ -3,19 +3,19 @@
 #define VISRTX_DYNLOAD
 #include <VisRTX.h>
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
-#include "Object.h"
+#include "Camera.h"
 #include "Data.h"
 #include "FrameBuffer.h"
 #include "Geometry.h"
-#include "Texture.h"
 #include "Light.h"
 #include "Material.h"
-#include "Renderer.h"
-#include "Camera.h"
 #include "Model.h"
+#include "Object.h"
+#include "Renderer.h"
+#include "Texture.h"
 
 
 namespace RTW
@@ -227,6 +227,14 @@ namespace RTW
         reinterpret_cast<Object*>(object)->Set4f(id, x, y, z, w);
     }
 
+    void VisRTXBackend::RemoveParam(RTWObject object, const char *id)
+    {
+        if (object)
+        {
+            reinterpret_cast<Object*>(object)->RemoveParam(id);
+        }
+    }
+
     void VisRTXBackend::Commit(RTWObject object)
     {
         if (!object)
@@ -288,6 +296,6 @@ namespace RTW
         if (!frameBuffer)
             return 0;
 
-        return reinterpret_cast<FrameBuffer*>(frameBuffer)->GetDepthtextureGL();
+        return reinterpret_cast<FrameBuffer*>(frameBuffer)->GetDepthTextureGL();
     }
 }

@@ -98,7 +98,7 @@ public:
     vtkm::Int32 nTrainingPoints = 5;
     vtkm::Int32 nTestingPoint = 1;
 
-    std::vector<vtkm::Vec<vtkm::Float32, 3>> coordi;
+    std::vector<vtkm::Vec3f_32> coordi;
 
     ///// randomly generate training points/////
     std::default_random_engine dre;
@@ -108,6 +108,16 @@ public:
     {
       coordi.push_back(vtkm::make_Vec(dr(dre), dr(dre), dr(dre)));
     }
+    // Add a point to each corner to test the case where points might slip out
+    // of the range by epsilon
+    coordi.push_back(vtkm::make_Vec(00.0f, 00.0f, 00.0f));
+    coordi.push_back(vtkm::make_Vec(00.0f, 10.0f, 00.0f));
+    coordi.push_back(vtkm::make_Vec(10.0f, 00.0f, 00.0f));
+    coordi.push_back(vtkm::make_Vec(10.0f, 10.0f, 00.0f));
+    coordi.push_back(vtkm::make_Vec(00.0f, 00.0f, 10.0f));
+    coordi.push_back(vtkm::make_Vec(00.0f, 10.0f, 10.0f));
+    coordi.push_back(vtkm::make_Vec(10.0f, 00.0f, 10.0f));
+    coordi.push_back(vtkm::make_Vec(10.0f, 10.0f, 10.0f));
     auto coordi_Handle = vtkm::cont::make_ArrayHandle(coordi);
 
     vtkm::cont::CoordinateSystem coord("points", coordi_Handle);
@@ -121,11 +131,20 @@ public:
     locator->Update();
 
     ///// randomly generate testing points/////
-    std::vector<vtkm::Vec<vtkm::Float32, 3>> qcVec;
+    std::vector<vtkm::Vec3f_32> qcVec;
     for (vtkm::Int32 i = 0; i < nTestingPoint; i++)
     {
       qcVec.push_back(vtkm::make_Vec(dr(dre), dr(dre), dr(dre)));
     }
+    // Test near each corner to make sure that corner gets included
+    qcVec.push_back(vtkm::make_Vec(0.01f, 0.01f, 0.01f));
+    qcVec.push_back(vtkm::make_Vec(0.01f, 9.99f, 0.01f));
+    qcVec.push_back(vtkm::make_Vec(9.99f, 0.01f, 0.01f));
+    qcVec.push_back(vtkm::make_Vec(9.99f, 9.99f, 0.01f));
+    qcVec.push_back(vtkm::make_Vec(0.01f, 0.01f, 9.991f));
+    qcVec.push_back(vtkm::make_Vec(0.01f, 9.99f, 9.99f));
+    qcVec.push_back(vtkm::make_Vec(9.99f, 0.01f, 9.99f));
+    qcVec.push_back(vtkm::make_Vec(9.99f, 9.99f, 9.99f));
     auto qc_Handle = vtkm::cont::make_ArrayHandle(qcVec);
 
     vtkm::cont::ArrayHandle<vtkm::Id> nnId_Handle;

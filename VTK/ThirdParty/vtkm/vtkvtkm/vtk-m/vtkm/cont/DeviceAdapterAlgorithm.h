@@ -119,6 +119,35 @@ struct DeviceAdapterAlgorithm
                                      vtkm::cont::ArrayHandle<U, COut>& output,
                                      vtkm::Id outputIndex = 0);
 
+  /// \brief Returns the total number of "1" bits in BitField.
+  VTKM_CONT static vtkm::Id CountSetBits(const vtkm::cont::BitField& bits);
+
+  /// \brief Fill the BitField with a specific pattern of bits.
+  /// For boolean values, all bits are set to 1 if value is true, or 0 if value
+  /// is false.
+  /// For word masks, the word type must be an unsigned integral type, which
+  /// will be stamped across the BitField.
+  /// If numBits is provided, the BitField is resized appropriately.
+  /// @{
+  VTKM_CONT static void Fill(vtkm::cont::BitField& bits, bool value, vtkm::Id numBits);
+  VTKM_CONT static void Fill(vtkm::cont::BitField& bits, bool value);
+  template <typename WordType>
+  VTKM_CONT static void Fill(vtkm::cont::BitField& bits, WordType word, vtkm::Id numBits);
+  template <typename WordType>
+  VTKM_CONT static void Fill(vtkm::cont::BitField& bits, WordType word);
+  /// @}
+
+  /// Fill @a array with @a value. If @a numValues is specified, the array will
+  /// be resized.
+  /// @{
+  template <typename T, typename S>
+  VTKM_CONT static void Fill(vtkm::cont::ArrayHandle<T, S>& array, const T& value);
+  template <typename T, typename S>
+  VTKM_CONT static void Fill(vtkm::cont::ArrayHandle<T, S>& array,
+                             const T& value,
+                             const vtkm::Id numValues);
+  /// @}
+
   /// \brief Output is the first index in input for each item in values that wouldn't alter the ordering of input
   ///
   /// LowerBounds is a vectorized search. From each value in \c values it finds
@@ -224,16 +253,6 @@ struct DeviceAdapterAlgorithm
   VTKM_CONT static T ScanInclusive(const vtkm::cont::ArrayHandle<T, CIn>& input,
                                    vtkm::cont::ArrayHandle<T, COut>& output);
 
-  /// \brief Streaming version of scan exclusive
-  ///
-  /// Computes a scan one block at a time.
-  ///
-  /// \return The total sum.
-  ///
-  template <typename T, class CIn, class COut>
-  VTKM_CONT static T StreamingScanExclusive(const vtkm::Id numBlocks,
-                                            const vtkm::cont::ArrayHandle<T, CIn>& input,
-                                            vtkm::cont::ArrayHandle<T, COut>& output);
 
   /// \brief Compute an inclusive prefix sum operation on the input ArrayHandle.
   ///
@@ -348,6 +367,66 @@ struct DeviceAdapterAlgorithm
   VTKM_CONT static void ScanExclusiveByKey(const vtkm::cont::ArrayHandle<T, KIn>& keys,
                                            const vtkm::cont::ArrayHandle<U, VIn>& values,
                                            vtkm::cont::ArrayHandle<U, VOut>& output);
+
+  /// \brief Streaming version of scan exclusive
+  ///
+  /// Computes a scan one block at a time.
+  ///
+  /// \return The total sum.
+  ///
+  template <typename T, class CIn, class COut>
+  VTKM_CONT static T StreamingScanExclusive(const vtkm::Id numBlocks,
+                                            const vtkm::cont::ArrayHandle<T, CIn>& input,
+                                            vtkm::cont::ArrayHandle<T, COut>& output);
+
+  /// \brief Compute an extended prefix sum operation on the input ArrayHandle.
+  ///
+  /// Computes an extended prefix sum operation on the \c input ArrayHandle,
+  /// storing the results in the \c output ArrayHandle. This produces an output
+  /// array that contains both an inclusive scan (in elements [1, size)) and an
+  /// exclusive scan (in elements [0, size-1)). By using ArrayHandleView,
+  /// arrays containing both inclusive and exclusive scans can be generated
+  /// from an extended scan with minimal memory usage.
+  ///
+  /// This algorithm may also be more efficient than ScanInclusive and
+  /// ScanExclusive on some devices, since it may be able to avoid copying the
+  /// total sum to the control environment to return.
+  ///
+  /// ScanExtended is similar to the stl partial sum function, exception that
+  /// ScanExtended doesn't do a serial summation. This means that if you have
+  /// defined a custom plus operator for T it must be associative, or you will
+  /// get inconsistent results.
+  ///
+  /// This overload of ScanExtended uses vtkm::Add for the binary functor, and
+  /// uses zero for the initial value of the scan operation.
+  ///
+  template <typename T, class CIn, class COut>
+  VTKM_CONT static void ScanExtended(const vtkm::cont::ArrayHandle<T, CIn>& input,
+                                     vtkm::cont::ArrayHandle<T, COut>& output);
+
+  /// \brief Compute an extended prefix sum operation on the input ArrayHandle.
+  ///
+  /// Computes an extended prefix sum operation on the \c input ArrayHandle,
+  /// storing the results in the \c output ArrayHandle. This produces an output
+  /// array that contains both an inclusive scan (in elements [1, size)) and an
+  /// exclusive scan (in elements [0, size-1)). By using ArrayHandleView,
+  /// arrays containing both inclusive and exclusive scans can be generated
+  /// from an extended scan with minimal memory usage.
+  ///
+  /// This algorithm may also be more efficient than ScanInclusive and
+  /// ScanExclusive on some devices, since it may be able to avoid copying the
+  /// total sum to the control environment to return.
+  ///
+  /// ScanExtended is similar to the stl partial sum function, exception that
+  /// ScanExtended doesn't do a serial summation. This means that if you have
+  /// defined a custom plus operator for T it must be associative, or you will
+  /// get inconsistent results.
+  ///
+  template <typename T, class CIn, class COut, class BinaryFunctor>
+  VTKM_CONT static void ScanExtended(const vtkm::cont::ArrayHandle<T, CIn>& input,
+                                     vtkm::cont::ArrayHandle<T, COut>& output,
+                                     BinaryFunctor binaryFunctor,
+                                     const T& initialValue);
 
   /// \brief Schedule many instances of a function to run on concurrent threads.
   ///
@@ -653,15 +732,6 @@ public:
   VTKM_CONT bool Exists() const;
 #endif
 };
-
-/// \brief Class providing a device-specific support for atomic operations.
-///
-/// The class provide the actual implementation used by
-/// vtkm::cont::DeviceAdapterAtomicArrayImplementation.
-///
-/// TODO combine this with AtomicInterfaceExecution.
-template <typename T, typename DeviceTag>
-class DeviceAdapterAtomicArrayImplementation;
 
 /// \brief Class providing a device-specific support for atomic operations.
 ///

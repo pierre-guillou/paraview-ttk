@@ -61,7 +61,7 @@ try \
   } \
 catch(...) \
   { \
-  vtkErrorMacro("VisIt Exception caught.")\
+  vtkErrorMacro("VisIt Exception caught."); \
   if ( vtkObj ) \
     { \
     vtkObj->Delete(); \

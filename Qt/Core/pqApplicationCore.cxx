@@ -190,7 +190,6 @@ void pqApplicationCore::constructor()
   // the plugin initialization code itself may request access to  the interface
   // tracker.
   this->InterfaceTracker->initialize();
-  this->PluginManager->loadPluginsFromSettings();
 
   if (auto pvsettings = vtkPVGeneralSettings::GetInstance())
   {
@@ -315,13 +314,13 @@ QObject* pqApplicationCore::manager(const QString& function)
 }
 
 //-----------------------------------------------------------------------------
-void pqApplicationCore::saveState(const QString& filename)
+bool pqApplicationCore::saveState(const QString& filename)
 {
   // * Save the Proxy Manager state.
   vtkSMSessionProxyManager* pxm =
     vtkSMProxyManager::GetProxyManager()->GetActiveSessionProxyManager();
 
-  pxm->SaveXMLState(filename.toLocal8Bit().data());
+  return pxm->SaveXMLState(filename.toLocal8Bit().data());
 }
 
 //-----------------------------------------------------------------------------
@@ -715,11 +714,6 @@ void pqApplicationCore::registerDocumentation(const QString& filename)
 }
 
 //-----------------------------------------------------------------------------
-void pqApplicationCore::loadDistributedPlugins(const char* vtkNotUsed(filename))
-{
-}
-
-//-----------------------------------------------------------------------------
 void pqApplicationCore::generalSettingsChanged()
 {
   if (auto pvsettings = vtkPVGeneralSettings::GetInstance())
@@ -729,4 +723,18 @@ void pqApplicationCore::generalSettingsChanged()
       static_cast<pqDoubleLineEdit::RealNumberNotation>(
         pvsettings->GetRealNumberDisplayedNotation()));
   }
+}
+
+//-----------------------------------------------------------------------------
+void pqApplicationCore::_paraview_client_environment_complete()
+{
+  static bool Initialized = false;
+  if (Initialized)
+  {
+    return;
+  }
+
+  Initialized = true;
+  vtkVLogScopeF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "clientEnvironmentDone");
+  emit this->clientEnvironmentDone();
 }

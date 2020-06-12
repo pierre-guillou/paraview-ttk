@@ -57,9 +57,7 @@ namespace
 
 const vtkm::Id ARRAY_SIZE = 10;
 
-struct TypeListTagString : vtkm::ListTagBase<std::string>
-{
-};
+using TypeListString = vtkm::List<std::string>;
 
 template <typename T>
 struct UnusualPortal
@@ -187,8 +185,7 @@ void CheckArrayVariant(const vtkm::cont::VariantArrayHandleBase<TypeList>& array
   calledBasic = false;
   calledUnusual = false;
   calledVirtual = false;
-  array.CastAndCall(
-    vtkm::ListTagEmpty(), CheckFunctor(), calledBasic, calledUnusual, calledVirtual);
+  array.CastAndCall(vtkm::ListEmpty(), CheckFunctor(), calledBasic, calledUnusual, calledVirtual);
   VTKM_TEST_ASSERT(
     calledBasic || calledUnusual || calledVirtual,
     "The functor was never called (and apparently a bad value exception not thrown).");
@@ -199,9 +196,9 @@ void CheckArrayVariant(const vtkm::cont::VariantArrayHandleBase<TypeList>& array
   calledBasic = false;
   calledUnusual = false;
   calledVirtual = false;
-  array.CastAndCall(vtkm::ListTagBase<vtkm::cont::StorageTagBasic,
-                                      ArrayHandleWithUnusualStorage<vtkm::Id>::StorageTag,
-                                      ArrayHandleWithUnusualStorage<std::string>::StorageTag>(),
+  array.CastAndCall(vtkm::List<vtkm::cont::StorageTagBasic,
+                               ArrayHandleWithUnusualStorage<vtkm::Id>::StorageTag,
+                               ArrayHandleWithUnusualStorage<std::string>::StorageTag>(),
                     CheckFunctor(),
                     calledBasic,
                     calledUnusual,
@@ -274,9 +271,9 @@ void CheckCastToVirtualArrayHandle(const ArrayType& array)
   static constexpr vtkm::IdComponent NumComps = VTraits::NUM_COMPONENTS;
 
   using Storage = typename ArrayType::StorageTag;
-  using StorageList = vtkm::ListTagAppendUnique<VTKM_DEFAULT_STORAGE_LIST_TAG, Storage>;
+  using StorageList = vtkm::ListAppend<VTKM_DEFAULT_STORAGE_LIST, vtkm::List<Storage>>;
 
-  using TypeList = vtkm::ListTagAppendUnique<VTKM_DEFAULT_TYPE_LIST_TAG, ValueType>;
+  using TypeList = vtkm::ListAppend<VTKM_DEFAULT_TYPE_LIST, vtkm::List<ValueType>>;
   using VariantArrayType = vtkm::cont::VariantArrayHandleBase<TypeList>;
 
   VariantArrayType arrayVariant = array;
@@ -369,6 +366,62 @@ void TryNewInstance(T, ArrayVariantType originalArray)
   CheckArrayVariant(newArray, vtkm::VecTraits<T>::NUM_COMPONENTS, true, false);
 }
 
+template <typename T, typename ArrayVariantType>
+void TryAsMultiplexer(T, ArrayVariantType sourceArray)
+{
+  auto originalArray = sourceArray.template Cast<vtkm::cont::ArrayHandle<T>>();
+
+  {
+    std::cout << "Get multiplex array through direct type." << std::endl;
+    using MultiplexerType = vtkm::cont::ArrayHandleMultiplexer<vtkm::cont::ArrayHandle<T>,
+                                                               vtkm::cont::ArrayHandleConstant<T>>;
+    MultiplexerType multiplexArray = sourceArray.template AsMultiplexer<MultiplexerType>();
+
+    VTKM_TEST_ASSERT(multiplexArray.IsValid());
+    VTKM_TEST_ASSERT(test_equal_portals(multiplexArray.GetPortalConstControl(),
+                                        originalArray.GetPortalConstControl()));
+  }
+
+  {
+    std::cout << "Get multiplex array through cast type." << std::endl;
+    using CastT = typename vtkm::VecTraits<T>::template ReplaceBaseComponentType<vtkm::Float64>;
+    using MultiplexerType = vtkm::cont::ArrayHandleMultiplexer<
+      vtkm::cont::ArrayHandle<CastT>,
+      vtkm::cont::ArrayHandleCast<CastT, vtkm::cont::ArrayHandle<T>>>;
+    MultiplexerType multiplexArray = sourceArray.template AsMultiplexer<MultiplexerType>();
+
+    VTKM_TEST_ASSERT(multiplexArray.IsValid());
+    VTKM_TEST_ASSERT(test_equal_portals(multiplexArray.GetPortalConstControl(),
+                                        originalArray.GetPortalConstControl()));
+  }
+
+  {
+    std::cout << "Make sure multiplex array prefers direct array (1st arg)" << std::endl;
+    using MultiplexerType = vtkm::cont::ArrayHandleMultiplexer<
+      vtkm::cont::ArrayHandle<T>,
+      vtkm::cont::ArrayHandleCast<T, vtkm::cont::ArrayHandle<T>>>;
+    MultiplexerType multiplexArray = sourceArray.template AsMultiplexer<MultiplexerType>();
+
+    VTKM_TEST_ASSERT(multiplexArray.IsValid());
+    VTKM_TEST_ASSERT(multiplexArray.GetStorage().GetArrayHandleVariant().GetIndex() == 0);
+    VTKM_TEST_ASSERT(test_equal_portals(multiplexArray.GetPortalConstControl(),
+                                        originalArray.GetPortalConstControl()));
+  }
+
+  {
+    std::cout << "Make sure multiplex array prefers direct array (2nd arg)" << std::endl;
+    using MultiplexerType =
+      vtkm::cont::ArrayHandleMultiplexer<vtkm::cont::ArrayHandleCast<T, vtkm::cont::ArrayHandle<T>>,
+                                         vtkm::cont::ArrayHandle<T>>;
+    MultiplexerType multiplexArray = sourceArray.template AsMultiplexer<MultiplexerType>();
+
+    VTKM_TEST_ASSERT(multiplexArray.IsValid());
+    VTKM_TEST_ASSERT(multiplexArray.GetStorage().GetArrayHandleVariant().GetIndex() == 1);
+    VTKM_TEST_ASSERT(test_equal_portals(multiplexArray.GetPortalConstControl(),
+                                        originalArray.GetPortalConstControl()));
+  }
+}
+
 template <typename T>
 void TryDefaultType(T)
 {
@@ -377,6 +430,8 @@ void TryDefaultType(T)
   CheckArrayVariant(array, vtkm::VecTraits<T>::NUM_COMPONENTS, true, false);
 
   TryNewInstance(T(), array);
+
+  TryAsMultiplexer(T(), array);
 }
 
 struct TryBasicVTKmType
@@ -387,9 +442,9 @@ struct TryBasicVTKmType
     vtkm::cont::VariantArrayHandle array = CreateArrayVariant(T());
 
     CheckArrayVariant(
-      array.ResetTypes(vtkm::TypeListTagAll()), vtkm::VecTraits<T>::NUM_COMPONENTS, true, false);
+      array.ResetTypes(vtkm::TypeListAll()), vtkm::VecTraits<T>::NUM_COMPONENTS, true, false);
 
-    TryNewInstance(T(), array.ResetTypes(vtkm::TypeListTagAll()));
+    TryNewInstance(T(), array.ResetTypes(vtkm::TypeListAll()));
   }
 };
 
@@ -408,7 +463,7 @@ void TryUnusualType()
     std::cout << "  Caught exception for unrecognized type." << std::endl;
   }
 
-  CheckArrayVariant(array.ResetTypes(TypeListTagString()), 1, true, false);
+  CheckArrayVariant(array.ResetTypes(TypeListString()), 1, true, false);
   std::cout << "  Found type when type list was reset." << std::endl;
 }
 
@@ -442,7 +497,7 @@ void TryUnusualTypeAndStorage()
 
   try
   {
-    CheckArrayVariant(array.ResetTypes(TypeListTagString()), 1, false, true);
+    CheckArrayVariant(array.ResetTypes(TypeListString()), 1, false, true);
   }
   catch (...)
   {
@@ -519,9 +574,9 @@ void TestVariantArrayHandle()
   std::cout << "*** vtkm::Float64 *****************" << std::endl;
   TryDefaultType(vtkm::Float64());
   std::cout << "*** vtkm::Vec<Float32,3> **********" << std::endl;
-  TryDefaultType(vtkm::Vec<vtkm::Float32, 3>());
+  TryDefaultType(vtkm::Vec3f_32());
   std::cout << "*** vtkm::Vec<Float64,3> **********" << std::endl;
-  TryDefaultType(vtkm::Vec<vtkm::Float64, 3>());
+  TryDefaultType(vtkm::Vec3f_64());
 
   std::cout << "Try exemplar VTK-m types." << std::endl;
   vtkm::testing::Testing::TryTypes(TryBasicVTKmType());

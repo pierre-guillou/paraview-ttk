@@ -1,4 +1,4 @@
-/* Copyright 2019 NVIDIA Corporation. All rights reserved.
+/* Copyright 2020 NVIDIA Corporation. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions
@@ -39,12 +39,10 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPKdTree.h"
-#include "vtkPVCacheKeeper.h"
-#include "vtkPVDataDeliveryManager.h"
 #include "vtkPVGeometryFilter.h"
 #include "vtkPVLODVolume.h"
 #include "vtkPVRenderView.h"
-#include "vtkPVUpdateSuppressor.h"
+#include "vtkPVRenderViewDataDeliveryManager.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkRenderer.h"
 #include "vtkResampleToImage.h"
@@ -89,14 +87,10 @@ vtknvindex_irregular_volume_representation::vtknvindex_irregular_volume_represen
   this->Preprocessor = vtkVolumeRepresentationPreprocessor::New();
   this->Preprocessor->SetTetrahedraOnly(1);
 
-  this->CacheKeeper = vtkPVCacheKeeper::New();
-
   // Change the default mapper to NVIDIA IndeX irregular volume mapper.
   this->DefaultMapper = vtknvindex_irregular_volume_mapper::New();
   this->Property = vtkVolumeProperty::New();
   this->Actor = vtkPVLODVolume::New();
-
-  this->CacheKeeper->SetInputConnection(this->Preprocessor->GetOutputPort());
 
   this->Actor->SetProperty(this->Property);
   this->Actor->SetMapper(this->DefaultMapper);
@@ -124,7 +118,6 @@ vtknvindex_irregular_volume_representation::vtknvindex_irregular_volume_represen
 vtknvindex_irregular_volume_representation::~vtknvindex_irregular_volume_representation()
 {
   this->Preprocessor->Delete();
-  this->CacheKeeper->Delete();
 
   this->DefaultMapper->shutdown();
   this->DefaultMapper->Delete();
@@ -169,17 +162,6 @@ vtkUnstructuredGridVolumeMapper* vtknvindex_irregular_volume_representation::Get
 }
 
 //----------------------------------------------------------------------------
-void vtknvindex_irregular_volume_representation::MarkModified()
-{
-  if (!this->GetUseCache())
-  {
-    // Cleanup caches when not using cache.
-    this->CacheKeeper->RemoveAllCaches();
-  }
-  this->Superclass::MarkModified();
-}
-
-//----------------------------------------------------------------------------
 int vtknvindex_irregular_volume_representation::FillInputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkUnstructuredGridBase");
@@ -195,16 +177,10 @@ int vtknvindex_irregular_volume_representation::RequestData(
 {
   vtkMath::UninitializeBounds(this->DataBounds);
 
-  // Pass caching information to the cache keeper.
-  this->CacheKeeper->SetCachingEnabled(this->GetUseCache());
-  this->CacheKeeper->SetCacheTime(this->GetCacheKey());
-
   if (inputVector[0]->GetNumberOfInformationObjects() == 1)
   {
     this->Preprocessor->SetInputConnection(this->GetInternalOutputPort());
-
     this->Preprocessor->Update();
-    this->CacheKeeper->Update();
 
     // Check for time series data info.
     vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
@@ -231,7 +207,7 @@ int vtknvindex_irregular_volume_representation::RequestData(
       }
     }
 
-    vtkDataSet* ds = vtkDataSet::SafeDownCast(this->CacheKeeper->GetOutputDataObject(0));
+    vtkDataSet* ds = vtkDataSet::SafeDownCast(this->Preprocessor->GetOutputDataObject(0));
     if (ds)
     {
       ds->GetBounds(this->DataBounds);
@@ -280,18 +256,12 @@ int vtknvindex_irregular_volume_representation::RequestData(
     this->Preprocessor->RemoveAllInputs();
     vtkNew<vtkUnstructuredGrid> placeholder;
     this->Preprocessor->SetInputData(0, placeholder.GetPointer());
-    this->CacheKeeper->Update();
+    this->Preprocessor->Update();
   }
 
   m_controller->Barrier();
 
   return this->Superclass::RequestData(request, inputVector, outputVector);
-}
-
-//----------------------------------------------------------------------------
-bool vtknvindex_irregular_volume_representation::IsCached(double cache_key)
-{
-  return this->CacheKeeper->IsCached(cache_key);
 }
 
 //----------------------------------------------------------------------------
@@ -307,19 +277,21 @@ int vtknvindex_irregular_volume_representation::ProcessViewRequest(
   {
     outInfo->Set(vtkPVRenderView::NEED_ORDERED_COMPOSITING(), 1);
 
-    vtkPVRenderView::SetPiece(inInfo, this, this->CacheKeeper->GetOutputDataObject(0));
+    vtkPVRenderView::SetPiece(inInfo, this, this->Preprocessor->GetOutputDataObject(0));
     vtkPVRenderView::MarkAsRedistributable(inInfo, this);
     vtkPVRenderView::SetRedistributionModeToDuplicateBoundaryCells(inInfo, this);
 
     vtkNew<vtkMatrix4x4> matrix;
     this->Actor->GetMatrix(matrix.GetPointer());
-    vtkPVRenderView::SetGeometryBounds(inInfo, this->DataBounds, matrix.GetPointer());
+    vtkPVRenderView::SetGeometryBounds(inInfo, this, this->DataBounds, matrix.GetPointer());
+
+    vtkPVRenderView::SetRequiresDistributedRendering(inInfo, this, true);
   }
   else if (request_type == vtkPVView::REQUEST_RENDER())
   {
 
     vtkPVRenderView* view = vtkPVRenderView::SafeDownCast(inInfo->Get(vtkPVRenderView::VIEW()));
-    vtkPVDataDeliveryManager* ddm = view->GetDeliveryManager();
+    auto ddm = vtkPVRenderViewDataDeliveryManager::SafeDownCast(view->GetDeliveryManager());
     vtkPKdTree* kd_tree = ddm->GetKdTree();
 
     // Retrieve ParaView's KdTree in order to obtain domain subdivision bounding boxes.
@@ -617,26 +589,33 @@ void vtknvindex_irregular_volume_representation::update_current_kernel()
   {
     case RTC_KERNELS_ISOSURFACE:
       static_cast<vtknvindex_irregular_volume_mapper*>(this->DefaultMapper)
-        ->rtc_kernel_changed(RTC_KERNELS_ISOSURFACE, reinterpret_cast<void*>(&m_isosurface_params),
-          sizeof(m_isosurface_params));
+        ->rtc_kernel_changed(RTC_KERNELS_ISOSURFACE, KERNEL_IRREGULAR_ISOSURFACE_STRING,
+          reinterpret_cast<void*>(&m_isosurface_params), sizeof(m_isosurface_params));
       break;
 
     case RTC_KERNELS_DEPTH_ENHANCEMENT:
       static_cast<vtknvindex_irregular_volume_mapper*>(this->DefaultMapper)
         ->rtc_kernel_changed(RTC_KERNELS_DEPTH_ENHANCEMENT,
+          KERNEL_IRREGULAR_DEPTH_ENHANCEMENT_STRING,
           reinterpret_cast<void*>(&m_depth_enhancement_params), sizeof(m_depth_enhancement_params));
       break;
 
     case RTC_KERNELS_EDGE_ENHANCEMENT:
       static_cast<vtknvindex_irregular_volume_mapper*>(this->DefaultMapper)
-        ->rtc_kernel_changed(RTC_KERNELS_EDGE_ENHANCEMENT,
+        ->rtc_kernel_changed(RTC_KERNELS_EDGE_ENHANCEMENT, KERNEL_IRREGULAR_EDGE_ENHANCEMENT_STRING,
           reinterpret_cast<void*>(&m_edge_enhancement_params), sizeof(m_edge_enhancement_params));
+      break;
+
+    case RTC_KERNELS_CUSTOM:
+      static_cast<vtknvindex_irregular_volume_mapper*>(this->DefaultMapper)
+        ->rtc_kernel_changed(RTC_KERNELS_CUSTOM, m_custom_kernel_program,
+          reinterpret_cast<void*>(&m_custom_params), sizeof(m_custom_params));
       break;
 
     case RTC_KERNELS_NONE:
     default:
       static_cast<vtknvindex_irregular_volume_mapper*>(this->DefaultMapper)
-        ->rtc_kernel_changed(RTC_KERNELS_NONE, 0, 0);
+        ->rtc_kernel_changed(RTC_KERNELS_NONE, "", 0, 0);
       break;
   }
 }
@@ -672,6 +651,7 @@ void vtknvindex_irregular_volume_representation::set_light_type(int light_type)
       update_current_kernel();
       break;
     case RTC_KERNELS_EDGE_ENHANCEMENT:
+    case RTC_KERNELS_CUSTOM:
     case RTC_KERNELS_NONE:
       break;
   }
@@ -691,6 +671,7 @@ void vtknvindex_irregular_volume_representation::set_light_angle(double light_an
       update_current_kernel();
       break;
     case RTC_KERNELS_EDGE_ENHANCEMENT:
+    case RTC_KERNELS_CUSTOM:
     case RTC_KERNELS_NONE:
       break;
   }
@@ -712,6 +693,7 @@ void vtknvindex_irregular_volume_representation::set_light_elevation(double ligh
       update_current_kernel();
       break;
     case RTC_KERNELS_EDGE_ENHANCEMENT:
+    case RTC_KERNELS_CUSTOM:
     case RTC_KERNELS_NONE:
       break;
   }
@@ -730,6 +712,7 @@ void vtknvindex_irregular_volume_representation::set_surf_ambient(double ambient
       update_current_kernel();
       break;
     case RTC_KERNELS_EDGE_ENHANCEMENT:
+    case RTC_KERNELS_CUSTOM:
     case RTC_KERNELS_NONE:
       break;
   }
@@ -748,6 +731,7 @@ void vtknvindex_irregular_volume_representation::set_surf_specular(double specul
       update_current_kernel();
       break;
     case RTC_KERNELS_EDGE_ENHANCEMENT:
+    case RTC_KERNELS_CUSTOM:
     case RTC_KERNELS_NONE:
       break;
   }
@@ -766,6 +750,7 @@ void vtknvindex_irregular_volume_representation::set_surf_specular_power(double 
       update_current_kernel();
       break;
     case RTC_KERNELS_EDGE_ENHANCEMENT:
+    case RTC_KERNELS_CUSTOM:
     case RTC_KERNELS_NONE:
       break;
   }
@@ -840,5 +825,94 @@ void vtknvindex_irregular_volume_representation::set_edge_samples(int edge_sampl
   m_edge_enhancement_params.stp_num = edge_samples;
 
   if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_EDGE_ENHANCEMENT)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_kernel_filename(const char* kernel_filename)
+{
+  m_custom_kernel_filename = std::string(kernel_filename);
+  set_kernel_update();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_kernel_update()
+{
+  std::ifstream is(m_custom_kernel_filename);
+  m_custom_kernel_program =
+    std::string((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_custom_pfloat_1(double custom_cf1)
+{
+  m_custom_params.floats[0] = static_cast<float>(custom_cf1);
+
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_custom_pfloat_2(double custom_cf2)
+{
+  m_custom_params.floats[1] = static_cast<float>(custom_cf2);
+
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_custom_pfloat_3(double custom_cf3)
+{
+  m_custom_params.floats[2] = static_cast<float>(custom_cf3);
+
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_custom_pfloat_4(double custom_cf4)
+{
+  m_custom_params.floats[3] = static_cast<float>(custom_cf4);
+
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_custom_pint_1(int custom_ci1)
+{
+  m_custom_params.ints[0] = static_cast<float>(custom_ci1);
+
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_custom_pint_2(int custom_ci2)
+{
+  m_custom_params.ints[1] = static_cast<float>(custom_ci2);
+
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_custom_pint_3(int custom_ci3)
+{
+  m_custom_params.ints[2] = static_cast<float>(custom_ci3);
+
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
+    update_current_kernel();
+}
+
+//----------------------------------------------------------------------------
+void vtknvindex_irregular_volume_representation::set_custom_pint_4(int custom_ci4)
+{
+  m_custom_params.ints[3] = static_cast<float>(custom_ci4);
+
+  if (m_app_config_settings->get_rtc_kernel() == RTC_KERNELS_CUSTOM)
     update_current_kernel();
 }

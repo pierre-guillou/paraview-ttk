@@ -100,14 +100,14 @@ T* vtkArrayIteratorTemplate<T>::GetTuple(vtkIdType id)
 
 //-----------------------------------------------------------------------------
 template <class T>
-int vtkArrayIteratorTemplate<T>::GetDataType()
+int vtkArrayIteratorTemplate<T>::GetDataType() const
 {
   return this->Array->GetDataType();
 }
 
 //-----------------------------------------------------------------------------
 template <class T>
-int vtkArrayIteratorTemplate<T>::GetDataTypeSize()
+int vtkArrayIteratorTemplate<T>::GetDataTypeSize() const
 {
   return this->Array->GetDataTypeSize();
 }
@@ -117,7 +117,7 @@ template <class T>
 void vtkArrayIteratorTemplate<T>::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  os << indent << "Array: " ;
+  os << indent << "Array: ";
   if (this->Array)
   {
     os << "\n";
@@ -125,9 +125,9 @@ void vtkArrayIteratorTemplate<T>::PrintSelf(ostream& os, vtkIndent indent)
   }
   else
   {
-    os << "(none)" << "\n";
+    os << "(none)"
+       << "\n";
   }
 }
 
 #endif
-

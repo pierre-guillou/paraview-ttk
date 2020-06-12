@@ -14,6 +14,7 @@
 =========================================================================*/
 #include "vtkFileOutputWindow.h"
 #include "vtkObjectFactory.h"
+#include "vtksys/FStream.hxx"
 
 vtkStandardNewMacro(vtkFileOutputWindow);
 
@@ -38,23 +39,32 @@ void vtkFileOutputWindow::Initialize()
     if (!this->FileName)
     {
       const char fileName[] = "vtkMessageLog.log";
-      this->FileName = new char[strlen(fileName)+1];
+      this->FileName = new char[strlen(fileName) + 1];
       strcpy(this->FileName, fileName);
     }
     if (this->Append)
     {
+#ifdef _WIN32
+      this->OStream =
+        new ofstream(vtksys::Encoding::ToWindowsExtendedPath(this->FileName), ios::app);
+#else
       this->OStream = new ofstream(this->FileName, ios::app);
+#endif
     }
     else
     {
+#ifdef _WIN32
+      this->OStream = new ofstream(vtksys::Encoding::ToWindowsExtendedPath(this->FileName));
+#else
       this->OStream = new ofstream(this->FileName);
+#endif
     }
   }
 }
 
 void vtkFileOutputWindow::DisplayText(const char* text)
 {
-  if(!text)
+  if (!text)
   {
     return;
   }
@@ -75,8 +85,7 @@ void vtkFileOutputWindow::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "OStream: " << this->OStream << endl;
-  os << indent << "File Name: "
-     << (this->FileName ? this->FileName : "(none)") << "\n";
+  os << indent << "File Name: " << (this->FileName ? this->FileName : "(none)") << "\n";
   os << indent << "Append: " << (this->Append ? "On" : "Off") << endl;
   os << indent << "Flush: " << (this->Flush ? "On" : "Off") << endl;
 }

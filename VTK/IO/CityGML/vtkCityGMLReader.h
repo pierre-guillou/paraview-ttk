@@ -16,7 +16,7 @@
  * @class   vtkCityGMLReader
  * @brief   read CityGML data file
  *
-*/
+ */
 
 #ifndef vtkCityGMLReader_h
 #define vtkCityGMLReader_h
@@ -48,13 +48,13 @@
  * element name for example: dem:ReliefFeature, wtr:WaterBody,
  * grp::CityObjectGroup (forest), veg:SolitaryVegetationObject,
  * brid:Bridge, run:Tunel, tran:Railway, tran:Road, bldg:Building,
- * gen:GenericCityObject, luse:LandUse
+ * gen:GenericCityObject, luse:LandUse. These nodes also have a gml_id field array.
 */
 class VTKIOCITYGML_EXPORT vtkCityGMLReader : public vtkMultiBlockDataSetAlgorithm
 {
 public:
-  static vtkCityGMLReader *New();
-  vtkTypeMacro(vtkCityGMLReader,vtkMultiBlockDataSetAlgorithm);
+  static vtkCityGMLReader* New();
+  vtkTypeMacro(vtkCityGMLReader, vtkMultiBlockDataSetAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
@@ -74,7 +74,6 @@ public:
   vtkGetMacro(LOD, int);
   //@}
 
-
   //@{
   /**
    * Certain input files use app:transparency as opacity. Set this field true
@@ -85,17 +84,25 @@ public:
   vtkBooleanMacro(UseTransparencyAsOpacity, int);
   //@}
 
+  //@{
+  /**
+   * Number of buildings read from the file.
+   * Default is numeric_limits<int>::max().
+   */
+  vtkSetMacro(NumberOfBuildings, int);
+  vtkGetMacro(NumberOfBuildings, int);
+  //@}
+
 protected:
   vtkCityGMLReader();
   ~vtkCityGMLReader() override;
 
-  int RequestData(vtkInformation *, vtkInformationVector **,
-                  vtkInformationVector *) override;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-
-  char *FileName;
+  char* FileName;
   int LOD;
   int UseTransparencyAsOpacity;
+  int NumberOfBuildings;
 
 private:
   vtkCityGMLReader(const vtkCityGMLReader&) = delete;

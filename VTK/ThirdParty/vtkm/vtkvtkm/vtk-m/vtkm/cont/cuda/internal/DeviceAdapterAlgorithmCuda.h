@@ -27,7 +27,6 @@
 #include <vtkm/cont/cuda/ErrorCuda.h>
 #include <vtkm/cont/cuda/internal/ArrayManagerExecutionCuda.h>
 #include <vtkm/cont/cuda/internal/AtomicInterfaceExecutionCuda.h>
-#include <vtkm/cont/cuda/internal/DeviceAdapterAtomicArrayImplementationCuda.h>
 #include <vtkm/cont/cuda/internal/DeviceAdapterRuntimeDetectorCuda.h>
 #include <vtkm/cont/cuda/internal/DeviceAdapterTagCuda.h>
 #include <vtkm/cont/cuda/internal/DeviceAdapterTimerImplementationCuda.h>
@@ -68,6 +67,38 @@ namespace cont
 {
 namespace cuda
 {
+
+/// \brief RAII helper for temporarily changing CUDA stack size in an
+/// exception-safe way.
+struct ScopedCudaStackSize
+{
+  ScopedCudaStackSize(std::size_t newStackSize)
+  {
+    cudaDeviceGetLimit(&this->OldStackSize, cudaLimitStackSize);
+    VTKM_LOG_S(vtkm::cont::LogLevel::Info,
+               "Temporarily changing Cuda stack size from "
+                 << vtkm::cont::GetHumanReadableSize(static_cast<vtkm::UInt64>(this->OldStackSize))
+                 << " to "
+                 << vtkm::cont::GetHumanReadableSize(static_cast<vtkm::UInt64>(newStackSize)));
+    cudaDeviceSetLimit(cudaLimitStackSize, newStackSize);
+  }
+
+  ~ScopedCudaStackSize()
+  {
+    VTKM_LOG_S(vtkm::cont::LogLevel::Info,
+               "Restoring Cuda stack size to " << vtkm::cont::GetHumanReadableSize(
+                 static_cast<vtkm::UInt64>(this->OldStackSize)));
+    cudaDeviceSetLimit(cudaLimitStackSize, this->OldStackSize);
+  }
+
+  // Disable copy
+  ScopedCudaStackSize(const ScopedCudaStackSize&) = delete;
+  ScopedCudaStackSize& operator=(const ScopedCudaStackSize&) = delete;
+
+private:
+  std::size_t OldStackSize;
+};
+
 /// \brief Represents how to schedule 1D, 2D, and 3D Cuda kernels
 ///
 /// \c ScheduleParameters represents how VTK-m should schedule different
@@ -132,7 +163,6 @@ VTKM_CONT_EXPORT void InitScheduleParameters(
                                            int maxThreadsPerMultiProcessor,
                                            int maxThreadsPerBlock));
 
-
 namespace internal
 {
 
@@ -168,7 +198,6 @@ __global__ void TaskStrided3DLaunch(TaskType task, dim3 size)
     }
   }
 }
-
 
 template <typename T, typename BinaryOperationType>
 __global__ void SumExclusiveScan(T a, T b, T result, BinaryOperationType binary_op)
@@ -322,7 +351,11 @@ private:
       vtkm::Int32 rVal = this->LocalPopCount;
       for (int delta = 1; delta < activeSize; delta *= 2)
       {
-        rVal += activeLanes.shfl_down(rVal, delta);
+        const vtkm::Int32 shflVal = activeLanes.shfl_down(rVal, delta);
+        if (activeRank + delta < activeSize)
+        {
+          rVal += shflVal;
+        }
       }
 
       if (activeRank == 0)
@@ -440,6 +473,99 @@ private:
       cuda::internal::throwAsVTKmException();
     }
   }
+
+
+  template <typename BitsPortal, typename GlobalPopCountType>
+  struct CountSetBitsFunctor : public vtkm::exec::FunctorBase
+  {
+    VTKM_STATIC_ASSERT_MSG(VTKM_PASS_COMMAS(std::is_same<GlobalPopCountType, vtkm::Int32>::value ||
+                                            std::is_same<GlobalPopCountType, vtkm::UInt32>::value ||
+                                            std::is_same<GlobalPopCountType, vtkm::UInt64>::value),
+                           "Unsupported GlobalPopCountType. Must support CUDA atomicAdd.");
+
+    //Using typename BitsPortal::WordTypePreferred causes dependent type errors using GCC 4.8.5
+    //which is the GCC required compiler for CUDA 9.2 on summit/power9
+    using Word = typename vtkm::cont::internal::AtomicInterfaceExecution<
+      DeviceAdapterTagCuda>::WordTypePreferred;
+
+    VTKM_CONT
+    CountSetBitsFunctor(const BitsPortal& portal, GlobalPopCountType* globalPopCount)
+      : Portal{ portal }
+      , GlobalPopCount{ globalPopCount }
+      , FinalWordIndex{ portal.GetNumberOfWords() - 1 }
+      , FinalWordMask{ portal.GetFinalWordMask() }
+    {
+    }
+
+    ~CountSetBitsFunctor() {}
+
+    VTKM_CONT void Initialize()
+    {
+      assert(this->GlobalPopCount != nullptr);
+      VTKM_CUDA_CALL(cudaMemset(this->GlobalPopCount, 0, sizeof(GlobalPopCountType)));
+    }
+
+    VTKM_SUPPRESS_EXEC_WARNINGS
+    __device__ void operator()(vtkm::Id wordIdx) const
+    {
+      Word word = this->Portal.GetWord(wordIdx);
+
+      // The last word may be partial -- mask out trailing bits if needed.
+      const Word mask = wordIdx == this->FinalWordIndex ? this->FinalWordMask : ~Word{ 0 };
+
+      word &= mask;
+
+      if (word != 0)
+      {
+        this->LocalPopCount = vtkm::CountSetBits(word);
+        this->Reduce();
+      }
+    }
+
+    VTKM_CONT vtkm::Id Finalize() const
+    {
+      assert(this->GlobalPopCount != nullptr);
+      GlobalPopCountType result;
+      VTKM_CUDA_CALL(cudaMemcpy(
+        &result, this->GlobalPopCount, sizeof(GlobalPopCountType), cudaMemcpyDeviceToHost));
+      return static_cast<vtkm::Id>(result);
+    }
+
+  private:
+    // Every thread with a non-zero local popcount calls this function, which
+    // computes the total popcount for the coalesced threads and atomically
+    // increasing the global popcount.
+    VTKM_SUPPRESS_EXEC_WARNINGS
+    __device__ void Reduce() const
+    {
+      const auto activeLanes = cooperative_groups::coalesced_threads();
+      const int activeRank = activeLanes.thread_rank();
+      const int activeSize = activeLanes.size();
+
+      // Reduction value:
+      vtkm::Int32 rVal = this->LocalPopCount;
+      for (int delta = 1; delta < activeSize; delta *= 2)
+      {
+        const vtkm::Int32 shflVal = activeLanes.shfl_down(rVal, delta);
+        if (activeRank + delta < activeSize)
+        {
+          rVal += shflVal;
+        }
+      }
+
+      if (activeRank == 0)
+      {
+        atomicAdd(this->GlobalPopCount, static_cast<GlobalPopCountType>(rVal));
+      }
+    }
+
+    const BitsPortal Portal;
+    GlobalPopCountType* GlobalPopCount;
+    mutable vtkm::Int32 LocalPopCount{ 0 };
+    // Used to mask trailing bits the in last word.
+    vtkm::Id FinalWordIndex{ 0 };
+    Word FinalWordMask{ 0 };
+  };
 
   template <class InputPortal, class ValuesPortal, class OutputPortal>
   VTKM_CONT static void LowerBoundsPortal(const InputPortal& input,
@@ -961,6 +1087,21 @@ private:
     return functor.Finalize();
   }
 
+  template <typename GlobalPopCountType, typename BitsPortal>
+  VTKM_CONT static vtkm::Id CountSetBitsPortal(const BitsPortal& bits)
+  {
+    using Functor = CountSetBitsFunctor<BitsPortal, GlobalPopCountType>;
+
+    // RAII for the global atomic counter.
+    auto globalCount = cuda::internal::make_CudaUniquePtr<GlobalPopCountType>(1);
+    Functor functor{ bits, globalCount.get() };
+
+    functor.Initialize();
+    Schedule(functor, bits.GetNumberOfWords());
+    Synchronize(); // Ensure kernel is done before checking final atomic count
+    return functor.Finalize();
+  }
+
   //-----------------------------------------------------------------------------
 
 public:
@@ -989,6 +1130,11 @@ public:
     VTKM_LOG_SCOPE_FUNCTION(vtkm::cont::LogLevel::Perf);
 
     const vtkm::Id inSize = input.GetNumberOfValues();
+    if (inSize <= 0)
+    {
+      output.Shrink(inSize);
+      return;
+    }
     CopyPortal(input.PrepareForInput(DeviceAdapterTagCuda()),
                output.PrepareForOutput(inSize, DeviceAdapterTagCuda()));
   }
@@ -1001,6 +1147,12 @@ public:
     VTKM_LOG_SCOPE_FUNCTION(vtkm::cont::LogLevel::Perf);
 
     vtkm::Id size = stencil.GetNumberOfValues();
+    if (size <= 0)
+    {
+      output.Shrink(size);
+      return;
+    }
+
     vtkm::Id newSize = CopyIfPortal(input.PrepareForInput(DeviceAdapterTagCuda()),
                                     stencil.PrepareForInput(DeviceAdapterTagCuda()),
                                     output.PrepareForOutput(size, DeviceAdapterTagCuda()),
@@ -1017,6 +1169,11 @@ public:
     VTKM_LOG_SCOPE_FUNCTION(vtkm::cont::LogLevel::Perf);
 
     vtkm::Id size = stencil.GetNumberOfValues();
+    if (size <= 0)
+    {
+      output.Shrink(size);
+      return;
+    }
     vtkm::Id newSize = CopyIfPortal(input.PrepareForInput(DeviceAdapterTagCuda()),
                                     stencil.PrepareForInput(DeviceAdapterTagCuda()),
                                     output.PrepareForOutput(size, DeviceAdapterTagCuda()),
@@ -1079,6 +1236,14 @@ public:
                        output.PrepareForInPlace(DeviceAdapterTagCuda()),
                        outputIndex);
     return true;
+  }
+
+  VTKM_CONT static vtkm::Id CountSetBits(const vtkm::cont::BitField& bits)
+  {
+    VTKM_LOG_SCOPE_FUNCTION(vtkm::cont::LogLevel::Perf);
+    auto bitsPortal = bits.PrepareForInput(DeviceAdapterTagCuda{});
+    // Use a uint64 for accumulator, as atomicAdd does not support signed int64.
+    return CountSetBitsPortal<vtkm::UInt64>(bitsPortal);
   }
 
   template <typename T, class SIn, class SVal, class SOut>
@@ -1418,6 +1583,20 @@ public:
   VTKM_CONT_EXPORT
   static void GetBlocksAndThreads(vtkm::UInt32& blocks, dim3& threadsPerBlock, const dim3& size);
 
+  VTKM_CONT_EXPORT
+  static void LogKernelLaunch(const cudaFuncAttributes& func_attrs,
+                              const std::type_info& worklet_info,
+                              vtkm::UInt32 blocks,
+                              vtkm::UInt32 threadsPerBlock,
+                              vtkm::Id size);
+
+  VTKM_CONT_EXPORT
+  static void LogKernelLaunch(const cudaFuncAttributes& func_attrs,
+                              const std::type_info& worklet_info,
+                              vtkm::UInt32 blocks,
+                              dim3 threadsPerBlock,
+                              const dim3& size);
+
 public:
   template <typename WType, typename IType>
   static void ScheduleTask(vtkm::exec::cuda::internal::TaskStrided1D<WType, IType>& functor,
@@ -1435,6 +1614,17 @@ public:
 
     vtkm::UInt32 blocks, threadsPerBlock;
     GetBlocksAndThreads(blocks, threadsPerBlock, numInstances);
+
+#ifdef VTKM_ENABLE_LOGGING
+    if (GetStderrLogLevel() >= vtkm::cont::LogLevel::KernelLaunches)
+    {
+      using FunctorType = vtkm::exec::cuda::internal::TaskStrided1D<WType, IType>;
+      cudaFuncAttributes empty_kernel_attrs;
+      VTKM_CUDA_CALL(cudaFuncGetAttributes(&empty_kernel_attrs,
+                                           cuda::internal::TaskStrided1DLaunch<FunctorType>));
+      LogKernelLaunch(empty_kernel_attrs, typeid(WType), blocks, threadsPerBlock, numInstances);
+    }
+#endif
 
     cuda::internal::TaskStrided1DLaunch<<<blocks, threadsPerBlock, 0, cudaStreamPerThread>>>(
       functor, numInstances);
@@ -1462,6 +1652,17 @@ public:
     dim3 threadsPerBlock;
     GetBlocksAndThreads(blocks, threadsPerBlock, ranges);
 
+#ifdef VTKM_ENABLE_LOGGING
+    if (GetStderrLogLevel() >= vtkm::cont::LogLevel::KernelLaunches)
+    {
+      using FunctorType = vtkm::exec::cuda::internal::TaskStrided3D<WType, IType>;
+      cudaFuncAttributes empty_kernel_attrs;
+      VTKM_CUDA_CALL(cudaFuncGetAttributes(&empty_kernel_attrs,
+                                           cuda::internal::TaskStrided3DLaunch<FunctorType>));
+      LogKernelLaunch(empty_kernel_attrs, typeid(WType), blocks, threadsPerBlock, ranges);
+    }
+#endif
+
     cuda::internal::TaskStrided3DLaunch<<<blocks, threadsPerBlock, 0, cudaStreamPerThread>>>(
       functor, ranges);
   }
@@ -1472,6 +1673,7 @@ public:
     VTKM_LOG_SCOPE_FUNCTION(vtkm::cont::LogLevel::Perf);
 
     vtkm::exec::cuda::internal::TaskStrided1D<Functor, vtkm::internal::NullType> kernel(functor);
+
     ScheduleTask(kernel, numInstances);
   }
 

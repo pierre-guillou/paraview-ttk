@@ -122,6 +122,7 @@ cases, being your topic name with the issue number.
 
     Caveats:
     * To add data follow these [vtk instructions][].
+    * To add icons, Kitware's graphic designer may be able to help create an SVG icon.
 
     Commit messages must contain a brief description as the first line
     and a more detailed description of what the commit contains. If
@@ -138,10 +139,11 @@ cases, being your topic name with the issue number.
     * Choose `Tools .. Record Test` to start.
     * Choose `Tools .. Lock View Size Custom...` - a 400x400 window works well.
     * Perform actions in the GUI that exercise your feature. Stop recording.
-    * Put the resulting XML file into `Applications/ParaView/Testing/XML`
+    * Put the resulting XML file into `Clients/ParaView/Testing/XML`
     * Add it to CMakeLists.txt, probably in a TESTS_WITH_BASELINES section
         * you can manually add `<pqcompareview>` for multiple image comparisons, then add to the TESTS_WITH_INLINE_COMPARES section
     * Follow the [vtk instructions][] to add the baseline images, which live in `Testing/Data/Baseline/`.
+        * Add your new baseline images to the list in `Testing/XML/CMakeLists.txt`
     * Add all testing files to your topic.
 
     Some background is in the [testing design wiki](https://www.paraview.org/Wiki/Testing_design).

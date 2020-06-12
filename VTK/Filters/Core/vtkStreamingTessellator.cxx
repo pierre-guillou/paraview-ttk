@@ -13,15 +13,15 @@
 
 #include "vtkObjectFactory.h"
 
-#include "vtkStreamingTessellator.h"
 #include "vtkEdgeSubdivisionCriterion.h"
+#include "vtkStreamingTessellator.h"
 
 
 #undef UGLY_ASPECT_RATIO_HACK
 #undef DBG_MIDPTS
 
-#include <stack>
 #include <algorithm>
+#include <stack>
 
 #ifdef PARAVIEW_DEBUG_TESSELLATOR
 #  define VTK_TESSELLATOR_INCR_CASE_COUNT(cs) this->CaseCounts[cs]++
@@ -327,7 +327,7 @@ void vtkStreamingTessellator::AdaptivelySample1Facet( double* v0, double* v1, in
       for ( int i=0; i<this->PointDimension[1]; i++ )
         midpt0[i] = (v0[i] + v1[i])/2.;
 
-      if ( this->Algorithm->EvaluateEdge( v0, midpt0, v1, 3+this->EmbeddingDimension[1] ) )
+      if ( this->Algorithm->EvaluateLocationAndFields(midpt0, 3+this->EmbeddingDimension[1] ) )
         edgeCode += 1;
   }
 
@@ -368,11 +368,11 @@ void vtkStreamingTessellator::AdaptivelySample2Facet( double* v0, double* v1, do
       midpt2[i] = (v2[i] + v0[i])/2.;
     }
 
-    if ( (move & 1) && Algorithm->EvaluateEdge( v0, midpt0, v1, 3+this->EmbeddingDimension[2] ) )
+    if ( (move & 1) && Algorithm->EvaluateLocationAndFields( midpt0, 3+this->EmbeddingDimension[2] ) )
       edgeCode += 1;
-    if ( (move & 2) && Algorithm->EvaluateEdge( v1, midpt1, v2, 3+this->EmbeddingDimension[2] ) )
+    if ( (move & 2) && Algorithm->EvaluateLocationAndFields( midpt1, 3+this->EmbeddingDimension[2] ) )
       edgeCode += 2;
-    if ( (move & 4) && Algorithm->EvaluateEdge( v2, midpt2, v0, 3+this->EmbeddingDimension[2] ) )
+    if ( (move & 4) && Algorithm->EvaluateLocationAndFields( midpt2, 3+this->EmbeddingDimension[2] ) )
       edgeCode += 4;
 #ifdef UGLY_ASPECT_RATIO_HACK
     double dist0=0.;
@@ -543,18 +543,18 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
       midpt5[i] = (v2[i] + v3[i])/2.;
     }
 
-    if ( Algorithm->EvaluateEdge( v0, midpt0, v1, 3+this->EmbeddingDimension[3] ) )
+    if ( Algorithm->EvaluateLocationAndFields(midpt0, 3+this->EmbeddingDimension[3] ) )
       edgeCode |=  1;
-    if ( Algorithm->EvaluateEdge( v1, midpt1, v2, 3+this->EmbeddingDimension[3] ) )
+    if ( Algorithm->EvaluateLocationAndFields(midpt1, 3+this->EmbeddingDimension[3] ) )
       edgeCode |=  2;
-    if ( Algorithm->EvaluateEdge( v2, midpt2, v0, 3+this->EmbeddingDimension[3] ) )
+    if ( Algorithm->EvaluateLocationAndFields(midpt2, 3+this->EmbeddingDimension[3] ) )
       edgeCode |=  4;
 
-    if ( Algorithm->EvaluateEdge( v0, midpt3, v3, 3+this->EmbeddingDimension[3] ) )
+    if ( Algorithm->EvaluateLocationAndFields(midpt3, 3+this->EmbeddingDimension[3] ) )
       edgeCode |=  8;
-    if ( Algorithm->EvaluateEdge( v1, midpt4, v3, 3+this->EmbeddingDimension[3] ) )
+    if ( Algorithm->EvaluateLocationAndFields(midpt4, 3+this->EmbeddingDimension[3] ) )
       edgeCode |= 16;
-    if ( Algorithm->EvaluateEdge( v2, midpt5, v3, 3+this->EmbeddingDimension[3] ) )
+    if ( Algorithm->EvaluateLocationAndFields(midpt5, 3+this->EmbeddingDimension[3] ) )
       edgeCode |= 32;
 
     edgeLength2[0] = edgeLength2[1] = edgeLength2[2] = edgeLength2[3]
@@ -626,14 +626,14 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
     switch (C)
     {
 
-    case 1: // Ruprecht-Müller Case 1
+    case 1: // Ruprecht-MÃ¼ller Case 1
       VTK_TESSELLATOR_INCR_CASE_COUNT(0);
       outputTets.push( vtkStreamingTessellator::TetrahedralDecompositions + 0 );
       outputPerm.push( vtkStreamingTessellator::PermutationsFromIndex[0] );
       outputSign.push( 1 );
       VTK_TESSELLATOR_INCR_SUBCASE_COUNT(0,0);
       break;
-    case 2: // Ruprecht-Müller Case 2a
+    case 2: // Ruprecht-MÃ¼ller Case 2a
       comparisonBits =
         (permlen[0] <= permlen[1] ? 1 : 0) | (permlen[0] >= permlen[1] ? 2 : 0) |
         0;
@@ -644,6 +644,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[10][i] = (permuted[0][i] + permuted[2][i])*0.375 + permuted[1][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[10], 3+this->EmbeddingDimension[3] );
       }
       VTK_TESSELLATOR_INCR_CASE_COUNT(1);
       outputTets.push( vtkStreamingTessellator::TetrahedralDecompositions + 9 );
@@ -672,14 +673,14 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
           break;
       }
       break;
-    case 3: // Ruprecht-Müller Case 2b
+    case 3: // Ruprecht-MÃ¼ller Case 2b
       VTK_TESSELLATOR_INCR_CASE_COUNT(2);
       outputTets.push( vtkStreamingTessellator::TetrahedralDecompositions + 49 );
       outputPerm.push( vtkStreamingTessellator::PermutationsFromIndex[0] );
       outputSign.push( 1 );
       VTK_TESSELLATOR_INCR_SUBCASE_COUNT(2,0);
       break;
-    case 4: // Ruprecht-Müller Case 3a
+    case 4: // Ruprecht-MÃ¼ller Case 3a
       comparisonBits =
         (permlen[0] <= permlen[2] ? 1 : 0) | (permlen[0] >= permlen[2] ? 2 : 0) |
         (permlen[0] <= permlen[3] ? 4 : 0) | (permlen[0] >= permlen[3] ? 8 : 0) |
@@ -692,6 +693,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[10][i] = (permuted[1][i] + permuted[2][i])*0.375 + permuted[0][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[10], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 12) == 12 )
       {
@@ -700,6 +702,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[11][i] = (permuted[1][i] + permuted[3][i])*0.375 + permuted[0][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[11], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 48) == 48 )
       {
@@ -708,6 +711,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[13][i] = (permuted[2][i] + permuted[3][i])*0.375 + permuted[0][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[13], 3+this->EmbeddingDimension[3] );
       }
       VTK_TESSELLATOR_INCR_CASE_COUNT(3);
       outputTets.push( vtkStreamingTessellator::TetrahedralDecompositions + 66 );
@@ -796,14 +800,14 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
           break;
       }
       break;
-    case 5: // Ruprecht-Müller Case 3b
+    case 5: // Ruprecht-MÃ¼ller Case 3b
       VTK_TESSELLATOR_INCR_CASE_COUNT(4);
       outputTets.push( vtkStreamingTessellator::TetrahedralDecompositions + 171 );
       outputPerm.push( vtkStreamingTessellator::PermutationsFromIndex[0] );
       outputSign.push( 1 );
       VTK_TESSELLATOR_INCR_SUBCASE_COUNT(4,0);
       break;
-    case 6: // Ruprecht-Müller Case 3c
+    case 6: // Ruprecht-MÃ¼ller Case 3c
       comparisonBits =
         (permlen[0] <= permlen[3] ? 1 : 0) | (permlen[0] >= permlen[3] ? 2 : 0) |
         (permlen[0] <= permlen[1] ? 4 : 0) | (permlen[0] >= permlen[1] ? 8 : 0) |
@@ -815,6 +819,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[11][i] = (permuted[1][i] + permuted[3][i])*0.375 + permuted[0][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[11], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 12) == 12 )
       {
@@ -823,6 +828,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[10][i] = (permuted[0][i] + permuted[2][i])*0.375 + permuted[1][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[10], 3+this->EmbeddingDimension[3] );
       }
       VTK_TESSELLATOR_INCR_CASE_COUNT(5);
       switch (comparisonBits)
@@ -883,7 +889,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
           break;
       }
       break;
-    case 7: // Ruprecht-Müller Case 3d
+    case 7: // Ruprecht-MÃ¼ller Case 3d
       comparisonBits =
         (permlen[0] <= permlen[2] ? 1 : 0) | (permlen[0] >= permlen[2] ? 2 : 0) |
         (permlen[0] <= permlen[4] ? 4 : 0) | (permlen[0] >= permlen[4] ? 8 : 0) |
@@ -895,6 +901,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[10][i] = (permuted[1][i] + permuted[2][i])*0.375 + permuted[0][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[10], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 12) == 12 )
       {
@@ -903,6 +910,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[11][i] = (permuted[0][i] + permuted[3][i])*0.375 + permuted[1][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[11], 3+this->EmbeddingDimension[3] );
       }
       VTK_TESSELLATOR_INCR_CASE_COUNT(6);
       switch (comparisonBits)
@@ -963,7 +971,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
           break;
       }
       break;
-    case 8: // Ruprecht-Müller Case 4a
+    case 8: // Ruprecht-MÃ¼ller Case 4a
       comparisonBits =
         (permlen[4] <= permlen[5] ? 1 : 0) | (permlen[4] >= permlen[5] ? 2 : 0) |
         (permlen[3] <= permlen[4] ? 4 : 0) | (permlen[3] >= permlen[4] ? 8 : 0) |
@@ -975,6 +983,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[12][i] = (permuted[1][i] + permuted[2][i])*0.375 + permuted[3][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[12], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 12) == 12 )
       {
@@ -983,6 +992,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[11][i] = (permuted[0][i] + permuted[1][i])*0.375 + permuted[3][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[11], 3+this->EmbeddingDimension[3] );
       }
       VTK_TESSELLATOR_INCR_CASE_COUNT(7);
       outputTets.push( vtkStreamingTessellator::TetrahedralDecompositions + 554 );
@@ -1047,7 +1057,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
           break;
       }
       break;
-    case 9: // Ruprecht-Müller Case 4b
+    case 9: // Ruprecht-MÃ¼ller Case 4b
       comparisonBits =
         (permlen[2] <= permlen[3] ? 1 : 0) | (permlen[2] >= permlen[3] ? 2 : 0) |
         (permlen[1] <= permlen[2] ? 4 : 0) | (permlen[1] >= permlen[2] ? 8 : 0) |
@@ -1061,6 +1071,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[13][i] = (permuted[2][i] + permuted[3][i])*0.375 + permuted[0][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[13], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 12) == 12 )
       {
@@ -1069,6 +1080,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[10][i] = (permuted[1][i] + permuted[0][i])*0.375 + permuted[2][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[10], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 48) == 48 )
       {
@@ -1077,6 +1089,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[12][i] = (permuted[2][i] + permuted[3][i])*0.375 + permuted[1][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[12], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 192) == 192 )
       {
@@ -1085,6 +1098,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[11][i] = (permuted[0][i] + permuted[1][i])*0.375 + permuted[3][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[11], 3+this->EmbeddingDimension[3] );
       }
       VTK_TESSELLATOR_INCR_CASE_COUNT(8);
       switch (comparisonBits)
@@ -1397,7 +1411,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
           break;
       }
       break;
-    case 10: // Ruprecht-Müller Case 5
+    case 10: // Ruprecht-MÃ¼ller Case 5
       comparisonBits =
         (permlen[1] <= permlen[2] ? 1 : 0) | (permlen[1] >= permlen[2] ? 2 : 0) |
         (permlen[3] <= permlen[4] ? 4 : 0) | (permlen[3] >= permlen[4] ? 8 : 0) |
@@ -1409,6 +1423,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[10][i] = (permuted[1][i] + permuted[0][i])*0.375 + permuted[2][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[10], 3+this->EmbeddingDimension[3] );
       }
       if ( (comparisonBits & 12) == 12 )
       {
@@ -1417,6 +1432,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
         {
           permuted[11][i] = (permuted[0][i] + permuted[1][i])*0.375 + permuted[3][i]/4.;
         }
+        Algorithm->EvaluateLocationAndFields(permuted[11], 3+this->EmbeddingDimension[3] );
       }
       VTK_TESSELLATOR_INCR_CASE_COUNT(9);
       outputTets.push( vtkStreamingTessellator::TetrahedralDecompositions + 1091 );
@@ -1481,7 +1497,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
           break;
       }
       break;
-    case 11: // Ruprecht-Müller Case 6
+    case 11: // Ruprecht-MÃ¼ller Case 6
       VTK_TESSELLATOR_INCR_CASE_COUNT(10);
       outputTets.push( vtkStreamingTessellator::TetrahedralDecompositions + 1216 );
       outputPerm.push( vtkStreamingTessellator::PermutationsFromIndex[0] );
@@ -1552,7 +1568,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
  * C is a configuration number and P is a permutation index.
  *
  * C is based on the case number from Ruprecht and
- * Müller's (1998) paper on adaptive tetrahedra. (The case
+ * MÃ¼ller's (1998) paper on adaptive tetrahedra. (The case
  * numbers are shown to the left of the row in the column
  * labeled case. The only difference is that we introduce
  * a case 3d which is part of case 3c in the paper.)
@@ -1578,7 +1594,7 @@ void vtkStreamingTessellator::AdaptivelySample3Facet( double* v0, double* v1, do
  *
  * ===========
  * References:
- * (Ruprect and Müller, 1998) A Scheme for Edge-based Adaptive
+ * (Ruprect and MÃ¼ller, 1998) A Scheme for Edge-based Adaptive
  *   Tetrahedron Subdivision, Mathematical Visualization (eds.
  *   Hege and Polthier), pp. 61--70. Springer-Verlag. 1998.
  */

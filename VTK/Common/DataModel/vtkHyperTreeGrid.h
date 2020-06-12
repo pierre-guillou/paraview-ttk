@@ -54,7 +54,7 @@
  * This class was modified by Jacques-Bernard Lekien 2018
  * This work was supported by Commissariat a l'Energie Atomique
  * CEA, DAM, DIF, F-91297 Arpajon, France.
-*/
+ */
 
 #ifndef vtkHyperTreeGrid_h
 #define vtkHyperTreeGrid_h
@@ -62,8 +62,8 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
 
+#include "vtkNew.h"          // vtkSmartPointer
 #include "vtkSmartPointer.h" // vtkSmartPointer
-#include "vtkNew.h" // vtkSmartPointer
 // #include "vtkPointData.h" // vtkPointData
 
 #include <cassert> // std::assert
@@ -76,15 +76,6 @@ class vtkCellLinks;
 class vtkCollection;
 class vtkDataArray;
 class vtkHyperTree;
-class vtkDoubleArray;
-class vtkDataSetAttributes;
-class vtkIdTypeArray;
-class vtkLine;
-class vtkPixel;
-class vtkPoints;
-class vtkPointData;
-class vtkVoxel;
-
 class vtkHyperTreeGridOrientedCursor;
 class vtkHyperTreeGridOrientedGeometryCursor;
 class vtkHyperTreeGridNonOrientedCursor;
@@ -93,6 +84,14 @@ class vtkHyperTreeGridNonOrientedVonNeumannSuperCursor;
 class vtkHyperTreeGridNonOrientedVonNeumannSuperCursorLight;
 class vtkHyperTreeGridNonOrientedMooreSuperCursor;
 class vtkHyperTreeGridNonOrientedMooreSuperCursorLight;
+class vtkDoubleArray;
+class vtkDataSetAttributes;
+class vtkIdTypeArray;
+class vtkLine;
+class vtkPixel;
+class vtkPoints;
+class vtkPointData;
+class vtkUnsignedCharArray;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkHyperTreeGrid : public vtkDataObject
 {
@@ -105,6 +104,12 @@ public:
 
   vtkTypeMacro(vtkHyperTreeGrid, vtkDataObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  /**
+   * Invalid index that is returned for undefined nodes, for example for nodes that are out of
+   * bounds (they can exist with the super cursors).
+   */
+  static constexpr vtkIdType InvalidIndex = ~0;
 
   /**
    * Set/Get mode squeeze
@@ -127,6 +132,11 @@ public:
    * vtkHyperTreeGrid object.
    */
   virtual void CopyStructure(vtkDataObject*);
+
+  /**
+   * Copy the internal structure with no data associated.
+   */
+  virtual void CopyEmptyStructure(vtkDataObject*);
 
   // --------------------------------------------------------------------------
   // RectilinearGrid common API
@@ -376,14 +386,14 @@ public:
 
   /**
    * JB
-    */
+   */
   void InitializeOrientedCursor(
     vtkHyperTreeGridOrientedCursor* cursor, vtkIdType index, bool create = false);
   vtkHyperTreeGridOrientedCursor* NewOrientedCursor(vtkIdType index, bool create = false);
 
   /**
    * JB
-    */
+   */
   void InitializeOrientedGeometryCursor(
     vtkHyperTreeGridOrientedGeometryCursor* cursor, vtkIdType index, bool create = false);
   vtkHyperTreeGridOrientedGeometryCursor* NewOrientedGeometryCursor(
@@ -391,14 +401,14 @@ public:
 
   /**
    * JB
-    */
+   */
   void InitializeNonOrientedCursor(
     vtkHyperTreeGridNonOrientedCursor* cursor, vtkIdType index, bool create = false);
   vtkHyperTreeGridNonOrientedCursor* NewNonOrientedCursor(vtkIdType index, bool create = false);
 
   /**
    * JB
-    */
+   */
   void InitializeNonOrientedGeometryCursor(
     vtkHyperTreeGridNonOrientedGeometryCursor* cursor, vtkIdType index, bool create = false);
   vtkHyperTreeGridNonOrientedGeometryCursor* NewNonOrientedGeometryCursor(
@@ -423,7 +433,7 @@ protected:
 public:
   /**
    * JB
-    */
+   */
   void InitializeNonOrientedVonNeumannSuperCursor(
     vtkHyperTreeGridNonOrientedVonNeumannSuperCursor* cursor, vtkIdType index, bool create = false);
   vtkHyperTreeGridNonOrientedVonNeumannSuperCursor* NewNonOrientedVonNeumannSuperCursor(
@@ -431,7 +441,7 @@ public:
 
   /**
    * JB
-    */
+   */
   void InitializeNonOrientedVonNeumannSuperCursorLight(
     vtkHyperTreeGridNonOrientedVonNeumannSuperCursorLight* cursor, vtkIdType index,
     bool create = false);
@@ -440,7 +450,7 @@ public:
 
   /**
    * JB
-    */
+   */
   void InitializeNonOrientedMooreSuperCursor(
     vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkIdType index, bool create = false);
   vtkHyperTreeGridNonOrientedMooreSuperCursor* NewNonOrientedMooreSuperCursor(
@@ -448,7 +458,7 @@ public:
 
   /**
    * JB
-    */
+   */
   void InitializeNonOrientedMooreSuperCursorLight(
     vtkHyperTreeGridNonOrientedMooreSuperCursorLight* cursor, vtkIdType index, bool create = false);
   vtkHyperTreeGridNonOrientedMooreSuperCursorLight* NewNonOrientedMooreSuperCursorLight(
@@ -614,6 +624,28 @@ public:
    */
   void InitializeLocalIndexNode();
 
+  /**
+   * Returns 1 if there are any ghost cells
+   * 0 otherwise.
+   */
+  bool HasAnyGhostCells() const;
+
+  /**
+   * Accessor on ghost cells
+   */
+  vtkUnsignedCharArray* GetGhostCells();
+
+  /**
+   * Gets the array that defines the ghost type of each point.
+   * We cache the pointer to the array to save a lookup involving string comparisons
+   */
+  vtkUnsignedCharArray* GetTreeGhostArray();
+
+  /**
+   * Allocate ghost array for points.
+   */
+  vtkUnsignedCharArray* AllocateTreeGhostArray();
+
   //@{
   /**
    * A simplified hyper tree cursor, to be used by the hyper tree.
@@ -634,8 +666,8 @@ public:
     //@}
 
     /**
-      * Only valid for leaves.
-      */
+     * Only valid for leaves.
+     */
     vtkIdType GetLeafIndex() { return this->Index; }
 
     /**
@@ -691,7 +723,7 @@ public:
     vtkHyperTree* GetNextTree();
 
   protected:
-    std::map<vtkIdType, vtkSmartPointer<vtkHyperTree>>::iterator Iterator;
+    std::map<vtkIdType, vtkSmartPointer<vtkHyperTree> >::iterator Iterator;
     vtkHyperTreeGrid* Grid;
   };
 
@@ -735,11 +767,13 @@ public:
    */
   void GetCenter(double center[3]);
 
+  //@{
   /**
-   * Return a pointer to this dataset's point data.
+   * Return a pointer to this dataset's point/tree data.
    * THIS METHOD IS THREAD SAFE
    */
   vtkPointData* GetPointData();
+  //@}
 
 protected:
   /**
@@ -750,7 +784,7 @@ protected:
   /**
    * Destructor
    */
-  ~vtkHyperTreeGrid() override;
+  virtual ~vtkHyperTreeGrid() override;
 
   /**
    * JB ModeSqueeze
@@ -763,6 +797,15 @@ protected:
   bool FreezeState;
   unsigned int BranchFactor; // 2 or 3
   unsigned int Dimension;    // 1, 2, or 3
+
+  //@{
+  /**
+   * These arrays pointers are caches used to avoid a string comparison (when
+   * getting ghost arrays using GetArray(name))
+   */
+  vtkUnsignedCharArray* TreeGhostArray;
+  bool TreeGhostArrayCached;
+  //@}
 private:
   unsigned int Orientation; // 0, 1, or 2
   unsigned int Axis[2];
@@ -795,7 +838,7 @@ protected:
   char* InterfaceNormalsName;
   char* InterfaceInterceptsName;
 
-  std::map<vtkIdType, vtkSmartPointer<vtkHyperTree>> HyperTrees;
+  std::map<vtkIdType, vtkSmartPointer<vtkHyperTree> > HyperTrees;
 
   vtkNew<vtkPointData> PointData; // Scalars, vectors, etc. associated w/ each point
 

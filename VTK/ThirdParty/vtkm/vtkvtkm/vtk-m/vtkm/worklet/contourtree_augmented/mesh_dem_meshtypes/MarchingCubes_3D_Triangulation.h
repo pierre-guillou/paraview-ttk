@@ -61,6 +61,7 @@
 #include <vtkm/cont/ExecutionObjectBase.h>
 
 #include <vtkm/worklet/contourtree_augmented/Mesh_DEM_Triangulation.h>
+#include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/MeshBoundary.h>
 #include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/MeshStructureMarchingCubes.h>
 #include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/marchingcubes_3D/Types.h>
 
@@ -91,7 +92,9 @@ public:
   template <typename DeviceTag>
   MeshStructureMarchingCubes<DeviceTag> PrepareForExecution(DeviceTag) const;
 
-  Mesh_DEM_Triangulation_3D_MarchingCubes(vtkm::Id nrows, vtkm::Id ncols, vtkm::Id nslices);
+  Mesh_DEM_Triangulation_3D_MarchingCubes(vtkm::Id ncols, vtkm::Id nrows, vtkm::Id nslices);
+
+  MeshBoundary3DExec GetMeshBoundaryExecutionObject() const;
 
 private:
   bool useGetMax; // Define the behavior ofr the PrepareForExecution function
@@ -100,10 +103,10 @@ private:
 // creates input mesh
 template <typename T, typename StorageType>
 Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::Mesh_DEM_Triangulation_3D_MarchingCubes(
-  vtkm::Id nrows,
   vtkm::Id ncols,
+  vtkm::Id nrows,
   vtkm::Id nslices)
-  : Mesh_DEM_Triangulation_3D<T, StorageType>(nrows, ncols, nslices)
+  : Mesh_DEM_Triangulation_3D<T, StorageType>(ncols, nrows, nslices)
 
 {
   // Initialize the case tables in vtkm
@@ -153,17 +156,25 @@ template <typename DeviceTag>
 MeshStructureMarchingCubes<DeviceTag>
   Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::PrepareForExecution(DeviceTag) const
 {
-  return MeshStructureMarchingCubes<DeviceTag>(this->nRows,
-                                               this->nCols,
+  return MeshStructureMarchingCubes<DeviceTag>(this->nCols,
+                                               this->nRows,
                                                this->nSlices,
                                                this->useGetMax,
                                                this->sortIndices,
+                                               this->sortOrder,
                                                edgeBoundaryDetectionMasks,
                                                cubeVertexPermutations,
                                                linkVertexConnectionsSix,
                                                linkVertexConnectionsEighteen,
                                                inCubeConnectionsSix,
                                                inCubeConnectionsEighteen);
+}
+
+template <typename T, typename StorageType>
+MeshBoundary3DExec
+Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::GetMeshBoundaryExecutionObject() const
+{
+  return MeshBoundary3DExec(this->nCols, this->nRows, this->nSlices, this->sortOrder);
 }
 
 } // namespace contourtree_augmented

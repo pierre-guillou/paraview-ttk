@@ -26,8 +26,9 @@ vtkStandardNewMacro(vtkUniformHyperTreeGrid);
 
 // Helper macros to quickly fetch a HT at a given index or iterator
 #define GetHyperTreeFromOtherMacro(_obj_, _index_)                                                 \
-  (static_cast<vtkHyperTree*>(                                                                     \
-    _obj_->HyperTrees.find(_index_) != _obj_->HyperTrees.end() ? _obj_->HyperTrees[_index_] : 0))
+  (static_cast<vtkHyperTree*>(_obj_->HyperTrees.find(_index_) != _obj_->HyperTrees.end()           \
+      ? _obj_->HyperTrees[_index_]                                                                 \
+      : nullptr))
 #define GetHyperTreeFromThisMacro(_index_) GetHyperTreeFromOtherMacro(this, _index_)
 
 //-----------------------------------------------------------------------------
@@ -55,9 +56,7 @@ vtkUniformHyperTreeGrid::vtkUniformHyperTreeGrid()
 }
 
 //-----------------------------------------------------------------------------
-vtkUniformHyperTreeGrid::~vtkUniformHyperTreeGrid()
-{
-}
+vtkUniformHyperTreeGrid::~vtkUniformHyperTreeGrid() {}
 
 //-----------------------------------------------------------------------------
 vtkHyperTree* vtkUniformHyperTreeGrid::GetTree(vtkIdType index, bool create)
@@ -330,6 +329,31 @@ void vtkUniformHyperTreeGrid::GetLevelZeroOriginAndSizeFromIndex(
   m_Size[0] = scale[0];
   m_Size[1] = scale[1];
   m_Size[2] = scale[2];
+}
+
+//-----------------------------------------------------------------------------
+void vtkUniformHyperTreeGrid::Initialize()
+{
+  this->Superclass::Initialize();
+  // Default dimension
+  this->Dimension = 3;
+
+  // Default grid origin
+  this->Origin[0] = 0.;
+  this->Origin[1] = 0.;
+  this->Origin[2] = 0.;
+
+  // Default element sizes
+  this->GridScale[0] = 1.;
+  this->GridScale[1] = 1.;
+  this->GridScale[2] = 1.;
+
+  this->WithCoordinates = false;
+
+  // Coordinates have not been computed yet
+  this->ComputedXCoordinates = false;
+  this->ComputedYCoordinates = false;
+  this->ComputedZCoordinates = false;
 }
 
 //-----------------------------------------------------------------------------

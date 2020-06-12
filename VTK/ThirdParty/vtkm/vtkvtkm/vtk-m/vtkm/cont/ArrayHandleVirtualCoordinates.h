@@ -29,16 +29,15 @@ namespace cont
 
 /// ArrayHandleVirtualCoordinates is a specialization of ArrayHandle.
 class VTKM_ALWAYS_EXPORT ArrayHandleVirtualCoordinates final
-  : public vtkm::cont::ArrayHandleVirtual<vtkm::Vec<vtkm::FloatDefault, 3>>
+  : public vtkm::cont::ArrayHandleVirtual<vtkm::Vec3f>
 {
 public:
   VTKM_ARRAY_HANDLE_SUBCLASS_NT(ArrayHandleVirtualCoordinates,
-                                (vtkm::cont::ArrayHandleVirtual<vtkm::Vec<vtkm::FloatDefault, 3>>));
+                                (vtkm::cont::ArrayHandleVirtual<vtkm::Vec3f>));
 
   template <typename T, typename S>
   explicit ArrayHandleVirtualCoordinates(const vtkm::cont::ArrayHandle<T, S>& ah)
-    : vtkm::cont::ArrayHandleVirtual<vtkm::Vec<vtkm::FloatDefault, 3>>(
-        vtkm::cont::make_ArrayHandleCast<ValueType>(ah))
+    : vtkm::cont::ArrayHandleVirtual<vtkm::Vec3f>(vtkm::cont::make_ArrayHandleCast<ValueType>(ah))
   {
   }
 };
@@ -72,6 +71,7 @@ struct SerializableTypeString<vtkm::cont::ArrayHandleVirtualCoordinates>
 
 //=============================================================================
 // Specializations of serialization related classes
+/// @cond SERIALIZATION
 namespace mangled_diy_namespace
 {
 
@@ -82,7 +82,7 @@ private:
   using Type = vtkm::cont::ArrayHandleVirtualCoordinates;
   using BaseType = vtkm::cont::ArrayHandle<typename Type::ValueType, typename Type::StorageTag>;
 
-  using BasicCoordsType = vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::FloatDefault, 3>>;
+  using BasicCoordsType = vtkm::cont::ArrayHandle<vtkm::Vec3f>;
   using RectilinearCoordsArrayType =
     vtkm::cont::ArrayHandleCartesianProduct<vtkm::cont::ArrayHandle<vtkm::FloatDefault>,
                                             vtkm::cont::ArrayHandle<vtkm::FloatDefault>,
@@ -152,5 +152,6 @@ public:
 };
 
 } // diy
+/// @endcond SERIALIZATION
 
 #endif // vtk_m_cont_ArrayHandleVirtualCoordinates_h

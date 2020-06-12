@@ -28,10 +28,9 @@ from vtkmodules.vtkCommonDataModel import vtkImageData, vtkDataObject
 from vtkmodules.vtkCommonCore      import vtkUnsignedCharArray, vtkCollection
 from vtkmodules.vtkWebCore         import vtkDataEncoder, vtkWebInteractionEvent
 
-from paraview.modules.vtkPVServerManagerRendering    import vtkSMPVRepresentationProxy, vtkSMTransferFunctionProxy, vtkSMTransferFunctionManager
-from paraview.modules.vtkPVServerManagerCore         import vtkSMProxyManager
-from paraview.modules.vtkPVClientServerCoreCore      import vtkProcessModule
-from paraview.modules.vtkPVClientServerCoreRendering import vtkPVRenderView
+from paraview.servermanager import vtkSMPVRepresentationProxy, \
+        vtkSMTransferFunctionProxy, vtkSMTransferFunctionManager, \
+        vtkSMProxyManager, vtkProcessModule, vtkPVRenderView
 
 if sys.version_info >= (3,):
     xrange = range
@@ -1114,7 +1113,7 @@ class ParaViewWebColorManager(ParaViewWebProtocol):
         super(ParaViewWebColorManager, self).__init__()
         if pathToColorMaps:
             simple.ImportPresets(filename=pathToColorMaps)
-        self.presets = servermanager.vtkSMTransferFunctionPresets()
+        self.presets = servermanager.vtkSMTransferFunctionPresets.GetInstance()
         self.colorMapNames = []
         for i in range(self.presets.GetNumberOfPresets()):
             if showBuiltin or not self.presets.IsPresetBuiltin(i):
@@ -3157,7 +3156,7 @@ class ParaViewWebFileListing(ParaViewWebProtocol):
 # Handle Data Selection
 #
 # =============================================================================
-from paraview.modules.vtkPVClientServerCoreRendering import *
+from paraview.modules.vtkRemotingCore import *
 from vtkmodules.vtkCommonCore import *
 
 class ParaViewWebSelectionHandler(ParaViewWebProtocol):

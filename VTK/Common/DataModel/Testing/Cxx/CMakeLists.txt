@@ -1,19 +1,30 @@
+  if(VTK_LEGACY_REMOVE)
+  set(legacy_srcs)
+  else()
+  set(legacy_srcs
+    TestDataArrayDispatcher.cxx
+    TestDispatchers.cxx
+    )
+endif()
+
 vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   NO_DATA NO_VALID NO_OUTPUT
+  ${legacy_srcs}
   LagrangeHexahedron.cxx
+  BezierInterpolation.cxx
+  TestBezier.cxx
   TestAngularPeriodicDataArray.cxx
   TestColor.cxx
   TestVector.cxx
   TestVectorOperators.cxx
   TestAMRBox.cxx
   TestBiQuadraticQuad.cxx
+  TestCellArray.cxx
   TestCompositeDataSets.cxx
   TestCompositeDataSetRange.cxx
   TestComputeBoundingSphere.cxx
-  TestDataArrayDispatcher.cxx
   TestDataObject.cxx
   TestDataObjectTreeRange.cxx
-  TestDispatchers.cxx
   TestFieldList.cxx
   TestGenericCell.cxx
   TestGraph.cxx
@@ -52,7 +63,6 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestTreeDFSIterator.cxx
   TestTriangle.cxx
   TimePointLocators.cxx
-  otherCellArray.cxx
   otherCellBoundaries.cxx
   otherCellPosition.cxx
   otherCellTypes.cxx
@@ -93,7 +103,12 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests data_tests
   TestQuadraticPolygonFilters.cxx
   )
 # add to the list but don't define a test
-list(APPEND data_tests TestPolyhedron2.cxx TestPolyhedronContouring.cxx TestPolyhedronCutter.cxx)
+list(APPEND data_tests
+  TestPolyhedron2.cxx
+  TestPolyhedronContouring.cxx
+  TestPolyhedronCutter.cxx
+  TestStaticCellLocatorEdgeCases.cxx
+  )
 
 vtk_add_test_cxx(vtkCommonDataModelCxxTests output_tests
   TestKdTreeRepresentation.cxx,NO_DATA
@@ -112,6 +127,11 @@ ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
   NAME VTK::CommonDataModelCxxTests-TestPolyhedronCutter
   COMMAND vtkCommonDataModelCxxTests TestPolyhedronCutter
   DATA{../Data/onePolyhedron.vtu} DATA{../Data/sliceOfPolyhedron.vtu}
+  )
+ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
+  NAME VTK::CommonDataModelCxxTests-TestStaticCellLocatorEdgeCases
+  COMMAND vtkCommonDataModelCxxTests TestStaticCellLocatorEdgeCases
+  DATA{../Data/test_surface.vtp}
   )
 
 set(all_tests

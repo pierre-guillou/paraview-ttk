@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqScalarValueListPropertyWidget.h"
 #include "ui_pqScalarValueListPropertyWidget.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 
@@ -41,8 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqCollapsedGroup.h"
 #include "pqSMAdaptor.h"
-#include "pqSampleScalarAddRangeDialog.h"
-
+#include "pqSeriesGeneratorDialog.h"
 #include "vtkCommand.h"
 #include "vtkEventQtSlotConnect.h"
 #include "vtkNew.h"
@@ -137,29 +137,28 @@ public:
   bool setData(const QModelIndex& idx, const QVariant& aValue, int role = Qt::EditRole) override
   {
     Q_UNUSED(role);
-    if (!aValue.toString().isEmpty())
+    int offset = this->computeOffset(idx);
+    if (offset >= this->Values.size())
     {
-      int offset = this->computeOffset(idx);
-      if (offset >= this->Values.size())
-      {
-        // we don't need to fire this->beginInsertRows
-        // since this typically happens for setting a non-existent
-        // column value.
-        this->Values.resize(offset + 1);
-      }
-      if (this->Values[offset] != aValue)
-      {
-        if (this->AllowIntegralValuesOnly)
-        {
-          this->Values[offset] = aValue.toInt();
-        }
-        else
-        {
-          this->Values[offset] = aValue;
-        }
-        emit this->dataChanged(idx, idx);
-      }
+      // we don't need to fire this->beginInsertRows
+      // since this typically happens for setting a non-existent
+      // column value.
+      this->Values.resize(offset + 1);
     }
+    if (this->Values[offset] != aValue)
+    {
+      if (this->AllowIntegralValuesOnly)
+      {
+        this->Values[offset] = aValue.toInt();
+      }
+      else
+      {
+        this->Values[offset] = aValue;
+      }
+      emit this->dataChanged(idx, idx);
+      return true;
+    }
+
     return false;
   }
 
@@ -265,7 +264,7 @@ public:
         rows.push_back((*iter).row());
       }
     }
-    qSort(rows.begin(), rows.end());
+    std::sort(rows.begin(), rows.end());
     result.resize(1);
     result[0].push_back(rows[0]);
     for (int i = 1; i < rows.size(); ++i)
@@ -498,15 +497,17 @@ void pqScalarValueListPropertyWidget::addRange()
       range_max = 10.0;
     }
 
-    pqSampleScalarAddRangeDialog dialog(range_min, range_max, 10, false);
+    pqSeriesGeneratorDialog dialog(range_min, range_max, this);
     if (dialog.exec() != QDialog::Accepted)
     {
       return;
     }
 
     QVariantList value = this->Internals->Model.value().toList();
-    value += dialog.getRange();
-
+    for (const auto& newvalue : dialog.series())
+    {
+      value.push_back(QVariant(newvalue));
+    }
     this->Internals->Model.setValue(value);
     emit this->scalarsChanged();
   }
@@ -519,19 +520,16 @@ void pqScalarValueListPropertyWidget::addRange()
       range_max = 10;
     }
 
-    pqSampleScalarAddRangeDialog dialog(range_min, range_max, 10, false);
+    pqSeriesGeneratorDialog dialog(range_min, range_max, this);
     if (dialog.exec() != QDialog::Accepted)
     {
       return;
     }
 
-    QVariantList range = dialog.getRange();
     QVariantList intRange;
-    for (QVariantList::iterator i = range.begin(); i != range.end(); ++i)
+    for (const auto& newvalue : dialog.series())
     {
-      double val = i->toDouble();
-      int ival =
-        static_cast<int>(((val - std::floor(val)) < 0.5) ? std::floor(val) : std::ceil(val));
+      const int ival = static_cast<int>(std::floor(newvalue + 0.5));
       if (intRange.empty() || (intRange.back().toInt() != ival))
       {
         intRange.push_back(ival);
@@ -540,7 +538,6 @@ void pqScalarValueListPropertyWidget::addRange()
 
     QVariantList value = this->Internals->Model.value().toList();
     value += intRange;
-
     this->Internals->Model.setValue(value);
     emit this->scalarsChanged();
   }

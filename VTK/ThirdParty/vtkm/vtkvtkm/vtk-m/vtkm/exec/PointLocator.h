@@ -17,10 +17,16 @@ namespace vtkm
 namespace exec
 {
 
-class PointLocator : public vtkm::VirtualObjectBase
+class VTKM_ALWAYS_EXPORT PointLocator : public vtkm::VirtualObjectBase
 {
 public:
-  VTKM_EXEC virtual void FindNearestNeighbor(const vtkm::Vec<vtkm::FloatDefault, 3>& queryPoint,
+  VTKM_EXEC_CONT virtual ~PointLocator() noexcept
+  {
+    // This must not be defaulted, since defaulted virtual destructors are
+    // troublesome with CUDA __host__ __device__ markup.
+  }
+
+  VTKM_EXEC virtual void FindNearestNeighbor(const vtkm::Vec3f& queryPoint,
                                              vtkm::Id& pointId,
                                              vtkm::FloatDefault& distanceSquared) const = 0;
 };

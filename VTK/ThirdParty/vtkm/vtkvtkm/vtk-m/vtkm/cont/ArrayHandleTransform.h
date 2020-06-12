@@ -16,6 +16,8 @@
 #include <vtkm/cont/ExecutionAndControlObjectBase.h>
 #include <vtkm/cont/RuntimeDeviceTracker.h>
 
+#include <vtkm/internal/ArrayPortalHelpers.h>
+
 #include <vtkm/cont/serial/internal/DeviceAdapterRuntimeDetectorSerial.h>
 
 namespace vtkm
@@ -90,16 +92,6 @@ public:
 
   VTKM_SUPPRESS_EXEC_WARNINGS
   VTKM_EXEC_CONT
-  void Set(vtkm::Id vtkmNotUsed(index), const ValueType& vtkmNotUsed(value)) const
-  {
-#if !(defined(VTKM_MSVC) && defined(VTKM_CUDA))
-    VTKM_ASSERT(false &&
-                "Cannot write to read-only transform array. (No inverse transform given.)");
-#endif
-  }
-
-  VTKM_SUPPRESS_EXEC_WARNINGS
-  VTKM_EXEC_CONT
   const PortalType& GetPortal() const { return this->Portal; }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
@@ -118,6 +110,8 @@ template <typename ValueType_,
 class VTKM_ALWAYS_EXPORT ArrayPortalTransform
   : public ArrayPortalTransform<ValueType_, PortalType_, FunctorType_, NullFunctorType>
 {
+  using Writable = vtkm::internal::PortalSupportsSets<PortalType_>;
+
 public:
   using Superclass = ArrayPortalTransform<ValueType_, PortalType_, FunctorType_, NullFunctorType>;
   using PortalType = PortalType_;
@@ -145,10 +139,11 @@ public:
   }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
-  VTKM_EXEC_CONT
-  void Set(vtkm::Id index, const ValueType& value) const
+  template <typename Writable_ = Writable,
+            typename = typename std::enable_if<Writable_::value>::type>
+  VTKM_EXEC_CONT void Set(vtkm::Id index, const ValueType& value) const
   {
-    return this->Portal.Set(index, this->InverseFunctor(value));
+    this->Portal.Set(index, this->InverseFunctor(value));
   }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
@@ -274,18 +269,15 @@ class Storage<typename StorageTagTransform<ArrayHandleType, FunctorType>::ValueT
 public:
   using ValueType = typename StorageTagTransform<ArrayHandleType, FunctorType>::ValueType;
 
-  // This is meant to be invalid. Because Transform arrays are read only, you
-  // should only be able to use the const version.
-  struct PortalType
-  {
-    using ValueType = void*;
-    using IteratorType = void*;
-  };
-
   using PortalConstType =
     vtkm::exec::internal::ArrayPortalTransform<ValueType,
                                                typename ArrayHandleType::PortalConstControl,
                                                typename FunctorManager::FunctorType>;
+
+  // Note that this array is read only, so you really should only be getting the const
+  // version of the portal. If you actually try to write to this portal, you will
+  // get an error.
+  using PortalType = PortalConstType;
 
   VTKM_CONT
   Storage()
@@ -390,8 +382,8 @@ public:
 
   VTKM_CONT
   Storage(const ArrayHandleType& array,
-          const FunctorType& functor,
-          const InverseFunctorType& inverseFunctor)
+          const FunctorType& functor = FunctorType(),
+          const InverseFunctorType& inverseFunctor = InverseFunctorType())
     : Array(array)
     , Functor(functor)
     , InverseFunctor(inverseFunctor)
@@ -711,6 +703,13 @@ public:
     : Superclass(StorageType(handle, functor, inverseFunctor))
   {
   }
+
+  /// Implemented so that it is defined exclusively in the control environment.
+  /// If there is a separate device for the execution environment (for example,
+  /// with CUDA), then the automatically generated destructor could be
+  /// created for all devices, and it would not be valid for all devices.
+  ///
+  ~ArrayHandleTransform() {}
 };
 
 template <typename HandleType, typename FunctorType, typename InverseFunctorType>
@@ -726,6 +725,7 @@ make_ArrayHandleTransform(HandleType handle, FunctorType functor, InverseFunctor
 
 //=============================================================================
 // Specializations of serialization related classes
+/// @cond SERIALIZATION
 namespace vtkm
 {
 namespace cont
@@ -829,5 +829,6 @@ struct Serialization<vtkm::cont::ArrayHandle<
 };
 
 } // diy
+/// @endcond SERIALIZATION
 
 #endif //vtk_m_cont_ArrayHandleTransform_h

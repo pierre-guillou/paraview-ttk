@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqComponentsModule.h"
 
+#include "vtkBoundingBox.h"
 #include "vtkType.h"
 #include <QObject>
 #include <QPair>
@@ -53,9 +54,8 @@ class vtkSMSourceProxy;
 
 /**
 * pqSelectionManager is the nexus for introspective surface selection in
-*/
-//  paraview.
-/**
+* paraview.
+*
 * It responds to UI events to tell the servermanager to setup for making
 * selections. It watches the servermanager's state to see if the selection
 * parameters are changed (either from the UI or from playback) and tells
@@ -90,6 +90,11 @@ public:
   */
   bool hasActiveSelection() const;
 
+  /**
+   * Returns the bounding box for all the selected data.
+   */
+  vtkBoundingBox selectedDataBounds() const;
+
 signals:
   /**
   * Fired when the selection changes. Argument is the pqOutputPort (if any)
@@ -115,15 +120,30 @@ public slots:
   */
   void select(pqOutputPort*);
 
+  /**
+   * Set up signal/slot from the pipeline source to the selection manager.
+   */
+  void onSourceAdded(pqPipelineSource*);
+
+  /**
+   * Disconnect signal/slot from the pipeline source to the selection manager.
+   */
+  void onSourceRemoved(pqPipelineSource*);
+
+  /**
+   * Expand/contract selection to include additional layers.
+   */
+  void expandSelection(int layers);
+
 private slots:
   /**
-  * Called when pqLinkModel create a link,
+  * Called when pqLinkModel creates a link,
   * to update the selection
   */
   void onLinkAdded(int linkType);
 
   /**
-  * Called when pqLinkModel remove a link,
+  * Called when pqLinkModel removes a link,
   * to update the selection
   */
   void onLinkRemoved();

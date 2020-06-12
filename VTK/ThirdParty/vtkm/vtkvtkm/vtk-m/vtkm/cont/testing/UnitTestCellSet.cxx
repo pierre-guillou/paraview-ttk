@@ -27,7 +27,7 @@ constexpr vtkm::Id3 BaseLinePointDimensions{ xdim, ydim, zdim };
 constexpr vtkm::Id BaseLineNumberOfPoints = xdim * ydim * zdim;
 constexpr vtkm::Id BaseLineNumberOfCells = (xdim - 1) * (ydim - 1) * (zdim - 1);
 
-vtkm::cont::CellSetStructured<3> BaseLine{ "BaseLine" };
+vtkm::cont::CellSetStructured<3> BaseLine;
 
 void InitializeBaseLine()
 {
@@ -75,8 +75,10 @@ vtkm::cont::CellSetExplicit<> MakeCellSetExplicit()
   vtkm::cont::ArrayHandle<vtkm::Id> connectivity;
   vtkm::cont::ArrayCopy(BaseLineConnectivity, connectivity);
 
+  auto offsets = vtkm::cont::ConvertNumIndicesToOffsets(numIndices);
+
   vtkm::cont::CellSetExplicit<> cellset;
-  cellset.Fill(BaseLineNumberOfPoints, shapes, numIndices, connectivity);
+  cellset.Fill(BaseLineNumberOfPoints, shapes, connectivity, offsets);
   return cellset;
 }
 

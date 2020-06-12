@@ -21,7 +21,7 @@
 #include "vtkPoints.h"
 
 //------------------------------------------------------------------------------
-void vtkCellIterator::PrintSelf(ostream &os, vtkIndent indent)
+void vtkCellIterator::PrintSelf(ostream& os, vtkIndent indent)
 {
   os << indent << "CacheFlags: ";
   switch (this->CacheFlags)
@@ -87,6 +87,8 @@ int vtkCellIterator::GetCellDimension()
     case VTK_POLY_LINE:
     case VTK_QUADRATIC_EDGE:
     case VTK_CUBIC_LINE:
+    case VTK_LAGRANGE_CURVE:
+    case VTK_BEZIER_CURVE:
       return 1;
     case VTK_TRIANGLE:
     case VTK_QUAD:
@@ -96,6 +98,10 @@ int vtkCellIterator::GetCellDimension()
     case VTK_QUADRATIC_TRIANGLE:
     case VTK_QUADRATIC_QUAD:
     case VTK_QUADRATIC_POLYGON:
+    case VTK_LAGRANGE_TRIANGLE:
+    case VTK_LAGRANGE_QUADRILATERAL:
+    case VTK_BEZIER_TRIANGLE:
+    case VTK_BEZIER_QUADRILATERAL:
       return 2;
     case VTK_TETRA:
     case VTK_VOXEL:
@@ -108,6 +114,12 @@ int vtkCellIterator::GetCellDimension()
     case VTK_QUADRATIC_HEXAHEDRON:
     case VTK_QUADRATIC_WEDGE:
     case VTK_QUADRATIC_PYRAMID:
+    case VTK_LAGRANGE_TETRAHEDRON:
+    case VTK_LAGRANGE_HEXAHEDRON:
+    case VTK_LAGRANGE_WEDGE:
+    case VTK_BEZIER_TETRAHEDRON:
+    case VTK_BEZIER_HEXAHEDRON:
+    case VTK_BEZIER_WEDGE:
       return 3;
     default:
       vtkNew<vtkGenericCell> cell;
@@ -117,15 +129,16 @@ int vtkCellIterator::GetCellDimension()
 }
 
 //------------------------------------------------------------------------------
-void vtkCellIterator::GetCell(vtkGenericCell *cell)
+void vtkCellIterator::GetCell(vtkGenericCell* cell)
 {
   cell->SetCellType(this->GetCellType());
   cell->SetPointIds(this->GetPointIds());
   cell->SetPoints(this->GetPoints());
 
+  cell->SetFaces(nullptr);
   if (cell->RequiresExplicitFaceRepresentation())
   {
-    vtkIdList *faces = this->GetFaces();
+    vtkIdList* faces = this->GetFaces();
     if (faces->GetNumberOfIds() != 0)
     {
       cell->SetFaces(faces->GetPointer(0));
@@ -140,8 +153,8 @@ void vtkCellIterator::GetCell(vtkGenericCell *cell)
 
 //------------------------------------------------------------------------------
 vtkCellIterator::vtkCellIterator()
-  : CellType(VTK_EMPTY_CELL),
-    CacheFlags(UninitializedFlag)
+  : CellType(VTK_EMPTY_CELL)
+  , CacheFlags(UninitializedFlag)
 {
   this->Points = this->PointsContainer;
   this->PointIds = this->PointIdsContainer;

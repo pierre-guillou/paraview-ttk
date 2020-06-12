@@ -11,6 +11,7 @@
 #ifndef vtk_m_worklet_particleadvection_TemporalGridEvaluators_h
 #define vtk_m_worklet_particleadvection_TemporalGridEvaluators_h
 
+#include <vtkm/worklet/particleadvection/GridEvaluatorStatus.h>
 #include <vtkm/worklet/particleadvection/GridEvaluators.h>
 
 namespace vtkm
@@ -59,39 +60,43 @@ public:
   }
 
   VTKM_EXEC
-  void GetSpatialBoundary(vtkm::Vec<vtkm::FloatDefault, 3>& dir,
-                          vtkm::Vec<ScalarType, 3>& boundary) const
-  {
-    // Based on the direction of the velocity we need to be able to tell where
-    // the particle will exit the domain from to actually push it out of domain.
-    return this->EvaluatorTwo.GetSpatialBoundary(dir, boundary);
-  }
+  vtkm::Bounds GetSpatialBoundary() const { return this->EvaluatorTwo.GetSpatialBoundary(); }
 
   VTKM_EXEC_CONT
-  void GetTemporalBoundary(vtkm::FloatDefault& boundary) const
+  vtkm::FloatDefault GetTemporalBoundary(vtkm::Id direction) const
   {
-    // Return the time of the newest time slice
-    boundary = TimeTwo;
+    return direction > 0 ? this->TimeTwo : this->TimeOne;
   }
 
   template <typename Point>
-  VTKM_EXEC bool Evaluate(const Point& pos, vtkm::FloatDefault time, Point& out) const
+  VTKM_EXEC GridEvaluatorStatus Evaluate(const Point& pos,
+                                         vtkm::FloatDefault time,
+                                         Point& out) const
   {
     // Validate time is in bounds for the current two slices.
+    GridEvaluatorStatus status;
+
     if (!(time >= TimeOne && time <= TimeTwo))
-      return false;
-    bool eval;
+    {
+      status.SetFail();
+      status.SetTemporalBounds();
+      return status;
+    }
+
     Point one, two;
-    eval = this->EvaluatorOne.Evaluate(pos, one);
-    if (!eval)
-      return false;
-    eval = this->EvaluatorTwo.Evaluate(pos, two);
-    if (!eval)
-      return false;
+    status = this->EvaluatorOne.Evaluate(pos, one);
+    if (status.CheckFail())
+      return status;
+    status = this->EvaluatorTwo.Evaluate(pos, two);
+    if (status.CheckFail())
+      return status;
+
     // LERP between the two values of calculated fields to obtain the new value
-    ScalarType proportion = (time - this->TimeOne) / this->TimeDiff;
+    vtkm::FloatDefault proportion = (time - this->TimeOne) / this->TimeDiff;
     out = vtkm::Lerp(one, two, proportion);
-    return true;
+
+    status.SetOk();
+    return status;
   }
 
 private:

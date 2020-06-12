@@ -8,7 +8,7 @@ readonly name="visit"
 readonly ownership="VisIt Upstream <kwrobot@kitware.com>"
 readonly subtree="Library/VisItLib"
 readonly repo="https://gitlab.kitware.com/third-party/visit.git"
-readonly tag="for/paraview-20190610-trunk-r34006"
+readonly tag="for/paraview-20191220-trunk-r34006"
 
 readonly paths="
 COPYRIGHT
@@ -16,9 +16,6 @@ COPYRIGHT
 README.kitware.md
 CMakeLists.paraview.txt
 
-CMake/FindBoxlib.cmake
-CMake/FindGFortran.cmake
-CMake/FindMili.cmake
 CMake/testFStream.cxx
 CMake/TestSocklenT.c
 CMake/VisItCommon.cmake

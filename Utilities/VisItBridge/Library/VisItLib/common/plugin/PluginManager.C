@@ -83,9 +83,11 @@ using std::sort;
 #define MAX_PLUGINERROR 500
 
 #ifdef VISIT_STATIC
+#if 0 // XXX(kitware): ParaView doesn't need this.
 extern void *fake_dlsym(const string &);
 extern void StaticGetSupportedLibs(std::vector<std::pair<std::string, std::string> > &,
                                    const string &);
+#endif
 #endif
 
 // ****************************************************************************
@@ -513,7 +515,9 @@ void
 PluginManager::GetPluginList(vector<pair<string,string> > &libs)
 {
 #ifdef VISIT_STATIC
+#if 0 // XXX(kitware): ParaView doesn't need this.
     StaticGetSupportedLibs(libs, managerName);
+#endif
 #else
     // Read the files in the plugin directory.
     vector< vector<pair<string,string> > > files;
@@ -1689,12 +1693,14 @@ PluginManager::PluginSymbol(const string &symbol, bool noError)
     }
 
 #if defined(VISIT_STATIC)
+#if 0 // XXX(kitware): ParaView doesn't need this.
 // Static
     retval = fake_dlsym(symbolName);
     if (retval == NULL)
     {
         debug1 << "fake_dlsym was not able to return " << symbolName << endl;
     }
+#endif
 #else 
 // Dynamic
 #if defined(_WIN32)

@@ -21,28 +21,26 @@ PURPOSE.  See the above copyright notice for more information.
 #ifndef vtkOpenVRRay_h
 #define vtkOpenVRRay_h
 
-#include "vtkRenderingOpenVRModule.h" // For export macro
-#include "vtkObject.h"
-#include "vtkOpenGLHelper.h" // ivar
 #include "vtkNew.h" // for ivar
-#include <openvr.h> // for ivars
+#include "vtkObject.h"
+#include "vtkOpenGLHelper.h"          // ivar
+#include "vtkRenderingOpenVRModule.h" // For export macro
+#include <openvr.h>                   // for ivars
 
 class vtkOpenGLRenderWindow;
 class vtkRenderWindow;
 class vtkOpenGLVertexBufferObject;
 class vtkMatrix4x4;
 
-
 class VTKRENDERINGOPENVR_EXPORT vtkOpenVRRay : public vtkObject
 {
 public:
-  static vtkOpenVRRay *New();
+  static vtkOpenVRRay* New();
   vtkTypeMacro(vtkOpenVRRay, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  bool Build(vtkOpenGLRenderWindow *win);
-  void Render(vtkOpenGLRenderWindow *win,
-    vtkMatrix4x4 *poseMatrix);
+  bool Build(vtkOpenGLRenderWindow* win);
+  void Render(vtkOpenGLRenderWindow* win, vtkMatrix4x4* poseMatrix);
 
   // show the model
   vtkSetMacro(Show, bool);
@@ -50,7 +48,9 @@ public:
 
   vtkSetMacro(Length, float);
 
-  void ReleaseGraphicsResources(vtkRenderWindow *win);
+  vtkSetVector3Macro(Color, float);
+
+  void ReleaseGraphicsResources(vtkRenderWindow* win);
 
 protected:
   vtkOpenVRRay();
@@ -59,11 +59,12 @@ protected:
   bool Show;
   bool Loaded;
 
-  vtkOpenGLHelper ModelHelper;
-  vtkOpenGLVertexBufferObject *ModelVBO;
+  vtkOpenGLHelper RayHelper;
+  vtkOpenGLVertexBufferObject* RayVBO;
   vtkNew<vtkMatrix4x4> PoseMatrix;
 
   float Length;
+  float Color[3];
 
 private:
   vtkOpenVRRay(const vtkOpenVRRay&) = delete;

@@ -44,6 +44,9 @@ import paraview._backwardscompatibilityhelper
 # Bring OutputPort in our namespace.
 from paraview.servermanager import OutputPort
 
+# Bring in selection
+from .selection import *
+
 import sys
 import warnings
 
@@ -495,7 +498,7 @@ def GetDisplayProperties(proxy=None, view=None):
     return GetRepresentation(proxy, view)
 
 # -----------------------------------------------------------------------------
-def Show(proxy=None, view=None, **params):
+def Show(proxy=None, view=None, representationType=None, **params):
     """Turns the visibility of a given pipeline object on in the given view.
     If pipeline object and/or view are not specified, active objects are used."""
     if proxy == None:
@@ -505,11 +508,11 @@ def Show(proxy=None, view=None, **params):
     if proxy == None:
         raise RuntimeError ("Show() needs a proxy argument or that an active source is set.")
     if not view:
-        # it here's now active view, controller.Show() will create a new preferred view.
+        # If there's no active view, controller.Show() will create a new preferred view.
         # if possible.
         view = active_objects.view
     controller = servermanager.ParaViewPipelineController()
-    rep = controller.Show(proxy, proxy.Port, view)
+    rep = controller.Show(proxy, proxy.Port, view, representationType)
     if rep == None:
         raise RuntimeError ("Could not create a representation object for proxy %s" % proxy.GetXMLLabel())
     for param in params.keys():
@@ -731,7 +734,7 @@ def LoadPalette(paletteName):
     colors used by ParaView views.  The current global palette's colors are set
     to the colors in the loaded palette."""
     pxm = servermanager.ProxyManager()
-    palette = pxm.GetProxy("global_properties", "ColorPalette")
+    palette = pxm.GetProxy("settings", "ColorPalette")
     prototype = pxm.GetPrototypeProxy("palettes", paletteName)
 
     if palette is None or prototype is None:
@@ -805,10 +808,17 @@ def FindView(name):
 def GetActiveViewOrCreate(viewtype):
     """
     Returns the active view, if the active view is of the given type,
-    otherwise creates a new view of the requested type."""
+    otherwise creates a new view of the requested type.
+    Note, if a new view is created, it will be assigned to a layout
+    by calling `AssignViewToLayout`."""
     view = GetActiveView()
     if view is None or view.GetXMLName() != viewtype:
         view = CreateView(viewtype)
+        if view:
+            # if a new view is created, we assign it to a layout.
+            # Since this method gets used when tracing existing views, it makes
+            # sense to assign it to a layout during playback.
+            AssignViewToLayout(view)
     if not view:
         raise RuntimeError ("Failed to create/locate the specified view")
     return view
@@ -816,10 +826,17 @@ def GetActiveViewOrCreate(viewtype):
 def FindViewOrCreate(name, viewtype):
     """
     Returns the view, if a view with the given name exists and is of the
-    the given type, otherwise creates a new view of the requested type."""
+    the given type, otherwise creates a new view of the requested type.
+    Note, if a new view is created, it will be assigned to a layout
+    by calling `AssignViewToLayout`."""
     view = FindView(name)
     if view is None or view.GetXMLName() != viewtype:
         view = CreateView(viewtype)
+        if view:
+            # if a new view is created, we assign it to a layout.
+            # Since this method gets used when tracing existing views, it makes
+            # sense to assign it to a layout during playback.
+            AssignViewToLayout(view)
     if not view:
         raise RuntimeError ("Failed to create/locate the specified view")
     return view
@@ -1526,8 +1543,17 @@ def GetOpacityTransferFunction(arrayname, representation=None, separate=False, *
 def ImportPresets(filename):
     """Import presets from a file. The file can be in the legacy color map xml
     format or in the new JSON format. Returns True on success."""
-    presets = servermanager.vtkSMTransferFunctionPresets()
+    presets = servermanager.vtkSMTransferFunctionPresets.GetInstance()
     return presets.ImportPresets(filename)
+
+# -----------------------------------------------------------------------------
+def ExportTransferFunction(colortransferfunction, opacitytransferfunction, tfname, filename):
+    """Export transfer function to a file. The file will be saved in the new JSON format.
+    Note that opacitytransferfunction can be None. The tfname is the name that will be
+    given to the transfer function preset when imported back into ParaView.
+    Returns True on success."""
+    return servermanager.vtkSMTransferFunctionProxy.ExportTransferFunction(\
+             colortransferfunction.SMProxy, opacitytransferfunction.SMProxy, tfname, filename)
 
 # -----------------------------------------------------------------------------
 def CreateLookupTable(**params):
@@ -1581,7 +1607,7 @@ def AssignLookupTable(arrayInfo, lutName, rangeOveride=[]):
       AssignLookupTable(arrayInfo, "Cool to Warm")
 
     """
-    presets = servermanager.vtkSMTransferFunctionPresets()
+    presets = servermanager.vtkSMTransferFunctionPresets.GetInstance()
     if not presets.HasPreset(lutName):
         raise RuntimeError("no preset with name `%s` present", lutName)
 
@@ -1597,7 +1623,7 @@ def AssignLookupTable(arrayInfo, lutName, rangeOveride=[]):
 def GetLookupTableNames():
     """Returns a list containing the currently available transfer function
     presets."""
-    presets = servermanager.vtkSMTransferFunctionPresets()
+    presets = servermanager.vtkSMTransferFunctionPresets.GetInstance()
     return [presets.GetPresetName(index) for index in range(presets.GetNumberOfPresets())]
 
 # -----------------------------------------------------------------------------
@@ -1608,7 +1634,7 @@ def LoadLookupTable(fileName):
     If the filename ends with a .xml, it's assumed to be a legacy color map XML
     and will be converted to the new format before processing.
     """
-    presets = servermanager.vtkSMTransferFunctionPresets()
+    presets = servermanager.vtkSMTransferFunctionPresets.GetInstance()
     return presets.ImportPresets(fileName)
 
 # -----------------------------------------------------------------------------
@@ -2011,6 +2037,22 @@ def GetMaterialLibrary():
     return controller.FindMaterialLibrary(session)
 
 #==============================================================================
+# Textures.
+#==============================================================================
+def CreateTexture(filename=None):
+    """Creates and returns a new vtkTexture.
+    The texture is not attached to anything by default but it can be applied
+    to things, for example the view, like so.
+    >>> GetActiveView().UseTexturedBackground = 1
+    >>> GetActiveView().BackgroundTexture = CreateTexture("foo.png")
+    """
+    pxm = servermanager.ProxyManager()
+    textureproxy = pxm.NewProxy("textures", "ImageTexture")
+    controller = servermanager.ParaViewPipelineController()
+    controller.SMController.RegisterTextureProxy(textureproxy, filename)
+    return servermanager._getPyProxy(textureproxy)
+
+#==============================================================================
 # Miscellaneous functions.
 #==============================================================================
 def Show3DWidgets(proxy=None):
@@ -2080,7 +2122,7 @@ def ResetProperty(propertyName, proxy=None, restoreFromSettings=True):
 
 def GetOpenGLInformation(location=servermanager.vtkSMSession.CLIENT):
     """Recover OpenGL information, by default on the client"""
-    openGLInfo = servermanager.vtkPVServerImplementationRendering.vtkPVClientServerCoreRendering.vtkPVOpenGLInformation()
+    openGLInfo = paraview.modules.vtkRemotingViews.vtkPVOpenGLInformation()
     session = servermanager.vtkSMProxyManager.GetProxyManager().GetActiveSession()
     session.GatherInformation(location, openGLInfo, 0)
     return openGLInfo

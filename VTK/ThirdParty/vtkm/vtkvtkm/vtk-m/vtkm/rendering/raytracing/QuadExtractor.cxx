@@ -26,7 +26,7 @@ namespace raytracing
 namespace detail
 {
 
-class CountQuads : public vtkm::worklet::WorkletMapPointToCell
+class CountQuads : public vtkm::worklet::WorkletVisitCellsWithPoints
 {
 public:
   VTKM_CONT
@@ -54,10 +54,15 @@ public:
   {
     points = 1;
   }
+  VTKM_EXEC
+  void operator()(vtkm::CellShapeTagWedge vtkmNotUsed(shapeType), vtkm::Id& points) const
+  {
+    points = 0;
+  }
 
 }; // ClassCountquads
 
-class Pointify : public vtkm::worklet::WorkletMapPointToCell
+class Pointify : public vtkm::worklet::WorkletVisitCellsWithPoints
 {
 
 public:
@@ -88,6 +93,15 @@ public:
   template <typename VecType, typename OutputPortal>
   VTKM_EXEC void operator()(const vtkm::Id& vtkmNotUsed(pointOffset),
                             vtkm::CellShapeTagQuad vtkmNotUsed(shapeType),
+                            const VecType& vtkmNotUsed(cellIndices),
+                            const vtkm::Id& vtkmNotUsed(cellId),
+                            OutputPortal& vtkmNotUsed(outputIndices)) const
+  {
+  }
+
+  template <typename VecType, typename OutputPortal>
+  VTKM_EXEC void operator()(const vtkm::Id& vtkmNotUsed(pointOffset),
+                            vtkm::CellShapeTagWedge vtkmNotUsed(shapeType),
                             const VecType& vtkmNotUsed(cellIndices),
                             const vtkm::Id& vtkmNotUsed(cellId),
                             OutputPortal& vtkmNotUsed(outputIndices)) const

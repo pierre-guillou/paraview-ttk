@@ -28,7 +28,7 @@
  * Also options to additionally compute the divergence, vorticity and
  * Q criterion of input vector fields.
  *
-*/
+ */
 
 #ifndef vtkmGradient_h
 #define vtkmGradient_h
@@ -39,17 +39,15 @@
 class VTKACCELERATORSVTKM_EXPORT vtkmGradient : public vtkGradientFilter
 {
 public:
-  vtkTypeMacro(vtkmGradient, vtkGradientFilter)
+  vtkTypeMacro(vtkmGradient, vtkGradientFilter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkmGradient* New();
 
 protected:
   vtkmGradient();
-  ~vtkmGradient();
+  ~vtkmGradient() override;
 
-
-  virtual int RequestData(vtkInformation*, vtkInformationVector**,
-                          vtkInformationVector*) override;
+  virtual int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 private:
   vtkmGradient(const vtkmGradient&) = delete;

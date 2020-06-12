@@ -54,24 +54,18 @@ vtkm::cont::DataSet MakeWarpVectorTestDataSet()
 class PolicyWarpVector : public vtkm::filter::PolicyBase<PolicyWarpVector>
 {
 public:
-  using vecType = vtkm::Vec<vtkm::FloatDefault, 3>;
-  struct TypeListTagWarpVectorTags
-    : vtkm::ListTagBase<vtkm::cont::ArrayHandleConstant<vecType>::StorageTag,
-                        vtkm::cont::ArrayHandle<vecType>::StorageTag>
-  {
-  };
-  using FieldStorageList = TypeListTagWarpVectorTags;
+  using vecType = vtkm::Vec3f;
+  using TypeListWarpVectorTags = vtkm::List<vtkm::cont::ArrayHandleConstant<vecType>::StorageTag,
+                                            vtkm::cont::ArrayHandle<vecType>::StorageTag>;
+  using FieldStorageList = TypeListWarpVectorTags;
 };
 
 void CheckResult(const vtkm::filter::WarpVector& filter, const vtkm::cont::DataSet& result)
 {
-  VTKM_TEST_ASSERT(result.HasField("warpvector", vtkm::cont::Field::Association::POINTS),
-                   "Output filed WarpVector is missing");
-  using vecType = vtkm::Vec<vtkm::FloatDefault, 3>;
+  VTKM_TEST_ASSERT(result.HasPointField("warpvector"), "Output filed WarpVector is missing");
+  using vecType = vtkm::Vec3f;
   vtkm::cont::ArrayHandle<vecType> outputArray;
-  result.GetField("warpvector", vtkm::cont::Field::Association::POINTS)
-    .GetData()
-    .CopyTo(outputArray);
+  result.GetPointField("warpvector").GetData().CopyTo(outputArray);
   auto outPortal = outputArray.GetPortalConstControl();
 
   for (vtkm::Id j = 0; j < dim; ++j)
@@ -83,7 +77,7 @@ void CheckResult(const vtkm::filter::WarpVector& filter, const vtkm::cont::DataS
       vtkm::FloatDefault x =
         static_cast<vtkm::FloatDefault>(i) / static_cast<vtkm::FloatDefault>(dim - 1);
       vtkm::FloatDefault y = (x * x + z * z) / static_cast<vtkm::FloatDefault>(2.0);
-      vtkm::FloatDefault targetZ = filter.GetUseCoordinateSystemAsPrimaryField()
+      vtkm::FloatDefault targetZ = filter.GetUseCoordinateSystemAsField()
         ? z + static_cast<vtkm::FloatDefault>(2 * 2)
         : y + static_cast<vtkm::FloatDefault>(2 * 2);
       auto point = outPortal.Get(j * dim + i);
@@ -104,7 +98,7 @@ void TestWarpVectorFilter()
   {
     std::cout << "   First field as coordinates" << std::endl;
     vtkm::filter::WarpVector filter(scale);
-    filter.SetUseCoordinateSystemAsPrimaryField(true);
+    filter.SetUseCoordinateSystemAsField(true);
     filter.SetVectorField("vec2");
     vtkm::cont::DataSet result = filter.Execute(ds, PolicyWarpVector());
     CheckResult(filter, result);
@@ -113,7 +107,7 @@ void TestWarpVectorFilter()
   {
     std::cout << "   First field as a vector" << std::endl;
     vtkm::filter::WarpVector filter(scale);
-    filter.SetPrimaryField("vec1");
+    filter.SetActiveField("vec1");
     filter.SetVectorField("vec2");
     vtkm::cont::DataSet result = filter.Execute(ds, PolicyWarpVector());
     CheckResult(filter, result);

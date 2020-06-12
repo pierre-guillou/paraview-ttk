@@ -23,18 +23,16 @@ vtkm::cont::ArrayHandle<vtkm::Range> FieldRangeCompute(const vtkm::cont::DataSet
                                                        const std::string& name,
                                                        vtkm::cont::Field::Association assoc)
 {
-  return vtkm::cont::detail::FieldRangeComputeImpl(
-    dataset, name, assoc, VTKM_DEFAULT_TYPE_LIST_TAG());
+  return vtkm::cont::detail::FieldRangeComputeImpl(dataset, name, assoc, VTKM_DEFAULT_TYPE_LIST());
 }
 
 //-----------------------------------------------------------------------------
 VTKM_CONT
-vtkm::cont::ArrayHandle<vtkm::Range> FieldRangeCompute(const vtkm::cont::MultiBlock& multiblock,
+vtkm::cont::ArrayHandle<vtkm::Range> FieldRangeCompute(const vtkm::cont::PartitionedDataSet& pds,
                                                        const std::string& name,
                                                        vtkm::cont::Field::Association assoc)
 {
-  return vtkm::cont::detail::FieldRangeComputeImpl(
-    multiblock, name, assoc, VTKM_DEFAULT_TYPE_LIST_TAG());
+  return vtkm::cont::detail::FieldRangeComputeImpl(pds, name, assoc, VTKM_DEFAULT_TYPE_LIST());
 }
 }
 } // namespace vtkm::cont

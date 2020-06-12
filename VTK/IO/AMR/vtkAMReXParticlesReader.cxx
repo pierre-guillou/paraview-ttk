@@ -29,6 +29,7 @@
 #include "vtkPolyData.h"
 #include "vtkSOADataArrayTemplate.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include <algorithm>
@@ -49,7 +50,7 @@ std::string ReadAndBroadCastFile(const std::string& filename, vtkMultiProcessCon
   std::string contents;
   if (controller == nullptr || controller->GetLocalProcessId() == 0)
   {
-    std::ifstream stream(filename, std::ios::binary);
+    vtksys::ifstream stream(filename.c_str(), std::ios::binary);
     if (stream)
     {
       stream.seekg(0, std::ios::end);
@@ -188,7 +189,7 @@ class vtkAMReXParticlesReader::AMReXParticleHeader
       if (this->num_real_base < 3)
       {
         // fill with 0, since this->dim may be less than 3.
-        std::fill_n(coords->GetPointer(0), 3*count, 0.0);
+        std::fill_n(coords->GetPointer(0), 3 * count, 0.0);
       }
 
       vtkNew<vtkPoints> pts;
@@ -531,7 +532,7 @@ public:
 
     const std::string& fname =
       this->GetDATAFileName(self->PlotFileName, self->ParticleType, level, gridInfo.which);
-    std::ifstream ifp(fname, std::ios::binary);
+    vtksys::ifstream ifp(fname.c_str(), std::ios::binary);
     if (!ifp.good())
     {
       return false;
@@ -648,7 +649,7 @@ int vtkAMReXParticlesReader::CanReadFile(const char* fname, const char* particle
       const std::string header(particles + "/Header");
       if (vtksystools::FileExists(header, /*isFile*/ true))
       {
-        std::ifstream ifp(header.c_str(), std::ios::binary);
+        vtksys::ifstream ifp(header.c_str(), std::ios::binary);
         if (ifp)
         {
           std::string header_line;

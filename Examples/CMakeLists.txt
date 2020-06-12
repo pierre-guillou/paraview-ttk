@@ -34,6 +34,9 @@ if (ParaView_BINARY_DIR)
         PROPERTY
           ENVIRONMENT "PATH=${example_path}")
     endif ()
+    set_property(TEST "ParaViewExample-${dir}" APPEND
+      PROPERTY
+        SKIP_REGULAR_EXPRESSION "Skipping example")
   endfunction ()
 else ()
   find_package(ParaView REQUIRED)
@@ -66,6 +69,7 @@ add_example(CustomApplications/Clone2)
 add_example(CustomApplications/Demo0)
 add_example(CustomApplications/Demo1)
 add_example(CustomApplications/MultiServerClient)
+add_example(CustomApplications/SimpleParaView)
 # TODO Update this custom application to load only specific data types.
 # add_example(CustomApplications/Spreadsheet)
 

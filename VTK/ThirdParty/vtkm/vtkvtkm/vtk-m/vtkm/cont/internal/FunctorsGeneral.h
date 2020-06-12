@@ -10,6 +10,7 @@
 #ifndef vtk_m_cont_internal_FunctorsGeneral_h
 #define vtk_m_cont_internal_FunctorsGeneral_h
 
+#include <vtkm/Algorithms.h>
 #include <vtkm/BinaryOperators.h>
 #include <vtkm/TypeTraits.h>
 #include <vtkm/UnaryPredicates.h>
@@ -494,6 +495,149 @@ struct CopyKernel
   void SetErrorMessageBuffer(const vtkm::exec::internal::ErrorMessageBuffer&) {}
 };
 
+template <typename BitsPortal>
+struct CountSetBitsFunctor : public vtkm::exec::FunctorBase
+{
+  using WordType = typename BitsPortal::WordTypePreferred;
+
+  // This functor executes a number of instances, where each instance handles
+  // two cachelines worth of data. This reduces the number of atomic operations.
+  // Figure out how many words that is:
+  static constexpr vtkm::Id CacheLineSize = VTKM_ALLOCATION_ALIGNMENT;
+  static constexpr vtkm::Id WordsPerCacheLine =
+    CacheLineSize / static_cast<vtkm::Id>(sizeof(WordType));
+  static constexpr vtkm::Id CacheLinesPerInstance = 2;
+  static constexpr vtkm::Id WordsPerInstance = CacheLinesPerInstance * WordsPerCacheLine;
+
+  VTKM_CONT
+  CountSetBitsFunctor(const BitsPortal& input, std::atomic<vtkm::UInt64>& popCount)
+    : Input{ input }
+    , PopCount(popCount)
+    , FinalWordIndex{ input.GetNumberOfWords() - 1 }
+    , FinalWordMask{ input.GetFinalWordMask() }
+  {
+  }
+
+  VTKM_CONT vtkm::Id GetNumberOfInstances() const
+  {
+    const auto numWords = this->Input.GetNumberOfWords();
+    return (numWords + WordsPerInstance - 1) / WordsPerInstance;
+  }
+
+  VTKM_EXEC void operator()(vtkm::Id instanceIdx) const
+  {
+    const vtkm::Id numWords = this->Input.GetNumberOfWords();
+    const vtkm::Id wordStart = vtkm::Min(instanceIdx * WordsPerInstance, numWords);
+    const vtkm::Id wordEnd = vtkm::Min(wordStart + WordsPerInstance, numWords);
+
+    if (wordStart != wordEnd) // range is valid
+    {
+      this->ExecuteRange(wordStart, wordEnd);
+    }
+  }
+
+  VTKM_CONT vtkm::UInt64 GetPopCount() const { return PopCount.load(std::memory_order_relaxed); }
+
+private:
+  VTKM_EXEC void ExecuteRange(vtkm::Id wordStart, vtkm::Id wordEnd) const
+  {
+#ifndef VTKM_CUDA_DEVICE_PASS // for std::atomic call from VTKM_EXEC function:
+    // Count bits and allocate space for output:
+    vtkm::UInt64 chunkBits = this->CountChunkBits(wordStart, wordEnd);
+    this->PopCount.fetch_add(chunkBits, std::memory_order_relaxed);
+#else
+    (void)wordStart;
+    (void)wordEnd;
+#endif
+  }
+
+  VTKM_EXEC vtkm::UInt64 CountChunkBits(vtkm::Id wordStart, vtkm::Id wordEnd) const
+  {
+    // Need to mask out trailing bits from the final word:
+    const bool isFinalChunk = wordEnd == (this->FinalWordIndex + 1);
+
+    if (isFinalChunk)
+    {
+      wordEnd = this->FinalWordIndex;
+    }
+
+    vtkm::Int32 tmp = 0;
+    for (vtkm::Id i = wordStart; i < wordEnd; ++i)
+    {
+      tmp += vtkm::CountSetBits(this->Input.GetWord(i));
+    }
+
+    if (isFinalChunk)
+    {
+      tmp += vtkm::CountSetBits(this->Input.GetWord(this->FinalWordIndex) & this->FinalWordMask);
+    }
+
+    return static_cast<vtkm::UInt64>(tmp);
+  }
+
+  BitsPortal Input;
+  std::atomic<vtkm::UInt64>& PopCount;
+  // Used to mask trailing bits the in last word.
+  vtkm::Id FinalWordIndex{ 0 };
+  WordType FinalWordMask{ 0 };
+};
+
+// For a given unsigned integer less than 32 bits, repeat its bits until we
+// have a 32 bit pattern. This is used to make all fill patterns at least
+// 32 bits in size, since concurrently writing to adjacent locations smaller
+// than 32 bits may race on some platforms.
+template <typename WordType, typename = typename std::enable_if<(sizeof(WordType) >= 4)>::type>
+static constexpr VTKM_CONT WordType RepeatTo32BitsIfNeeded(WordType pattern)
+{ // for 32 bits or more, just pass the type through.
+  return pattern;
+}
+
+static inline constexpr VTKM_CONT vtkm::UInt32 RepeatTo32BitsIfNeeded(vtkm::UInt16 pattern)
+{
+  return static_cast<vtkm::UInt32>(pattern << 16 | pattern);
+}
+
+static inline constexpr VTKM_CONT vtkm::UInt32 RepeatTo32BitsIfNeeded(vtkm::UInt8 pattern)
+{
+  return RepeatTo32BitsIfNeeded(static_cast<vtkm::UInt16>(pattern << 8 | pattern));
+}
+
+template <typename BitsPortal, typename WordType>
+struct FillBitFieldFunctor : public vtkm::exec::FunctorBase
+{
+  VTKM_CONT
+  FillBitFieldFunctor(const BitsPortal& portal, WordType mask)
+    : Portal{ portal }
+    , Mask{ mask }
+  {
+  }
+
+  VTKM_EXEC void operator()(vtkm::Id wordIdx) const { this->Portal.SetWord(wordIdx, this->Mask); }
+
+private:
+  BitsPortal Portal;
+  WordType Mask;
+};
+
+template <typename PortalType>
+struct FillArrayHandleFunctor : public vtkm::exec::FunctorBase
+{
+  using ValueType = typename PortalType::ValueType;
+
+  VTKM_CONT
+  FillArrayHandleFunctor(const PortalType& portal, ValueType value)
+    : Portal{ portal }
+    , Value{ value }
+  {
+  }
+
+  VTKM_EXEC void operator()(vtkm::Id idx) const { this->Portal.Set(idx, this->Value); }
+
+private:
+  PortalType Portal;
+  ValueType Value;
+};
+
 template <class InputPortalType, class ValuesPortalType, class OutputPortalType>
 struct LowerBoundsKernel
 {
@@ -524,7 +668,7 @@ struct LowerBoundsKernel
 
     using InputIteratorsType = vtkm::cont::ArrayPortalToIterators<InputPortalType>;
     InputIteratorsType inputIterators(this->InputPortal);
-    auto resultPos = std::lower_bound(
+    auto resultPos = vtkm::LowerBound(
       inputIterators.GetBegin(), inputIterators.GetEnd(), this->ValuesPortal.Get(index));
 
     vtkm::Id resultIndex =
@@ -572,7 +716,7 @@ struct LowerBoundsComparisonKernel
 
     using InputIteratorsType = vtkm::cont::ArrayPortalToIterators<InputPortalType>;
     InputIteratorsType inputIterators(this->InputPortal);
-    auto resultPos = std::lower_bound(inputIterators.GetBegin(),
+    auto resultPos = vtkm::LowerBound(inputIterators.GetBegin(),
                                       inputIterators.GetEnd(),
                                       this->ValuesPortal.Get(index),
                                       this->CompareFunctor);
@@ -875,7 +1019,7 @@ struct UpperBoundsKernel
 
     using InputIteratorsType = vtkm::cont::ArrayPortalToIterators<InputPortalType>;
     InputIteratorsType inputIterators(this->InputPortal);
-    auto resultPos = std::upper_bound(
+    auto resultPos = vtkm::UpperBound(
       inputIterators.GetBegin(), inputIterators.GetEnd(), this->ValuesPortal.Get(index));
 
     vtkm::Id resultIndex =
@@ -923,7 +1067,7 @@ struct UpperBoundsKernelComparisonKernel
 
     using InputIteratorsType = vtkm::cont::ArrayPortalToIterators<InputPortalType>;
     InputIteratorsType inputIterators(this->InputPortal);
-    auto resultPos = std::upper_bound(inputIterators.GetBegin(),
+    auto resultPos = vtkm::UpperBound(inputIterators.GetBegin(),
                                       inputIterators.GetEnd(),
                                       this->ValuesPortal.Get(index),
                                       this->CompareFunctor);
@@ -963,9 +1107,50 @@ struct InclusiveToExclusiveKernel : vtkm::exec::FunctorBase
   VTKM_EXEC
   void operator()(vtkm::Id index) const
   {
-    ValueType result = (index == 0)
+    const ValueType result = (index == 0)
       ? this->InitialValue
       : this->BinaryOperator(this->InitialValue, this->InPortal.Get(index - 1));
+
+    this->OutPortal.Set(index, result);
+  }
+};
+
+template <typename InPortalType, typename OutPortalType, typename BinaryFunctor>
+struct InclusiveToExtendedKernel : vtkm::exec::FunctorBase
+{
+  using ValueType = typename InPortalType::ValueType;
+
+  InPortalType InPortal;
+  OutPortalType OutPortal;
+  BinaryFunctor BinaryOperator;
+  ValueType InitialValue;
+  ValueType FinalValue;
+
+  VTKM_CONT
+  InclusiveToExtendedKernel(const InPortalType& inPortal,
+                            const OutPortalType& outPortal,
+                            BinaryFunctor& binaryOperator,
+                            ValueType initialValue,
+                            ValueType finalValue)
+    : InPortal(inPortal)
+    , OutPortal(outPortal)
+    , BinaryOperator(binaryOperator)
+    , InitialValue(initialValue)
+    , FinalValue(finalValue)
+  {
+  }
+
+  VTKM_SUPPRESS_EXEC_WARNINGS
+  VTKM_EXEC
+  void operator()(vtkm::Id index) const
+  {
+    // The output array has one more value than the input, which holds the
+    // total sum.
+    const ValueType result =
+      (index == 0) ? this->InitialValue : (index == this->InPortal.GetNumberOfValues())
+        ? this->FinalValue
+        : this->BinaryOperator(this->InitialValue, this->InPortal.Get(index - 1));
+
     this->OutPortal.Set(index, result);
   }
 };

@@ -51,7 +51,7 @@ vtkm::cont::DataSet MakeWarpScalarTestDataSet()
 void TestWarpScalar()
 {
   std::cout << "Testing WarpScalar Worklet" << std::endl;
-  using vecType = vtkm::Vec<vtkm::FloatDefault, 3>;
+  using vecType = vtkm::Vec3f;
 
   vtkm::cont::DataSet ds = MakeWarpScalarTestDataSet<vtkm::FloatDefault>();
 
@@ -67,8 +67,7 @@ void TestWarpScalar()
     vtkm::cont::make_ArrayHandleConstant(normal, nov);
 
   vtkm::cont::ArrayHandle<vtkm::FloatDefault> scaleFactorArray;
-  auto scaleFactor =
-    ds.GetField("scalefactor").GetData().ResetTypes(vtkm::TypeListTagFieldScalar());
+  auto scaleFactor = ds.GetField("scalefactor").GetData().ResetTypes(vtkm::TypeListFieldScalar());
   scaleFactor.CopyTo(scaleFactorArray);
   auto sFAPortal = scaleFactorArray.GetPortalControl();
 

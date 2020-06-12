@@ -15,7 +15,7 @@
 /**
  * @class   vtkPythonStdStreamCaptureHelper
  *
-*/
+ */
 
 #ifndef vtkPythonStdStreamCaptureHelper_h
 #define vtkPythonStdStreamCaptureHelper_h
@@ -25,8 +25,7 @@
 
 struct vtkPythonStdStreamCaptureHelper
 {
-  PyObject_HEAD
-  int softspace; // Used by print to keep track of its state.
+  PyObject_HEAD int softspace; // Used by print to keep track of its state.
   bool DumpToError;
 
   void Write(const char* string)
@@ -139,6 +138,12 @@ static PyTypeObject vtkPythonStdStreamCaptureHelperType = {
 #endif
 #if PY_VERSION_HEX >= 0x03040000
   0, // tp_finalize
+#endif
+#if PY_VERSION_HEX >= 0x03080000
+  0, // tp_vectorcall
+#if PY_VERSION_HEX < 0x03090000
+  0, // tp_print
+#endif
 #endif
 };
 

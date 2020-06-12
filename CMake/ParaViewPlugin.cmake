@@ -188,12 +188,6 @@ function (paraview_plugin_scan)
       PROPERTY
         TYPE "${_paraview_scan_option_default_type}")
 
-    if (NOT ${_paraview_scan_plugin_name}_REQUIRES_MODULES)
-      message(WARNING
-        "The ${_paraview_scan_plugin_name} plugin claims that it does not "
-        "require any modules. This is probably an oversight.")
-    endif ()
-
     if (DEFINED ${_paraview_scan_plugin_name}_CONDITION)
       if (NOT (${${_paraview_scan_plugin_name}_CONDITION}))
         if (DEFINED "PARAVIEW_PLUGIN_ENABLE_${_paraview_scan_plugin_name}")
@@ -234,6 +228,15 @@ function (paraview_plugin_scan)
     PARENT_SCOPE)
 endfunction ()
 
+function (_paraview_plugin_check_destdir variable)
+  if (NOT DEFINED "${variable}")
+    message(FATAL_ERROR
+      "It appears as though ${variable} is not defined, but is needed to "
+      "default a destination directory for build artifacts. Usually this is "
+      "resolved by `include(GNUInstallDirs)` at the top of the project.")
+  endif ()
+endfunction ()
+
 #[==[.md
 ## Building plugins
 
@@ -242,22 +245,42 @@ Once all plugins have been scanned, they need to be built.
 ```
 paraview_plugin_build(
   PLUGINS <plugin>...
-  [TARGET <target>]
   [AUTOLOAD <plugin>...]
+  [PLUGINS_COMPONENT <component>]
 
+  [TARGET <target>]
+  [INSTALL_EXPORT <export>]
+  [CMAKE_DESTINATION <destination>]
+  [TARGET_COMPONENT <component>]
+  [INSTALL_HEADERS <ON|OFF>]
+
+  [HEADERS_DESTINATION <destination>]
   [RUNTIME_DESTINATION <destination>]
   [LIBRARY_DESTINATION <destination>]
   [LIBRARY_SUBDIRECTORY <subdirectory>]
+  [ADD_INSTALL_RPATHS <ON|OFF>]
 
   [PLUGINS_FILE_NAME <filename>])
 ```
 
   * `PLUGINS`: (Required) The list of plugins to build. May be empty.
   * `AUTOLOAD`: A list of plugins to mark for autoloading.
+  * `PLUGINS_COMPONENT`: (Defaults to `paraview_plugins`) The installation
+    component to use for installed plugins.
   * `TARGET`: (Recommended) The name of an interface target to generate. This
     provides. an initialization function `<TARGET>_initialize` which
     initializes static plugins. The function is provided, but is a no-op for
     shared plugin builds.
+  * `INSTALL_EXPORT`: If provided, the generated target will be added to the
+    named export set.
+  * `CMAKE_DESTINATION`: If provided, the plugin target's properties will be
+    written to a file named `<TARGET>-paraview-plugin-properties.cmake` in the
+    specified destination.
+  * `TARGET_COMPONENT`: (Defaults to `development`) The component to use for
+    `<TARGET>`.
+  * `INSTALL_HEADERS`: (Defaults to `ON`) Whether to install headers or not.
+  * `HEADERS_DESTINATION`: (Defaults to `${CMAKE_INSTALL_INCLUDEDIR}`) Where to
+    install include files.
   * `RUNTIME_DESTINATION`: (Defaults to `${CMAKE_INSTALL_BINDIR}`) Where to
     install runtime files.
   * `LIBRARY_DESTINATION`: (Defaults to `${CMAKE_INSTALL_LIBDIR}`) Where to
@@ -266,6 +289,9 @@ paraview_plugin_build(
     themselves. Each plugin lives in a directory of its name in
     `<RUNTIME_DESTINATION>/<LIBRARY_SUBDIRECTORY>` (for Windows) or
     `<LIBRARY_DESTINATION>/<LIBRARY_SUBDIRECTORY>` for other platforms.
+  * `ADD_INSTALL_RPATHS`: (Defaults to `OFF`) If specified, an RPATH to load
+    dependent libraries from the `LIBRARY_DESTINATION` from the plugins will be
+    added.
   * `PLUGINS_FILE_NAME`: The name of the XML plugin file to generate for the
     built plugins. This file will be placed under
     `<LIBRARY_DESTINATION>/<LIBRARY_SUBDIRECTORY>`. It will be installed with
@@ -274,7 +300,7 @@ paraview_plugin_build(
 function (paraview_plugin_build)
   cmake_parse_arguments(_paraview_build
     ""
-    "RUNTIME_DESTINATION;LIBRARY_DESTINATION;LIBRARY_SUBDIRECTORY;TARGET;PLUGINS_FILE_NAME"
+    "HEADERS_DESTINATION;RUNTIME_DESTINATION;LIBRARY_DESTINATION;LIBRARY_SUBDIRECTORY;TARGET;PLUGINS_FILE_NAME;INSTALL_EXPORT;CMAKE_DESTINATION;PLUGINS_COMPONENT;TARGET_COMPONENT;ADD_INSTALL_RPATHS;INSTALL_HEADERS"
     "PLUGINS;AUTOLOAD"
     ${ARGN})
 
@@ -284,11 +310,18 @@ function (paraview_plugin_build)
       "${_paraview_build_UNPARSED_ARGUMENTS}")
   endif ()
 
+  if (NOT DEFINED _paraview_build_HEADERS_DESTINATION)
+    _paraview_plugin_check_destdir(CMAKE_INSTALL_INCLUDEDIR)
+    set(_paraview_build_HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+  endif ()
+
   if (NOT DEFINED _paraview_build_RUNTIME_DESTINATION)
+    _paraview_plugin_check_destdir(CMAKE_INSTALL_BINDIR)
     set(_paraview_build_RUNTIME_DESTINATION "${CMAKE_INSTALL_BINDIR}")
   endif ()
 
   if (NOT DEFINED _paraview_build_LIBRARY_DESTINATION)
+    _paraview_plugin_check_destdir(CMAKE_INSTALL_LIBDIR)
     set(_paraview_build_LIBRARY_DESTINATION "${CMAKE_INSTALL_LIBDIR}")
   endif ()
 
@@ -296,12 +329,84 @@ function (paraview_plugin_build)
     set(_paraview_build_LIBRARY_SUBDIRECTORY "")
   endif ()
 
+  if (NOT DEFINED _paraview_build_INSTALL_HEADERS)
+    set(_paraview_build_INSTALL_HEADERS ON)
+  endif ()
+
+  if (NOT DEFINED _paraview_build_ADD_INSTALL_RPATHS)
+    set(_paraview_build_ADD_INSTALL_RPATHS OFF)
+  endif ()
+  if (_paraview_build_ADD_INSTALL_RPATHS)
+    if (NOT _paraview_build_LIBRARY_SUBDIRECTORY STREQUAL "")
+      file(RELATIVE_PATH _paraview_build_relpath
+        "/prefix/${_paraview_build_LIBRARY_DESTINATION}/${_paraview_build_LIBRARY_SUBDIRECTORY}/plugin"
+        "/prefix/${_paraview_build_LIBRARY_DESTINATION}")
+    else ()
+      file(RELATIVE_PATH _paraview_build_relpath
+        "/prefix/${_paraview_build_LIBRARY_DESTINATION}/plugin"
+        "/prefix/${_paraview_build_LIBRARY_DESTINATION}")
+    endif ()
+    if (APPLE)
+      list(APPEND CMAKE_INSTALL_RPATH
+        "@loader_path/${_paraview_build_relpath}")
+    elseif (UNIX)
+      list(APPEND CMAKE_INSTALL_RPATH
+        "$ORIGIN/${_paraview_build_relpath}")
+    endif ()
+  endif ()
+
+  if (DEFINED _paraview_build_INSTALL_EXPORT
+      AND NOT DEFINED _paraview_build_TARGET)
+    message(FATAL_ERROR
+      "The `INSTALL_EXPORT` argument requires the `TARGET` argument.")
+  endif ()
+
+  if (DEFINED _paraview_build_INSTALL_EXPORT
+      AND NOT DEFINED _paraview_build_CMAKE_DESTINATION)
+    message(FATAL_ERROR
+      "The `INSTALL_EXPORT` argument requires the `CMAKE_DESTINATION` argument.")
+  endif ()
+
+  set(_paraview_build_extra_destinations)
+  if (DEFINED _paraview_build_CMAKE_DESTINATION)
+    list(APPEND _paraview_build_extra_destinations
+      CMAKE_DESTINATION)
+    if (NOT DEFINED _paraview_build_TARGET)
+      message(FATAL_ERROR
+        "The `CMAKE_DESTINATION` argument requires the `TARGET` argument.")
+    endif ()
+  endif ()
+
+  if (DEFINED _paraview_build_TARGET)
+    _vtk_module_split_module_name("${_paraview_build_TARGET}" _paraview_build)
+    string(REPLACE "::" "_" _paraview_build_target_safe "${_paraview_build_TARGET}")
+  endif ()
+
+  _vtk_module_check_destinations(_paraview_build_
+    HEADERS_DESTINATION
+    RUNTIME_DESTINATION
+    LIBRARY_DESTINATION
+    LIBRARY_SUBDIRECTORY
+    ${_paraview_build_extra_destinations})
+
+  if (NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${_paraview_build_RUNTIME_DESTINATION}")
+  endif ()
+  if (NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${_paraview_build_LIBRARY_DESTINATION}")
+  endif ()
+  if (NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${_paraview_build_LIBRARY_DESTINATION}")
+  endif ()
+
   if (WIN32)
     set(_paraview_build_plugin_destination "${_paraview_build_RUNTIME_DESTINATION}")
   else ()
     set(_paraview_build_plugin_destination "${_paraview_build_LIBRARY_DESTINATION}")
   endif ()
-  string(APPEND _paraview_build_plugin_destination "/${_paraview_build_LIBRARY_SUBDIRECTORY}")
+  if (NOT _paraview_build_LIBRARY_SUBDIRECTORY STREQUAL "")
+    string(APPEND _paraview_build_plugin_destination "/${_paraview_build_LIBRARY_SUBDIRECTORY}")
+  endif ()
 
   foreach (_paraview_build_plugin IN LISTS _paraview_build_PLUGINS)
     get_property(_paraview_build_plugin_file GLOBAL
@@ -320,12 +425,16 @@ function (paraview_plugin_build)
   endforeach ()
 
   if (DEFINED _paraview_build_TARGET)
-    add_library("${_paraview_build_TARGET}" INTERFACE)
-    target_include_directories("${_paraview_build_TARGET}"
+    add_library("${_paraview_build_TARGET_NAME}" INTERFACE)
+    if (_paraview_build_NAMESPACE)
+      add_library("${_paraview_build_TARGET}" ALIAS "${_paraview_build_TARGET_NAME}")
+    endif ()
+    target_include_directories("${_paraview_build_TARGET_NAME}"
       INTERFACE
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_paraview_build_TARGET}>")
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_paraview_build_target_safe}>"
+        "$<INSTALL_INTERFACE:${_paraview_build_HEADERS_DESTINATION}>")
     set(_paraview_build_include_file
-      "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_paraview_build_TARGET}/${_paraview_build_TARGET}.h")
+      "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_paraview_build_target_safe}/${_paraview_build_target_safe}.h")
 
     set(_paraview_static_plugins)
     foreach (_paraview_build_plugin IN LISTS _paraview_build_PLUGINS)
@@ -339,9 +448,9 @@ function (paraview_plugin_build)
     endforeach ()
 
     if (_paraview_static_plugins)
-      target_link_libraries("${_paraview_build_TARGET}"
+      target_link_libraries("${_paraview_build_TARGET_NAME}"
         INTERFACE
-          ParaView::ClientServerCoreCore
+          ParaView::RemotingCore
           ${_paraview_static_plugins})
 
       set(_paraview_build_declarations)
@@ -365,8 +474,8 @@ function (paraview_plugin_build)
       endforeach ()
 
       set(_paraview_build_include_content
-        "#ifndef ${_paraview_build_TARGET}_h
-#define ${_paraview_build_TARGET}_h
+        "#ifndef ${_paraview_build_target_safe}_h
+#define ${_paraview_build_target_safe}_h
 
 #define PARAVIEW_BUILDING_PLUGIN
 #define PARAVIEW_PLUGIN_BUILT_SHARED 0
@@ -376,30 +485,30 @@ function (paraview_plugin_build)
 #include <string>
 
 ${_paraview_build_declarations}
-static bool ${_paraview_build_TARGET}_static_plugins_load(const char* name);
-static bool ${_paraview_build_TARGET}_static_plugins_search(const char* name);
+static bool ${_paraview_build_target_safe}_static_plugins_load(const char* name);
+static bool ${_paraview_build_target_safe}_static_plugins_search(const char* name);
 
-void ${_paraview_build_TARGET}_initialize()
+void ${_paraview_build_target_safe}_initialize()
 {
-  vtkPVPluginLoader::RegisterLoadPluginCallback(${_paraview_build_TARGET}_static_plugins_load);
-  vtkPVPluginTracker::SetStaticPluginSearchFunction(${_paraview_build_TARGET}_static_plugins_search);
+  vtkPVPluginLoader::RegisterLoadPluginCallback(${_paraview_build_target_safe}_static_plugins_load);
+  vtkPVPluginTracker::RegisterStaticPluginSearchFunction(${_paraview_build_target_safe}_static_plugins_search);
 }
 
-static bool ${_paraview_build_TARGET}_static_plugins_func(const char* name, bool load);
+static bool ${_paraview_build_target_safe}_static_plugins_func(const char* name, bool load);
 
-bool ${_paraview_build_TARGET}_static_plugins_load(const char* name)
+bool ${_paraview_build_target_safe}_static_plugins_load(const char* name)
 {
-  return ${_paraview_build_TARGET}_static_plugins_func(name, true);
+  return ${_paraview_build_target_safe}_static_plugins_func(name, true);
 }
 
-bool ${_paraview_build_TARGET}_static_plugins_search(const char* name)
+bool ${_paraview_build_target_safe}_static_plugins_search(const char* name)
 {
-  return ${_paraview_build_TARGET}_static_plugins_func(name, false);
+  return ${_paraview_build_target_safe}_static_plugins_func(name, false);
 }
 
-bool ${_paraview_build_TARGET}_static_plugins_func(const char* name, bool load)
+bool ${_paraview_build_target_safe}_static_plugins_func(const char* name, bool load)
 {
-  std::string sname = name;
+  std::string const sname = name;
 
 ${_paraview_build_calls}
   return false;
@@ -408,10 +517,10 @@ ${_paraview_build_calls}
 #endif\n")
     else ()
       set(_paraview_build_include_content
-        "#ifndef ${_paraview_build_TARGET}_h
-#define ${_paraview_build_TARGET}_h
+        "#ifndef ${_paraview_build_target_safe}_h
+#define ${_paraview_build_target_safe}_h
 
-void ${_paraview_build_TARGET}_initialize()
+void ${_paraview_build_target_safe}_initialize()
 {
 }
 
@@ -421,6 +530,60 @@ void ${_paraview_build_TARGET}_initialize()
     file(GENERATE
       OUTPUT  "${_paraview_build_include_file}"
       CONTENT "${_paraview_build_include_content}")
+    if (_paraview_build_INSTALL_HEADERS)
+      install(
+        FILES       "${_paraview_build_include_file}"
+        DESTINATION "${_paraview_build_HEADERS_DESTINATION}"
+        COMPONENT   "${_paraview_build_TARGET_COMPONENT}")
+    endif ()
+
+    if (DEFINED _paraview_build_INSTALL_EXPORT)
+      install(
+        TARGETS   "${_paraview_build_TARGET_NAME}"
+        EXPORT    "${_paraview_build_INSTALL_EXPORT}"
+        COMPONENT "${_paraview_build_TARGET_COMPONENT}")
+
+      set(_paraview_build_required_exports_include_file_name "${_paraview_build_INSTALL_EXPORT}-${_paraview_build_TARGET_NAME}-targets-depends.cmake")
+      set(_paraview_build_required_exports_include_build_file
+        "${CMAKE_BINARY_DIR}/${_paraview_build_CMAKE_DESTINATION}/${_paraview_build_required_exports_include_file_name}")
+      set(_paraview_build_required_exports_include_contents "")
+      get_property(_paraview_build_required_exports GLOBAL
+        PROPERTY "paraview_plugin_${_paraview_build_TARGET}_required_exports")
+      if (_paraview_build_required_exports)
+        foreach (_paraview_build_required_export IN LISTS _paraview_build_required_exports)
+          string(APPEND _paraview_build_required_exports_include_contents
+            "include(\"\${CMAKE_CURRENT_LIST_DIR}/${_paraview_build_required_export}-targets.cmake\")\n")
+        endforeach ()
+      endif ()
+      file(GENERATE
+        OUTPUT  "${_paraview_build_required_exports_include_build_file}"
+        CONTENT "${_paraview_build_required_exports_include_contents}")
+      if (_paraview_build_INSTALL_HEADERS)
+        install(
+          FILES       "${_paraview_build_required_exports_include_build_file}"
+          DESTINATION "${_paraview_build_CMAKE_DESTINATION}"
+          COMPONENT   "${_paraview_build_TARGET_COMPONENT}")
+      endif ()
+
+      set(_paraview_build_namespace_args)
+      if (_paraview_build_NAMESPACE)
+        set(_paraview_build_namespace_args
+          NAMESPACE "${_paraview_build_NAMESPACE}::")
+      endif ()
+
+      if (_paraview_build_INSTALL_HEADERS)
+        export(
+          EXPORT    "${_paraview_build_INSTALL_EXPORT}"
+          ${_paraview_build_namespace_args}
+          FILE      "${CMAKE_BINARY_DIR}/${_paraview_build_CMAKE_DESTINATION}/${_paraview_build_INSTALL_EXPORT}-targets.cmake")
+        install(
+          EXPORT      "${_paraview_build_INSTALL_EXPORT}"
+          DESTINATION "${_paraview_build_CMAKE_DESTINATION}"
+          ${_paraview_build_namespace_args}
+          FILE        "${_paraview_build_INSTALL_EXPORT}-targets.cmake"
+          COMPONENT   "${_paraview_build_TARGET_COMPONENT}")
+      endif ()
+    endif ()
   endif ()
 
   if (DEFINED _paraview_build_PLUGINS_FILE_NAME)
@@ -445,7 +608,194 @@ void ${_paraview_build_TARGET}_initialize()
     install(
       FILES       "${_paraview_build_xml_file}"
       DESTINATION "${_paraview_build_plugin_destination}"
-      COMPONENT   "plugin")
+      COMPONENT   "${_paraview_build_TARGET_COMPONENT}")
+
+    if (DEFINED _paraview_build_INSTALL_EXPORT)
+      set_property(TARGET "${_paraview_build_TARGET_NAME}"
+        PROPERTY
+          "INTERFACE_paraview_plugin_plugins_file" "${_paraview_build_xml_file}")
+
+     if (DEFINED _paraview_build_RUNTIME_DESTINATION)
+        set_property(TARGET "${_paraview_build_TARGET_NAME}"
+          PROPERTY
+            "INTERFACE_paraview_plugin_plugins_file_install" "${_paraview_build_plugin_destination}/${_paraview_build_PLUGINS_FILE_NAME}")
+      endif ()
+
+      if (DEFINED _paraview_build_CMAKE_DESTINATION)
+        set(_paraview_build_properties_filename "${_paraview_build_INSTALL_EXPORT}-paraview-plugin-properties.cmake")
+        set(_paraview_build_properties_build_file
+          "${CMAKE_BINARY_DIR}/${_paraview_build_CMAKE_DESTINATION}/${_paraview_build_properties_filename}")
+        set(_paraview_build_properties_install_file
+          "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_paraview_build_properties_filename}.install")
+
+        file(WRITE "${_paraview_build_properties_build_file}")
+        file(WRITE "${_paraview_build_properties_install_file}")
+
+        _vtk_module_write_import_prefix(
+          "${_paraview_build_properties_install_file}"
+          "${_paraview_build_CMAKE_DESTINATION}")
+
+        file(APPEND "${_paraview_build_properties_build_file}"
+          "set_property(TARGET \"${_paraview_build_TARGET}\"
+  PROPERTY
+    INTERFACE_paraview_plugin_plugins_file \"${_paraview_build_xml_file}\")\n")
+        file(APPEND "${_paraview_build_properties_install_file}"
+          "set_property(TARGET \"${_paraview_build_TARGET}\"
+  PROPERTY
+    INTERFACE_paraview_plugin_plugins_file \"\${_vtk_module_import_prefix}/${_paraview_build_plugin_destination}/${_paraview_build_PLUGINS_FILE_NAME}\")
+unset(_vtk_module_import_prefix)\n")
+
+        if (_paraview_build_INSTALL_HEADERS)
+          install(
+            FILES       "${_paraview_build_properties_install_file}"
+            DESTINATION "${_paraview_build_CMAKE_DESTINATION}"
+            RENAME      "${_paraview_build_properties_filename}"
+            COMPONENT   "${_paraview_build_TARGET_COMPONENT}")
+        endif ()
+      endif ()
+    endif ()
+  endif ()
+endfunction ()
+
+#[==[.md
+## Plugin configuration files
+
+Applications will want to consume plugin targets by discovering their locations
+at runtime. In order to facilitate this, ParaView supports loading a `conf`
+file which contains the locations of plugin targets' XML files. The plugins
+specified in that file is then
+
+```
+paraview_plugin_write_conf(
+  NAME <name>
+  PLUGINS_TARGETS <target>...
+  BUILD_DESTINATION <destination>
+
+  [INSTALL_DESTINATION <destination>]
+  [COMPONENT <component>])
+```
+
+  * `NAME`: (Required) The base name of the configuration file.
+  * `PLUGINS_TARGETS`: (Required) The list of plugin targets to add to the
+    configuration file.
+  * `BUILD_DESTINATION`: (Required) Where to place the configuration file in
+    the build tree.
+  * `INSTALL_DESTINATION`: Where to install the configuration file in the
+    install tree. If not provided, the configuration file will not be
+    installed.
+  * `COMPONENT`: (Defaults to `runtime`) The component to use when installing
+    the configuration file.
+#]==]
+function (paraview_plugin_write_conf)
+  cmake_parse_arguments(_paraview_plugin_conf
+    ""
+    "NAME;BUILD_DESTINATION;INSTALL_DESTINATION;COMPONENT"
+    "PLUGINS_TARGETS"
+    ${ARGN})
+
+  if (_paraview_plugin_conf_UNPARSED_ARGUMENTS)
+    message(FATAL_ERROR
+      "Unparsed arguments for paraview_plugin_write_conf: "
+      "${_paraview_plugin_conf_UNPARSED_ARGUMENTS}")
+  endif ()
+
+  if (NOT _paraview_plugin_conf_NAME)
+    message(FATAL_ERROR
+      "The `NAME` must not be empty.")
+  endif ()
+
+  if (NOT DEFINED _paraview_plugin_conf_BUILD_DESTINATION)
+    message(FATAL_ERROR
+      "The `BUILD_DESTINATION` argument is required.")
+  endif ()
+
+  if (NOT DEFINED _paraview_plugin_conf_PLUGINS_TARGETS)
+    message(FATAL_ERROR
+      "The `PLUGINS_TARGETS` argument is required.")
+  endif ()
+
+  if (NOT DEFINED _paraview_plugin_conf_COMPONENT)
+    set(_paraview_plugin_conf_COMPONENT "runtime")
+  endif ()
+
+  set(_paraview_plugin_conf_file_name
+    "${_paraview_plugin_conf_NAME}.conf")
+  set(_paraview_plugin_conf_build_file
+    "${CMAKE_BINARY_DIR}/${_paraview_plugin_conf_BUILD_DESTINATION}/${_paraview_plugin_conf_file_name}")
+  set(_paraview_plugin_conf_install_file
+    "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_paraview_plugin_conf_file_name}.install")
+  set(_paraview_plugin_conf_build_contents)
+  set(_paraview_plugin_conf_install_contents)
+  foreach (_paraview_plugin_conf_target IN LISTS _paraview_plugin_conf_PLUGINS_TARGETS)
+    get_property(_paraview_plugin_conf_plugins_target_is_imported
+      TARGET    "${_paraview_plugin_conf_target}"
+      PROPERTY  IMPORTED)
+    if (_paraview_plugin_conf_plugins_target_is_imported)
+      get_property(_paraview_plugin_conf_plugins_target_xml_build
+        TARGET    "${_paraview_plugin_conf_target}"
+        PROPERTY  "INTERFACE_paraview_plugin_plugins_file")
+      set(_paraview_plugin_conf_plugins_target_xml_install
+        "${_paraview_plugin_conf_plugins_target_xml_build}")
+
+      file(RELATIVE_PATH _paraview_plugin_conf_rel_path
+        "/prefix/${CMAKE_INSTALL_PREFIX}"
+        "/prefix/${_paraview_plugin_conf_plugins_target_xml_install}")
+      # If the external plugins XML file is under our installation destination,
+      # use a relative path to it, otherwise keep the absolute path.
+      if (NOT _paraview_plugin_conf_rel_path MATCHES "^\.\./")
+        file(RELATIVE_PATH _paraview_plugin_conf_plugins_target_xml_install
+          "/prefix/${CMAKE_INSTALL_PREFIX}/${_paraview_plugin_conf_INSTALL_DESTINATION}"
+          "/prefix/${_paraview_plugin_conf_plugins_target_xml_install}")
+      endif ()
+    else ()
+      get_property(_paraview_plugin_conf_plugins_target_is_alias
+        TARGET    "${_paraview_plugin_conf_target}"
+        PROPERTY  ALIASED_TARGET
+        SET)
+      if (_paraview_plugin_conf_plugins_target_is_alias)
+        get_property(_paraview_plugin_conf_target
+          TARGET    "${_paraview_plugin_conf_target}"
+          PROPERTY  ALIASED_TARGET)
+      endif ()
+      get_property(_paraview_plugin_conf_plugins_target_xml_build
+        TARGET    "${_paraview_plugin_conf_target}"
+        PROPERTY  "INTERFACE_paraview_plugin_plugins_file")
+      get_property(_paraview_plugin_conf_plugins_target_xml_install
+        TARGET    "${_paraview_plugin_conf_target}"
+        PROPERTY  "INTERFACE_paraview_plugin_plugins_file_install")
+
+      if (_paraview_plugin_conf_plugins_target_xml_install)
+        # Compute the relative path within the install tree.
+        file(RELATIVE_PATH _paraview_plugin_conf_plugins_target_xml_install
+          "/prefix/${_paraview_plugin_conf_INSTALL_DESTINATION}"
+          "/prefix/${_paraview_plugin_conf_plugins_target_xml_install}")
+      endif ()
+    endif ()
+
+    # TODO: Write out in JSON instead.
+    if (_paraview_plugin_conf_plugins_target_xml_build)
+      string(APPEND _paraview_plugin_conf_build_contents
+        "${_paraview_plugin_conf_plugins_target_xml_build}\n")
+    endif ()
+    if (_paraview_plugin_conf_plugins_target_xml_install)
+      string(APPEND _paraview_plugin_conf_install_contents
+        "${_paraview_plugin_conf_plugins_target_xml_install}\n")
+    endif ()
+  endforeach ()
+
+  file(GENERATE
+    OUTPUT  "${_paraview_plugin_conf_build_file}"
+    CONTENT "${_paraview_plugin_conf_build_contents}")
+
+  if (_paraview_plugin_conf_INSTALL_DESTINATION)
+    file(GENERATE
+      OUTPUT  "${_paraview_plugin_conf_install_file}"
+      CONTENT "${_paraview_plugin_conf_install_contents}")
+    install(
+      FILES       "${_paraview_plugin_conf_install_file}"
+      DESTINATION "${_paraview_plugin_conf_INSTALL_DESTINATION}"
+      RENAME      "${_paraview_plugin_conf_file_name}"
+      COMPONENT   "${_paraview_plugin_conf_COMPONENT}")
   endif ()
 endfunction ()
 
@@ -466,6 +816,7 @@ paraview_add_plugin(<name>
   [MODULES <module>...]
   [SOURCES <source>...]
   [SERVER_MANAGER_XML <xml>...]
+  [MODULE_INSTALL_EXPORT <export>]
 
   [UI_INTERFACES <interface>...]
   [UI_RESOURCES <resource>...]
@@ -478,8 +829,6 @@ paraview_add_plugin(<name>
   [EULA <eula>]
   [XML_DOCUMENTATION <ON|OFF>]
   [DOCUMENTATION_DIR <directory>]
-
-  [EXPORT <export>]
 
   [FORCE_STATIC <ON|OFF>])
 ```
@@ -496,8 +845,10 @@ paraview_add_plugin(<name>
     using client server and have their server manager XML files processed.
   * `SOURCES`: Source files for the plugin.
   * `SERVER_MANAGER_XML`: Server manager XML files for the plugin.
-  * `UI_INTERFACES`: Interfaces to initialize. See the plugin interfaces
-    section for more details.
+  * `UI_INTERFACES`: Interfaces to initialize, in the given order. See the
+    plugin interfaces section for more details.
+  * `MODULE_INSTALL_EXPORT`: (Defaults to `<name>`) If provided, any modules
+    will be added to the given export set.
   * `UI_RESOURCES`: Qt resource files to include with the plugin.
   * `UI_FILES`: Qt `.ui` files to include with the plugin.
   * `PYTHON_MODULES`: Python modules to embed into the plugin.
@@ -511,7 +862,7 @@ paraview_add_plugin(<name>
   * `DOCUMENTATION_DIR`: If specified, `*.html`, `*.css`, `*.png`, and `*.jpg`
     files in this directory will be copied and made available to the
     documentation.
-  * `EXPORT`: If provided, the plugin will be added to the given export set.
+  * `EXPORT`: (Deprecated) Use `paraview_plugin_build(INSTALL_EXPORT)` instead.
   * `FORCE_STATIC`: (Defaults to `OFF`) If set, the plugin will be built
     statically so that it can be embedded into an application.
 #]==]
@@ -524,7 +875,7 @@ function (paraview_add_plugin name)
 
   cmake_parse_arguments(_paraview_add_plugin
     "REQUIRED_ON_SERVER;REQUIRED_ON_CLIENT"
-    "VERSION;EULA;EXPORT;XML_DOCUMENTATION;DOCUMENTATION_DIR;FORCE_STATIC"
+    "VERSION;EULA;EXPORT;MODULE_INSTALL_EXPORT;XML_DOCUMENTATION;DOCUMENTATION_DIR;FORCE_STATIC"
     "REQUIRED_PLUGINS;SERVER_MANAGER_XML;SOURCES;MODULES;UI_INTERFACES;UI_RESOURCES;UI_FILES;PYTHON_MODULES;MODULE_FILES;MODULE_ARGS"
     ${ARGN})
 
@@ -554,18 +905,41 @@ function (paraview_add_plugin name)
       "makes no sense.")
   endif ()
 
+  if (DEFINED _paraview_add_plugin_EXPORT)
+    message(FATAL_ERROR
+      "The `paraview_add_plugin(EXPORT)` argument is ignored in favor of "
+      "`paraview_plugin_build(INSTALL_EXPORT)`.")
+  endif ()
+
   if (_paraview_add_plugin_MODULE_ARGS)
-    if (NOT _paraview_add_plugin_MODULES_FILES OR
+    if (NOT _paraview_add_plugin_MODULE_FILES OR
         NOT _paraview_add_plugin_MODULES)
       message(FATAL_ERROR
         "The `MODULE_ARGS` argument requires `MODULE_FILES` and `MODULES` to be provided.")
     endif ()
   endif ()
 
+  if (DEFINED _paraview_build_INSTALL_EXPORT AND
+      NOT DEFINED _paraview_add_plugin_MODULE_INSTALL_EXPORT)
+    set(_paraview_add_plugin_MODULE_INSTALL_EXPORT
+      "${name}")
+  endif ()
+
   if (_paraview_add_plugin_MODULE_FILES)
     if (NOT _paraview_add_plugin_MODULES)
       message(FATAL_ERROR
         "The `MODULE_FILES` argument requires `MODULES` to be provided.")
+    endif ()
+
+    set(_paraview_add_plugin_module_install_export_args)
+    if (DEFINED _paraview_add_plugin_MODULE_INSTALL_EXPORT)
+      list(APPEND _paraview_add_plugin_module_install_export_args
+        INSTALL_EXPORT "${_paraview_add_plugin_MODULE_INSTALL_EXPORT}")
+      if (DEFINED _paraview_build_TARGET)
+        set_property(GLOBAL APPEND
+          PROPERTY
+            "paraview_plugin_${_paraview_build_TARGET}_required_exports" "${_paraview_add_plugin_MODULE_INSTALL_EXPORT}")
+      endif ()
     endif ()
 
     vtk_module_scan(
@@ -589,7 +963,7 @@ function (paraview_add_plugin name)
     else ()
       set(_paraview_plugin_subdir "${_paraview_build_LIBRARY_DESTINATION}")
     endif ()
-    if (DEFINED _paraview_build_LIBRARY_SUBDIRECTORY)
+    if (NOT _paraview_build_LIBRARY_SUBDIRECTORY STREQUAL "")
       string(APPEND _paraview_plugin_subdir "/${_paraview_build_LIBRARY_SUBDIRECTORY}")
     endif ()
     string(APPEND _paraview_plugin_subdir "/${_paraview_build_plugin}")
@@ -605,10 +979,14 @@ function (paraview_add_plugin name)
     vtk_module_build(
       MODULES             ${plugin_modules}
       PACKAGE             "${_paraview_build_plugin}"
-      INSTALL_HEADERS     OFF
+      ${_paraview_add_plugin_module_install_export_args}
+      INSTALL_HEADERS     "${_paraview_build_INSTALL_HEADERS}"
+      TARGETS_COMPONENT   "${_paraview_build_PLUGINS_COMPONENT}"
+      HEADERS_DESTINATION "${_paraview_build_HEADERS_DESTINATION}/${_paraview_build_target_safe}"
       ARCHIVE_DESTINATION "${_paraview_plugin_subdir}"
       LIBRARY_DESTINATION "${_paraview_plugin_subdir}"
       RUNTIME_DESTINATION "${_paraview_plugin_subdir}"
+      CMAKE_DESTINATION   "${_paraview_build_CMAKE_DESTINATION}"
       ${_paraview_add_plugin_MODULE_ARGS})
 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${_paraview_plugin_CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
@@ -635,6 +1013,15 @@ function (paraview_add_plugin name)
     set(_paraview_add_plugin_required_on_client "false")
   endif ()
 
+  set(_paraview_add_plugin_export_args)
+  set(_paraview_add_plugin_install_export_args)
+  if (DEFINED _paraview_build_INSTALL_EXPORT)
+    list(APPEND _paraview_add_plugin_export_args
+      EXPORT "${_paraview_build_INSTALL_EXPORT}")
+    list(APPEND _paraview_add_plugin_install_export_args
+      INSTALL_EXPORT "${_paraview_build_INSTALL_EXPORT}")
+  endif ()
+
   set(_paraview_add_plugin_includes)
   set(_paraview_add_plugin_required_libraries)
 
@@ -646,16 +1033,10 @@ function (paraview_add_plugin name)
     list(APPEND _paraview_add_plugin_required_libraries
       ${_paraview_add_plugin_MODULES})
 
-    set(_paraview_add_plugin_cs_args)
-    if (_paraview_add_plugin_EXPORT)
-      list(APPEND _paraview_add_plugin_cs_args
-        INSTALL_EXPORT "${_paraview_add_plugin_EXPORT}")
-    endif ()
-
     vtk_module_wrap_client_server(
       MODULES ${_paraview_add_plugin_MODULES}
       TARGET  "${_paraview_build_plugin}_client_server"
-      ${_paraview_add_plugin_cs_args})
+      ${_paraview_add_plugin_install_export_args})
     paraview_server_manager_process(
       MODULES   ${_paraview_add_plugin_MODULES}
       TARGET    "${_paraview_build_plugin}_server_manager_modules"
@@ -691,7 +1072,7 @@ function (paraview_add_plugin name)
   endif ()
 
   if ((_paraview_add_plugin_module_xmls OR _paraview_add_plugin_xmls) AND
-      PARAVIEW_BUILD_QT_GUI AND _paraview_add_plugin_XML_DOCUMENTATION)
+      PARAVIEW_USE_QT AND _paraview_add_plugin_XML_DOCUMENTATION)
     set(_paraview_build_plugin_docdir
       "${CMAKE_CURRENT_BINARY_DIR}/paraview_help")
 
@@ -724,7 +1105,8 @@ function (paraview_add_plugin name)
       "${_paraview_add_plugin_qch_output}")
     add_custom_command(
       OUTPUT "${_paraview_add_plugin_qch_output}"
-      COMMAND ParaView::ProcessXML
+      COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+              $<TARGET_FILE:ParaView::ProcessXML>
               -base64
               "${_paraview_add_plugin_qch_output}"
               \"\"
@@ -744,7 +1126,7 @@ function (paraview_add_plugin name)
     string(APPEND _paraview_add_plugin_binary_resources
       "  {
     const char *text = ${_paraview_build_plugin}_qch();
-    resources.push_back(text);
+    resources.emplace_back(text);
     delete [] text;
   }\n")
   endif ()
@@ -772,7 +1154,7 @@ function (paraview_add_plugin name)
 
     foreach (_paraview_add_plugin_ui_interface IN LISTS _paraview_add_plugin_UI_INTERFACES)
       string(APPEND _paraview_add_plugin_push_back_interfaces
-        "  arg.push_back(new ${_paraview_add_plugin_ui_interface}(this)); \\\n")
+        "  (arg).push_back(new ${_paraview_add_plugin_ui_interface}(this)); \\\n")
       string(APPEND _paraview_add_plugin_include_interfaces
         "#include \"${_paraview_add_plugin_ui_interface}.h\"\n")
     endforeach ()
@@ -872,7 +1254,8 @@ function (paraview_add_plugin name)
         "${CMAKE_CURRENT_BINARY_DIR}/${_paraview_add_plugin_python_header_name}")
       add_custom_command(
         OUTPUT  "${_paraview_add_plugin_python_header}"
-        COMMAND ParaView::ProcessXML
+        COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                $<TARGET_FILE:ParaView::ProcessXML>
                 "${_paraview_add_plugin_python_header}"
                 "module_${_paraview_add_plugin_python_module_mangled}_"
                 "_string"
@@ -930,7 +1313,7 @@ function (paraview_add_plugin name)
     # but CMake always uses `CMAKE_LIBRARY_OUTPUT_DIRECTORY`.
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
   endif ()
-  if (DEFINED _paraview_build_LIBRARY_SUBDIRECTORY)
+  if (NOT _paraview_build_LIBRARY_SUBDIRECTORY STREQUAL "")
     string(APPEND CMAKE_LIBRARY_OUTPUT_DIRECTORY "/${_paraview_build_LIBRARY_SUBDIRECTORY}")
   endif ()
   string(APPEND CMAKE_LIBRARY_OUTPUT_DIRECTORY "/${_paraview_build_plugin}")
@@ -950,7 +1333,7 @@ function (paraview_add_plugin name)
   endif ()
   target_link_libraries("${_paraview_build_plugin}"
     PRIVATE
-      ParaView::ClientServerCoreCore
+      ParaView::RemotingCore
       ${_paraview_add_plugin_required_libraries})
   target_include_directories("${_paraview_build_plugin}"
     PRIVATE
@@ -964,7 +1347,8 @@ function (paraview_add_plugin name)
     "${_paraview_build_plugin_destination}/${_paraview_build_plugin}")
   install(
     TARGETS "${_paraview_build_plugin}"
-    COMPONENT "plugin"
+    ${_paraview_add_plugin_export_args}
+    COMPONENT "${_paraview_build_PLUGINS_COMPONENT}"
     ARCHIVE DESTINATION "${_paraview_add_plugin_destination}"
     LIBRARY DESTINATION "${_paraview_add_plugin_destination}")
 endfunction ()

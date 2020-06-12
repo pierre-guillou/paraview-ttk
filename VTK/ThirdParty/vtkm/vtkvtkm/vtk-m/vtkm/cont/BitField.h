@@ -17,7 +17,7 @@
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/Logging.h>
 
-#include <vtkm/ListTag.h>
+#include <vtkm/List.h>
 #include <vtkm/Types.h>
 
 #include <cassert>
@@ -61,16 +61,16 @@ struct BitFieldTraits
   /// Require an unsigned integral type that is <= BlockSize bytes, and is
   /// is supported by the specified AtomicInterface.
   template <typename WordType, typename AtomicInterface>
-  using IsValidWordTypeAtomic = std::integral_constant<
-    bool,
-    /* is unsigned */
-    std::is_unsigned<WordType>::value &&
-      /* doesn't exceed blocksize */
-      sizeof(WordType) <= static_cast<size_t>(BlockSize) &&
-      /* BlockSize is a multiple of WordType */
-      static_cast<size_t>(BlockSize) % sizeof(WordType) == 0 &&
-      /* Supported by atomic interface */
-      vtkm::ListContains<typename AtomicInterface::WordTypes, WordType>::value>;
+  using IsValidWordTypeAtomic =
+    std::integral_constant<bool,
+                           /* is unsigned */
+                           std::is_unsigned<WordType>::value &&
+                             /* doesn't exceed blocksize */
+                             sizeof(WordType) <= static_cast<size_t>(BlockSize) &&
+                             /* BlockSize is a multiple of WordType */
+                             static_cast<size_t>(BlockSize) % sizeof(WordType) == 0 &&
+                             /* Supported by atomic interface */
+                             vtkm::ListHas<typename AtomicInterface::WordTypes, WordType>::value>;
 };
 
 /// Identifies a bit in a BitField by Word and BitOffset. Note that these
@@ -203,10 +203,11 @@ public:
   VTKM_EXEC_CONT
   void SetBit(vtkm::Id bitIdx, bool val) const noexcept
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "'Set' method called on const BitField portal.");
     using WordType = WordTypePreferred;
     const auto coord = this->GetBitCoordinateFromIndex<WordType>(bitIdx);
     const auto mask = WordType(1) << coord.BitOffset;
-    auto* const wordAddr = this->GetWordAddress<WordType>(coord.WordIndex);
+    WordType* wordAddr = this->GetWordAddress<WordType>(coord.WordIndex);
     if (val)
     {
       *wordAddr |= mask;
@@ -222,6 +223,7 @@ public:
   VTKM_EXEC_CONT
   void SetBitAtomic(vtkm::Id bitIdx, bool val) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "'Set' method called on const BitField portal.");
     using WordType = WordTypePreferred;
     const auto coord = this->GetBitCoordinateFromIndex<WordType>(bitIdx);
     const auto mask = WordType(1) << coord.BitOffset;
@@ -265,6 +267,7 @@ public:
   template <typename WordType = WordTypePreferred>
   VTKM_EXEC_CONT void SetWord(vtkm::Id wordIdx, WordType word) const noexcept
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "'Set' method called on const BitField portal.");
     *this->GetWordAddress<WordType>(wordIdx) = word;
   }
 
@@ -273,6 +276,7 @@ public:
   template <typename WordType = WordTypePreferred>
   VTKM_EXEC_CONT void SetWordAtomic(vtkm::Id wordIdx, WordType word) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "'Set' method called on const BitField portal.");
     VTKM_STATIC_ASSERT_MSG(IsValidWordTypeAtomic<WordType>::value,
                            "Requested WordType does not support atomic"
                            " operations on target execution platform.");
@@ -303,6 +307,7 @@ public:
   VTKM_EXEC_CONT
   bool NotBitAtomic(vtkm::Id bitIdx) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     using WordType = WordTypePreferred;
     const auto coord = this->GetBitCoordinateFromIndex<WordType>(bitIdx);
     const auto mask = WordType(1) << coord.BitOffset;
@@ -315,6 +320,7 @@ public:
   template <typename WordType = WordTypePreferred>
   VTKM_EXEC_CONT WordType NotWordAtomic(vtkm::Id wordIdx) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     VTKM_STATIC_ASSERT_MSG(IsValidWordTypeAtomic<WordType>::value,
                            "Requested WordType does not support atomic"
                            " operations on target execution platform.");
@@ -328,6 +334,7 @@ public:
   VTKM_EXEC_CONT
   bool AndBitAtomic(vtkm::Id bitIdx, bool val) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     using WordType = WordTypePreferred;
     const auto coord = this->GetBitCoordinateFromIndex<WordType>(bitIdx);
     const auto bitmask = WordType(1) << coord.BitOffset;
@@ -343,6 +350,7 @@ public:
   template <typename WordType = WordTypePreferred>
   VTKM_EXEC_CONT WordType AndWordAtomic(vtkm::Id wordIdx, WordType wordmask) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     VTKM_STATIC_ASSERT_MSG(IsValidWordTypeAtomic<WordType>::value,
                            "Requested WordType does not support atomic"
                            " operations on target execution platform.");
@@ -356,6 +364,7 @@ public:
   VTKM_EXEC_CONT
   bool OrBitAtomic(vtkm::Id bitIdx, bool val) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     using WordType = WordTypePreferred;
     const auto coord = this->GetBitCoordinateFromIndex<WordType>(bitIdx);
     const auto bitmask = WordType(1) << coord.BitOffset;
@@ -371,6 +380,7 @@ public:
   template <typename WordType = WordTypePreferred>
   VTKM_EXEC_CONT WordType OrWordAtomic(vtkm::Id wordIdx, WordType wordmask) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     VTKM_STATIC_ASSERT_MSG(IsValidWordTypeAtomic<WordType>::value,
                            "Requested WordType does not support atomic"
                            " operations on target execution platform.");
@@ -384,6 +394,7 @@ public:
   VTKM_EXEC_CONT
   bool XorBitAtomic(vtkm::Id bitIdx, bool val) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     using WordType = WordTypePreferred;
     const auto coord = this->GetBitCoordinateFromIndex<WordType>(bitIdx);
     const auto bitmask = WordType(1) << coord.BitOffset;
@@ -399,6 +410,7 @@ public:
   template <typename WordType = WordTypePreferred>
   VTKM_EXEC_CONT WordType XorWordAtomic(vtkm::Id wordIdx, WordType wordmask) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     VTKM_STATIC_ASSERT_MSG(IsValidWordTypeAtomic<WordType>::value,
                            "Requested WordType does not support atomic"
                            " operations on target execution platform.");
@@ -414,6 +426,7 @@ public:
   VTKM_EXEC_CONT
   bool CompareAndSwapBitAtomic(vtkm::Id bitIdx, bool newBit, bool expectedBit) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     using WordType = WordTypePreferred;
     const auto coord = this->GetBitCoordinateFromIndex<WordType>(bitIdx);
     const auto bitmask = WordType(1) << coord.BitOffset;
@@ -450,6 +463,7 @@ public:
                                                    WordType newWord,
                                                    WordType expected) const
   {
+    VTKM_STATIC_ASSERT_MSG(!IsConst, "Attempt to modify const BitField portal.");
     VTKM_STATIC_ASSERT_MSG(IsValidWordTypeAtomic<WordType>::value,
                            "Requested WordType does not support atomic"
                            " operations on target execution platform.");

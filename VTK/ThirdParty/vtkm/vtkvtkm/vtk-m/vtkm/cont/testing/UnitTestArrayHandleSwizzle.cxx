@@ -311,13 +311,13 @@ struct ArgToTemplateType
 
 void TestArrayHandleSwizzle()
 {
-  using TestTypes = vtkm::ListTagBase<vtkm::Int32, vtkm::Int64, vtkm::Float32, vtkm::Float64>;
+  using TestTypes = vtkm::List<vtkm::Int32, vtkm::Int64, vtkm::Float32, vtkm::Float64>;
   vtkm::testing::Testing::TryTypes(ArgToTemplateType(), TestTypes());
 }
 
 void TestComponentMapValidator()
 {
-  vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::Id, 4>> dummy;
+  vtkm::cont::ArrayHandle<vtkm::Id4> dummy;
 
   // Repeat components:
   bool error = false;

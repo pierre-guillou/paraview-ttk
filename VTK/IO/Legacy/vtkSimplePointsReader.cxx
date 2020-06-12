@@ -19,6 +19,7 @@
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 #include "vtkSmartPointer.h"
+#include "vtksys/FStream.hxx"
 
 vtkStandardNewMacro(vtkSimplePointsReader);
 
@@ -38,27 +39,24 @@ vtkSimplePointsReader::~vtkSimplePointsReader()
 //----------------------------------------------------------------------------
 void vtkSimplePointsReader::PrintSelf(ostream& os, vtkIndent indent)
 {
-  this->Superclass::PrintSelf(os,indent);
-  os << indent << "FileName: "
-     << (this->FileName ? this->FileName : "(none)") << "\n";
-
+  this->Superclass::PrintSelf(os, indent);
+  os << indent << "FileName: " << (this->FileName ? this->FileName : "(none)") << "\n";
 }
 
 //----------------------------------------------------------------------------
-int vtkSimplePointsReader::RequestData(vtkInformation*,
-                                       vtkInformationVector**,
-                                       vtkInformationVector* outputVector)
+int vtkSimplePointsReader::RequestData(
+  vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
   // Make sure we have a file to read.
-  if(!this->FileName)
+  if (!this->FileName)
   {
     vtkErrorMacro("A FileName must be specified.");
     return 0;
   }
 
   // Open the input file.
-  ifstream fin(this->FileName);
-  if(!fin)
+  vtksys::ifstream fin(this->FileName);
+  if (!fin)
   {
     vtkErrorMacro("Error opening file " << this->FileName);
     return 0;
@@ -71,7 +69,7 @@ int vtkSimplePointsReader::RequestData(vtkInformation*,
   // Read points from the file.
   vtkDebugMacro("Reading points from file " << this->FileName);
   double x[3];
-  while(fin >> x[0] >> x[1] >> x[2])
+  while (fin >> x[0] >> x[1] >> x[2])
   {
     vtkIdType id = points->InsertNextPoint(x);
     verts->InsertNextCell(1, &id);

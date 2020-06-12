@@ -41,6 +41,23 @@ target_link_libraries(vtkm_compiler_flags
 # setup that we need C++11 support
 target_compile_features(vtkm_compiler_flags INTERFACE cxx_std_11)
 
+# setup our static libraries so that a separate ELF section
+# is generated for each function. This allows for the linker to
+# remove unused sections. This allows for programs that use VTK-m
+# to have the smallest binary impact as they can drop any VTK-m symbol
+# they don't use.
+if(VTKM_COMPILER_IS_MSVC)
+  target_compile_options(vtkm_compiler_flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:/Gy>)
+  if(TARGET vtkm::cuda)
+    target_compile_options(vtkm_compiler_flags INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler="/Gy">)
+  endif()
+elseif(NOT VTKM_COMPILER_IS_PGI) #can't find an equivalant PGI flag
+  target_compile_options(vtkm_compiler_flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:-ffunction-sections>)
+  if(TARGET vtkm::cuda)
+    target_compile_options(vtkm_compiler_flags INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-ffunction-sections>)
+  endif()
+endif()
+
 # Enable large object support so we can have 2^32 addressable sections
 if(VTKM_COMPILER_IS_MSVC)
   target_compile_options(vtkm_compiler_flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:/bigobj>)
@@ -73,10 +90,17 @@ if(VTKM_COMPILER_IS_MSVC)
   target_compile_definitions(vtkm_developer_flags INTERFACE "_SCL_SECURE_NO_WARNINGS"
                                                             "_CRT_SECURE_NO_WARNINGS")
 
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
+    set(cxx_flags "-W3")
+    set(cuda_flags "-Xcompiler=-W3")
+  endif()
+  list(APPEND cxx_flags -wd4702 -wd4505)
+  list(APPEND cuda_flags "-Xcompiler=-wd4702,-wd4505")
+
   #Setup MSVC warnings with CUDA and CXX
-  target_compile_options(vtkm_developer_flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:-wd4702 -wd4505>)
+  target_compile_options(vtkm_developer_flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:${cxx_flags}>)
   if(TARGET vtkm::cuda)
-    target_compile_options(vtkm_developer_flags INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-wd4702,-wd4505  -Xcudafe=--diag_suppress=1394,--diag_suppress=766>)
+    target_compile_options(vtkm_developer_flags INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:${cuda_flags}  -Xcudafe=--diag_suppress=1394,--diag_suppress=766>)
   endif()
 
   if(MSVC_VERSION LESS 1900)
@@ -98,14 +122,26 @@ elseif(VTKM_COMPILER_IS_ICC)
   target_compile_options(vtkm_developer_flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:-wd1478 -wd13379>)
 
 elseif(VTKM_COMPILER_IS_GNU OR VTKM_COMPILER_IS_CLANG)
-  set(cxx_flags -Wall -Wcast-align -Wchar-subscripts -Wextra -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter -fno-common)
-  set(cuda_flags -Xcompiler=-Wall,-Wno-unknown-pragmas,-Wno-unused-local-typedefs,-Wno-unused-local-typedefs,-Wno-unused-function,-Wcast-align,-Wchar-subscripts,-Wpointer-arith,-Wformat,-Wformat-security,-Wshadow,-Wunused-parameter,-fno-common)
+  set(cxx_flags -Wall -Wcast-align -Wchar-subscripts -Wextra -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused -fno-common)
+  set(cuda_flags -Xcompiler=-Wall,-Wno-unknown-pragmas,-Wno-unused-local-typedefs,-Wno-unused-local-typedefs,-Wno-unused-function,-Wcast-align,-Wchar-subscripts,-Wpointer-arith,-Wformat,-Wformat-security,-Wshadow,-Wunused,-fno-common)
+
+  #Only add float-conversion warnings for gcc as the integer warnigns in GCC
+  #include the implicit casting of all types smaller than int to ints.
   if (VTKM_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.99)
     list(APPEND cxx_flags -Wfloat-conversion)
     set(cuda_flags "${cuda_flags},-Wfloat-conversion")
   elseif (VTKM_COMPILER_IS_CLANG)
     list(APPEND cxx_flags -Wconversion)
     set(cuda_flags "${cuda_flags},-Wconversion")
+  endif()
+
+  #Add in the -Wodr warning for GCC versions 5.2+
+  if (VTKM_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5.1)
+    list(APPEND cxx_flags -Wodr)
+    set(cuda_flags "${cuda_flags},-Wodr")
+  elseif (VTKM_COMPILER_IS_CLANG)
+    list(APPEND cxx_flags -Wodr)
+    set(cuda_flags "${cuda_flags},-Wodr")
   endif()
 
   #GCC 5, 6 don't properly handle strict-overflow suppression through pragma's.
@@ -118,6 +154,7 @@ elseif(VTKM_COMPILER_IS_GNU OR VTKM_COMPILER_IS_CLANG)
     (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.99) )
     list(APPEND cxx_flags -Wno-strict-overflow)
   endif()
+
   target_compile_options(vtkm_developer_flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:${cxx_flags}>)
   if(TARGET vtkm::cuda)
     target_compile_options(vtkm_developer_flags INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:${cuda_flags}>)

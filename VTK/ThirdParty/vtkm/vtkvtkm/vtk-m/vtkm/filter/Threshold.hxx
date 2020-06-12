@@ -7,13 +7,13 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
+#ifndef vtk_m_filter_Threshold_hxx
+#define vtk_m_filter_Threshold_hxx
 
 #include <vtkm/cont/ArrayHandleCounting.h>
 #include <vtkm/cont/ArrayHandlePermutation.h>
 #include <vtkm/cont/CellSetPermutation.h>
 #include <vtkm/cont/DynamicCellSet.h>
-
-#include <vtkm/worklet/DispatcherMapTopology.h>
 
 namespace
 {
@@ -31,7 +31,17 @@ public:
   template <typename T>
   VTKM_EXEC bool operator()(const T& value) const
   {
+
     return value >= static_cast<T>(this->Lower) && value <= static_cast<T>(this->Upper);
+  }
+
+  //Needed to work with ArrayHandleVirtual
+  template <typename PortalType>
+  VTKM_EXEC bool operator()(
+    const vtkm::internal::ArrayPortalValueReference<PortalType>& value) const
+  {
+    using T = typename PortalType::ValueType;
+    return value.Get() >= static_cast<T>(this->Lower) && value.Get() <= static_cast<T>(this->Upper);
   }
 
 private:
@@ -47,14 +57,6 @@ namespace filter
 {
 
 //-----------------------------------------------------------------------------
-inline VTKM_CONT Threshold::Threshold()
-  : vtkm::filter::FilterDataSetWithField<Threshold>()
-  , LowerValue(0)
-  , UpperValue(0)
-{
-}
-
-//-----------------------------------------------------------------------------
 template <typename T, typename StorageType, typename DerivedPolicy>
 inline VTKM_CONT vtkm::cont::DataSet Threshold::DoExecute(
   const vtkm::cont::DataSet& input,
@@ -63,41 +65,17 @@ inline VTKM_CONT vtkm::cont::DataSet Threshold::DoExecute(
   vtkm::filter::PolicyBase<DerivedPolicy> policy)
 {
   //get the cells and coordinates of the dataset
-  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet(this->GetActiveCellSetIndex());
+  const vtkm::cont::DynamicCellSet& cells = input.GetCellSet();
 
   ThresholdRange predicate(this->GetLowerThreshold(), this->GetUpperThreshold());
   vtkm::cont::DynamicCellSet cellOut = this->Worklet.Run(
-    vtkm::filter::ApplyPolicy(cells, policy), field, fieldMeta.GetAssociation(), predicate);
+    vtkm::filter::ApplyPolicyCellSet(cells, policy), field, fieldMeta.GetAssociation(), predicate);
 
   vtkm::cont::DataSet output;
-  output.AddCellSet(cellOut);
+  output.SetCellSet(cellOut);
   output.AddCoordinateSystem(input.GetCoordinateSystem(this->GetActiveCoordinateSystemIndex()));
   return output;
 }
-
-//-----------------------------------------------------------------------------
-template <typename T, typename StorageType, typename DerivedPolicy>
-inline VTKM_CONT bool Threshold::DoMapField(vtkm::cont::DataSet& result,
-                                            const vtkm::cont::ArrayHandle<T, StorageType>& input,
-                                            const vtkm::filter::FieldMetadata& fieldMeta,
-                                            vtkm::filter::PolicyBase<DerivedPolicy>)
-{
-  if (fieldMeta.IsPointField())
-  {
-    //we copy the input handle to the result dataset, reusing the metadata
-    result.AddField(fieldMeta.AsField(input));
-    return true;
-  }
-  else if (fieldMeta.IsCellField())
-  {
-    vtkm::cont::ArrayHandle<T> out = this->Worklet.ProcessCellField(input);
-    result.AddField(fieldMeta.AsField(out));
-    return true;
-  }
-  else
-  {
-    return false;
-  }
 }
 }
-}
+#endif

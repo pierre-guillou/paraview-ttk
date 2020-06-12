@@ -43,57 +43,57 @@ VTKM_CONT vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(
   vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny());
 
 // Precompiled versions of ArrayRangeCompute
-#define VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(T, Storage)                                              \
+#define VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(T, Storage)                                             \
   VTKM_CONT_EXPORT                                                                                 \
   VTKM_CONT                                                                                        \
   vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(                                          \
     const vtkm::cont::ArrayHandle<T, Storage>& input,                                              \
     vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny())
-#define VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(T, N, Storage)                                         \
+#define VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(T, N, Storage)                                        \
   VTKM_CONT_EXPORT                                                                                 \
   VTKM_CONT                                                                                        \
   vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(                                          \
     const vtkm::cont::ArrayHandle<vtkm::Vec<T, N>, Storage>& input,                                \
     vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny())
 
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(char, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Int8, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::UInt8, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Int16, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::UInt16, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Int32, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::UInt32, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Int64, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::UInt64, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Float32, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Float64, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(char, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Int8, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::UInt8, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Int16, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::UInt16, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Int32, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::UInt32, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Int64, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::UInt64, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Float32, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T(vtkm::Float64, vtkm::cont::StorageTagBasic);
 
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int32, 2, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int64, 2, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float32, 2, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float64, 2, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int32, 2, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int64, 2, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float32, 2, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float64, 2, vtkm::cont::StorageTagBasic);
 
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int32, 3, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int64, 3, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float32, 3, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float64, 3, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int32, 3, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int64, 3, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float32, 3, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float64, 3, vtkm::cont::StorageTagBasic);
 
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(char, 4, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int8, 4, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::UInt8, 4, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float32, 4, vtkm::cont::StorageTagBasic);
-VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float64, 4, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(char, 4, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Int8, 4, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::UInt8, 4, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float32, 4, vtkm::cont::StorageTagBasic);
+VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC(vtkm::Float64, 4, vtkm::cont::StorageTagBasic);
 
-#undef VTKM_ARRAY_RANGE_COMPUTE_EXPORT_T
-#undef VTKM_ARRAY_RANGE_COMPUTE_EXPORT_VEC
+#undef VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_T
+#undef VTK_M_ARRAY_RANGE_COMPUTE_EXPORT_VEC
 
 VTKM_CONT
 vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(
-  const vtkm::cont::ArrayHandleVirtual<vtkm::Vec<vtkm::FloatDefault, 3>>& input,
+  const vtkm::cont::ArrayHandleVirtual<vtkm::Vec3f>& input,
   vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny());
 
 VTKM_CONT_EXPORT VTKM_CONT vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(
-  const vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::FloatDefault, 3>,
+  const vtkm::cont::ArrayHandle<vtkm::Vec3f,
                                 vtkm::cont::ArrayHandleUniformPointCoordinates::StorageTag>& array,
   vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny());
 
@@ -101,7 +101,7 @@ VTKM_CONT_EXPORT VTKM_CONT vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeComput
 VTKM_CONT_EXPORT
 VTKM_CONT
 vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(
-  const vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::Float32, 3>,
+  const vtkm::cont::ArrayHandle<vtkm::Vec3f_32,
                                 typename vtkm::cont::ArrayHandleCompositeVector<
                                   vtkm::cont::ArrayHandle<vtkm::Float32>,
                                   vtkm::cont::ArrayHandle<vtkm::Float32>,
@@ -109,7 +109,7 @@ vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(
   vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny());
 
 VTKM_CONT_EXPORT VTKM_CONT vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(
-  const vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::Float64, 3>,
+  const vtkm::cont::ArrayHandle<vtkm::Vec3f_64,
                                 typename vtkm::cont::ArrayHandleCompositeVector<
                                   vtkm::cont::ArrayHandle<vtkm::Float64>,
                                   vtkm::cont::ArrayHandle<vtkm::Float64>,
@@ -117,11 +117,10 @@ VTKM_CONT_EXPORT VTKM_CONT vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeComput
   vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny());
 
 // Implementation of cartesian products
-template <typename T, typename ArrayType1, typename ArrayType2, typename ArrayType3>
+template <typename T, typename ST1, typename ST2, typename ST3>
 VTKM_CONT inline vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(
-  const vtkm::cont::ArrayHandle<
-    T,
-    vtkm::cont::internal::StorageTagCartesianProduct<ArrayType1, ArrayType2, ArrayType3>>& input,
+  const vtkm::cont::ArrayHandle<vtkm::Vec<T, 3>,
+                                vtkm::cont::StorageTagCartesianProduct<ST1, ST2, ST3>>& input,
   vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny())
 {
   vtkm::cont::ArrayHandle<vtkm::Range> result;
@@ -130,17 +129,17 @@ VTKM_CONT inline vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeCompute(
   vtkm::cont::ArrayHandle<vtkm::Range> componentRangeArray;
   vtkm::Range componentRange;
 
-  ArrayType1 firstArray = input.GetStorage().GetFirstArray();
+  vtkm::cont::ArrayHandle<T, ST1> firstArray = input.GetStorage().GetFirstArray();
   componentRangeArray = vtkm::cont::ArrayRangeCompute(firstArray, device);
   componentRange = componentRangeArray.GetPortalConstControl().Get(0);
   result.GetPortalControl().Set(0, componentRange);
 
-  ArrayType2 secondArray = input.GetStorage().GetSecondArray();
+  vtkm::cont::ArrayHandle<T, ST2> secondArray = input.GetStorage().GetSecondArray();
   componentRangeArray = vtkm::cont::ArrayRangeCompute(secondArray, device);
   componentRange = componentRangeArray.GetPortalConstControl().Get(0);
   result.GetPortalControl().Set(1, componentRange);
 
-  ArrayType3 thirdArray = input.GetStorage().GetThirdArray();
+  vtkm::cont::ArrayHandle<T, ST3> thirdArray = input.GetStorage().GetThirdArray();
   componentRangeArray = vtkm::cont::ArrayRangeCompute(thirdArray, device);
   componentRange = componentRangeArray.GetPortalConstControl().Get(0);
   result.GetPortalControl().Set(2, componentRange);

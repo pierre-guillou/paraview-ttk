@@ -23,12 +23,12 @@ set(headers
   CellMeasure.h
   ColorTable.h
   ConnectivityExplicit.h
+  ConnectivityExtrude.h
   ConnectivityPermuted.h
   ConnectivityStructured.h
   ExecutionWholeArray.h
   FieldNeighborhood.h
   FunctorBase.h
-  Jacobian.h
   ParametricCoordinates.h
   PointLocator.h
   PointLocatorUniformGrid.h

@@ -76,7 +76,7 @@ public:
 class VTKM_ALWAYS_EXPORT MeshConnStructured : public MeshConnectivityBase
 {
 protected:
-  typedef typename vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::Id, 4>> Id4Handle;
+  typedef typename vtkm::cont::ArrayHandle<vtkm::Id4> Id4Handle;
   vtkm::Id3 CellDims;
   vtkm::Id3 PointDims;
 
@@ -308,8 +308,7 @@ private:
 public:
   MeshConnHandle() = default;
 
-  template <typename MeshConnType,
-            typename DeviceAdapterList = VTKM_DEFAULT_DEVICE_ADAPTER_LIST_TAG>
+  template <typename MeshConnType, typename DeviceAdapterList = VTKM_DEFAULT_DEVICE_ADAPTER_LIST>
   explicit MeshConnHandle(MeshConnType* meshConn,
                           bool aquireOwnership = true,
                           DeviceAdapterList devices = DeviceAdapterList())
@@ -318,7 +317,7 @@ public:
   }
 };
 
-template <typename MeshConnType, typename DeviceAdapterList = VTKM_DEFAULT_DEVICE_ADAPTER_LIST_TAG>
+template <typename MeshConnType, typename DeviceAdapterList = VTKM_DEFAULT_DEVICE_ADAPTER_LIST>
 VTKM_CONT MeshConnHandle make_MeshConnHandle(MeshConnType&& func,
                                              DeviceAdapterList devices = DeviceAdapterList())
 {

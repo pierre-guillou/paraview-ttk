@@ -7,11 +7,8 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
-
-#include <vtkm/filter/internal/CreateResult.h>
-#include <vtkm/worklet/DispatcherMapField.h>
-
-#include <vtkm/filter/WarpVector.h>
+#ifndef vtk_m_filter_WarpVector_hxx
+#define vtk_m_filter_WarpVector_hxx
 
 namespace vtkm
 {
@@ -22,7 +19,7 @@ namespace filter
 inline VTKM_CONT WarpVector::WarpVector(vtkm::FloatDefault scale)
   : vtkm::filter::FilterField<WarpVector>()
   , Worklet()
-  , VectorFieldName()
+  , VectorFieldName("normal")
   , VectorFieldAssociation(vtkm::cont::Field::Association::ANY)
   , Scale(scale)
 {
@@ -38,19 +35,16 @@ inline VTKM_CONT vtkm::cont::DataSet WarpVector::DoExecute(
   vtkm::filter::PolicyBase<DerivedPolicy> policy)
 {
   using vecType = vtkm::Vec<T, 3>;
-  auto vectorF = inDataSet.GetField(this->VectorFieldName, this->VectorFieldAssociation);
+  vtkm::cont::Field vectorF =
+    inDataSet.GetField(this->VectorFieldName, this->VectorFieldAssociation);
   vtkm::cont::ArrayHandle<vecType> result;
-  this->Worklet.Run(
-    field,
-    vtkm::filter::ApplyPolicy(vectorF, policy, vtkm::filter::FilterTraits<WarpVector>()),
-    this->Scale,
-    result);
+  this->Worklet.Run(field,
+                    vtkm::filter::ApplyPolicyFieldOfType<vecType>(vectorF, policy, *this),
+                    this->Scale,
+                    result);
 
-  return internal::CreateResult(inDataSet,
-                                result,
-                                this->GetOutputFieldName(),
-                                fieldMetadata.GetAssociation(),
-                                fieldMetadata.GetCellSetName());
+  return CreateResult(inDataSet, result, this->GetOutputFieldName(), fieldMetadata);
 }
 }
 }
+#endif

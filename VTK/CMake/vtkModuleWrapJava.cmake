@@ -1,20 +1,23 @@
-#[==[.md
-# `vtkModuleWrapJava`
-
-This module includes logic necessary in order to wrap VTK modules using VTK's
-Java wrapping logic.
+#[==[
+@defgroup module-wrapping-java Module Java CMake APIs
 #]==]
 
-#[==[.md INTERNAL
-## Wrapping a single module
+#[==[
+@file vtkModuleWrapJava.cmake
+@brief APIs for wrapping modules for Java
+#]==]
+
+#[==[
+@ingroup module-impl
+@brief Generate sources for using a module's classes from Java
 
 This function generates the wrapped sources for a module. It places the list of
 generated source files and Java source files in variables named in the second
 and third arguments, respectively.
 
-```
+~~~
 _vtk_module_wrap_java_sources(<module> <sources> <classes>)
-```
+~~~
 #]==]
 function (_vtk_module_wrap_java_sources module sources java_sources)
   _vtk_module_get_module_property("${module}"
@@ -24,8 +27,10 @@ function (_vtk_module_wrap_java_sources module sources java_sources)
     return ()
   endif ()
 
-  set(_vtk_java_args_file "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_library_name}-java.$<CONFIGURATION>.args")
-  set(_vtk_java_init_data_file "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_library_name}-java-init.data")
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_library_name}Java")
+
+  set(_vtk_java_args_file "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_library_name}Java/${_vtk_java_library_name}-java.$<CONFIGURATION>.args")
+  set(_vtk_java_init_data_file "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_library_name}Java/${_vtk_java_library_name}-java-init.data")
 
   set(_vtk_java_genex_compile_definitions
     "$<TARGET_PROPERTY:${_vtk_java_target_name},COMPILE_DEFINITIONS>")
@@ -46,12 +51,12 @@ $<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_
   if (_vtk_java_is_imported OR CMAKE_GENERATOR MATCHES "Ninja")
     set(_vtk_java_command_depend "${_vtk_java_hierarchy_file}")
   else ()
-    if (TARGET "${_vtk_java_target_name}-hierarchy")
-      set(_vtk_java_command_depend "${_vtk_java_target_name}-hierarchy")
+    if (TARGET "${_vtk_java_library_name}-hierarchy")
+      set(_vtk_java_command_depend "${_vtk_java_library_name}-hierarchy")
     else ()
       message(FATAL_ERROR
         "The ${module} hierarchy file is attached to a non-imported target "
-        "and a hierarchy target (${_vtk_java_target_name}-hierarchy) is "
+        "and a hierarchy target (${_vtk_java_library_name}-hierarchy) is "
         "missing.")
     endif ()
   endif ()
@@ -77,7 +82,7 @@ $<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_
     endif ()
 
     set(_vtk_java_source_output
-      "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_basename}Java.${_vtk_java_ext}")
+      "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_library_name}Java/${_vtk_java_basename}Java.${_vtk_java_ext}")
     list(APPEND _vtk_java_sources
       "${_vtk_java_source_output}")
 
@@ -151,22 +156,23 @@ $<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_
     PARENT_SCOPE)
 endfunction ()
 
-#[==[.md INTERNAL
-## Generating a Java JNI library
+#[==[
+@ingroup module-impl
+@brief Generate a JNI library for a set of modules
 
-A single JNI library may consist of the Java wrappings of multiple VTK modules.
+A single JNI library may consist of the Java wrappings of multiple modules.
 This is useful for kit-based builds where the modules part of the same kit
 belong to the same JNI library as well.
 
-```
+~~~
 _vtk_module_wrap_java_library(<name> <module>...)
-```
+~~~
 
 The first argument is the name of the JNI library. The remaining arguments are
-VTK modules to include in the JNI library.
+modules to include in the JNI library.
 
 The remaining information it uses is assumed to be provided by the
-`vtk_module_wrap_java` function.
+@ref vtk_module_wrap_java function.
 #]==]
 function (_vtk_module_wrap_java_library name)
   set(_vtk_java_library_sources)
@@ -257,23 +263,25 @@ function (_vtk_module_wrap_java_library name)
       VTK::Java)
 endfunction ()
 
-#[==[.md
-## Wrapping a set of VTK modules in Java
+#[==[
+@ingroup module-wrapping-java
+@brief Wrap a set of modules for use in Java
 
-```
+~~~
 vtk_module_wrap_java(
   MODULES <module>...
   [WRAPPED_MODULES <varname>]
 
   [JAVA_OUTPUT <destination>])
-```
+~~~
 
   * `MODULES`: (Required) The list of modules to wrap.
   * `WRAPPED_MODULES`: (Recommended) Not all modules are wrappable. This
     variable will be set to contain the list of modules which were wrapped.
-  * `JAVA_OUTPUT`: Defaults to `${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles`. Java
-    source files are written to this directory. After generation, the files may
-    be compiled as needed.
+  * `JAVA_OUTPUT`: Defaults to
+    `${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/vtkJava`. Java source files are
+    written to this directory. After generation, the files may be compiled as
+    needed.
 
 For each wrapped module, a `<module>Java` target will be created. These targets
 will have a `_vtk_module_java_files` property which is the list of generated
@@ -296,7 +304,7 @@ function (vtk_module_wrap_java)
   endif ()
 
   if (NOT _vtk_java_JAVA_OUTPUT)
-    set(_vtk_java_JAVA_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles")
+    set(_vtk_java_JAVA_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/vtkJava")
   endif ()
 
   if (NOT _vtk_java_MODULES)

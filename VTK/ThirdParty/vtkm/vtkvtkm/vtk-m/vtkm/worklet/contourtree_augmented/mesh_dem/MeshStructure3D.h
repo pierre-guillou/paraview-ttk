@@ -72,19 +72,23 @@ class MeshStructure3D
 public:
   VTKM_EXEC_CONT
   MeshStructure3D()
-    : nRows(0)
-    , nCols(0)
+    : nCols(0)
+    , nRows(0)
     , nSlices(0)
   {
   }
 
   VTKM_EXEC_CONT
-  MeshStructure3D(vtkm::Id nrows, vtkm::Id ncols, vtkm::Id nslices)
-    : nRows(nrows)
-    , nCols(ncols)
+  MeshStructure3D(vtkm::Id ncols, vtkm::Id nrows, vtkm::Id nslices)
+    : nCols(ncols)
+    , nRows(nrows)
     , nSlices(nslices)
   {
   }
+
+  // number of mesh vertices
+  VTKM_EXEC_CONT
+  vtkm::Id GetNumberOfVertices() const { return (this->nRows * this->nCols * this->nSlices); }
 
   // vertex row - integer modulus by (nRows&nCols) and integer divide by columns
   VTKM_EXEC
@@ -105,7 +109,7 @@ public:
     return (s * nRows + r) * nCols + c;
   }
 
-  vtkm::Id nRows, nCols, nSlices;
+  vtkm::Id nCols, nRows, nSlices;
 
 }; // Mesh_DEM_2D_ExecutionObject
 

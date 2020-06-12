@@ -11,12 +11,14 @@ add_library(vtkm_loguru INTERFACE)
 
 vtkm_get_kit_name(kit_name kit_dir)
 
-# taotuple needs C++11
+# loguru needs C++11
 target_compile_features(vtkm_loguru INTERFACE cxx_std_11)
 
 target_include_directories(vtkm_loguru INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:${VTKm_INSTALL_INCLUDE_DIR}/vtkm/thirdparty/loguru>)
+
+target_link_libraries(vtkm_loguru INTERFACE ${CMAKE_DL_LIBS} Threads::Threads)
 
 install(TARGETS vtkm_loguru
   EXPORT ${VTKm_EXPORT_NAME})

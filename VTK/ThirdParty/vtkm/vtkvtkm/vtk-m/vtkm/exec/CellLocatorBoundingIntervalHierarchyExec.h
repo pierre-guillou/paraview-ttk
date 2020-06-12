@@ -23,8 +23,15 @@ namespace vtkm
 namespace exec
 {
 
+
+
+
 struct CellLocatorBoundingIntervalHierarchyNode
 {
+#if defined(VTKM_CLANG)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnested-anon-types"
+#endif // gcc || clang
   vtkm::IdComponent Dimension;
   vtkm::Id ParentIndex;
   vtkm::Id ChildIndex;
@@ -40,6 +47,9 @@ struct CellLocatorBoundingIntervalHierarchyNode
       vtkm::Id Size;
     } Leaf;
   };
+#if defined(VTKM_CLANG)
+#pragma GCC diagnostic pop
+#endif // gcc || clang
 
   VTKM_EXEC_CONT
   CellLocatorBoundingIntervalHierarchyNode()
@@ -52,7 +62,8 @@ struct CellLocatorBoundingIntervalHierarchyNode
 }; // struct CellLocatorBoundingIntervalHierarchyNode
 
 template <typename DeviceAdapter, typename CellSetType>
-class VTKM_ALWAYS_EXPORT CellLocatorBoundingIntervalHierarchyExec : public vtkm::exec::CellLocator
+class VTKM_ALWAYS_EXPORT CellLocatorBoundingIntervalHierarchyExec final
+  : public vtkm::exec::CellLocator
 {
   using NodeArrayHandle =
     vtkm::cont::ArrayHandle<vtkm::exec::CellLocatorBoundingIntervalHierarchyNode>;
@@ -70,22 +81,22 @@ public:
                                            DeviceAdapter)
     : Nodes(nodes.PrepareForInput(DeviceAdapter()))
     , CellIds(cellIds.PrepareForInput(DeviceAdapter()))
-    , CellSet(cellSet.PrepareForInput(DeviceAdapter(), FromType(), ToType()))
+    , CellSet(cellSet.PrepareForInput(DeviceAdapter(), VisitType(), IncidentType()))
     , Coords(coords.PrepareForInput(DeviceAdapter()))
   {
   }
 
 
-  VTKM_EXEC_CONT virtual ~CellLocatorBoundingIntervalHierarchyExec() noexcept
+  VTKM_EXEC_CONT virtual ~CellLocatorBoundingIntervalHierarchyExec() noexcept override
   {
     // This must not be defaulted, since defaulted virtual destructors are
     // troublesome with CUDA __host__ __device__ markup.
   }
 
   VTKM_EXEC
-  void FindCell(const vtkm::Vec<vtkm::FloatDefault, 3>& point,
+  void FindCell(const vtkm::Vec3f& point,
                 vtkm::Id& cellId,
-                vtkm::Vec<vtkm::FloatDefault, 3>& parametric,
+                vtkm::Vec3f& parametric,
                 const vtkm::exec::FunctorBase& worklet) const override
   {
     cellId = -1;
@@ -123,10 +134,10 @@ private:
 
   VTKM_EXEC
   void EnterNode(FindCellState& state,
-                 const vtkm::Vec<vtkm::FloatDefault, 3>& point,
+                 const vtkm::Vec3f& point,
                  vtkm::Id& cellId,
                  vtkm::Id nodeIndex,
-                 vtkm::Vec<vtkm::FloatDefault, 3>& parametric,
+                 vtkm::Vec3f& parametric,
                  const vtkm::exec::FunctorBase& worklet) const
   {
     VTKM_ASSERT(state == FindCellState::EnterNode);
@@ -170,9 +181,7 @@ private:
   }
 
   VTKM_EXEC
-  void DescendLeftChild(FindCellState& state,
-                        const vtkm::Vec<vtkm::FloatDefault, 3>& point,
-                        vtkm::Id& nodeIndex) const
+  void DescendLeftChild(FindCellState& state, const vtkm::Vec3f& point, vtkm::Id& nodeIndex) const
   {
     VTKM_ASSERT(state == FindCellState::DescendLeftChild);
 
@@ -192,9 +201,7 @@ private:
   }
 
   VTKM_EXEC
-  void DescendRightChild(FindCellState& state,
-                         const vtkm::Vec<vtkm::FloatDefault, 3>& point,
-                         vtkm::Id& nodeIndex) const
+  void DescendRightChild(FindCellState& state, const vtkm::Vec3f& point, vtkm::Id& nodeIndex) const
   {
     VTKM_ASSERT(state == FindCellState::DescendRightChild);
 
@@ -213,8 +220,8 @@ private:
     }
   }
 
-  VTKM_EXEC vtkm::Id FindInLeaf(const vtkm::Vec<vtkm::FloatDefault, 3>& point,
-                                vtkm::Vec<vtkm::FloatDefault, 3>& parametric,
+  VTKM_EXEC vtkm::Id FindInLeaf(const vtkm::Vec3f& point,
+                                vtkm::Vec3f& parametric,
                                 const vtkm::exec::CellLocatorBoundingIntervalHierarchyNode& node,
                                 const vtkm::exec::FunctorBase& worklet) const
   {
@@ -234,8 +241,8 @@ private:
   }
 
   template <typename CoordsType, typename CellShapeTag>
-  VTKM_EXEC static bool IsPointInCell(const vtkm::Vec<vtkm::FloatDefault, 3>& point,
-                                      vtkm::Vec<vtkm::FloatDefault, 3>& parametric,
+  VTKM_EXEC static bool IsPointInCell(const vtkm::Vec3f& point,
+                                      vtkm::Vec3f& parametric,
                                       CellShapeTag cellShape,
                                       const CoordsType& cellPoints,
                                       const vtkm::exec::FunctorBase& worklet)
@@ -246,13 +253,14 @@ private:
     return success && vtkm::exec::CellInside(parametric, cellShape);
   }
 
-  using FromType = vtkm::TopologyElementTagPoint;
-  using ToType = vtkm::TopologyElementTagCell;
+  using VisitType = vtkm::TopologyElementTagCell;
+  using IncidentType = vtkm::TopologyElementTagPoint;
   using NodePortal = typename NodeArrayHandle::template ExecutionTypes<DeviceAdapter>::PortalConst;
   using CellIdPortal =
     typename CellIdArrayHandle::template ExecutionTypes<DeviceAdapter>::PortalConst;
-  using CellSetPortal =
-    typename CellSetType::template ExecutionTypes<DeviceAdapter, FromType, ToType>::ExecObjectType;
+  using CellSetPortal = typename CellSetType::template ExecutionTypes<DeviceAdapter,
+                                                                      VisitType,
+                                                                      IncidentType>::ExecObjectType;
   using CoordsPortal = typename vtkm::cont::ArrayHandleVirtualCoordinates::template ExecutionTypes<
     DeviceAdapter>::PortalConst;
 

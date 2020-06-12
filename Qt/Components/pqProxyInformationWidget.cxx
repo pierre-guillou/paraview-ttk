@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Qt includes
 #include <QHeaderView>
+#include <QIcon>
 #include <QLineEdit>
 #include <QStackedWidget>
 #include <QStringList>
@@ -96,8 +97,10 @@ pqProxyInformationWidget::pqProxyInformationWidget(QWidget* p)
   this->VTKConnect = vtkEventQtSlotConnect::New();
   this->Ui = new pqUi(this);
   this->Ui->setupUi(this);
-  this->Ui->compositeTree->setModel(this->Ui->compositeTreeModel);
+  this->Ui->dataArrays->setItemDelegate(new pqNonEditableStyledItemDelegate(this));
+  this->Ui->timeValues->setItemDelegate(new pqNonEditableStyledItemDelegate(this));
   this->Ui->compositeTree->setItemDelegate(new pqNonEditableStyledItemDelegate(this));
+  this->Ui->compositeTree->setModel(this->Ui->compositeTreeModel);
   this->connect(this->Ui->compositeTree->selectionModel(),
     SIGNAL(currentChanged(const QModelIndex&, const QModelIndex&)),
     SLOT(onCurrentChanged(const QModelIndex&)));
@@ -243,7 +246,6 @@ void pqProxyInformationWidget::updateInformation()
   vtkSMDoubleVectorProperty* tsv =
     vtkSMDoubleVectorProperty::SafeDownCast(source->getProxy()->GetProperty("TimestepValues"));
   this->Ui->timeValues->clear();
-  this->Ui->timeValues->setItemDelegate(new pqNonEditableStyledItemDelegate(this));
   //
   QAbstractItemModel* pModel = this->Ui->timeValues->model();
   pModel->blockSignals(true);
@@ -384,10 +386,10 @@ void pqProxyInformationWidget::fillDataInformation(vtkPVDataInformation* dataInf
   info[4] = dataInformation->GetRowDataInformation();
   info[5] = dataInformation->GetFieldDataInformation();
 
-  QPixmap pixmaps[6] = { QPixmap(":/pqWidgets/Icons/pqPointData16.png"),
-    QPixmap(":/pqWidgets/Icons/pqCellData16.png"), QPixmap(":/pqWidgets/Icons/pqPointData16.png"),
-    QPixmap(":/pqWidgets/Icons/pqCellData16.png"), QPixmap(":/pqWidgets/Icons/pqSpreadsheet16.png"),
-    QPixmap(":/pqWidgets/Icons/pqGlobalData16.png") };
+  QIcon pixmaps[6] = { QIcon(":/pqWidgets/Icons/pqPointData.svg"),
+    QIcon(":/pqWidgets/Icons/pqCellData.svg"), QIcon(":/pqWidgets/Icons/pqPointData.svg"),
+    QIcon(":/pqWidgets/Icons/pqCellData.svg"), QIcon(":/pqWidgets/Icons/pqSpreadsheet.svg"),
+    QIcon(":/pqWidgets/Icons/pqGlobalData.svg") };
 
   if (dataInformation->IsDataStructured())
   {
@@ -460,7 +462,6 @@ void pqProxyInformationWidget::fillDataInformation(vtkPVDataInformation* dataInf
     }
   }
   this->Ui->dataArrays->header()->resizeSections(QHeaderView::ResizeToContents);
-  this->Ui->dataArrays->setItemDelegate(new pqNonEditableStyledItemDelegate(this));
 
   double bounds[6];
   dataInformation->GetBounds(bounds);

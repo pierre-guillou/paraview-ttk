@@ -3,7 +3,7 @@ NAME
 LIBRARY_NAME
   smTestDriver
 GROUPS
-  ParaViewCore
+  PARAVIEW_CORE
 PRIVATE_DEPENDS
   VTK::CommonCore
   VTK::vtksys

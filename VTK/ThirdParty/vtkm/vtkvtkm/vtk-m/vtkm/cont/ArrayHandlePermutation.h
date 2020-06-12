@@ -24,6 +24,8 @@ namespace internal
 template <typename IndexPortalType, typename ValuePortalType>
 class VTKM_ALWAYS_EXPORT ArrayPortalPermutation
 {
+  using Writable = vtkm::internal::PortalSupportsSets<ValuePortalType>;
+
 public:
   using ValueType = typename ValuePortalType::ValueType;
 
@@ -69,8 +71,9 @@ public:
   }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
-  VTKM_EXEC
-  void Set(vtkm::Id index, const ValueType& value) const
+  template <typename Writable_ = Writable,
+            typename = typename std::enable_if<Writable_::value>::type>
+  VTKM_EXEC void Set(vtkm::Id index, const ValueType& value) const
   {
     vtkm::Id permutedIndex = this->IndexPortal.Get(index);
     this->ValuePortal.Set(permutedIndex, value);
@@ -97,23 +100,28 @@ namespace vtkm
 namespace cont
 {
 
-namespace internal
-{
-
-template <typename IndexArrayType, typename ValueArrayType>
+template <typename IndexStorageTag, typename ValueStorageTag>
 struct VTKM_ALWAYS_EXPORT StorageTagPermutation
 {
 };
 
-template <typename IndexArrayType, typename ValueArrayType>
-class Storage<typename ValueArrayType::ValueType,
-              StorageTagPermutation<IndexArrayType, ValueArrayType>>
+namespace internal
 {
-  VTKM_IS_ARRAY_HANDLE(IndexArrayType);
-  VTKM_IS_ARRAY_HANDLE(ValueArrayType);
+
+template <typename T, typename IndexStorageTag, typename ValueStorageTag>
+class Storage<T, vtkm::cont::StorageTagPermutation<IndexStorageTag, ValueStorageTag>>
+{
+  VTKM_STATIC_ASSERT_MSG(
+    (vtkm::cont::internal::IsValidArrayHandle<vtkm::Id, IndexStorageTag>::value),
+    "Invalid index storage tag.");
+  VTKM_STATIC_ASSERT_MSG((vtkm::cont::internal::IsValidArrayHandle<T, ValueStorageTag>::value),
+                         "Invalid value storage tag.");
 
 public:
-  using ValueType = typename ValueArrayType::ValueType;
+  using IndexArrayType = vtkm::cont::ArrayHandle<vtkm::Id, IndexStorageTag>;
+  using ValueArrayType = vtkm::cont::ArrayHandle<T, ValueStorageTag>;
+
+  using ValueType = T;
 
   using PortalType =
     vtkm::exec::internal::ArrayPortalPermutation<typename IndexArrayType::PortalConstControl,
@@ -191,17 +199,18 @@ private:
   bool Valid;
 };
 
-template <typename IndexArrayType, typename ValueArrayType, typename Device>
-class ArrayTransfer<typename ValueArrayType::ValueType,
-                    StorageTagPermutation<IndexArrayType, ValueArrayType>,
-                    Device>
+template <typename T, typename IndexStorageTag, typename ValueStorageTag, typename Device>
+class ArrayTransfer<T, StorageTagPermutation<IndexStorageTag, ValueStorageTag>, Device>
 {
 public:
-  using ValueType = typename ValueArrayType::ValueType;
+  using ValueType = T;
 
 private:
-  using StorageTag = StorageTagPermutation<IndexArrayType, ValueArrayType>;
+  using StorageTag = StorageTagPermutation<IndexStorageTag, ValueStorageTag>;
   using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
+
+  using IndexArrayType = typename StorageType::IndexArrayType;
+  using ValueArrayType = typename StorageType::ValueArrayType;
 
 public:
   using PortalControl = typename StorageType::PortalType;
@@ -320,7 +329,8 @@ template <typename IndexArrayHandleType, typename ValueArrayHandleType>
 class ArrayHandlePermutation
   : public vtkm::cont::ArrayHandle<
       typename ValueArrayHandleType::ValueType,
-      internal::StorageTagPermutation<IndexArrayHandleType, ValueArrayHandleType>>
+      vtkm::cont::StorageTagPermutation<typename IndexArrayHandleType::StorageTag,
+                                        typename ValueArrayHandleType::StorageTag>>
 {
   // If the following line gives a compile error, then the ArrayHandleType
   // template argument is not a valid ArrayHandle type.
@@ -333,7 +343,8 @@ public:
     (ArrayHandlePermutation<IndexArrayHandleType, ValueArrayHandleType>),
     (vtkm::cont::ArrayHandle<
       typename ValueArrayHandleType::ValueType,
-      internal::StorageTagPermutation<IndexArrayHandleType, ValueArrayHandleType>>));
+      vtkm::cont::StorageTagPermutation<typename IndexArrayHandleType::StorageTag,
+                                        typename ValueArrayHandleType::StorageTag>>));
 
 private:
   using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
@@ -362,6 +373,7 @@ make_ArrayHandlePermutation(IndexArrayHandleType indexArray, ValueArrayHandleTyp
 
 //=============================================================================
 // Specializations of serialization related classes
+/// @cond SERIALIZATION
 namespace vtkm
 {
 namespace cont
@@ -378,11 +390,12 @@ struct SerializableTypeString<vtkm::cont::ArrayHandlePermutation<IdxAH, ValAH>>
   }
 };
 
-template <typename IdxAH, typename ValAH>
+template <typename T, typename IdxST, typename ValST>
 struct SerializableTypeString<
-  vtkm::cont::ArrayHandle<typename ValAH::ValueType,
-                          vtkm::cont::internal::StorageTagPermutation<IdxAH, ValAH>>>
-  : SerializableTypeString<vtkm::cont::ArrayHandlePermutation<IdxAH, ValAH>>
+  vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagPermutation<IdxST, ValST>>>
+  : SerializableTypeString<
+      vtkm::cont::ArrayHandlePermutation<vtkm::cont::ArrayHandle<vtkm::Id, IdxST>,
+                                         vtkm::cont::ArrayHandle<T, ValST>>>
 {
 };
 }
@@ -418,14 +431,14 @@ public:
   }
 };
 
-template <typename IdxAH, typename ValAH>
-struct Serialization<
-  vtkm::cont::ArrayHandle<typename ValAH::ValueType,
-                          vtkm::cont::internal::StorageTagPermutation<IdxAH, ValAH>>>
-  : Serialization<vtkm::cont::ArrayHandlePermutation<IdxAH, ValAH>>
+template <typename T, typename IdxST, typename ValST>
+struct Serialization<vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagPermutation<IdxST, ValST>>>
+  : Serialization<vtkm::cont::ArrayHandlePermutation<vtkm::cont::ArrayHandle<vtkm::Id, IdxST>,
+                                                     vtkm::cont::ArrayHandle<T, ValST>>>
 {
 };
 
 } // diy
+/// @endcond SERIALIZATION
 
 #endif //vtk_m_cont_ArrayHandlePermutation_h

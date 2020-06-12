@@ -47,19 +47,23 @@ $<$<BOOL:${_vtk_client_server_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_cl
     VARIABLE  _vtk_client_server_hierarchy_file)
 
   get_property(_vtk_client_server_is_imported
-    TARGET    "${module}"
+    TARGET    "${_vtk_client_server_target_name}"
     PROPERTY  "IMPORTED")
   if (_vtk_client_server_is_imported OR CMAKE_GENERATOR MATCHES "Ninja")
     set(_vtk_client_server_command_depend "${_vtk_client_server_hierarchy_file}")
   else ()
-    if (TARGET "${_vtk_client_server_target_name}-hierarchy")
-      set(_vtk_client_server_command_depend "${_vtk_client_server_target_name}-hierarchy")
+    if (TARGET "${_vtk_client_server_library_name}-hierarchy")
+      set(_vtk_client_server_command_depend "${_vtk_client_server_library_name}-hierarchy")
     else ()
       message(FATAL_ERROR
         "The ${module} hierarchy file is attached to a non-imported target "
-        "and a hierarchy target is missing.")
+        "and a hierarchy target "
+        "(${_vtk_client_server_library_name}-hierarchy) is missing.")
     endif ()
   endif ()
+
+  # create directory for wrapped source files
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_client_server_library_name}CS")
 
   set(_vtk_client_server_sources)
 
@@ -73,13 +77,14 @@ $<$<BOOL:${_vtk_client_server_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_cl
       "${_vtk_client_server_basename}")
 
     set(_vtk_client_server_source_output
-      "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_client_server_basename}ClientServer.cxx")
+      "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_client_server_library_name}CS/${_vtk_client_server_basename}ClientServer.cxx")
     list(APPEND _vtk_client_server_sources
       "${_vtk_client_server_source_output}")
 
     add_custom_command(
       OUTPUT  "${_vtk_client_server_source_output}"
-      COMMAND ParaView::WrapClientServer
+      COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+              "$<TARGET_FILE:ParaView::WrapClientServer>"
               "@${_vtk_client_server_args_file}"
               -o "${_vtk_client_server_source_output}"
               "${_vtk_client_server_header}"
@@ -147,8 +152,6 @@ function (_vtk_module_wrap_client_server_library name)
     return ()
   endif ()
 
-  # TODO: Support unified bindings?
-
   set(_vtk_client_server_declarations)
   set(_vtk_client_server_calls)
   foreach (_vtk_client_server_class IN LISTS _vtk_client_server_library_classes)
@@ -197,7 +200,7 @@ ${_vtk_client_server_calls}}\n")
   target_link_libraries("${name}"
     PRIVATE
       ${ARGN}
-      ParaView::ClientServer
+      ParaView::RemotingClientServerStream
       VTK::CommonCore)
 
   set(_vtk_client_server_export)

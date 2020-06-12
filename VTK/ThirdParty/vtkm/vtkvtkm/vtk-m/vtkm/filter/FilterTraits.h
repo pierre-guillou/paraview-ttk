@@ -11,34 +11,29 @@
 #ifndef vtk_m_filter_FilterTraits_h
 #define vtk_m_filter_FilterTraits_h
 
-#include <vtkm/TypeListTag.h>
+#include <vtkm/List.h>
 
 namespace vtkm
 {
 namespace filter
 {
 
-struct DefaultFieldTag
+template <typename Derived>
+class Filter;
+
+
+template <typename Filter>
+struct FilterTraits
 {
+  using InputFieldTypeList = typename Filter::SupportedTypes;
+  using AdditionalFieldStorage = typename Filter::AdditionalFieldStorage;
 };
 
-template <typename Filter, typename FieldTag = DefaultFieldTag>
-class FilterTraits
-{
-public:
-  // A filter is able to state what subset of types it supports
-  // by default. By default we use ListTagUniversal to represent that the
-  // filter accepts all types specified by the users provided policy
-  using InputFieldTypeList = vtkm::ListTagUniversal;
-};
-
-template <typename DerivedPolicy, typename FilterType, typename FieldTag>
+template <typename DerivedPolicy, typename ListOfTypes>
 struct DeduceFilterFieldTypes
 {
-  using FList = typename vtkm::filter::FilterTraits<FilterType, FieldTag>::InputFieldTypeList;
   using PList = typename DerivedPolicy::FieldTypeList;
-
-  using TypeList = vtkm::ListTagIntersect<FList, PList>;
+  using TypeList = vtkm::ListIntersect<ListOfTypes, PList>;
 };
 }
 }

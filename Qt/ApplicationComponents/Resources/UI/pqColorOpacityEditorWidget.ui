@@ -79,7 +79,7 @@
          </property>
          <property name="icon">
           <iconset resource="../../../Components/Resources/pqComponents.qrc">
-           <normaloff>:/pqWidgets/Icons/pqResetRange24.png</normaloff>:/pqWidgets/Icons/pqResetRange24.png</iconset>
+           <normaloff>:/pqWidgets/Icons/pqResetRange.svg</normaloff>:/pqWidgets/Icons/pqResetRange.svg</iconset>
          </property>
         </widget>
        </item>
@@ -93,7 +93,7 @@
          </property>
          <property name="icon">
           <iconset resource="../../../Components/Resources/pqComponents.qrc">
-           <normaloff>:/pqWidgets/Icons/pqResetRangeCustom24.png</normaloff>:/pqWidgets/Icons/pqResetRangeCustom24.png</iconset>
+           <normaloff>:/pqWidgets/Icons/pqResetRangeCustom.svg</normaloff>:/pqWidgets/Icons/pqResetRangeCustom.svg</iconset>
          </property>
         </widget>
        </item>
@@ -107,7 +107,7 @@
          </property>
          <property name="icon">
           <iconset resource="../../../Components/Resources/pqComponents.qrc">
-           <normaloff>:/pqWidgets/Icons/pqResetRangeTemporal24.png</normaloff>:/pqWidgets/Icons/pqResetRangeTemporal24.png</iconset>
+           <normaloff>:/pqWidgets/Icons/pqResetRangeTemporal.svg</normaloff>:/pqWidgets/Icons/pqResetRangeTemporal.svg</iconset>
          </property>
         </widget>
        </item>
@@ -121,7 +121,7 @@
          </property>
          <property name="icon">
           <iconset resource="../../../Components/Resources/pqComponents.qrc">
-           <normaloff>:/pqWidgets/Icons/pqResetToVisibleRange32.png</normaloff>:/pqWidgets/Icons/pqResetToVisibleRange32.png</iconset>
+           <normaloff>:/pqWidgets/Icons/pqResetToVisibleRange.svg</normaloff>:/pqWidgets/Icons/pqResetToVisibleRange.svg</iconset>
          </property>
         </widget>
        </item>
@@ -135,7 +135,7 @@
          </property>
          <property name="icon">
           <iconset resource="../../../Components/Resources/pqComponents.qrc">
-           <normaloff>:/pqWidgets/Icons/pqInvert24.png</normaloff>:/pqWidgets/Icons/pqInvert24.png</iconset>
+           <normaloff>:/pqWidgets/Icons/pqInvert.svg</normaloff>:/pqWidgets/Icons/pqInvert.svg</iconset>
          </property>
         </widget>
        </item>
@@ -162,7 +162,7 @@
          </property>
          <property name="icon">
           <iconset resource="../../../Components/Resources/pqComponents.qrc">
-           <normaloff>:/pqWidgets/Icons/pqFavorites16.png</normaloff>:/pqWidgets/Icons/pqFavorites16.png</iconset>
+           <normaloff>:/pqWidgets/Icons/pqFavorites.svg</normaloff>:/pqWidgets/Icons/pqFavorites.svg</iconset>
          </property>
         </widget>
        </item>
@@ -176,7 +176,25 @@
          </property>
          <property name="icon">
           <iconset resource="../../../Components/Resources/pqComponents.qrc">
-           <normaloff>:/pqWidgets/Icons/pqSave16.png</normaloff>:/pqWidgets/Icons/pqSave16.png</iconset>
+           <normaloff>:/pqWidgets/Icons/pqSave.svg</normaloff>:/pqWidgets/Icons/pqSave.svg</iconset>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="pqHighlightableToolButton" name="ComputeDataHistogram">
+         <property name="toolTip">
+          <string>Compute data histogram</string>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="icon">
+          <iconset resource="../../../Components/Resources/pqComponents.qrc">
+           <normaloff>:/pqWidgets/Icons/pqHistogramReload24.png</normaloff>
+          </iconset>
          </property>
         </widget>
        </item>
@@ -190,7 +208,7 @@
          </property>
          <property name="icon">
           <iconset resource="../../../Components/Resources/pqComponents.qrc">
-           <normaloff>:/pqWidgets/Icons/pqAdvanced26.png</normaloff>:/pqWidgets/Icons/pqAdvanced26.png</iconset>
+           <normaloff>:/pqWidgets/Icons/pqAdvanced.svg</normaloff>:/pqWidgets/Icons/pqAdvanced.svg</iconset>
          </property>
          <property name="checkable">
           <bool>true</bool>
@@ -301,6 +319,80 @@
      </property>
     </widget>
    </item>
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout_3">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>&lt;html&gt;&lt;b&gt;Data Histogram&lt;/b&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignBottom|Qt::AlignLeft</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="Line" name="line">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="ShowDataHistogram">
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When checked, a data histogram will be shown below the opacity function. Please update it by clicking on its dedicated button when needed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="text">
+      <string>Display data histogram</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="AutomaticDataHistogramComputation">
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When checked, the data histogram will be automatically recomputed when needed instead of needing to click on the compute data histogram button.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="text">
+      <string>Automatically recompute data histogram</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout1" stretch="0,1">
+     <item>
+      <widget class="QLabel" name="label1">
+       <property name="text">
+        <string>Number of bins:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="pqIntRangeWidget" name="DataHistogramNumberOfBins">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>256</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
   </layout>
  </widget>
  <customwidgets>
@@ -319,6 +411,16 @@
    <class>pqDoubleLineEdit</class>
    <extends>QLineEdit</extends>
    <header>pqDoubleLineEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>pqIntRangeWidget</class>
+   <extends>QLineEdit</extends>
+   <header>pqIntRangeWidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>pqHighlightableToolButton</class>
+   <extends>QToolButton</extends>
+   <header>pqHighlightableToolButton.h</header>
   </customwidget>
  </customwidgets>
  <resources>

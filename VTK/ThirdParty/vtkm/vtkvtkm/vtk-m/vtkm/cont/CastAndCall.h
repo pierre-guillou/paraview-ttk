@@ -29,10 +29,11 @@ template <vtkm::IdComponent>
 class CellSetStructured;
 template <typename T>
 class CellSetSingleType;
-template <typename T, typename S, typename U, typename V>
+template <typename T, typename S, typename U>
 class CellSetExplicit;
 template <typename T, typename S>
 class CellSetPermutation;
+class CellSetExtrude;
 
 /// A Generic interface to CastAndCall. The default implementation simply calls
 /// DynamicObject's CastAndCall, but specializations of this function exist for
@@ -87,10 +88,8 @@ void CastAndCall(const vtkm::cont::CellSetSingleType<ConnectivityStorageTag>& ce
 /// A specialization of CastAndCall for basic CellSetExplicit types,
 /// Since the type is already known no deduction is needed.
 /// This specialization is used to simplify numerous worklet algorithms
-template <typename T, typename S, typename U, typename V, typename Functor, typename... Args>
-void CastAndCall(const vtkm::cont::CellSetExplicit<T, S, U, V>& cellset,
-                 Functor&& f,
-                 Args&&... args)
+template <typename T, typename S, typename U, typename Functor, typename... Args>
+void CastAndCall(const vtkm::cont::CellSetExplicit<T, S, U>& cellset, Functor&& f, Args&&... args)
 {
   f(cellset, std::forward<Args>(args)...);
 }
@@ -102,6 +101,15 @@ template <typename PermutationType, typename CellSetType, typename Functor, type
 void CastAndCall(const vtkm::cont::CellSetPermutation<PermutationType, CellSetType>& cellset,
                  Functor&& f,
                  Args&&... args)
+{
+  f(cellset, std::forward<Args>(args)...);
+}
+
+/// A specialization of CastAndCall for basic CellSetExtrude types,
+/// Since the type is already known no deduction is needed.
+/// This specialization is used to simplify numerous worklet algorithms
+template <typename Functor, typename... Args>
+void CastAndCall(const vtkm::cont::CellSetExtrude& cellset, Functor&& f, Args&&... args)
 {
   f(cellset, std::forward<Args>(args)...);
 }

@@ -50,19 +50,19 @@
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 #include "vtkStdString.h"
+#include "vtksys/FStream.hxx"
 
 #include <fstream>
 #include <sstream>
 
-#define VTK_CREATE(type, name) \
-  vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
+#define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
 // I need a safe way to read a line of arbitrary length.  It exists on
 // some platforms but not others so I'm afraid I have to write it
 // myself.
 // This function is also defined in Infovis/vtkDelimitedTextReader.cxx,
 // so it would be nice to put this in a common file.
-static int my_getline(std::istream& stream, vtkStdString &output, char delim='\n');
+static int my_getline(std::istream& stream, vtkStdString& output, char delim = '\n');
 
 vtkStandardNewMacro(vtkChacoGraphReader);
 
@@ -82,14 +82,11 @@ void vtkChacoGraphReader::PrintSelf(std::ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 
-  os << indent << "FileName: "
-     << (this->FileName ? this->FileName : "(none)") << endl;
+  os << indent << "FileName: " << (this->FileName ? this->FileName : "(none)") << endl;
 }
 
-int vtkChacoGraphReader::RequestData(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **vtkNotUsed(inputVector),
-  vtkInformationVector *outputVector)
+int vtkChacoGraphReader::RequestData(vtkInformation* vtkNotUsed(request),
+  vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
 {
   if (this->FileName == nullptr)
   {
@@ -97,8 +94,8 @@ int vtkChacoGraphReader::RequestData(
     return 0;
   }
 
-  std::ifstream fin(this->FileName);
-  if(!fin.is_open())
+  vtksys::ifstream fin(this->FileName);
+  if (!fin.is_open())
   {
     vtkErrorMacro("Could not open file " << this->FileName << ".");
     return 0;
@@ -124,12 +121,13 @@ int vtkChacoGraphReader::RequestData(
   // Create the weight arrays
   int vertWeights = type % 10;
   int edgeWeights = (type / 10) % 10;
-  //cerr << "type=" << type << ",vertWeights=" << vertWeights << ",edgeWeights=" << edgeWeights << endl;
+  // cerr << "type=" << type << ",vertWeights=" << vertWeights << ",edgeWeights=" << edgeWeights <<
+  // endl;
   vtkIntArray** vertArr = new vtkIntArray*[vertWeights];
   for (int vw = 0; vw < vertWeights; vw++)
   {
     std::ostringstream oss;
-    oss << "weight " << (vw+1);
+    oss << "weight " << (vw + 1);
     vertArr[vw] = vtkIntArray::New();
     vertArr[vw]->SetName(oss.str().c_str());
     builder->GetVertexData()->AddArray(vertArr[vw]);
@@ -139,7 +137,7 @@ int vtkChacoGraphReader::RequestData(
   for (int ew = 0; ew < edgeWeights; ew++)
   {
     std::ostringstream oss;
-    oss << "weight " << (ew+1);
+    oss << "weight " << (ew + 1);
     edgeArr[ew] = vtkIntArray::New();
     edgeArr[ew]->SetName(oss.str().c_str());
     builder->GetEdgeData()->AddArray(edgeArr[ew]);
@@ -158,7 +156,7 @@ int vtkChacoGraphReader::RequestData(
     my_getline(fin, line);
     std::stringstream stream;
     stream << line;
-    //cerr << "read line " << stream.str() << endl;
+    // cerr << "read line " << stream.str() << endl;
     int weight;
     for (int vw = 0; vw < vertWeights; vw++)
     {
@@ -169,7 +167,7 @@ int vtkChacoGraphReader::RequestData(
     while (stream.good())
     {
       stream >> v;
-      //cerr << "read adjacent vertex " << v << endl;
+      // cerr << "read adjacent vertex " << v << endl;
 
       // vtkGraph ids are 1 less than Chaco graph ids
       v--;
@@ -196,22 +194,20 @@ int vtkChacoGraphReader::RequestData(
   vtkGraph* output = vtkGraph::GetData(outputVector);
   if (!output->CheckedShallowCopy(builder))
   {
-    vtkErrorMacro(<<"Invalid graph structure");
+    vtkErrorMacro(<< "Invalid graph structure");
     return 0;
   }
 
   return 1;
 }
 
-static int
-my_getline(std::istream& in, vtkStdString &out, char delimiter)
+static int my_getline(std::istream& in, vtkStdString& out, char delimiter)
 {
   out = vtkStdString();
   unsigned int numCharactersRead = 0;
   int nextValue = 0;
 
-  while ((nextValue = in.get()) != EOF &&
-         numCharactersRead < out.max_size())
+  while ((nextValue = in.get()) != EOF && numCharactersRead < out.max_size())
   {
     ++numCharactersRead;
 
@@ -228,5 +224,3 @@ my_getline(std::istream& in, vtkStdString &out, char delimiter)
 
   return numCharactersRead;
 }
-
-

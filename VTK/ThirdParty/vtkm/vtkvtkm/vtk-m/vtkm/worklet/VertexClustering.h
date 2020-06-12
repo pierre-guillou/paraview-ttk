@@ -127,10 +127,10 @@ struct VertexClustering
 
   struct GridInfo
   {
-    vtkm::Vec<vtkm::Id, 3> dim;
-    vtkm::Vec<vtkm::Float64, 3> origin;
-    vtkm::Vec<vtkm::Float64, 3> bin_size;
-    vtkm::Vec<vtkm::Float64, 3> inv_bin_size;
+    vtkm::Id3 dim;
+    vtkm::Vec3f_64 origin;
+    vtkm::Vec3f_64 bin_size;
+    vtkm::Vec3f_64 inv_bin_size;
   };
 
   // input: points  output: cid of the points
@@ -175,7 +175,7 @@ struct VertexClustering
     }
   };
 
-  class MapCellsWorklet : public vtkm::worklet::WorkletMapPointToCell
+  class MapCellsWorklet : public vtkm::worklet::WorkletVisitCellsWithPoints
   {
   public:
     using ControlSignature = void(CellSetIn cellset,
@@ -265,9 +265,7 @@ struct VertexClustering
     }
   };
 
-  struct TypeInt64 : vtkm::ListTagBase<vtkm::Int64>
-  {
-  };
+  using TypeInt64 = vtkm::List<vtkm::Int64>;
 
   class Cid3HashWorklet : public vtkm::worklet::WorkletMapField
   {
@@ -512,12 +510,12 @@ public:
     vtkm::cont::DataSet output;
     output.AddCoordinateSystem(vtkm::cont::CoordinateSystem("coordinates", repPointArray));
 
-    vtkm::cont::CellSetSingleType<> triangles("cells");
+    vtkm::cont::CellSetSingleType<> triangles;
     triangles.Fill(repPointArray.GetNumberOfValues(),
                    vtkm::CellShapeTagTriangle::Id,
                    3,
                    internal::copyFromVec(pointId3Array));
-    output.AddCellSet(triangles);
+    output.SetCellSet(triangles);
 
 #ifdef __VTKM_VERTEX_CLUSTERING_BENCHMARK
     std::cout << "Wrap-up (s): " << timer.GetElapsedTime() << std::endl;

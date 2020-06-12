@@ -2,8 +2,6 @@ NAME
   VTK::IOAsynchronous
 LIBRARY_NAME
   vtkIOAsynchronous
-KIT
-  VTK::IO
 GROUPS
   StandAlone
 DEPENDS
@@ -17,5 +15,6 @@ PRIVATE_DEPENDS
   VTK::CommonMath
   VTK::CommonMisc
   VTK::CommonSystem
+  VTK::ParallelCore
 TEST_DEPENDS
   VTK::TestingCore

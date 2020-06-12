@@ -178,7 +178,7 @@ vtkm_library(
   NAME vtkm_rendering
   SOURCES ${sources}
   HEADERS ${headers}
-  WRAP_FOR_CUDA ${device_sources}
+  DEVICE_SOURCES ${device_sources}
   )
 
 # Install all headers no matter what backend was selected
@@ -195,8 +195,8 @@ elseif(VTKm_ENABLE_EGL_CONTEXT)
 endif()
 
 #-----------------------------------------------------------------------------
-target_link_libraries(vtkm_rendering PUBLIC vtkm_filter)
-
+target_link_libraries(vtkm_rendering PUBLIC vtkm_filter
+                                     PRIVATE vtkm_lodepng)
 if(UNIX AND NOT APPLE)
   target_link_libraries(vtkm_rendering PRIVATE rt)
 endif()

@@ -23,11 +23,13 @@ namespace internal
 template <typename P>
 class VTKM_ALWAYS_EXPORT ArrayPortalStreaming
 {
+  using Writable = vtkm::internal::PortalSupportsSets<P>;
+
 public:
   using PortalType = P;
   using ValueType = typename PortalType::ValueType;
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   ArrayPortalStreaming()
     : InputPortal()
     , BlockIndex(0)
@@ -36,7 +38,7 @@ public:
   {
   }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   ArrayPortalStreaming(const PortalType& inputPortal,
                        vtkm::Id blockIndex,
                        vtkm::Id blockSize,
@@ -49,7 +51,7 @@ public:
   }
 
   template <typename OtherP>
-  VTKM_CONT ArrayPortalStreaming(const ArrayPortalStreaming<OtherP>& src)
+  VTKM_EXEC_CONT ArrayPortalStreaming(const ArrayPortalStreaming<OtherP>& src)
     : InputPortal(src.GetPortal())
     , BlockIndex(src.GetBlockIndex())
     , BlockSize(src.GetBlockSize())
@@ -57,40 +59,41 @@ public:
   {
   }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   vtkm::Id GetNumberOfValues() const { return this->CurBlockSize; }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   ValueType Get(vtkm::Id index) const
   {
     return this->InputPortal.Get(this->BlockIndex * this->BlockSize + index);
   }
 
-  VTKM_CONT
-  void Set(vtkm::Id index, const ValueType& value) const
+  template <typename Writable_ = Writable,
+            typename = typename std::enable_if<Writable_::value>::type>
+  VTKM_EXEC_CONT void Set(vtkm::Id index, const ValueType& value) const
   {
     this->InputPortal.Set(this->BlockIndex * this->BlockSize + index, value);
   }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   const PortalType& GetPortal() const { return this->InputPortal; }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   void SetBlockSize(vtkm::Id blockSize) { this->BlockSize = blockSize; }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   void SetBlockIndex(vtkm::Id blockIndex) { this->BlockIndex = blockIndex; }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   void SetCurBlockSize(vtkm::Id curBlockSize) { this->CurBlockSize = curBlockSize; }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   vtkm::Id GetBlockSize() { return this->BlockSize; }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   vtkm::Id GetBlockIndex() { return this->BlockIndex; }
 
-  VTKM_CONT
+  VTKM_EXEC_CONT
   vtkm::Id GetCurBlockSize() { return this->CurBlockSize; }
 
 private:
@@ -243,9 +246,11 @@ public:
   VTKM_CONT
   void AllocateFullArray(vtkm::Id numberOfValues)
   {
-    this->ReleaseResourcesExecutionInternal();
-    this->Internals->ControlArray.AllocateFullArray(numberOfValues);
-    this->Internals->ControlArrayValid = true;
+    auto lock = this->GetLock();
+
+    this->ReleaseResourcesExecutionInternal(lock);
+    this->Internals->GetControlArray(lock)->AllocateFullArray(numberOfValues);
+    this->Internals->SetControlArrayValid(lock, true);
   }
 };
 }

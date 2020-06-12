@@ -18,6 +18,7 @@ set(unit_tests
   UnitTestCellSetDualGraph.cxx
   UnitTestCellMeasure.cxx
   UnitTestClipping.cxx
+  UnitTestContour.cxx
   UnitTestContourTreeUniform.cxx
   UnitTestContourTreeUniformAugmented.cxx
   UnitTestCoordinateSystemTransform.cxx
@@ -36,7 +37,6 @@ set(unit_tests
   UnitTestKdTreeBuildNNS.cxx
   UnitTestKeys.cxx
   UnitTestMagnitude.cxx
-  UnitTestMarchingCubes.cxx
   UnitTestMask.cxx
   UnitTestMaskIndices.cxx
   UnitTestMaskPoints.cxx
@@ -45,6 +45,7 @@ set(unit_tests
   UnitTestNDimsEntropy.cxx
   UnitTestNDimsHistogram.cxx
   UnitTestNDimsHistMarginalization.cxx
+  UnitTestOrientNormals.cxx
   UnitTestParticleAdvection.cxx
   UnitTestPointElevation.cxx
   UnitTestPointGradient.cxx
@@ -59,12 +60,15 @@ set(unit_tests
   UnitTestSplitSharpEdges.cxx
   UnitTestStreamingSine.cxx
   UnitTestStreamLineUniformGrid.cxx
+  UnitTestStreamSurface.cxx
   UnitTestSurfaceNormals.cxx
   UnitTestTemporalAdvection.cxx
   UnitTestTetrahedralize.cxx
   UnitTestThreshold.cxx
   UnitTestThresholdPoints.cxx
+  UnitTestTriangleWinding.cxx
   UnitTestTriangulate.cxx
+  UnitTestTube.cxx
   UnitTestWholeCellSetIn.cxx
   UnitTestWorkletMapField.cxx
   UnitTestWorkletMapFieldExecArg.cxx
@@ -78,15 +82,15 @@ set(unit_tests
   UnitTestWarpScalar.cxx
   UnitTestWarpVector.cxx
   UnitTestWaveletCompressor.cxx
-  UnitTestWaveletGenerator.cxx
   UnitTestZFPCompressor.cxx
  )
 
 
 vtkm_unit_tests(
   SOURCES ${unit_tests}
-  LIBRARIES vtkm_worklet
+  LIBRARIES vtkm_source vtkm_worklet vtkm_filter
   ALL_BACKENDS
+  USE_VTKM_JOB_POOL
   )
 if (TARGET vtkm::cuda)
   if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND

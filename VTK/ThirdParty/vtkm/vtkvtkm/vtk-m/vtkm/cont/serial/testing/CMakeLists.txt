@@ -11,6 +11,7 @@
 set(unit_tests
   UnitTestSerialArrayHandle.cxx
   UnitTestSerialArrayHandleFancy.cxx
+  UnitTestSerialArrayHandleMultiplexer.cxx
   UnitTestSerialArrayHandleVirtualCoordinates.cxx
   UnitTestSerialBitField.cxx
   UnitTestSerialCellLocatorRectilinearGrid.cxx
@@ -26,4 +27,7 @@ set(unit_tests
   UnitTestSerialPointLocatorUniformGrid.cxx
   UnitTestSerialVirtualObjectHandle.cxx
   )
-vtkm_unit_tests(SOURCES ${unit_tests} DEFINES VTKM_NO_ERROR_ON_MIXED_CUDA_CXX_TAG)
+vtkm_unit_tests(SOURCES ${unit_tests}
+                LABEL "SERIAL"
+                DEFINES VTKM_NO_ERROR_ON_MIXED_CUDA_CXX_TAG
+                LIBRARIES vtkm_worklet)

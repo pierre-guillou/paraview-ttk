@@ -139,13 +139,14 @@ public:
     this->InConstructor = true;
     this->Selectable = true;
     this->Model = model;
-    this->Parent = NULL;
+    this->Parent = nullptr;
     this->Object = object;
     this->Type = itemType;
     this->VisibilityIcon = PipelineModelIconType::LAST;
     if (itemType == pqPipelineModel::Link)
     {
-      pqPipelineModelDataItem* proxyItem = model->getDataItem(object, NULL, pqPipelineModel::Proxy);
+      pqPipelineModelDataItem* proxyItem =
+        model->getDataItem(object, nullptr, pqPipelineModel::Proxy);
       assert(proxyItem != 0);
       proxyItem->Links.push_back(this);
     }
@@ -160,7 +161,7 @@ public:
     if (this->Type == pqPipelineModel::Link && this->Model->Internal)
     {
       pqPipelineModelDataItem* proxyItem =
-        this->Model->getDataItem(this->Object, NULL, pqPipelineModel::Proxy);
+        this->Model->getDataItem(this->Object, nullptr, pqPipelineModel::Proxy);
       if (proxyItem)
       {
         proxyItem->Links.removeAll(this);
@@ -176,7 +177,7 @@ public:
     foreach (pqPipelineModelDataItem* otherChild, other.Children)
     {
       pqPipelineModelDataItem* child =
-        new pqPipelineModelDataItem(this, NULL, pqPipelineModel::Invalid, this->Model);
+        new pqPipelineModelDataItem(this, nullptr, pqPipelineModel::Invalid, this->Model);
       this->addChild(child);
       *child = *otherChild;
     }
@@ -189,7 +190,7 @@ public:
     if (this->Type == pqPipelineModel::Link)
     {
       pqPipelineModelDataItem* proxyItem =
-        this->Model->getDataItem(this->Object, NULL, pqPipelineModel::Proxy);
+        this->Model->getDataItem(this->Object, nullptr, pqPipelineModel::Proxy);
       assert(proxyItem != 0);
       proxyItem->Links.push_back(this);
     }
@@ -273,8 +274,8 @@ public:
       qCritical() << "Cannot remove a non-child.";
       return;
     }
-    child->setParent(NULL);
-    child->Parent = NULL;
+    child->setParent(nullptr);
+    child->Parent = nullptr;
     this->Children.removeAll(child);
   }
 
@@ -423,7 +424,7 @@ class pqPipelineModelInternal
 {
 public:
   pqPipelineModelInternal(pqPipelineModel* parent)
-    : Root(parent, NULL, pqPipelineModel::Invalid, parent)
+    : Root(parent, nullptr, pqPipelineModel::Invalid, parent)
   {
     this->ModifiedFont.setBold(true);
     this->DelayedUpdateVisibilityTimer.setSingleShot(true);
@@ -438,13 +439,13 @@ public:
 //-----------------------------------------------------------------------------
 void pqPipelineModel::constructor()
 {
-  this->FilterRoleSession = NULL;
+  this->FilterRoleSession = nullptr;
   this->Internal = new pqPipelineModelInternal(this);
   QObject::connect(&this->Internal->DelayedUpdateVisibilityTimer, SIGNAL(timeout()), this,
     SLOT(delayedUpdateVisibilityTimeout()));
 
   this->Editable = true;
-  this->View = NULL;
+  this->View = nullptr;
 
   QObject::connect(pqLiveInsituManager::instance(), SIGNAL(connectionInitiated(pqServer*)), this,
     SLOT(onInsituConnectionInitiated(pqServer*)));
@@ -460,12 +461,12 @@ void pqPipelineModel::constructor()
     ":/pqWidgets/Icons/pqHistogram16.png");
   this->PixmapMap[PipelineModelIconType::LINECHART].load(":/pqWidgets/Icons/pqLineChart16.png");
   this->PixmapMap[PipelineModelIconType::PLOTMATRIX].load(":/pqWidgets/Icons/pqLineChart16.png");
-  this->PixmapMap[PipelineModelIconType::TABLE].load(":/pqWidgets/Icons/pqSpreadsheet16.png");
+  this->PixmapMap[PipelineModelIconType::TABLE].load(":/pqWidgets/Icons/pqSpreadsheet.svg");
   this->PixmapMap[PipelineModelIconType::INDETERMINATE].load(":/pqWidgets/Icons/pq3DView16.png");
   this->PixmapMap[PipelineModelIconType::NONE].load(":/pqWidgets/Icons/pq3DView16.png");
-  this->PixmapMap[PipelineModelIconType::EYEBALL].load(":/pqWidgets/Icons/pqEyeball.png");
+  this->PixmapMap[PipelineModelIconType::EYEBALL].load(":/pqWidgets/Icons/pqEyeball.svg");
   this->PixmapMap[PipelineModelIconType::EYEBALL_GRAY].load(
-    ":/pqWidgets/Icons/pqEyeballClosed.png");
+    ":/pqWidgets/Icons/pqEyeballClosed.svg");
   this->PixmapMap[PipelineModelIconType::INSITU_EXTRACT].load(":/pqWidgets/Icons/pqLinkIn16.png");
   this->PixmapMap[PipelineModelIconType::INSITU_EXTRACT_GRAY].load(
     ":/pqWidgets/Icons/pqLinkIn16d.png");
@@ -476,15 +477,15 @@ void pqPipelineModel::constructor()
   this->PixmapMap[PipelineModelIconType::INSITU_BREAKPOINT].load(
     ":/pqWidgets/Icons/pqInsituBreakpoint16.png");
   this->PixmapMap[PipelineModelIconType::INSITU_WRITER_PARAMETERS].load(
-    ":/pqWidgets/Icons/pqSave32.png");
-  this->PixmapMap[PipelineModelIconType::CINEMA_MARK].load(
-    ":/pqWidgets/Icons/cinemascience_mark.png");
+    ":/pqWidgets/Icons/pqSave.svg");
+  this->PixmapMap[PipelineModelIconType::CINEMA_MARK].load(":/pqWidgets/Icons/pqCinemaScience.svg");
 }
 
 //-----------------------------------------------------------------------------
 pqPipelineModel::pqPipelineModel(QObject* p)
   : QAbstractItemModel(p)
-  , LinkCallback(NULL)
+  , FilterAnnotationMatching(true)
+  , LinkCallback(nullptr)
 {
   this->constructor();
 }
@@ -492,7 +493,8 @@ pqPipelineModel::pqPipelineModel(QObject* p)
 //-----------------------------------------------------------------------------
 pqPipelineModel::pqPipelineModel(const pqPipelineModel& other, QObject* parentObject)
   : QAbstractItemModel(parentObject)
-  , LinkCallback(NULL)
+  , FilterAnnotationMatching(true)
+  , LinkCallback(nullptr)
 {
   this->constructor();
   this->Internal->Root = other.Internal->Root;
@@ -502,7 +504,8 @@ pqPipelineModel::pqPipelineModel(const pqPipelineModel& other, QObject* parentOb
 //-----------------------------------------------------------------------------
 pqPipelineModel::pqPipelineModel(const pqServerManagerModel& other, QObject* parentObject)
   : QAbstractItemModel(parentObject)
-  , LinkCallback(NULL)
+  , FilterAnnotationMatching(true)
+  , LinkCallback(nullptr)
 {
   this->constructor();
 
@@ -542,10 +545,10 @@ pqPipelineModel::pqPipelineModel(const pqServerManagerModel& other, QObject* par
 //-----------------------------------------------------------------------------
 pqPipelineModel::~pqPipelineModel()
 {
-  // setting this->Internal to NULL keeps the ~pqPipelineModelDataItem() from
+  // setting this->Internal to nullptr keeps the ~pqPipelineModelDataItem() from
   // trying to update the link connections.
   pqPipelineModelInternal* internal = this->Internal;
-  this->Internal = NULL;
+  this->Internal = nullptr;
   delete internal;
 
   if (this->LinkCallback)
@@ -830,8 +833,9 @@ QVariant pqPipelineModel::data(const QModelIndex& idx, int role) const
     {
       if (!this->FilterRoleAnnotationKey.isEmpty() && source)
       {
-        return QVariant(
-          source->getProxy()->HasAnnotation(this->FilterRoleAnnotationKey.toLocal8Bit().data()));
+        bool hasAnnotation =
+          source->getProxy()->HasAnnotation(this->FilterRoleAnnotationKey.toLocal8Bit().data());
+        return (this->FilterAnnotationMatching ? hasAnnotation : !hasAnnotation);
       }
       return QVariant(true);
     }
@@ -901,7 +905,7 @@ pqServerManagerModelItem* pqPipelineModel::getItemFor(const QModelIndex& idx) co
       reinterpret_cast<pqPipelineModelDataItem*>(idx.internalPointer());
     return item->Object;
   }
-  return NULL;
+  return nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -1161,7 +1165,7 @@ void pqPipelineModel::removeSource(pqPipelineSource* source)
 
     foreach (pqPipelineModelDataItem* child, childrenToMove)
     {
-      child->Parent = NULL;
+      child->Parent = nullptr;
       this->addChild(_parent, child);
     }
   }
@@ -1413,6 +1417,12 @@ void pqPipelineModel::setModifiedFont(const QFont& font)
 }
 
 //-----------------------------------------------------------------------------
+void pqPipelineModel::setAnnotationFilterMatching(bool matching)
+{
+  this->FilterAnnotationMatching = matching;
+}
+
+//-----------------------------------------------------------------------------
 void pqPipelineModel::enableFilterAnnotationKey(const QString& expectedAnnotation)
 {
   this->FilterRoleAnnotationKey = expectedAnnotation;
@@ -1433,7 +1443,7 @@ void pqPipelineModel::enableFilterSession(vtkSession* session)
 //-----------------------------------------------------------------------------
 void pqPipelineModel::disableFilterSession()
 {
-  this->FilterRoleSession = NULL;
+  this->FilterRoleSession = nullptr;
 }
 
 //-----------------------------------------------------------------------------

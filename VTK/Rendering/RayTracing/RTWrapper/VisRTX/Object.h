@@ -4,11 +4,11 @@
 
 #include <VisRTX.h>
 
-#include <map>
 #include <cstring>
+#include <iostream>
+#include <map>
 #include <string>
 #include <vector>
-#include <iostream>
 
 namespace RTW
 {
@@ -216,6 +216,19 @@ namespace RTW
             bool found;
             *result = this->Get4f(ids, defaultValue, &found);
             return found;
+        }
+
+        void RemoveParam(const std::string& id)
+        {
+            this->stringMap.Remove(id);
+            this->objectMap.Remove(id);
+            this->int1Map.Remove(id);
+            this->float1Map.Remove(id);
+            this->float2Map.Remove(id);
+            this->int2Map.Remove(id);
+            this->int3Map.Remove(id);
+            this->float3Map.Remove(id);
+            this->float4Map.Remove(id);
         }
 
     protected:

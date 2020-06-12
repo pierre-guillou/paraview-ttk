@@ -19,22 +19,48 @@ namespace vtkm
 namespace cont
 {
 
+struct VTKM_ALWAYS_EXPORT StorageTagUniformPoints
+{
+};
+
+namespace internal
+{
+
+using StorageTagUniformPointsSuperclass =
+  vtkm::cont::StorageTagImplicit<vtkm::internal::ArrayPortalUniformPointCoordinates>;
+
+template <>
+struct Storage<vtkm::Vec3f, vtkm::cont::StorageTagUniformPoints>
+  : Storage<vtkm::Vec3f, StorageTagUniformPointsSuperclass>
+{
+  using Superclass = Storage<vtkm::Vec3f, StorageTagUniformPointsSuperclass>;
+
+  using Superclass::Superclass;
+};
+
+template <typename Device>
+struct ArrayTransfer<vtkm::Vec3f, vtkm::cont::StorageTagUniformPoints, Device>
+  : ArrayTransfer<vtkm::Vec3f, StorageTagUniformPointsSuperclass, Device>
+{
+  using Superclass = ArrayTransfer<vtkm::Vec3f, StorageTagUniformPointsSuperclass, Device>;
+
+  using Superclass::Superclass;
+};
+
+} // namespace internal
+
 /// ArrayHandleUniformPointCoordinates is a specialization of ArrayHandle. It
 /// contains the information necessary to compute the point coordinates in a
 /// uniform orthogonal grid (extent, origin, and spacing) and implicitly
 /// computes these coordinates in its array portal.
 ///
 class VTKM_ALWAYS_EXPORT ArrayHandleUniformPointCoordinates
-  : public vtkm::cont::ArrayHandle<
-      vtkm::Vec<vtkm::FloatDefault, 3>,
-      vtkm::cont::StorageTagImplicit<vtkm::internal::ArrayPortalUniformPointCoordinates>>
+  : public vtkm::cont::ArrayHandle<vtkm::Vec3f, vtkm::cont::StorageTagUniformPoints>
 {
 public:
   VTKM_ARRAY_HANDLE_SUBCLASS_NT(
     ArrayHandleUniformPointCoordinates,
-    (vtkm::cont::ArrayHandle<
-      vtkm::Vec<vtkm::FloatDefault, 3>,
-      vtkm::cont::StorageTagImplicit<vtkm::internal::ArrayPortalUniformPointCoordinates>>));
+    (vtkm::cont::ArrayHandle<vtkm::Vec3f, vtkm::cont::StorageTagUniformPoints>));
 
 private:
   using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
@@ -48,12 +74,20 @@ public:
         vtkm::internal::ArrayPortalUniformPointCoordinates(dimensions, origin, spacing)))
   {
   }
+
+  /// Implemented so that it is defined exclusively in the control environment.
+  /// If there is a separate device for the execution environment (for example,
+  /// with CUDA), then the automatically generated destructor could be
+  /// created for all devices, and it would not be valid for all devices.
+  ///
+  ~ArrayHandleUniformPointCoordinates() {}
 };
 }
 } // namespace vtkm::cont
 
 //=============================================================================
 // Specializations of serialization related classes
+/// @cond SERIALIZATION
 namespace vtkm
 {
 namespace cont
@@ -66,9 +100,8 @@ struct SerializableTypeString<vtkm::cont::ArrayHandleUniformPointCoordinates>
 };
 
 template <>
-struct SerializableTypeString<vtkm::cont::ArrayHandle<
-  vtkm::Vec<vtkm::FloatDefault, 3>,
-  vtkm::cont::StorageTagImplicit<vtkm::internal::ArrayPortalUniformPointCoordinates>>>
+struct SerializableTypeString<
+  vtkm::cont::ArrayHandle<vtkm::Vec3f, vtkm::cont::StorageTagUniformPoints>>
   : SerializableTypeString<vtkm::cont::ArrayHandleUniformPointCoordinates>
 {
 };
@@ -108,13 +141,12 @@ public:
 };
 
 template <>
-struct Serialization<vtkm::cont::ArrayHandle<
-  vtkm::Vec<vtkm::FloatDefault, 3>,
-  vtkm::cont::StorageTagImplicit<vtkm::internal::ArrayPortalUniformPointCoordinates>>>
+struct Serialization<vtkm::cont::ArrayHandle<vtkm::Vec3f, vtkm::cont::StorageTagUniformPoints>>
   : Serialization<vtkm::cont::ArrayHandleUniformPointCoordinates>
 {
 };
 
 } // diy
+/// @endcond SERIALIZATION
 
 #endif //vtk_+m_cont_ArrayHandleUniformPointCoordinates_h

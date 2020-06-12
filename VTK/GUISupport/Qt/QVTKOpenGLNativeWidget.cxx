@@ -64,11 +64,19 @@ QVTKOpenGLNativeWidget::QVTKOpenGLNativeWidget(
   this->connect(this, SIGNAL(resized()), SLOT(updateSize()));
 
   this->setRenderWindow(renderWin);
+
+  // enable qt gesture events
+  this->grabGesture(Qt::PinchGesture);
+  this->grabGesture(Qt::PanGesture);
+  this->grabGesture(Qt::TapGesture);
+  this->grabGesture(Qt::TapAndHoldGesture);
+  this->grabGesture(Qt::SwipeGesture);
 }
 
 //-----------------------------------------------------------------------------
 QVTKOpenGLNativeWidget::~QVTKOpenGLNativeWidget()
 {
+  this->makeCurrent();
   this->cleanupContext();
 }
 
@@ -94,7 +102,11 @@ void QVTKOpenGLNativeWidget::setRenderWindow(vtkGenericOpenGLRenderWindow* win)
 
   // this will release all OpenGL resources associated with the old render
   // window, if any.
-  this->RenderWindowAdapter.reset(nullptr);
+  if (this->RenderWindowAdapter)
+  {
+    this->makeCurrent();
+    this->RenderWindowAdapter.reset(nullptr);
+  }
   this->RenderWindow = win;
   if (this->RenderWindow)
   {
@@ -197,8 +209,8 @@ void QVTKOpenGLNativeWidget::initializeGL()
     this->RenderWindowAdapter->setEnableHiDPI(this->EnableHiDPI);
     this->RenderWindowAdapter->setUnscaledDPI(this->UnscaledDPI);
   }
-  this->connect(
-    this->context(), SIGNAL(aboutToBeDestroyed()), SLOT(cleanupContext()), Qt::UniqueConnection);
+  this->connect(this->context(), SIGNAL(aboutToBeDestroyed()), SLOT(cleanupContext()),
+    static_cast<Qt::ConnectionType>(Qt::UniqueConnection | Qt::DirectConnection));
 }
 
 //-----------------------------------------------------------------------------

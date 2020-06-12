@@ -17,12 +17,9 @@
 namespace
 {
 
-struct NonDefaultCellSetList
-  : vtkm::ListTagBase<
-      vtkm::cont::CellSetStructured<1>,
-      vtkm::cont::CellSetExplicit<vtkm::cont::ArrayHandleConstant<vtkm::UInt8>::StorageTag>>
-{
-};
+using NonDefaultCellSetList =
+  vtkm::List<vtkm::cont::CellSetStructured<1>,
+             vtkm::cont::CellSetExplicit<vtkm::cont::ArrayHandleConstant<vtkm::UInt8>::StorageTag>>;
 
 template <typename ExpectedCellType>
 struct CheckFunctor
@@ -45,7 +42,6 @@ void CheckEmptyDynamicCellSet()
 {
   vtkm::cont::DynamicCellSet empty;
 
-  VTKM_TEST_ASSERT(empty.GetName() == std::string{}, "DynamicCellSet should have no name");
   VTKM_TEST_ASSERT(empty.GetNumberOfCells() == 0, "DynamicCellSet should have no cells");
   VTKM_TEST_ASSERT(empty.GetNumberOfFaces() == 0, "DynamicCellSet should have no faces");
   VTKM_TEST_ASSERT(empty.GetNumberOfEdges() == 0, "DynamicCellSet should have no edges");
@@ -119,7 +115,7 @@ void TryCellSet(CellSetType cellSet, vtkm::cont::DynamicCellSetBase<CellSetList>
 {
   CheckDynamicCellSet(cellSet, dynamicCellSet);
 
-  CheckDynamicCellSet(cellSet, dynamicCellSet.ResetCellSetList(vtkm::ListTagBase<CellSetType>()));
+  CheckDynamicCellSet(cellSet, dynamicCellSet.ResetCellSetList(vtkm::List<CellSetType>()));
 
   TryNewInstance(cellSet, dynamicCellSet);
 }

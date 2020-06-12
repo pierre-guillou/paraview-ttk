@@ -132,7 +132,7 @@ def setattr(proxy, pname, value):
     if pname == "LockScalarRange" and proxy.SMProxy.GetProperty("AutomaticRescaleRangeMode"):
         if paraview.compatibility.GetVersion() <= 5.4:
             if value:
-                from paraview.modules.vtkPVServerManagerRendering import vtkSMTransferFunctionManager
+                from paraview.modules.vtkRemotingViews import vtkSMTransferFunctionManager
                 proxy.GetProperty("AutomaticRescaleRangeMode").SetData(vtkSMTransferFunctionManager.NEVER)
             else:
                 pxm = proxy.SMProxy.GetSessionProxyManager()
@@ -189,7 +189,7 @@ def setattr(proxy, pname, value):
                 raise Continue()
             else:
                 raise NotSupportedException("'%s' is obsolete. Use the `Blocks` "\
-                        "property to select blocks using SIL instead.")
+                        "property to select blocks using SIL instead." % pname)
 
     if pname == "DataBoundsInflateFactor" and proxy.SMProxy.GetProperty("DataBoundsScaleFactor"):
         if paraview.compatibility.GetVersion() <= 5.4:
@@ -331,7 +331,6 @@ def setattr(proxy, pname, value):
             raise NotSupportedException(
                 'The `OSPRayMaterial` control has been renamed in ParaView 5.7 to `Material`.')
 
-
     if not hasattr(proxy, pname):
         raise AttributeError()
     proxy.__dict__[pname] = value
@@ -349,6 +348,18 @@ def setattr_fix_value(proxy, pname, value, setter_func):
             else:
                 raise NotSupportedException("'Gaussian Blur (Default)' is an obsolete value for ShaderPreset. "\
                     " Use 'Gaussian Blur' instead.")
+
+    if pname == "FieldAssociation" and proxy.SMProxy.GetXMLName() in ["DataSetCSVWriter", "CSVWriter"]:
+        if paraview.compatibility.GetVersion() < 5.8:
+            if value == "Points":
+                value = "Point Data"
+            elif value == "Cells":
+                value = "Cell Data"
+            setter_func(proxy, value)
+            raise Continue()
+        else:
+            raise NotSupportedException("'FieldAssociation' is using an obsolete "\
+                    "value '%s', use `Point Data` or `Cell Data` instead." % value)
     raise ValueError("'%s' is not a valid value for %s!" % (value, pname))
 
 _fgetattr = getattr
@@ -433,7 +444,7 @@ def getattr(proxy, pname):
     # replaced it with the enumeration AutomaticRescaleRangeMode.
     if pname == "LockScalarRange" and proxy.SMProxy.GetProperty("AutomaticRescaleRangeMode"):
         if version <= 5.4:
-            from paraview.modules.vtkPVServerManagerRendering import vtkSMTransferFunctionManager
+            from paraview.modules.vtkRemotingViews import vtkSMTransferFunctionManager
             if proxy.GetProperty("AutomaticRescaleRangeMode").GetData() == "Never":
                 return 1
             else:

@@ -12,10 +12,13 @@
 
 #include <vtkm/cont/ArrayHandle.h>
 
+#include <vtkm/Deprecated.h>
 #include <vtkm/StaticAssert.h>
 #include <vtkm/VecTraits.h>
 
 #include <vtkmtaotuple/include/Tuple.h>
+
+#include <vtkm/internal/brigand.hpp>
 
 #include <type_traits>
 
@@ -53,20 +56,6 @@ struct AllAreArrayHandlesImpl<Head>
 
 template <typename... ArrayHandleTs>
 struct AllAreArrayHandles
-{
-  constexpr static bool Value = AllAreArrayHandlesImpl<ArrayHandleTs...>::Value;
-};
-
-// ParamsAreArrayHandles: ------------------------------------------------------
-// Same as AllAreArrayHandles, but accepts a tuple.
-template <typename T>
-struct ParamsAreArrayHandles
-{
-  constexpr static bool Value = false;
-};
-
-template <typename... ArrayHandleTs>
-struct ParamsAreArrayHandles<vtkmstd::tuple<ArrayHandleTs...>>
 {
   constexpr static bool Value = AllAreArrayHandlesImpl<ArrayHandleTs...>::Value;
 };
@@ -373,11 +362,18 @@ struct ArraySizeValidator
   }
 };
 
+template <typename PortalList>
+using AllPortalsAreWritable =
+  typename brigand::all<PortalList,
+                        brigand::bind<vtkm::internal::PortalSupportsSets, brigand::_1>>::type;
+
 } // end namespace compvec
 
 template <typename PortalTuple>
 class VTKM_ALWAYS_EXPORT ArrayPortalCompositeVector
 {
+  using Writable = compvec::AllPortalsAreWritable<PortalTuple>;
+
 public:
   using ValueType = typename compvec::GetValueType<PortalTuple>::ValueType;
 
@@ -459,8 +455,9 @@ public:
     return result;
   }
 
-  VTKM_EXEC_CONT
-  void Set(vtkm::Id index, const ValueType& value) const
+  template <typename Writable_ = Writable,
+            typename = typename std::enable_if<Writable_::value>::type>
+  VTKM_EXEC_CONT void Set(vtkm::Id index, const ValueType& value) const
   {
     SetImpl<0, PortalTuple>::Exec(this->Portals, value, index);
   }
@@ -469,15 +466,54 @@ private:
   PortalTuple Portals;
 };
 
-template <typename ArrayTuple>
-struct VTKM_ALWAYS_EXPORT StorageTagCompositeVector
+} // namespace internal
+
+template <typename... StorageTags>
+struct VTKM_ALWAYS_EXPORT StorageTagCompositeVec
 {
 };
 
-template <typename ArrayTuple>
-class Storage<typename compvec::GetValueType<ArrayTuple>::ValueType,
-              StorageTagCompositeVector<ArrayTuple>>
+namespace internal
 {
+
+template <typename ArrayTuple>
+struct VTKM_ALWAYS_EXPORT VTKM_DEPRECATED(1.6, "Use StorageTagCompositeVec instead.")
+  StorageTagCompositeVector
+{
+};
+
+template <typename... ArrayTs>
+struct CompositeVectorTraits
+{
+  // Need to check this here, since this traits struct is used in the
+  // ArrayHandleCompositeVector superclass definition before any other
+  // static_asserts could be used.
+  VTKM_STATIC_ASSERT_MSG(compvec::AllAreArrayHandles<ArrayTs...>::Value,
+                         "Template parameters for ArrayHandleCompositeVector "
+                         "must be a list of ArrayHandle types.");
+
+  using ValueType = typename compvec::GetValueType<vtkmstd::tuple<ArrayTs...>>::ValueType;
+  using StorageTag = vtkm::cont::StorageTagCompositeVec<typename ArrayTs::StorageTag...>;
+  using StorageType = Storage<ValueType, StorageTag>;
+  using Superclass = ArrayHandle<ValueType, StorageTag>;
+};
+
+VTKM_DEPRECATED_SUPPRESS_BEGIN
+template <typename... Arrays>
+class Storage<typename compvec::GetValueType<vtkmstd::tuple<Arrays...>>::ValueType,
+              StorageTagCompositeVector<vtkmstd::tuple<Arrays...>>>
+  : CompositeVectorTraits<Arrays...>::StorageType
+{
+  using Superclass = typename CompositeVectorTraits<Arrays...>::StorageType;
+  using Superclass::Superclass;
+};
+VTKM_DEPRECATED_SUPPRESS_END
+
+template <typename T, typename... StorageTags>
+class Storage<vtkm::Vec<T, static_cast<vtkm::IdComponent>(sizeof...(StorageTags))>,
+              vtkm::cont::StorageTagCompositeVec<StorageTags...>>
+{
+  using ArrayTuple = vtkmstd::tuple<vtkm::cont::ArrayHandle<T, StorageTags>...>;
   using ForEachArray =
     compvec::ArrayTupleForEach<0, vtkmstd::tuple_size<ArrayTuple>::value, ArrayTuple>;
   using PortalTypes = compvec::PortalTupleTraits<ArrayTuple>;
@@ -498,6 +534,18 @@ public:
   VTKM_CONT
   Storage(const ArrayTuple& arrays)
     : Arrays(arrays)
+    , Valid(true)
+  {
+    using SizeValidator = compvec::ArraySizeValidator<ArrayTuple>;
+    if (!SizeValidator::Exec(this->Arrays, this->GetNumberOfValues()))
+    {
+      throw ErrorBadValue("All arrays must have the same number of values.");
+    }
+  }
+
+  template <typename... ArrayTypes>
+  VTKM_CONT Storage(const ArrayTypes&... arrays)
+    : Arrays(arrays...)
     , Valid(true)
   {
     using SizeValidator = compvec::ArraySizeValidator<ArrayTuple>;
@@ -532,21 +580,21 @@ public:
   void Allocate(vtkm::Id numValues)
   {
     VTKM_ASSERT(this->Valid);
-    return ForEachArray::Allocate(this->Arrays, numValues);
+    ForEachArray::Allocate(this->Arrays, numValues);
   }
 
   VTKM_CONT
   void Shrink(vtkm::Id numValues)
   {
     VTKM_ASSERT(this->Valid);
-    return ForEachArray::Shrink(this->Arrays, numValues);
+    ForEachArray::Shrink(this->Arrays, numValues);
   }
 
   VTKM_CONT
   void ReleaseResources()
   {
     VTKM_ASSERT(this->Valid);
-    return ForEachArray::ReleaseResources(this->Arrays);
+    ForEachArray::ReleaseResources(this->Arrays);
   }
 
   VTKM_CONT
@@ -568,12 +616,31 @@ private:
   bool Valid;
 };
 
-template <typename ArrayTuple, typename DeviceTag>
-class ArrayTransfer<typename compvec::GetValueType<ArrayTuple>::ValueType,
-                    StorageTagCompositeVector<ArrayTuple>,
+VTKM_DEPRECATED_SUPPRESS_BEGIN
+template <typename... Arrays, typename DeviceTag>
+struct ArrayTransfer<typename compvec::GetValueType<vtkmstd::tuple<Arrays...>>::ValueType,
+                     StorageTagCompositeVector<vtkmstd::tuple<Arrays...>>,
+                     DeviceTag>
+  : ArrayTransfer<typename compvec::GetValueType<vtkmstd::tuple<Arrays...>>::ValueType,
+                  typename CompositeVectorTraits<Arrays...>::StorageType,
+                  DeviceTag>
+{
+  using Superclass =
+    ArrayTransfer<typename compvec::GetValueType<vtkmstd::tuple<Arrays...>>::ValueType,
+                  typename CompositeVectorTraits<Arrays...>::StorageType,
+                  DeviceTag>;
+  using Superclass::Superclass;
+};
+VTKM_DEPRECATED_SUPPRESS_END
+
+template <typename T, typename... StorageTags, typename DeviceTag>
+class ArrayTransfer<vtkm::Vec<T, static_cast<vtkm::IdComponent>(sizeof...(StorageTags))>,
+                    vtkm::cont::StorageTagCompositeVec<StorageTags...>,
                     DeviceTag>
 {
   VTKM_IS_DEVICE_ADAPTER_TAG(DeviceTag);
+
+  using ArrayTuple = vtkmstd::tuple<vtkm::cont::ArrayHandle<T, StorageTags>...>;
 
 public:
   using ValueType = typename compvec::GetValueType<ArrayTuple>::ValueType;
@@ -581,7 +648,7 @@ public:
 private:
   using ForEachArray =
     compvec::ArrayTupleForEach<0, vtkmstd::tuple_size<ArrayTuple>::value, ArrayTuple>;
-  using StorageTag = StorageTagCompositeVector<ArrayTuple>;
+  using StorageTag = vtkm::cont::StorageTagCompositeVec<StorageTags...>;
   using StorageType = internal::Storage<ValueType, StorageTag>;
   using ControlTraits = compvec::PortalTupleTraits<ArrayTuple>;
   using ExecutionTraits = typename ControlTraits::template ExecutionTypes<DeviceTag>;
@@ -646,22 +713,6 @@ private:
   StorageType* Storage;
 };
 
-template <typename... ArrayTs>
-struct CompositeVectorTraits
-{
-  // Need to check this here, since this traits struct is used in the
-  // ArrayHandleCompositeVector superclass definition before any other
-  // static_asserts could be used.
-  VTKM_STATIC_ASSERT_MSG(compvec::AllAreArrayHandles<ArrayTs...>::Value,
-                         "Template parameters for ArrayHandleCompositeVector "
-                         "must be a list of ArrayHandle types.");
-
-  using ValueType = typename compvec::GetValueType<vtkmstd::tuple<ArrayTs...>>::ValueType;
-  using StorageTag = StorageTagCompositeVector<vtkmstd::tuple<ArrayTs...>>;
-  using StorageType = Storage<ValueType, StorageTag>;
-  using Superclass = ArrayHandle<ValueType, StorageTag>;
-};
-
 } // namespace internal
 
 /// \brief An \c ArrayHandle that combines components from other arrays.
@@ -694,7 +745,7 @@ public:
 
   VTKM_CONT
   ArrayHandleCompositeVector(const ArrayTs&... arrays)
-    : Superclass(StorageType(vtkmstd::make_tuple(arrays...)))
+    : Superclass(StorageType(arrays...))
   {
   }
 };
@@ -715,7 +766,7 @@ VTKM_CONT ArrayHandleCompositeVector<ArrayTs...> make_ArrayHandleCompositeVector
 
 //=============================================================================
 // Specializations of serialization related classes
-
+/// @cond SERIALIZATION
 namespace vtkm
 {
 namespace cont
@@ -732,6 +783,16 @@ struct SerializableTypeString<vtkm::cont::ArrayHandleCompositeVector<AHs...>>
   }
 };
 
+template <typename T, typename... STs>
+struct SerializableTypeString<
+  vtkm::cont::ArrayHandle<vtkm::Vec<T, static_cast<vtkm::IdComponent>(sizeof...(STs))>,
+                          vtkm::cont::StorageTagCompositeVec<STs...>>>
+  : SerializableTypeString<
+      vtkm::cont::ArrayHandleCompositeVector<vtkm::cont::ArrayHandle<T, STs>...>>
+{
+};
+
+VTKM_DEPRECATED_SUPPRESS_BEGIN
 template <typename... AHs>
 struct SerializableTypeString<vtkm::cont::ArrayHandle<
   typename vtkm::cont::internal::compvec::GetValueType<vtkmstd::tuple<AHs...>>::ValueType,
@@ -739,6 +800,7 @@ struct SerializableTypeString<vtkm::cont::ArrayHandle<
   : SerializableTypeString<vtkm::cont::ArrayHandleCompositeVector<AHs...>>
 {
 };
+VTKM_DEPRECATED_SUPPRESS_END
 }
 } // vtkm::cont
 
@@ -821,6 +883,15 @@ public:
   }
 };
 
+template <typename T, typename... STs>
+struct Serialization<
+  vtkm::cont::ArrayHandle<vtkm::Vec<T, static_cast<vtkm::IdComponent>(sizeof...(STs))>,
+                          vtkm::cont::StorageTagCompositeVec<STs...>>>
+  : Serialization<vtkm::cont::ArrayHandleCompositeVector<vtkm::cont::ArrayHandle<T, STs>...>>
+{
+};
+
+VTKM_DEPRECATED_SUPPRESS_BEGIN
 template <typename... AHs>
 struct Serialization<vtkm::cont::ArrayHandle<
   typename vtkm::cont::internal::compvec::GetValueType<vtkmstd::tuple<AHs...>>::ValueType,
@@ -828,6 +899,8 @@ struct Serialization<vtkm::cont::ArrayHandle<
   : Serialization<vtkm::cont::ArrayHandleCompositeVector<AHs...>>
 {
 };
+VTKM_DEPRECATED_SUPPRESS_END
 } // diy
+/// @endcond SERIALIZATION
 
 #endif //vtk_m_ArrayHandleCompositeVector_h

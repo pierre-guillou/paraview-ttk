@@ -108,6 +108,30 @@ struct CopySubRangeFunctor
   }
 };
 
+struct CountSetBitsFunctor
+{
+  vtkm::Id PopCount{ 0 };
+
+  template <typename Device, typename... Args>
+  VTKM_CONT bool operator()(Device, Args&&... args)
+  {
+    this->PopCount = vtkm::cont::DeviceAdapterAlgorithm<Device>::CountSetBits(
+      PrepareArgForExec<Device>(std::forward<Args>(args))...);
+    return true;
+  }
+};
+
+struct FillFunctor
+{
+  template <typename Device, typename... Args>
+  VTKM_CONT bool operator()(Device, Args&&... args)
+  {
+    vtkm::cont::DeviceAdapterAlgorithm<Device>::Fill(
+      PrepareArgForExec<Device>(std::forward<Args>(args))...);
+    return true;
+  }
+};
+
 struct LowerBoundsFunctor
 {
 
@@ -286,6 +310,19 @@ struct ScanExclusiveByKeyFunctor
   {
     VTKM_IS_DEVICE_ADAPTER_TAG(Device);
     vtkm::cont::DeviceAdapterAlgorithm<Device>::ScanExclusiveByKey(
+      PrepareArgForExec<Device>(std::forward<Args>(args))...);
+    return true;
+  }
+};
+
+template <typename T>
+struct ScanExtendedFunctor
+{
+  template <typename Device, typename... Args>
+  VTKM_CONT bool operator()(Device, Args&&... args)
+  {
+    VTKM_IS_DEVICE_ADAPTER_TAG(Device);
+    vtkm::cont::DeviceAdapterAlgorithm<Device>::ScanExtended(
       PrepareArgForExec<Device>(std::forward<Args>(args))...);
     return true;
   }
@@ -489,6 +526,109 @@ struct Algorithm
                         outputIndex);
   }
 
+  VTKM_CONT static vtkm::Id CountSetBits(vtkm::cont::DeviceAdapterId devId,
+                                         const vtkm::cont::BitField& bits)
+  {
+    detail::CountSetBitsFunctor functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, bits);
+    return functor.PopCount;
+  }
+
+  VTKM_CONT static vtkm::Id CountSetBits(const vtkm::cont::BitField& bits)
+  {
+    return CountSetBits(vtkm::cont::DeviceAdapterTagAny{}, bits);
+  }
+
+  VTKM_CONT static void Fill(vtkm::cont::DeviceAdapterId devId,
+                             vtkm::cont::BitField& bits,
+                             bool value,
+                             vtkm::Id numBits)
+  {
+    detail::FillFunctor functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, bits, value, numBits);
+  }
+
+  VTKM_CONT static void Fill(vtkm::cont::BitField& bits, bool value, vtkm::Id numBits)
+  {
+    Fill(vtkm::cont::DeviceAdapterTagAny{}, bits, value, numBits);
+  }
+
+  VTKM_CONT static void Fill(vtkm::cont::DeviceAdapterId devId,
+                             vtkm::cont::BitField& bits,
+                             bool value)
+  {
+    detail::FillFunctor functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, bits, value);
+  }
+
+  VTKM_CONT static void Fill(vtkm::cont::BitField& bits, bool value)
+  {
+    Fill(vtkm::cont::DeviceAdapterTagAny{}, bits, value);
+  }
+
+  template <typename WordType>
+  VTKM_CONT static void Fill(vtkm::cont::DeviceAdapterId devId,
+                             vtkm::cont::BitField& bits,
+                             WordType word,
+                             vtkm::Id numBits)
+  {
+    detail::FillFunctor functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, bits, word, numBits);
+  }
+
+  template <typename WordType>
+  VTKM_CONT static void Fill(vtkm::cont::BitField& bits, WordType word, vtkm::Id numBits)
+  {
+    Fill(vtkm::cont::DeviceAdapterTagAny{}, bits, word, numBits);
+  }
+
+  template <typename WordType>
+  VTKM_CONT static void Fill(vtkm::cont::DeviceAdapterId devId,
+                             vtkm::cont::BitField& bits,
+                             WordType word)
+  {
+    detail::FillFunctor functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, bits, word);
+  }
+
+  template <typename WordType>
+  VTKM_CONT static void Fill(vtkm::cont::BitField& bits, WordType word)
+  {
+    Fill(vtkm::cont::DeviceAdapterTagAny{}, bits, word);
+  }
+
+  template <typename T, typename S>
+  VTKM_CONT static void Fill(vtkm::cont::DeviceAdapterId devId,
+                             vtkm::cont::ArrayHandle<T, S>& handle,
+                             const T& value)
+  {
+    detail::FillFunctor functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, handle, value);
+  }
+
+  template <typename T, typename S>
+  VTKM_CONT static void Fill(vtkm::cont::ArrayHandle<T, S>& handle, const T& value)
+  {
+    Fill(vtkm::cont::DeviceAdapterTagAny{}, handle, value);
+  }
+
+  template <typename T, typename S>
+  VTKM_CONT static void Fill(vtkm::cont::DeviceAdapterId devId,
+                             vtkm::cont::ArrayHandle<T, S>& handle,
+                             const T& value,
+                             const vtkm::Id numValues)
+  {
+    detail::FillFunctor functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, handle, value, numValues);
+  }
+
+  template <typename T, typename S>
+  VTKM_CONT static void Fill(vtkm::cont::ArrayHandle<T, S>& handle,
+                             const T& value,
+                             const vtkm::Id numValues)
+  {
+    Fill(vtkm::cont::DeviceAdapterTagAny{}, handle, value, numValues);
+  }
 
   template <typename T, class CIn, class CVal, class COut>
   VTKM_CONT static void LowerBounds(vtkm::cont::DeviceAdapterId devId,
@@ -844,6 +984,42 @@ struct Algorithm
                                            vtkm::cont::ArrayHandle<U, VOut>& output)
   {
     ScanExclusiveByKey(vtkm::cont::DeviceAdapterTagAny(), keys, values, output);
+  }
+
+
+  template <typename T, class CIn, class COut>
+  VTKM_CONT static void ScanExtended(vtkm::cont::DeviceAdapterId devId,
+                                     const vtkm::cont::ArrayHandle<T, CIn>& input,
+                                     vtkm::cont::ArrayHandle<T, COut>& output)
+  {
+    detail::ScanExtendedFunctor<T> functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, input, output);
+  }
+  template <typename T, class CIn, class COut>
+  VTKM_CONT static void ScanExtended(const vtkm::cont::ArrayHandle<T, CIn>& input,
+                                     vtkm::cont::ArrayHandle<T, COut>& output)
+  {
+    ScanExtended(vtkm::cont::DeviceAdapterTagAny(), input, output);
+  }
+
+
+  template <typename T, class CIn, class COut, class BinaryFunctor>
+  VTKM_CONT static void ScanExtended(vtkm::cont::DeviceAdapterId devId,
+                                     const vtkm::cont::ArrayHandle<T, CIn>& input,
+                                     vtkm::cont::ArrayHandle<T, COut>& output,
+                                     BinaryFunctor binaryFunctor,
+                                     const T& initialValue)
+  {
+    detail::ScanExtendedFunctor<T> functor;
+    vtkm::cont::TryExecuteOnDevice(devId, functor, input, output, binaryFunctor, initialValue);
+  }
+  template <typename T, class CIn, class COut, class BinaryFunctor>
+  VTKM_CONT static void ScanExtended(const vtkm::cont::ArrayHandle<T, CIn>& input,
+                                     vtkm::cont::ArrayHandle<T, COut>& output,
+                                     BinaryFunctor binaryFunctor,
+                                     const T& initialValue)
+  {
+    ScanExtended(vtkm::cont::DeviceAdapterTagAny(), input, output, binaryFunctor, initialValue);
   }
 
 

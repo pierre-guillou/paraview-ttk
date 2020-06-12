@@ -20,17 +20,12 @@ namespace worklet
 namespace gradient
 {
 
-struct DivergenceTypes : vtkm::ListTagBase<vtkm::Vec<vtkm::Vec<vtkm::Float32, 3>, 3>,
-                                           vtkm::Vec<vtkm::Vec<vtkm::Float64, 3>, 3>>
-{
-};
+using DivergenceTypes = vtkm::List<vtkm::Vec<vtkm::Vec3f_32, 3>, vtkm::Vec<vtkm::Vec3f_64, 3>>;
 
 
 struct Divergence : public vtkm::worklet::WorkletMapField
 {
   using ControlSignature = void(FieldIn input, FieldOut output);
-  using ExecutionSignature = void(_1, _2);
-  using InputDomain = _1;
 
   template <typename InputType, typename OutputType>
   VTKM_EXEC void operator()(const InputType& input, OutputType& divergence) const

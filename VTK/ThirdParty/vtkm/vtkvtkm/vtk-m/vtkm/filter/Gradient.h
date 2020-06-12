@@ -30,7 +30,7 @@ namespace filter
 class Gradient : public vtkm::filter::FilterCell<Gradient>
 {
 public:
-  Gradient();
+  using SupportedTypes = vtkm::List<vtkm::Float32, vtkm::Float64, vtkm::Vec3f_32, vtkm::Vec3f_64>;
 
   /// When this flag is on (default is off), the gradient filter will provide a
   /// point based gradients, which are significantly more costly since for each
@@ -94,31 +94,17 @@ public:
                                 const vtkm::filter::PolicyBase<DerivedPolicy>& policy);
 
 private:
-  bool ComputePointGradient;
-  bool ComputeDivergence;
-  bool ComputeVorticity;
-  bool ComputeQCriterion;
-  bool StoreGradient;
-  bool RowOrdering;
+  bool ComputePointGradient = false;
+  bool ComputeDivergence = false;
+  bool ComputeVorticity = false;
+  bool ComputeQCriterion = false;
+  bool StoreGradient = true;
+  bool RowOrdering = true;
 
-  std::string GradientsName;
-  std::string DivergenceName;
-  std::string VorticityName;
-  std::string QCriterionName;
-};
-
-template <>
-class FilterTraits<Gradient>
-{
-public:
-  struct TypeListTagGradientInputs : vtkm::ListTagBase<vtkm::Float32,
-                                                       vtkm::Float64,
-                                                       vtkm::Vec<vtkm::Float32, 3>,
-                                                       vtkm::Vec<vtkm::Float64, 3>>
-  {
-  };
-
-  using InputFieldTypeList = TypeListTagGradientInputs;
+  std::string DivergenceName = "Divergence";
+  std::string GradientsName = "Gradients";
+  std::string QCriterionName = "QCriterion";
+  std::string VorticityName = "Vorticity";
 };
 }
 } // namespace vtkm::filter

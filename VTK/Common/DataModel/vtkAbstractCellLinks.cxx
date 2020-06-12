@@ -14,40 +14,46 @@
 =========================================================================*/
 #include "vtkAbstractCellLinks.h"
 
-#include "vtkObjectFactory.h"
 #include "vtkCellArray.h"
+#include "vtkObjectFactory.h"
 
 //----------------------------------------------------------------------------
-vtkAbstractCellLinks::vtkAbstractCellLinks() = default;
+vtkAbstractCellLinks::vtkAbstractCellLinks()
+{
+  this->SequentialProcessing = false;
+  this->Type = vtkAbstractCellLinks::LINKS_NOT_DEFINED;
+}
 
 //----------------------------------------------------------------------------
 vtkAbstractCellLinks::~vtkAbstractCellLinks() = default;
 
 //----------------------------------------------------------------------------
-int vtkAbstractCellLinks::
-GetIdType(vtkIdType maxPtId, vtkIdType maxCellId, vtkCellArray *ca)
+int vtkAbstractCellLinks::ComputeType(vtkIdType maxPtId, vtkIdType maxCellId, vtkCellArray* ca)
 {
-  vtkIdType numEntries = ca->GetNumberOfConnectivityEntries();
+  vtkIdType numEntries = ca->GetNumberOfConnectivityIds();
   vtkIdType max = maxPtId;
   max = (maxCellId > max ? maxCellId : max);
   max = (numEntries > max ? numEntries : max);
 
-  if ( max >= VTK_INT_MAX )
+  if (max < VTK_UNSIGNED_SHORT_MAX)
   {
-    return VTK_ID_TYPE;
+    return vtkAbstractCellLinks::STATIC_CELL_LINKS_USHORT;
   }
-  else if ( max >= VTK_SHORT_MAX )
+  // for 64bit IDS we might be able to use a unsigned int instead
+#if defined(VTK_USE_64BIT_IDS) && VTK_SIZEOF_INT == 4
+  else if (max < static_cast<vtkIdType>(VTK_UNSIGNED_INT_MAX))
   {
-    return VTK_INT;
+    return vtkAbstractCellLinks::STATIC_CELL_LINKS_UINT;
   }
-  else
-  {
-    return VTK_SHORT;
-  }
+#endif
+  return vtkAbstractCellLinks::STATIC_CELL_LINKS_IDTYPE;
 }
 
 //----------------------------------------------------------------------------
 void vtkAbstractCellLinks::PrintSelf(ostream& os, vtkIndent indent)
 {
-  this->Superclass::PrintSelf(os,indent);
+  this->Superclass::PrintSelf(os, indent);
+
+  os << indent << "Sequential Processing: " << (this->SequentialProcessing ? "true\n" : "false\n");
+  os << indent << "Type: " << this->Type << "\n";
 }

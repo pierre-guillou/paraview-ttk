@@ -22,7 +22,7 @@
 
 int numberOfWrappedFunctions = 0;
 FunctionInfo* wrappedFunctions[1000];
-extern FunctionInfo* currentFunction;
+FunctionInfo* currentFunction;
 HierarchyInfo* hierarchyInfo = NULL;
 
 /* make a guess about whether a class is wrapped */
@@ -459,7 +459,14 @@ void outputFunction(FILE* fp, ClassInfo* data)
 
     if ((currentFunction->ReturnType & VTK_PARSE_UNQUALIFIED_TYPE) == VTK_PARSE_VOID)
     {
-      fprintf(fp, "      op->%s(", currentFunction->Name);
+      if (currentFunction->IsStatic)
+      {
+        fprintf(fp, "      %s::%s(", currentFunction->Class, currentFunction->Name);
+      }
+      else
+      {
+        fprintf(fp, "      op->%s(", currentFunction->Name);
+      }
     }
     else if ((currentFunction->ReturnType & VTK_PARSE_INDIRECT) == VTK_PARSE_REF)
     {
@@ -467,7 +474,15 @@ void outputFunction(FILE* fp, ClassInfo* data)
     }
     else
     {
-      fprintf(fp, "      temp%i = (op)->%s(", MAX_ARGS, currentFunction->Name);
+      if (currentFunction->IsStatic)
+      {
+        fprintf(
+          fp, "      temp%i = %s::%s(", MAX_ARGS, currentFunction->Class, currentFunction->Name);
+      }
+      else
+      {
+        fprintf(fp, "      temp%i = (op)->%s(", MAX_ARGS, currentFunction->Name);
+      }
     }
 
     for (i = 0; i < currentFunction->NumberOfArguments; i++)
@@ -1141,7 +1156,7 @@ void output_InitFunction(FILE* fp, NewClassInfo* data)
               "//-------------------------------------------------------------------------auto\n"
               "void VTK_EXPORT %s_Init(vtkClientServerInterpreter* csi)\n"
               "{\n"
-              "  static vtkClientServerInterpreter* last = NULL;\n"
+              "  static vtkClientServerInterpreter* last = nullptr;\n"
               "  if(last != csi)\n"
               "    {\n"
               "    last = csi;\n",

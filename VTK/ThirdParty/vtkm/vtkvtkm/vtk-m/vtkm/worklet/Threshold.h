@@ -10,8 +10,9 @@
 #ifndef vtkm_m_worklet_Threshold_h
 #define vtkm_m_worklet_Threshold_h
 
+#include <vtkm/worklet/CellDeepCopy.h>
+#include <vtkm/worklet/DispatcherMapField.h>
 #include <vtkm/worklet/DispatcherMapTopology.h>
-#include <vtkm/worklet/WorkletMapTopology.h>
 
 #include <vtkm/cont/Algorithm.h>
 #include <vtkm/cont/ArrayCopy.h>
@@ -36,12 +37,8 @@ public:
     Cell
   };
 
-  struct BoolType : vtkm::ListTagBase<bool>
-  {
-  };
-
   template <typename UnaryPredicate>
-  class ThresholdByPointField : public vtkm::worklet::WorkletMapPointToCell
+  class ThresholdByPointField : public vtkm::worklet::WorkletVisitCellsWithPoints
   {
   public:
     using ControlSignature = void(CellSetIn cellset, FieldInPoint scalars, FieldOutCell passFlags);
@@ -75,35 +72,19 @@ public:
     UnaryPredicate Predicate;
   };
 
-  template <typename UnaryPredicate>
-  class ThresholdByCellField : public vtkm::worklet::WorkletMapPointToCell
+  struct ThresholdCopy : public vtkm::worklet::WorkletMapField
   {
-  public:
-    using ControlSignature = void(CellSetIn cellset, FieldInTo scalars, FieldOut passFlags);
+    using ControlSignature = void(FieldIn, FieldOut, WholeArrayIn);
 
-    using ExecutionSignature = _3(_2);
-
-    VTKM_CONT
-    ThresholdByCellField()
-      : Predicate()
+    template <typename ScalarType, typename WholeFieldIn>
+    VTKM_EXEC void operator()(vtkm::Id& index,
+                              ScalarType& output,
+                              const WholeFieldIn& inputField) const
     {
+      output = inputField.Get(index);
     }
-
-    VTKM_CONT
-    explicit ThresholdByCellField(const UnaryPredicate& predicate)
-      : Predicate(predicate)
-    {
-    }
-
-    template <typename ScalarType>
-    VTKM_EXEC bool operator()(const ScalarType& scalar) const
-    {
-      return this->Predicate(scalar);
-    }
-
-  private:
-    UnaryPredicate Predicate;
   };
+
 
   template <typename CellSetType, typename ValueType, typename StorageType, typename UnaryPredicate>
   vtkm::cont::CellSetPermutation<CellSetType> Run(
@@ -114,25 +95,29 @@ public:
   {
     using OutputType = vtkm::cont::CellSetPermutation<CellSetType>;
 
-    vtkm::cont::ArrayHandle<bool> passFlags;
     switch (fieldType)
     {
       case vtkm::cont::Field::Association::POINTS:
       {
         using ThresholdWorklet = ThresholdByPointField<UnaryPredicate>;
+        vtkm::cont::ArrayHandle<bool> passFlags;
 
         ThresholdWorklet worklet(predicate);
         DispatcherMapTopology<ThresholdWorklet> dispatcher(worklet);
         dispatcher.Invoke(cellSet, field, passFlags);
+
+        vtkm::cont::Algorithm::CopyIf(vtkm::cont::ArrayHandleIndex(passFlags.GetNumberOfValues()),
+                                      passFlags,
+                                      this->ValidCellIds);
+
         break;
       }
       case vtkm::cont::Field::Association::CELL_SET:
       {
-        using ThresholdWorklet = ThresholdByCellField<UnaryPredicate>;
-
-        ThresholdWorklet worklet(predicate);
-        DispatcherMapTopology<ThresholdWorklet> dispatcher(worklet);
-        dispatcher.Invoke(cellSet, field, passFlags);
+        vtkm::cont::Algorithm::CopyIf(vtkm::cont::ArrayHandleIndex(field.GetNumberOfValues()),
+                                      field,
+                                      this->ValidCellIds,
+                                      predicate);
         break;
       }
 
@@ -140,10 +125,7 @@ public:
         throw vtkm::cont::ErrorBadValue("Expecting point or cell field.");
     }
 
-    vtkm::cont::Algorithm::CopyIf(
-      vtkm::cont::ArrayHandleIndex(passFlags.GetNumberOfValues()), passFlags, this->ValidCellIds);
-
-    return OutputType(this->ValidCellIds, cellSet, cellSet.GetName());
+    return OutputType(this->ValidCellIds, cellSet);
   }
 
   template <typename FieldArrayType, typename UnaryPredicate>
@@ -171,7 +153,9 @@ public:
     template <typename CellSetType>
     void operator()(const CellSetType& cellSet) const
     {
-      this->Output = this->Worklet.Run(cellSet, this->Field, this->FieldType, this->Predicate);
+      // Copy output to an explicit grid so that other units can guess what this is.
+      this->Output = vtkm::worklet::CellDeepCopy::Run(
+        this->Worklet.Run(cellSet, this->Field, this->FieldType, this->Predicate));
     }
   };
 
@@ -192,14 +176,11 @@ public:
 
   template <typename ValueType, typename StorageTag>
   vtkm::cont::ArrayHandle<ValueType> ProcessCellField(
-    const vtkm::cont::ArrayHandle<ValueType, StorageTag> in) const
+    const vtkm::cont::ArrayHandle<ValueType, StorageTag>& in) const
   {
-    // Use a temporary permutation array to simplify the mapping:
-    auto tmp = vtkm::cont::make_ArrayHandlePermutation(this->ValidCellIds, in);
-
-    // Copy into an array with default storage:
     vtkm::cont::ArrayHandle<ValueType> result;
-    vtkm::cont::ArrayCopy(tmp, result);
+    DispatcherMapField<ThresholdCopy> dispatcher;
+    dispatcher.Invoke(this->ValidCellIds, result, in);
 
     return result;
   }

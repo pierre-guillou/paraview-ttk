@@ -119,21 +119,31 @@ public:
   vtkBooleanMacro(StructuredGrid, int);
   //@}
 
-protected:
-  int RequestData(vtkInformation* request,
-                  vtkInformationVector** inputVector,
-                  vtkInformationVector* outputVector) override;
+  //@{
+  /**
+   * Should we force the data to be interpreted as a 2D dataset? It may be a
+   * 2D sheet through 3D space. When this is turned on we ignore the cross
+   * line and line values and instead build a 2D data by processing and
+   * connecting the traces in order from first to last. The output will be a
+   * Structrured Grid.
+   */
+  vtkSetMacro(Force2D, bool);
+  vtkGetMacro(Force2D, bool);
+  vtkBooleanMacro(Force2D, bool);
+  //@}
 
-  int RequestInformation(vtkInformation* request,
-                         vtkInformationVector** inputVector,
-                         vtkInformationVector* outputVector) override;
-  int RequestDataObject(vtkInformation* request,
-                        vtkInformationVector** inputVector,
-                        vtkInformationVector* outputVector) override;
+protected:
+  int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override;
+
+  int RequestInformation(vtkInformation* request, vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override;
+  int RequestDataObject(vtkInformation* request, vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override;
 
 protected:
   vtkSegYReaderInternal* Reader;
-  char *FileName;
+  char* FileName;
   bool Is3D;
   double DataOrigin[3];
   double DataSpacing[3][3];
@@ -149,6 +159,7 @@ protected:
 
   int VerticalCRS;
 
+  bool Force2D;
 
 private:
   vtkSegYReader(const vtkSegYReader&) = delete;

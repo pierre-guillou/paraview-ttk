@@ -31,12 +31,11 @@
  * vtkHyperTreeGrid vtkHyperTreeGridAlgorithm
  *
  * @par Thanks:
- * This class was written by Philippe Pebay on a idea of Guenole Harel and Jacques-Bernard Lekien, 2016
- * This class was modified by Rogeli Grima Torres, 2016
- * This class was modified by Jacques-Bernard Lekien, 2018
- * This work was supported by Commissariat a l'Energie Atomique
- * CEA, DAM, DIF, F-91297 Arpajon, France.
-*/
+ * This class was written by Philippe Pebay on a idea of Guenole Harel and Jacques-Bernard Lekien,
+ * 2016 This class was modified by Rogeli Grima Torres, 2016 This class was modified by
+ * Jacques-Bernard Lekien, 2018 This work was supported by Commissariat a l'Energie Atomique CEA,
+ * DAM, DIF, F-91297 Arpajon, France.
+ */
 
 #ifndef vtkHyperTreeGridPlaneCutter_h
 #define vtkHyperTreeGridPlaneCutter_h
@@ -55,25 +54,42 @@ class VTKFILTERSHYPERTREE_EXPORT vtkHyperTreeGridPlaneCutter : public vtkHyperTr
 {
 public:
   static vtkHyperTreeGridPlaneCutter* New();
-  vtkTypeMacro( vtkHyperTreeGridPlaneCutter, vtkHyperTreeGridAlgorithm );
-  void PrintSelf( ostream&, vtkIndent ) override;
+  vtkTypeMacro(vtkHyperTreeGridPlaneCutter, vtkHyperTreeGridAlgorithm);
+  void PrintSelf(ostream&, vtkIndent) override;
 
   //@{
   /**
    * Specify the plane with its [a,b,c,d] Cartesian coefficients:
    * a*x + b*y + c*z = d
    */
-  vtkSetVector4Macro(Plane,double);
-  vtkGetVector4Macro(Plane,double);
+  void SetPlane(double a, double b, double c, double d);
+  vtkGetVector4Macro(Plane, double);
   //@}
+
+  //@{
+  /**
+   * Returns 0 if plane's normal is aligned with X axis, 1 if it is aligned with Y axis, 2 if it
+   * is aligned with Z axis. Returns -1 if not aligned with any principal axis.
+   */
+  vtkGetMacro(AxisAlignment, int);
+  //@}
+
+  //@{
+  /**
+   * Returns true if plane's normal is aligned with the corresponding axis, false elsewise.
+   */
+  bool IsPlaneOrthogonalToXAxis() { return this->AxisAlignment == 0; }
+  bool IsPlaneOrthogonalToYAxis() { return this->AxisAlignment == 1; }
+  bool IsPlaneOrthogonalToZAxis() { return this->AxisAlignment == 2; }
+  //}@
 
   //@{
   /**
    * Set/Get whether output mesh should be computed on dual grid
    */
-  vtkSetMacro(Dual,int);
-  vtkGetMacro(Dual,int);
-  vtkBooleanMacro(Dual,int);
+  vtkSetMacro(Dual, int);
+  vtkGetMacro(Dual, int);
+  vtkBooleanMacro(Dual, int);
   //@}
 
 protected:
@@ -81,48 +97,53 @@ protected:
   ~vtkHyperTreeGridPlaneCutter() override;
 
   /**
+   * Resets every attributes to a minimal state needed for the algorithm to execute
+   */
+  virtual void Reset();
+
+  /**
    * For this algorithm the output is a vtkPolyData instance
    */
-  int FillOutputPortInformation( int, vtkInformation* ) override;
+  int FillOutputPortInformation(int, vtkInformation*) override;
 
   /**
    * Top-level routine to generate plane cut
    */
-  int ProcessTrees( vtkHyperTreeGrid*, vtkDataObject* ) override;
+  int ProcessTrees(vtkHyperTreeGrid*, vtkDataObject*) override;
 
   /**
    * Recursively descend into tree down to leaves, cutting primal cells
    */
-  void RecursivelyProcessTreePrimal( vtkHyperTreeGridNonOrientedGeometryCursor* );
+  void RecursivelyProcessTreePrimal(vtkHyperTreeGridNonOrientedGeometryCursor*);
 
   /**
    * Recursively decide whether cell is intersected by plane
    */
-  bool RecursivelyPreProcessTree( vtkHyperTreeGridNonOrientedGeometryCursor* );
+  bool RecursivelyPreProcessTree(vtkHyperTreeGridNonOrientedGeometryCursor*);
 
   /**
    * Recursively descend into tree down to leaves, cutting dual cells
    */
-  void RecursivelyProcessTreeDual( vtkHyperTreeGridNonOrientedMooreSuperCursor* );
+  void RecursivelyProcessTreeDual(vtkHyperTreeGridNonOrientedMooreSuperCursor*);
 
   /**
    * Check if a cursor is intersected by a plane
    */
-  bool CheckIntersection( double[8][3], double[8] );
+  bool CheckIntersection(double[8][3], double[8]);
 
   // Check if a cursor is intersected by a plane.
   // Don't return function evaluations
-  bool CheckIntersection( double[8][3] );
+  bool CheckIntersection(double[8][3]);
 
   /**
    * Compute the intersection between an edge and a plane
    */
-  void PlaneCut( int, int, double[8][3], int&, double[][3] );
+  void PlaneCut(int, int, double[8][3], int&, double[][3]);
 
   /**
    * Reorder cut points following the perimeter of the cut.
    */
-  void ReorderCutPoints( int, double[][3] );
+  void ReorderCutPoints(int, double[][3]);
 
   /**
    * Storage for the plane cutter parameters
@@ -168,6 +189,11 @@ protected:
    * material Mask
    */
   vtkBitArray* InMask;
+
+  /**
+   * Flag computed at plane creation to know wether it is aligned with x, y or z axis
+   */
+  int AxisAlignment;
 
 private:
   vtkHyperTreeGridPlaneCutter(const vtkHyperTreeGridPlaneCutter&) = delete;

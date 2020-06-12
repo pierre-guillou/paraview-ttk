@@ -7,8 +7,8 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
-#ifndef vtk_m_worklet_WorkletPointNeigborhood_h
-#define vtk_m_worklet_WorkletPointNeigborhood_h
+#ifndef vtk_m_worklet_WorkletPointNeighborhood_h
+#define vtk_m_worklet_WorkletPointNeighborhood_h
 
 /// \brief Worklet for volume algorithms that require a neighborhood
 ///
@@ -19,7 +19,6 @@
 #include <vtkm/worklet/internal/WorkletBase.h>
 
 #include <vtkm/TopologyElementTag.h>
-#include <vtkm/TypeListTag.h>
 
 #include <vtkm/cont/arg/ControlSignatureTagBase.h>
 #include <vtkm/cont/arg/TransportTagArrayIn.h>
@@ -145,8 +144,8 @@ public:
   struct CellSetIn : vtkm::cont::arg::ControlSignatureTagBase
   {
     using TypeCheckTag = vtkm::cont::arg::TypeCheckTagCellSetStructured;
-    using TransportTag = vtkm::cont::arg::TransportTagCellSetIn<vtkm::TopologyElementTagCell,
-                                                                vtkm::TopologyElementTagPoint>;
+    using TransportTag = vtkm::cont::arg::TransportTagCellSetIn<vtkm::TopologyElementTagPoint,
+                                                                vtkm::TopologyElementTagCell>;
     using FetchTag = vtkm::exec::arg::FetchTagCellSetIn;
   };
 };
@@ -184,8 +183,8 @@ public:
     const OutToInArrayType& outToIn,
     const VisitArrayType& visit,
     const ThreadToOutArrayType& threadToOut,
-    const vtkm::exec::ConnectivityStructured<vtkm::TopologyElementTagCell,
-                                             vtkm::TopologyElementTagPoint,
+    const vtkm::exec::ConnectivityStructured<vtkm::TopologyElementTagPoint,
+                                             vtkm::TopologyElementTagCell,
                                              Dimension>& inputDomain, //this should be explicitly
     vtkm::Id globalThreadIndexOffset = 0) const
   {

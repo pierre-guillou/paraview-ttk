@@ -17,6 +17,7 @@
 
 #include "vtkActor.h"
 #include "vtkCamera.h"
+#include "vtkEventForwarderCommand.h"
 #include "vtkFloatArray.h"
 #include "vtkGLTFDocumentLoader.h"
 #include "vtkImageAppendComponents.h"
@@ -92,6 +93,7 @@ vtkSmartPointer<vtkTexture> CreateVTKTextureFromGLTFTexture(
   const vtkGLTFDocumentLoader::Image& image = model->Images[glTFTex.Source];
 
   vtkNew<vtkTexture> texture;
+  texture->SetColorModeToDirectScalars();
   texture->SetBlendingMode(vtkTexture::VTK_TEXTURE_BLENDING_MODE_MODULATE);
   // Approximate filtering settings
   int nbSamplers = static_cast<int>(model->Samplers.size());
@@ -170,7 +172,7 @@ bool PrimitiveNeedsTangents(const std::shared_ptr<vtkGLTFDocumentLoader::Model> 
   const vtkGLTFDocumentLoader::Primitive& primitive)
 {
   // If no material is present, we don't need to generate tangents
-  if (primitive.Material < 0 && primitive.Material >= static_cast<int>(model->Materials.size()))
+  if (primitive.Material < 0 || primitive.Material >= static_cast<int>(model->Materials.size()))
   {
     return false;
   }
@@ -204,6 +206,11 @@ void ApplyGLTFMaterialToVTKActor(std::shared_ptr<vtkGLTFDocumentLoader::Model> m
     actor->GetProperty()->SetEmissiveFactor(material.EmissiveFactor.data());
   }
 
+  if (material.AlphaMode != vtkGLTFDocumentLoader::Material::AlphaModeType::OPAQUE)
+  {
+    actor->ForceTranslucentOn();
+  }
+
   // flip texture coordinates
   if (actor->GetPropertyKeys() == nullptr)
   {
@@ -232,7 +239,7 @@ void ApplyGLTFMaterialToVTKActor(std::shared_ptr<vtkGLTFDocumentLoader::Model> m
     if (pbrTexIndex >= 0 && pbrTexIndex < static_cast<int>(model->Textures.size()))
     {
       const vtkGLTFDocumentLoader::Texture& pbrTexture = model->Textures[pbrTexIndex];
-      if (pbrTexture.Source >= 0)
+      if (pbrTexture.Source >= 0 && pbrTexture.Source < static_cast<int>(model->Images.size()))
       {
         const vtkGLTFDocumentLoader::Image& pbrImage = model->Images[pbrTexture.Source];
         // While glTF 2.0 uses two different textures for Ambient Occlusion and Metallic/Roughness
@@ -325,6 +332,10 @@ int vtkGLTFImporter::ImportBegin()
   this->Textures.clear();
 
   this->Loader = vtkSmartPointer<vtkGLTFDocumentLoader>::New();
+
+  vtkNew<vtkEventForwarderCommand> forwarder;
+  forwarder->SetTarget(this);
+  this->Loader->AddObserver(vtkCommand::ProgressEvent, forwarder);
 
   // Check extension
   std::vector<char> glbBuffer;
@@ -532,7 +543,7 @@ void vtkGLTFImporter::ImportLights(vtkRenderer* renderer)
         case vtkGLTFDocumentLoader::Extensions::KHRLightsPunctual::Light::LightType::POINT:
           light->SetPositional(true);
           // Set as point light
-          light->SetConeAngle(180);
+          light->SetConeAngle(90);
           break;
         case vtkGLTFDocumentLoader::Extensions::KHRLightsPunctual::Light::LightType::SPOT:
           light->SetPositional(true);

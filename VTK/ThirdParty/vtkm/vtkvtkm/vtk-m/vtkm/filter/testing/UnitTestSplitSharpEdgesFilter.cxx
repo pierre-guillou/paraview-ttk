@@ -7,19 +7,22 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
+#include <vtkm/filter/CellAverage.h>
+#include <vtkm/filter/Contour.h>
 #include <vtkm/filter/SplitSharpEdges.h>
 #include <vtkm/filter/SurfaceNormals.h>
 
 #include <vtkm/cont/testing/MakeTestDataSet.h>
 #include <vtkm/cont/testing/Testing.h>
-#include <vtkm/worklet/DispatcherMapTopology.h>
+
+#include <vtkm/source/Wavelet.h>
 
 namespace
 {
 
-using NormalsArrayHandle = vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::FloatDefault, 3>>;
+using NormalsArrayHandle = vtkm::cont::ArrayHandle<vtkm::Vec3f>;
 
-const vtkm::Vec<vtkm::FloatDefault, 3> expectedCoords[24] = {
+const vtkm::Vec3f expectedCoords[24] = {
   { 0.0, 0.0, 0.0 }, { 1.0, 0.0, 0.0 }, { 1.0, 0.0, 1.0 }, { 0.0, 0.0, 1.0 }, { 0.0, 1.0, 0.0 },
   { 1.0, 1.0, 0.0 }, { 1.0, 1.0, 1.0 }, { 0.0, 1.0, 1.0 }, { 0.0, 0.0, 0.0 }, { 0.0, 0.0, 0.0 },
   { 1.0, 0.0, 0.0 }, { 1.0, 0.0, 0.0 }, { 1.0, 0.0, 1.0 }, { 1.0, 0.0, 1.0 }, { 0.0, 0.0, 1.0 },
@@ -42,7 +45,7 @@ vtkm::cont::DataSet Make3DExplicitSimpleCube()
 
   const int nVerts = 8;
   const int nCells = 6;
-  using CoordType = vtkm::Vec<vtkm::FloatDefault, 3>;
+  using CoordType = vtkm::Vec3f;
   std::vector<CoordType> coords = {
     CoordType(0, 0, 0), // 0
     CoordType(1, 0, 0), // 1
@@ -97,17 +100,29 @@ vtkm::cont::DataSet Make3DExplicitSimpleCube()
   conn.push_back(1);
 
   //Create the dataset.
-  dataSet = dsb.Create(coords, shapes, numIndices, conn, "coordinates", "cells");
+  dataSet = dsb.Create(coords, shapes, numIndices, conn, "coordinates");
 
   vtkm::FloatDefault vars[nVerts] = { 10.1f, 20.1f, 30.2f, 40.2f, 50.3f, 60.3f, 70.3f, 80.3f };
   vtkm::FloatDefault cellvar[nCells] = { 100.1f, 200.2f, 300.3f, 400.4f, 500.5f, 600.6f };
 
   vtkm::cont::DataSetFieldAdd dsf;
   dsf.AddPointField(dataSet, "pointvar", vars, nVerts);
-  dsf.AddCellField(dataSet, "cellvar", cellvar, nCells, "cells");
+  dsf.AddCellField(dataSet, "cellvar", cellvar, nCells);
 
   return dataSet;
 }
+
+vtkm::cont::DataSet Make3DWavelet()
+{
+
+  vtkm::source::Wavelet wavelet({ -25 }, { 25 });
+  wavelet.SetFrequency({ 60, 30, 40 });
+  wavelet.SetMagnitude({ 5 });
+
+  vtkm::cont::DataSet result = wavelet.Execute();
+  return result;
+}
+
 
 void TestSplitSharpEdgesFilterSplitEveryEdge(vtkm::cont::DataSet& simpleCubeWithSN,
                                              vtkm::filter::SplitSharpEdges& splitSharpEdgesFilter)
@@ -168,8 +183,8 @@ void TestSplitSharpEdgesFilterNoSplit(vtkm::cont::DataSet& simpleCubeWithSN,
                      "result value does not match expected value");
   }
 
-  const auto& connectivityArray = newCellset.GetConnectivityArray(vtkm::TopologyElementTagPoint(),
-                                                                  vtkm::TopologyElementTagCell());
+  const auto& connectivityArray = newCellset.GetConnectivityArray(vtkm::TopologyElementTagCell(),
+                                                                  vtkm::TopologyElementTagPoint());
   auto connectivityArrayPortal = connectivityArray.GetPortalConstControl();
   for (vtkm::IdComponent i = 0; i < connectivityArray.GetNumberOfValues(); i++)
   {
@@ -187,23 +202,66 @@ void TestSplitSharpEdgesFilterNoSplit(vtkm::cont::DataSet& simpleCubeWithSN,
   }
 }
 
-void TestSplitSharpEdgesFilter()
+void TestWithExplicitData()
 {
   vtkm::cont::DataSet simpleCube = Make3DExplicitSimpleCube();
   // Generate surface normal field
   vtkm::filter::SurfaceNormals surfaceNormalsFilter;
   surfaceNormalsFilter.SetGenerateCellNormals(true);
   vtkm::cont::DataSet simpleCubeWithSN = surfaceNormalsFilter.Execute(simpleCube);
-  VTKM_TEST_ASSERT(simpleCubeWithSN.HasField("Normals", vtkm::cont::Field::Association::CELL_SET),
-                   "Cell normals missing.");
-  VTKM_TEST_ASSERT(simpleCubeWithSN.HasField("pointvar", vtkm::cont::Field::Association::POINTS),
-                   "point field pointvar missing.");
+  VTKM_TEST_ASSERT(simpleCubeWithSN.HasCellField("Normals"), "Cell normals missing.");
+  VTKM_TEST_ASSERT(simpleCubeWithSN.HasPointField("pointvar"), "point field pointvar missing.");
 
 
   vtkm::filter::SplitSharpEdges splitSharpEdgesFilter;
 
   TestSplitSharpEdgesFilterSplitEveryEdge(simpleCubeWithSN, splitSharpEdgesFilter);
   TestSplitSharpEdgesFilterNoSplit(simpleCubeWithSN, splitSharpEdgesFilter);
+}
+
+struct SplitSharpTestPolicy : public vtkm::filter::PolicyBase<SplitSharpTestPolicy>
+{
+  using StructuredCellSetList = vtkm::List<vtkm::cont::CellSetStructured<3>>;
+  using UnstructuredCellSetList = vtkm::List<vtkm::cont::CellSetSingleType<>>;
+  using AllCellSetList = vtkm::ListAppend<StructuredCellSetList, UnstructuredCellSetList>;
+  using FieldTypeList = vtkm::List<vtkm::FloatDefault, vtkm::Vec3f>;
+};
+
+
+void TestWithStructuredData()
+{
+  // Generate a wavelet:
+  vtkm::cont::DataSet dataSet = Make3DWavelet();
+
+  // Cut a contour:
+  vtkm::filter::Contour contour;
+  contour.SetActiveField("scalars", vtkm::cont::Field::Association::POINTS);
+  contour.SetNumberOfIsoValues(1);
+  contour.SetIsoValue(192);
+  contour.SetMergeDuplicatePoints(true);
+  contour.SetGenerateNormals(true);
+  contour.SetComputeFastNormalsForStructured(true);
+  contour.SetNormalArrayName("normals");
+  dataSet = contour.Execute(dataSet);
+
+  // Compute cell normals:
+  vtkm::filter::CellAverage cellNormals;
+  cellNormals.SetActiveField("normals", vtkm::cont::Field::Association::POINTS);
+  dataSet = cellNormals.Execute(dataSet);
+
+  // Split sharp edges:
+  std::cout << dataSet.GetNumberOfCells() << std::endl;
+  std::cout << dataSet.GetNumberOfPoints() << std::endl;
+  vtkm::filter::SplitSharpEdges split;
+  split.SetActiveField("normals", vtkm::cont::Field::Association::CELL_SET);
+  dataSet = split.Execute(dataSet, SplitSharpTestPolicy{});
+}
+
+
+void TestSplitSharpEdgesFilter()
+{
+  TestWithExplicitData();
+  TestWithStructuredData();
 }
 
 } // anonymous namespace

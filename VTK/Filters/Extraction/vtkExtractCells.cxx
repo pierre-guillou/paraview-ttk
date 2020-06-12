@@ -202,11 +202,11 @@ void vtkExtractCells::SetCellList(vtkIdList* l)
 {
   delete this->CellList;
   this->CellList = new vtkExtractCellsSTLCloak;
-
   if (l != nullptr)
   {
     this->AddCellList(l);
   }
+  this->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -231,6 +231,33 @@ void vtkExtractCells::AddCellList(vtkIdList* l)
   std::copy(inputBegin, inputEnd, outputBegin);
 
   this->CellList->Modified();
+  this->Modified();
+}
+
+//----------------------------------------------------------------------------
+void vtkExtractCells::SetCellIds(const vtkIdType* ptr, vtkIdType numValues)
+{
+  delete this->CellList;
+  this->CellList = new vtkExtractCellsSTLCloak;
+  if (ptr != nullptr && numValues > 0)
+  {
+    this->AddCellIds(ptr, numValues);
+  }
+  this->Modified();
+}
+
+//----------------------------------------------------------------------------
+void vtkExtractCells::AddCellIds(const vtkIdType* ptr, vtkIdType numValues)
+{
+  auto& cellIds = this->CellList->CellIds;
+  const auto oldsize = cellIds.size();
+  cellIds.resize(oldsize + numValues);
+
+  auto start = cellIds.begin();
+  std::advance(start, oldsize);
+  std::copy(ptr, ptr + numValues, start);
+  this->CellList->Modified();
+  this->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -256,15 +283,7 @@ void vtkExtractCells::AddCellRange(vtkIdType from, vtkIdType to)
   std::iota(outputBegin, outputEnd, from);
 
   this->CellList->Modified();
-}
-
-//----------------------------------------------------------------------------
-vtkMTimeType vtkExtractCells::GetMTime()
-{
-  vtkMTimeType mTime = this->Superclass::GetMTime();
-  mTime = std::max(mTime, this->CellList->ModifiedTime.GetMTime());
-  mTime = std::max(mTime, this->CellList->SortTime.GetMTime());
-  return mTime;
+  this->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -454,7 +473,8 @@ vtkIdType vtkExtractCells::ReMapPointIds(vtkDataSet* grid)
         continue;
       }
 
-      vtkIdType npts, *pts;
+      vtkIdType npts;
+      const vtkIdType* pts;
       ugrid->GetCellPoints(cellId, npts, pts);
 
       this->SubSetUGridCellArraySize += (1 + npts);
@@ -471,7 +491,8 @@ vtkIdType vtkExtractCells::ReMapPointIds(vtkDataSet* grid)
 
       if (ugrid->GetCellType(cellId) == VTK_POLYHEDRON)
       {
-        vtkIdType nfaces, *ptids;
+        vtkIdType nfaces;
+        const vtkIdType* ptids;
         ugrid->GetFaceStream(cellId, nfaces, ptids);
         this->SubSetUGridFacesArraySize += 1;
         for (vtkIdType j = 0; j < nfaces; j++)
@@ -573,11 +594,8 @@ void vtkExtractCells::CopyCellsUnstructuredGrid(vtkDataSet* input, vtkUnstructur
   vtkNew<vtkCellArray> cellArray; // output
   vtkNew<vtkIdTypeArray> newcells;
   newcells->SetNumberOfValues(this->SubSetUGridCellArraySize);
-  cellArray->SetCells(numCells, newcells);
   vtkIdType cellArrayIdx = 0;
 
-  vtkNew<vtkIdTypeArray> locationArray;
-  locationArray->SetNumberOfValues(numCells);
   vtkNew<vtkIdTypeArray> facesLocationArray;
   facesLocationArray->SetNumberOfValues(numCells);
   vtkNew<vtkIdTypeArray> facesArray;
@@ -601,9 +619,8 @@ void vtkExtractCells::CopyCellsUnstructuredGrid(vtkDataSet* input, vtkUnstructur
     unsigned char cellType = ugrid->GetCellType(oldCellId);
     typeArray->SetValue(nextCellId, cellType);
 
-    locationArray->SetValue(nextCellId, cellArrayIdx);
-
-    vtkIdType npts, *pts;
+    vtkIdType npts;
+    const vtkIdType* pts;
     ugrid->GetCellPoints(oldCellId, npts, pts);
 
     newcells->SetValue(cellArrayIdx++, npts);
@@ -619,7 +636,8 @@ void vtkExtractCells::CopyCellsUnstructuredGrid(vtkDataSet* input, vtkUnstructur
     if (cellType == VTK_POLYHEDRON)
     {
       havePolyhedron = true;
-      vtkIdType nfaces, *ptids;
+      vtkIdType nfaces;
+      const vtkIdType* ptids;
       ugrid->GetFaceStream(oldCellId, nfaces, ptids);
 
       facesLocationArray->SetValue(nextCellId, nextFaceId);
@@ -651,13 +669,16 @@ void vtkExtractCells::CopyCellsUnstructuredGrid(vtkDataSet* input, vtkUnstructur
     nextCellId++;
   }
 
+  cellArray->AllocateExact(numCells, newcells->GetNumberOfValues() - numCells);
+  cellArray->ImportLegacyFormat(newcells);
+
   if (havePolyhedron)
   {
-    output->SetCells(typeArray, locationArray, cellArray, facesLocationArray, facesArray);
+    output->SetCells(typeArray, cellArray, facesLocationArray, facesArray);
   }
   else
   {
-    output->SetCells(typeArray, locationArray, cellArray, nullptr, nullptr);
+    output->SetCells(typeArray, cellArray, nullptr, nullptr);
   }
 }
 

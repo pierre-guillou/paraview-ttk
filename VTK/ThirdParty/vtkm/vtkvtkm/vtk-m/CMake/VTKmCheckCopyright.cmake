@@ -15,7 +15,7 @@
 ## cmake -DVTKm_SOURCE_DIR=<VTKm_SOURCE_DIR> -P <VTKm_SOURCE_DIR>/CMake/VTKMCheckCopyright.cmake
 ##
 
-cmake_minimum_required(VERSION 3.8...3.14 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.8...3.15 FATAL_ERROR)
 set(FILES_TO_CHECK
   *.txt
   *.cmake
@@ -28,7 +28,6 @@ set(FILES_TO_CHECK
 set(EXCEPTIONS
   LICENSE.txt
   README.txt
-  vtkm/thirdparty/diy/vtkmdiy
   )
 
 if (NOT VTKm_SOURCE_DIR)
@@ -68,7 +67,7 @@ find_path(BUILD_DIR CMakeCache.txt .)
 get_filename_component(abs_build_dir ${BUILD_DIR} ABSOLUTE)
 get_filename_component(build_dir_name ${abs_build_dir} NAME)
 set(EXCEPTIONS ${EXCEPTIONS} ${build_dir_name}/*)
-message("${EXCEPTIONS}")
+message("Copyright Check Exceptions: ${EXCEPTIONS}")
 
 # Gets the current year (if possible).
 function (get_year var)

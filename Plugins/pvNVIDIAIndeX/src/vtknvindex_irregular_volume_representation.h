@@ -1,4 +1,4 @@
-/* Copyright 2019 NVIDIA Corporation. All rights reserved.
+/* Copyright 2020 NVIDIA Corporation. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions
@@ -45,7 +45,6 @@ class vtkMultiProcessController;
 class vtkOrderedCompositeDistributor;
 class vtkPiecewiseFunction;
 class vtkPolyDataMapper;
-class vtkPVCacheKeeper;
 class vtkPVGeometryFilter;
 class vtkPVLODVolume;
 class vtkPVUpdateSuppressor;
@@ -84,12 +83,6 @@ public:
   // PrepareForRendering.
   int ProcessViewRequest(vtkInformationRequestKey* request_type, vtkInformation* inInfo,
     vtkInformation* outInfo) override;
-
-  // This needs to be called on all instances of vtkGeometryRepresentation when
-  // the input is modified. This is essential since the geometry filter does not
-  // have any real-input on the client side which messes with the Update
-  // requests.
-  void MarkModified() override;
 
   // Get/Set the visibility for this representation. When the visibility of
   // representation of false, all view passes are ignored.
@@ -193,6 +186,18 @@ public:
   void set_edge_range(double edge_range);
   void set_edge_samples(int edge_samples);
 
+  // Set custom parameters.
+  void set_kernel_filename(const char* kernel_filename);
+  void set_kernel_update();
+  void set_custom_pfloat_1(double custom_cf1);
+  void set_custom_pfloat_2(double custom_cf2);
+  void set_custom_pfloat_3(double custom_cf3);
+  void set_custom_pfloat_4(double custom_cf4);
+  void set_custom_pint_1(int ci1);
+  void set_custom_pint_2(int ci2);
+  void set_custom_pint_3(int ci3);
+  void set_custom_pint_4(int ci4);
+
   // Set region of interest.
   void update_index_roi();
 
@@ -227,14 +232,10 @@ protected:
   // Returns true if the removal succeeds.
   bool RemoveFromView(vtkView* view) override;
 
-  // Overridden to check with the vtkPVCacheKeeper to see if the key is cached.
-  bool IsCached(double cache_key) override;
-
   // Passes on parameters to the active volume mapper.
   virtual void UpdateMapperParameters();
 
   vtkVolumeRepresentationPreprocessor* Preprocessor;
-  vtkPVCacheKeeper* CacheKeeper;
 
   vtknvindex_irregular_volume_mapper* DefaultMapper;
 
@@ -277,6 +278,9 @@ private:
   vtknvindex_ivol_isosurface_params m_isosurface_params;
   vtknvindex_ivol_depth_enhancement_params m_depth_enhancement_params;
   vtknvindex_ivol_edge_enhancement_params m_edge_enhancement_params;
+  vtknvindex_ivol_custom_params m_custom_params;
+  std::string m_custom_kernel_filename;
+  std::string m_custom_kernel_program;
 };
 
 #endif // vtknvindex_irregular_volume_representation_h

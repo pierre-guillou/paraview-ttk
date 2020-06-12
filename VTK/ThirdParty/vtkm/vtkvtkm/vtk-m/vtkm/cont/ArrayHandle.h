@@ -24,9 +24,12 @@
 #include <vtkm/cont/Storage.h>
 #include <vtkm/cont/StorageBasic.h>
 
+#include <vtkm/internal/ArrayPortalHelpers.h>
+
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include <vtkm/cont/internal/ArrayHandleExecutionManager.h>
@@ -55,47 +58,29 @@ class VTKM_CONT_EXPORT ArrayHandleBase
 /// with C++11 type_traits.
 ///
 template <typename T, typename StorageTag>
-struct IsValidArrayHandle
-  : std::integral_constant<bool,
-                           !(std::is_base_of<vtkm::cont::internal::UndefinedStorage,
-                                             vtkm::cont::internal::Storage<T, StorageTag>>::value)>
-{
-};
+using IsValidArrayHandle =
+  std::integral_constant<bool,
+                         !(std::is_base_of<vtkm::cont::internal::UndefinedStorage,
+                                           vtkm::cont::internal::Storage<T, StorageTag>>::value)>;
 
 /// Checks to see if the given type and storage forms a invalid array handle
 /// (some storage objects cannot support all types). This check is compatible
 /// with C++11 type_traits.
 ///
 template <typename T, typename StorageTag>
-struct IsInValidArrayHandle
-  : std::integral_constant<bool,
-                           (std::is_base_of<vtkm::cont::internal::UndefinedStorage,
-                                            vtkm::cont::internal::Storage<T, StorageTag>>::value)>
-{
-};
+using IsInValidArrayHandle =
+  std::integral_constant<bool, !IsValidArrayHandle<T, StorageTag>::value>;
 
-/// Checks to see if the ArrayHandle allows
-/// writing, as some ArrayHandles (Implicit) don't support writing.
-/// This check is compatible with the C++11 type_traits.
-/// It contains a typedef named type that is either
+/// Checks to see if the ArrayHandle allows writing, as some ArrayHandles
+/// (Implicit) don't support writing. These will be defined as either
 /// std::true_type or std::false_type.
-/// Both of these have a typedef named value with the respective boolean value.
+///
+/// \sa vtkm::internal::PortalSupportsSets
 ///
 template <typename ArrayHandle>
-struct IsWriteableArrayHandle
-{
-private:
-  using ValueType = typename ArrayHandle::PortalControl::ValueType;
-
-  //All ArrayHandles that use ImplicitStorage as the final writable location
-  //will have a value type of void*, which is what we are trying to detect
-  using RawValueType = typename std::remove_pointer<ValueType>::type;
-  using IsVoidType = std::is_void<RawValueType>;
-
-public:
-  using type = std::integral_constant<bool, !IsVoidType::value>;
-  static constexpr bool value = !IsVoidType::value;
-};
+using IsWritableArrayHandle =
+  vtkm::internal::PortalSupportsSets<typename std::decay<ArrayHandle>::type::PortalControl>;
+/// @}
 
 /// Checks to see if the given object is an array handle. This check is
 /// compatible with C++11 type_traits. It a typedef named \c type that is
@@ -267,6 +252,9 @@ private:
   using ExecutionManagerType =
     vtkm::cont::internal::ArrayHandleExecutionManagerBase<T, StorageTag_>;
 
+  using MutexType = std::mutex;
+  using LockType = std::unique_lock<MutexType>;
+
 public:
   using StorageType = vtkm::cont::internal::Storage<T, StorageTag_>;
   using ValueType = T;
@@ -387,7 +375,12 @@ public:
 
   /// Returns the number of entries in the array.
   ///
-  VTKM_CONT vtkm::Id GetNumberOfValues() const;
+  VTKM_CONT vtkm::Id GetNumberOfValues() const
+  {
+    LockType lock = this->GetLock();
+
+    return this->GetNumberOfValues(lock);
+  }
 
   /// \brief Allocates an array large enough to hold the given number of values.
   ///
@@ -400,9 +393,10 @@ public:
   VTKM_CONT
   void Allocate(vtkm::Id numberOfValues)
   {
-    this->ReleaseResourcesExecutionInternal();
-    this->Internals->ControlArray.Allocate(numberOfValues);
-    this->Internals->ControlArrayValid = true;
+    LockType lock = this->GetLock();
+    this->ReleaseResourcesExecutionInternal(lock);
+    this->Internals->GetControlArray(lock)->Allocate(numberOfValues);
+    this->Internals->SetControlArrayValid(lock, true);
   }
 
   /// \brief Reduces the size of the array without changing its values.
@@ -420,23 +414,27 @@ public:
   ///
   VTKM_CONT void ReleaseResourcesExecution()
   {
+    LockType lock = this->GetLock();
+
     // Save any data in the execution environment by making sure it is synced
     // with the control environment.
-    this->SyncControlArray();
+    this->SyncControlArray(lock);
 
-    this->ReleaseResourcesExecutionInternal();
+    this->ReleaseResourcesExecutionInternal(lock);
   }
 
   /// Releases all resources in both the control and execution environments.
   ///
   VTKM_CONT void ReleaseResources()
   {
-    this->ReleaseResourcesExecutionInternal();
+    LockType lock = this->GetLock();
 
-    if (this->Internals->ControlArrayValid)
+    this->ReleaseResourcesExecutionInternal(lock);
+
+    if (this->Internals->IsControlArrayValid(lock))
     {
-      this->Internals->ControlArray.ReleaseResources();
-      this->Internals->ControlArrayValid = false;
+      this->Internals->GetControlArray(lock)->ReleaseResources();
+      this->Internals->SetControlArrayValid(lock, false);
     }
   }
 
@@ -473,13 +471,20 @@ public:
   template <typename DeviceAdapterTag>
   VTKM_CONT typename ExecutionTypes<DeviceAdapterTag>::Portal PrepareForInPlace(DeviceAdapterTag);
 
-  /// Gets this array handle ready to interact with the given device. If the
-  /// array handle has already interacted with this device, then this method
-  /// does nothing. Although the internal state of this class can change, the
-  /// method is declared const because logically the data does not.
+  /// Returns the DeviceAdapterId for the current device. If there is no device
+  /// with an up-to-date copy of the data, VTKM_DEVICE_ADAPTER_UNDEFINED is
+  /// returned.
   ///
-  template <typename DeviceAdapterTag>
-  VTKM_CONT void PrepareForDevice(DeviceAdapterTag) const;
+  /// Note that in a multithreaded environment the validity of this result can
+  /// change.
+  VTKM_CONT
+  DeviceAdapterId GetDeviceAdapterId() const
+  {
+    LockType lock = this->GetLock();
+    return this->Internals->IsExecutionArrayValid(lock)
+      ? this->Internals->GetExecutionArray(lock)->GetDeviceAdapterId()
+      : DeviceAdapterTagUndefined{};
+  }
 
   /// Synchronizes the control array with the execution array. If either the
   /// user array or control array is already valid, this method does nothing
@@ -487,38 +492,119 @@ public:
   /// Although the internal state of this class can change, the method is
   /// declared const because logically the data does not.
   ///
-  VTKM_CONT void SyncControlArray() const;
+  VTKM_CONT void SyncControlArray() const
+  {
+    LockType lock = this->GetLock();
+    this->SyncControlArray(lock);
+  }
+
+  // Probably should make this private, but ArrayHandleStreaming needs access.
+protected:
+  /// Acquires a lock on the internals of this `ArrayHandle`. The calling
+  /// function should keep the returned lock and let it go out of scope
+  /// when the lock is no longer needed.
+  ///
+  LockType GetLock() const { return LockType(this->Internals->Mutex); }
+
+  /// Gets this array handle ready to interact with the given device. If the
+  /// array handle has already interacted with this device, then this method
+  /// does nothing. Although the internal state of this class can change, the
+  /// method is declared const because logically the data does not.
+  ///
+  template <typename DeviceAdapterTag>
+  VTKM_CONT void PrepareForDevice(LockType& lock, DeviceAdapterTag) const;
+
+  /// Synchronizes the control array with the execution array. If either the
+  /// user array or control array is already valid, this method does nothing
+  /// (because the data is already available in the control environment).
+  /// Although the internal state of this class can change, the method is
+  /// declared const because logically the data does not.
+  ///
+  VTKM_CONT void SyncControlArray(LockType& lock) const;
+
+  vtkm::Id GetNumberOfValues(LockType& lock) const;
 
   VTKM_CONT
-  void ReleaseResourcesExecutionInternal()
+  void ReleaseResourcesExecutionInternal(LockType& lock)
   {
-    if (this->Internals->ExecutionArrayValid)
+    if (this->Internals->IsExecutionArrayValid(lock))
     {
-      this->Internals->ExecutionArray->ReleaseResources();
-      this->Internals->ExecutionArrayValid = false;
+      this->Internals->GetExecutionArray(lock)->ReleaseResources();
+      this->Internals->SetExecutionArrayValid(lock, false);
     }
   }
 
-  /// Returns the DeviceAdapterId for the current device. If there is no device
-  /// with an up-to-date copy of the data, VTKM_DEVICE_ADAPTER_UNDEFINED is
-  /// returned.
-  VTKM_CONT
-  DeviceAdapterId GetDeviceAdapterId() const
-  {
-    return this->Internals->ExecutionArrayValid
-      ? this->Internals->ExecutionArray->GetDeviceAdapterId()
-      : DeviceAdapterTagUndefined{};
-  }
-
-  struct VTKM_ALWAYS_EXPORT InternalStruct
+  class VTKM_ALWAYS_EXPORT InternalStruct
   {
     mutable StorageType ControlArray;
-    mutable bool ControlArrayValid;
+    mutable bool ControlArrayValid = false;
 
-    mutable std::unique_ptr<
-      vtkm::cont::internal::ArrayHandleExecutionManagerBase<ValueType, StorageTag>>
-      ExecutionArray;
-    mutable bool ExecutionArrayValid;
+    mutable std::unique_ptr<ExecutionManagerType> ExecutionArray;
+    mutable bool ExecutionArrayValid = false;
+
+    VTKM_CONT void CheckLock(const LockType& lock) const
+    {
+      VTKM_ASSERT((lock.mutex() == &this->Mutex) && (lock.owns_lock()));
+    }
+
+  public:
+    MutexType Mutex;
+
+    InternalStruct() = default;
+    ~InternalStruct() = default;
+    InternalStruct(const StorageType& storage);
+    InternalStruct(StorageType&& storage);
+
+    // To access any feature in InternalStruct, you must have locked the mutex. You have
+    // to prove it by passing in a reference to a std::unique_lock.
+    VTKM_CONT bool IsControlArrayValid(const LockType& lock) const
+    {
+      this->CheckLock(lock);
+      return this->ControlArrayValid;
+    }
+    VTKM_CONT void SetControlArrayValid(const LockType& lock, bool value)
+    {
+      this->CheckLock(lock);
+      this->ControlArrayValid = value;
+    }
+    VTKM_CONT StorageType* GetControlArray(const LockType& lock) const
+    {
+      this->CheckLock(lock);
+      return &this->ControlArray;
+    }
+
+    VTKM_CONT bool IsExecutionArrayValid(const LockType& lock) const
+    {
+      this->CheckLock(lock);
+      return this->ExecutionArrayValid;
+    }
+    VTKM_CONT void SetExecutionArrayValid(const LockType& lock, bool value)
+    {
+      this->CheckLock(lock);
+      this->ExecutionArrayValid = value;
+    }
+    VTKM_CONT ExecutionManagerType* GetExecutionArray(const LockType& lock) const
+    {
+      this->CheckLock(lock);
+      return this->ExecutionArray.get();
+    }
+    VTKM_CONT void DeleteExecutionArray(const LockType& lock)
+    {
+      this->CheckLock(lock);
+      this->ExecutionArray.reset();
+      this->ExecutionArrayValid = false;
+    }
+    template <typename DeviceAdapterTag>
+    VTKM_CONT void NewExecutionArray(const LockType& lock, DeviceAdapterTag)
+    {
+      VTKM_IS_DEVICE_ADAPTER_TAG(DeviceAdapterTag);
+      this->CheckLock(lock);
+      VTKM_ASSERT(this->ExecutionArray == nullptr);
+      VTKM_ASSERT(!this->ExecutionArrayValid);
+      this->ExecutionArray.reset(
+        new vtkm::cont::internal::ArrayHandleExecutionManager<T, StorageTag, DeviceAdapterTag>(
+          &this->ControlArray));
+    }
   };
 
   VTKM_CONT
@@ -685,6 +771,7 @@ VTKM_NEVER_EXPORT VTKM_CONT inline void printSummary_ArrayHandle(
 
 //=============================================================================
 // Specializations of serialization related classes
+/// @cond SERIALIZATION
 namespace vtkm
 {
 namespace cont
@@ -726,6 +813,7 @@ struct Serialization<vtkm::cont::ArrayHandle<T>>
 };
 
 } // diy
+/// @endcond SERIALIZATION
 
 #ifndef vtk_m_cont_ArrayHandle_hxx
 #include <vtkm/cont/ArrayHandle.hxx>

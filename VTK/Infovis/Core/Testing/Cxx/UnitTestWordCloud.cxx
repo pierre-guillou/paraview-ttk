@@ -18,25 +18,49 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkWordCloud.h"
 #include "vtkSmartPointer.h"
+#include "vtkWordCloud.h"
 
-#include "vtkTestErrorObserver.h"
 #include "vtkExecutive.h"
+#include "vtkTestErrorObserver.h"
 
-#include <iostream>
-#include <sstream>
 #include <algorithm>
+#include <iostream>
 #include <random>
+#include <sstream>
 
 namespace
 {
-int TestOneByOne(vtkSmartPointer<vtkWordCloud> &,
-                 std::string,
-                 size_t, size_t, size_t);
+int TestOneByOne(vtkSmartPointer<vtkWordCloud>& wc, std::string name, size_t keptExpected,
+  size_t skippedExpected, size_t stoppedExpected, int alternateOffset = 0)
+{
+  int status = 0;
+  wc->Update();
+  if (keptExpected != wc->GetKeptWords().size() &&
+    keptExpected + alternateOffset != wc->GetKeptWords().size())
+  {
+    std::cout << "\n  Regression failed for " << name << ". Expected # of kept words "
+              << keptExpected << " but got " << wc->GetKeptWords().size();
+    status++;
+  }
+  if (skippedExpected != wc->GetSkippedWords().size() &&
+    skippedExpected - alternateOffset != wc->GetSkippedWords().size())
+  {
+    std::cout << "\n  Regression failed for " << name << ". Expected # of skipped words "
+              << skippedExpected << " but got " << wc->GetSkippedWords().size();
+    status++;
+  }
+  if (stoppedExpected != wc->GetStoppedWords().size())
+  {
+    std::cout << "\n  Regression failed for " << name << ". Expected # of stopped words "
+              << stoppedExpected << " but got " << wc->GetStoppedWords().size() << std::endl;
+    status++;
+  }
+  return status;
+}
 }
 
-int UnitTestWordCloud(int argc, char *argv[])
+int UnitTestWordCloud(int argc, char* argv[])
 {
   // This test uses random variables, so differences may exist from
   // compiler to compiler
@@ -69,22 +93,24 @@ int UnitTestWordCloud(int argc, char *argv[])
   wordCloud->Update();
 
   // Test Regressions for default settings
+  // There are some numerical issues with some compilers that can
+  // cause alternate results to be produced
   auto status1 = 0;
   std::cout << "Testing regressions of default word cloud...";
-#if defined(__GNUC__) && (__GNUC__ == 8 && __GNUC_MINOR__ == 2 && __GNUC_PATCHLEVEL__ == 1)
-  size_t keptExpected = 23;
-#else
   size_t keptExpected = 31;
-#endif
-  if (keptExpected != wordCloud->GetKeptWords().size())
+  size_t alternateKeptExpected = 23;
+  if (keptExpected != wordCloud->GetKeptWords().size() &&
+    alternateKeptExpected != wordCloud->GetKeptWords().size())
   {
-    std::cout << "\n  Default regression failed. Expected # of kept words " << keptExpected
-              << " but got " << wordCloud->GetKeptWords().size();
+    std::cout << "\n  Default regression failed. Received unexpected # of kept words "
+              << wordCloud->GetKeptWords().size();
     status1++;
   }
 
-  size_t skippedExpected = 1;
-  if (skippedExpected != wordCloud->GetSkippedWords().size())
+  size_t skippedExpected = 42;
+  size_t alternateSkippedExpected = 50;
+  if (skippedExpected != wordCloud->GetSkippedWords().size() &&
+    alternateSkippedExpected != wordCloud->GetSkippedWords().size())
   {
     std::cout << "\n  Default regression failed. Expected # of skipped words " << skippedExpected
               << " but got " << wordCloud->GetSkippedWords().size();
@@ -108,37 +134,37 @@ int UnitTestWordCloud(int argc, char *argv[])
   }
 
   // Check modified times for containers
-#define CHECK_CONTAINER_MTIMES(name) \
-  { \
-  auto name = wordCloud->Get##name(); \
-  auto mtime = wordCloud->GetMTime(); \
-  wordCloud->Set##name(name); \
-  auto mtimeModified = mtime; \
-  if (mtime != mtimeModified) \
-  { \
-    std::cout << "\n  Modify time is bad for " #name; \
-    status2++; \
-  } \
-  name[0] = name[name.size()-1]; \
-  wordCloud->Set##name(name); \
-  mtimeModified = wordCloud->GetMTime(); \
-  if (mtime == mtimeModified) \
-  { \
-    std::cout << "\n Modify time is bad for " #name; \
-    status2++; \
-  } \
+#define CHECK_CONTAINER_MTIMES(name)                                                               \
+  {                                                                                                \
+    auto name = wordCloud->Get##name();                                                            \
+    auto mtime = wordCloud->GetMTime();                                                            \
+    wordCloud->Set##name(name);                                                                    \
+    auto mtimeModified = mtime;                                                                    \
+    if (mtime != mtimeModified)                                                                    \
+    {                                                                                              \
+      std::cout << "\n  Modify time is bad for " #name;                                            \
+      status2++;                                                                                   \
+    }                                                                                              \
+    name[0] = name[name.size() - 1];                                                               \
+    wordCloud->Set##name(name);                                                                    \
+    mtimeModified = wordCloud->GetMTime();                                                         \
+    if (mtime == mtimeModified)                                                                    \
+    {                                                                                              \
+      std::cout << "\n Modify time is bad for " #name;                                             \
+      status2++;                                                                                   \
+    }                                                                                              \
   }
 
   std::cout << "Testing Container MTimes...";
   auto status2 = 0;
 
-  vtkWordCloud::ColorDistributionContainer colorDistribution = {{.6, 1.0}};
+  vtkWordCloud::ColorDistributionContainer colorDistribution = { { .6, 1.0 } };
   wordCloud->SetColorDistribution(colorDistribution);
 
-  vtkWordCloud::OffsetDistributionContainer offsetDistribution = {{-10, 20}};
+  vtkWordCloud::OffsetDistributionContainer offsetDistribution = { { -10, 20 } };
   wordCloud->SetOffsetDistribution(offsetDistribution);
 
-  vtkWordCloud::OrientationsContainer orientations = {-90};
+  vtkWordCloud::OrientationsContainer orientations = { -90 };
   wordCloud->SetOrientations(orientations);
   wordCloud->AddOrientation(90.0);
 
@@ -153,7 +179,8 @@ int UnitTestWordCloud(int argc, char *argv[])
   wordCloud->AddReplacementPair(pt2);
 
   vtkWordCloud::SizesContainer sizes;
-  sizes[0] = 100; sizes[1] = 10;
+  sizes[0] = 100;
+  sizes[1] = 10;
   wordCloud->SetSizes(sizes);
 
   vtkWordCloud::StopWordsContainer words;
@@ -202,71 +229,68 @@ int UnitTestWordCloud(int argc, char *argv[])
     auto wc = vtkSmartPointer<vtkWordCloud>::New();
 
     wc->SetFileName(argv[1]);
-#if defined(__GNUC__) && (__GNUC__ == 8 && __GNUC_MINOR__ == 2 && __GNUC_PATCHLEVEL__ == 1)
-    status4 += TestOneByOne(wc, "Defaults", 23, 1, 65);
-#else
-    status4 += TestOneByOne(wc, "Defaults", 31, 1, 65);
-#endif
+    status4 += TestOneByOne(wc, "Defaults", 31, 42, 65, -8);
+
     wc->SetFontFileName(argv[2]);
-    status4 += TestOneByOne(wc, "FontFileName", 40, 1, 65);
+    status4 += TestOneByOne(wc, "FontFileName", 40, 33, 65);
 
     wc->SetGap(4);
-    status4 += TestOneByOne(wc, "Gap", 28, 1, 65);
+    status4 += TestOneByOne(wc, "Gap", 28, 45, 65);
 
     wc->SetFontMultiplier(8);
-    status4 += TestOneByOne(wc, "FontMultiplier", 20, 1, 65);
+    status4 += TestOneByOne(wc, "FontMultiplier", 20, 53, 65);
 
     wc->SetMinFrequency(2);
-    status4 += TestOneByOne(wc, "MinFrequency", 10, 1, 65);
+    status4 += TestOneByOne(wc, "MinFrequency", 10, 63, 65);
 
     wc->SetMaxFontSize(100);
-    status4 += TestOneByOne(wc, "MaxFontSize", 10, 1, 65);
+    status4 += TestOneByOne(wc, "MaxFontSize", 10, 63, 65);
 
     wc->AddStopWord("nation");
     wc->AddStopWord("dedicated");
-    status4 += TestOneByOne(wc, "StopWords", 11, 1, 67);
+    status4 += TestOneByOne(wc, "StopWords", 11, 60, 67);
 
     vtkWordCloud::OrientationDistributionContainer oDist;
     oDist[0] = -90.0;
-    oDist[1] =  90.0;
-    status4 += TestOneByOne(wc, "OrientationDistribution", 11, 1, 67);
+    oDist[1] = 90.0;
+    status4 += TestOneByOne(wc, "OrientationDistribution", 11, 60, 67);
 
     wc->AddOrientation(90.0);
     wc->AddOrientation(0.0);
-    status4 += TestOneByOne(wc, "Orientations", 11, 1, 67);
+    status4 += TestOneByOne(wc, "Orientations", 11, 60, 67);
 
     wc->SetTitle("Gettysburg");
-    status4 += TestOneByOne(wc, "Title", 11, 1, 67);
+    status4 += TestOneByOne(wc, "Title", 11, 61, 67);
 
     wc->SetDPI(100);
-    status4 += TestOneByOne(wc, "DPI", 11, 1, 67);
+    status4 += TestOneByOne(wc, "DPI", 11, 61, 67);
 
     wc->SetMaskColorName("white");
     wc->SetFontMultiplier(2);
     wc->SetMaxFontSize(10);
     wc->SetMaskFileName(argv[3]);
-    status4 += TestOneByOne(wc, "MaskFileName", 12, 1, 67);
+    status4 += TestOneByOne(wc, "MaskFileName", 12, 60, 67);
 
     wc->SetMaskFileName(argv[4]);
     wc->SetBWMask(1);
-    status4 += TestOneByOne(wc, "MaskFileName(8bit)", 12, 1, 67);
+    status4 += TestOneByOne(wc, "MaskFileName(8bit)", 12, 60, 67);
 
     wc->SetColorSchemeName("Brewer Qualitative Pastel2");
-    status4 += TestOneByOne(wc, "ColorSchemeName", 12, 1, 67);
+    status4 += TestOneByOne(wc, "ColorSchemeName", 12, 60, 67);
 
     auto repPair = std::make_tuple("consecrate", "consecrated");
     wc->AddReplacementPair(repPair);
-    status4 += TestOneByOne(wc, "ReplacementPairs", 12, 1, 68);
+    status4 += TestOneByOne(wc, " ReplacementPairs", 12, 58, 68);
 
     wc->SetWordColorName("Peacock");
-    status4 += TestOneByOne(wc, "WordColorName", 12, 1, 68);
+    status4 += TestOneByOne(wc, "WordColorName", 12, 58, 68);
 
-    vtkWordCloud::ColorDistributionContainer colorDist = {{0.0, 1.0}};
+    vtkWordCloud::ColorDistributionContainer colorDist = { { 0.0, 1.0 } };
     wc->SetColorDistribution(colorDist);
-    status4 += TestOneByOne(wc, "ColorDistribution", 12, 1, 68);
+    status4 += TestOneByOne(wc, "ColorDistribution", 12, 58, 68);
 
     wc->SetStopListFileName(argv[5]);
-    status4 += TestOneByOne(wc, "StopListFileName", 18, 1, 47);
+    status4 += TestOneByOne(wc, "StopListFileName", 18, 73, 47);
   }
   if (status4)
   {
@@ -286,65 +310,60 @@ int UnitTestWordCloud(int argc, char *argv[])
   {
     auto wc = vtkSmartPointer<vtkWordCloud>::New();
     wc->AddObserver(vtkCommand::ErrorEvent, errorObserver);
-    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent,errorObserver1);
+    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent, errorObserver1);
     wc->SetFileName(argv[1]);
     wc->SetWordColorName("");
     wc->SetColorSchemeName("foo");
     wc->Update();
-    status5 += errorObserver->CheckErrorMessage(
-      "The color scheme foo does not exist");
+    status5 += errorObserver->CheckErrorMessage("The color scheme foo does not exist");
     errorObserver->Clear();
   }
   {
     auto wc = vtkSmartPointer<vtkWordCloud>::New();
     wc->AddObserver(vtkCommand::ErrorEvent, errorObserver);
-    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent,errorObserver1);
+    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent, errorObserver1);
     wc->SetFileName("Foo.txt");
     wc->Update();
-    status5 += errorObserver->CheckErrorMessage(
-      "FileName Foo.txt does not exist");
+    status5 += errorObserver->CheckErrorMessage("FileName Foo.txt does not exist");
     errorObserver->Clear();
   }
   {
     auto wc = vtkSmartPointer<vtkWordCloud>::New();
     wc->AddObserver(vtkCommand::ErrorEvent, errorObserver);
-    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent,errorObserver1);
+    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent, errorObserver1);
     wc->SetFileName(argv[1]);
     wc->SetFontFileName("BadFontFile.txt");
     wc->Update();
-    status5 += errorObserver->CheckErrorMessage(
-      "FontFileName BadFontFile.txt does not exist");
+    status5 += errorObserver->CheckErrorMessage("FontFileName BadFontFile.txt does not exist");
     errorObserver->Clear();
   }
   {
     auto wc = vtkSmartPointer<vtkWordCloud>::New();
     wc->AddObserver(vtkCommand::ErrorEvent, errorObserver);
-    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent,errorObserver1);
+    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent, errorObserver1);
     wc->SetFileName(argv[1]);
     wc->SetMaskFileName("BadMaskFile.txt");
     wc->Update();
-    status5 += errorObserver->CheckErrorMessage(
-      "MaskFileName BadMaskFile.txt does not exist");
+    status5 += errorObserver->CheckErrorMessage("MaskFileName BadMaskFile.txt does not exist");
     errorObserver->Clear();
   }
   {
     auto wc = vtkSmartPointer<vtkWordCloud>::New();
     wc->AddObserver(vtkCommand::ErrorEvent, errorObserver);
-    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent,errorObserver1);
+    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent, errorObserver1);
     wc->SetFileName(argv[1]);
     wc->SetMaskFileName("BadStopListFile.txt");
     wc->Update();
-    status5 += errorObserver->CheckErrorMessage(
-      "BadStopListFile.txt does not exist");
+    status5 += errorObserver->CheckErrorMessage("BadStopListFile.txt does not exist");
     errorObserver->Clear();
   }
   {
     auto wc = vtkSmartPointer<vtkWordCloud>::New();
     wc->AddObserver(vtkCommand::ErrorEvent, errorObserver);
-    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent,errorObserver1);
+    wc->GetExecutive()->AddObserver(vtkCommand::ErrorEvent, errorObserver1);
     wc->Update();
-    status5 += errorObserver->CheckErrorMessage(
-      "No FileName is set. Use SetFileName to set a file");
+    status5 +=
+      errorObserver->CheckErrorMessage("No FileName is set. Use SetFileName to set a file");
     errorObserver->Clear();
   }
   status += status5;
@@ -372,36 +391,4 @@ int UnitTestWordCloud(int argc, char *argv[])
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
-}
-
-namespace
-{
-int TestOneByOne(vtkSmartPointer<vtkWordCloud> &wc,
-                 std::string name,
-                 size_t keptExpected,
-                 size_t skippedExpected,
-                 size_t stoppedExpected)
-{
-  int status = 0;
-  wc->Update();
-  if (keptExpected != wc->GetKeptWords().size())
-  {
-    std::cout << "\n  Regression failed for " << name << ". Expected # of kept words " << keptExpected
-              << " but got " << wc->GetKeptWords().size();
-    status++;
-  }
-  if (skippedExpected != wc->GetSkippedWords().size())
-  {
-    std::cout << "\n  Regression failed for " << name << ". Expected # of skipped words " << skippedExpected
-              << " but got " << wc->GetSkippedWords().size();
-    status++;
-  }
-  if (stoppedExpected != wc->GetStoppedWords().size())
-  {
-    std::cout << "\n  Regression failed for " << name << ". Expected # of stopped words " << stoppedExpected
-              << " but got " << wc->GetStoppedWords().size() << std::endl;
-    status++;
-  }
-  return status;
-}
 }

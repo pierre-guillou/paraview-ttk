@@ -17,7 +17,7 @@
  * @brief
  * A VTK Filter to compute Kernel Smoothing
  * using PDF computation from openturns.
-*/
+ */
 
 #ifndef vtkOTKernelSmoothing_h
 #define vtkOTKernelSmoothing_h
@@ -82,17 +82,14 @@ public:
 
 protected:
   vtkOTKernelSmoothing();
-  ~vtkOTKernelSmoothing();
+  ~vtkOTKernelSmoothing() override;
 
   /**
    * Do the actual computation and store it in output
    */
   virtual int Process(OT::Sample* input) override;
 
-  void ComputePDF(OT::Sample* input,
-    OT::KernelSmoothing* ks,
-    double* range,
-    const char* pdfName);
+  void ComputePDF(OT::Sample* input, OT::KernelSmoothing* ks, double* range, const char* pdfName);
 
   int PointNumber;
   bool GaussianPDF;

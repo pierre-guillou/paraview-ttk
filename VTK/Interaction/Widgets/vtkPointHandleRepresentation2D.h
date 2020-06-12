@@ -22,13 +22,13 @@
  *
  * @sa
  * vtkHandleRepresentation vtkHandleWidget
-*/
+ */
 
 #ifndef vtkPointHandleRepresentation2D_h
 #define vtkPointHandleRepresentation2D_h
 
-#include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkHandleRepresentation.h"
+#include "vtkInteractionWidgetsModule.h" // For export macro
 
 class vtkProperty2D;
 class vtkActor2D;
@@ -46,15 +46,17 @@ public:
   /**
    * Instantiate this class.
    */
-  static vtkPointHandleRepresentation2D *New();
+  static vtkPointHandleRepresentation2D* New();
 
   //@{
   /**
    * Standard methods for instances of this class.
    */
-  vtkTypeMacro(vtkPointHandleRepresentation2D,vtkHandleRepresentation);
+  vtkTypeMacro(vtkPointHandleRepresentation2D, vtkHandleRepresentation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
   //@}
+
+  using vtkHandleRepresentation::Translate;
 
   //@{
   /**
@@ -62,8 +64,8 @@ public:
    * shape is assumed to be defined in the display coordinate system. By
    * default a vtkCursor2D shape is used.
    */
-  void SetCursorShape(vtkPolyData *cursorShape);
-  vtkPolyData *GetCursorShape();
+  void SetCursorShape(vtkPolyData* cursorShape);
+  vtkPolyData* GetCursorShape();
   //@}
 
   /**
@@ -79,8 +81,8 @@ public:
    */
   void SetProperty(vtkProperty2D*);
   void SetSelectedProperty(vtkProperty2D*);
-  vtkGetObjectMacro(Property,vtkProperty2D);
-  vtkGetObjectMacro(SelectedProperty,vtkProperty2D);
+  vtkGetObjectMacro(Property, vtkProperty2D);
+  vtkGetObjectMacro(SelectedProperty, vtkProperty2D);
   //@}
 
   //@{
@@ -89,22 +91,22 @@ public:
    * methods. These are the methods that the widget and its representation
    * use to communicate with each other.
    */
-  double *GetBounds() VTK_SIZEHINT(6) override;
+  double* GetBounds() VTK_SIZEHINT(6) override;
   void BuildRepresentation() override;
   void StartWidgetInteraction(double eventPos[2]) override;
   void WidgetInteraction(double eventPos[2]) override;
-  int ComputeInteractionState(int X, int Y, int modify=0) override;
+  int ComputeInteractionState(int X, int Y, int modify = 0) override;
   //@}
 
   //@{
   /**
    * Methods to make this class behave as a vtkProp.
    */
-  void ShallowCopy(vtkProp *prop) override;
-  void DeepCopy(vtkProp *prop) override;
-  void GetActors2D(vtkPropCollection *) override;
-  void ReleaseGraphicsResources(vtkWindow *) override;
-  int RenderOverlay(vtkViewport *viewport) override;
+  void ShallowCopy(vtkProp* prop) override;
+  void DeepCopy(vtkProp* prop) override;
+  void GetActors2D(vtkPropCollection*) override;
+  void ReleaseGraphicsResources(vtkWindow*) override;
+  int RenderOverlay(vtkViewport* viewport) override;
   //@}
 
   void Highlight(int highlight) override;
@@ -115,7 +117,7 @@ public:
    * space. Since this class constrains points to lie in an overlay
    * plane anyway, we don't care. Just returns.
    */
-  void SetPointPlacer ( vtkPointPlacer * ) override;
+  void SetPointPlacer(vtkPointPlacer*) override;
 
   /**
    * Override to ensure that the internal actor's visibility is consistent with
@@ -130,33 +132,31 @@ protected:
   ~vtkPointHandleRepresentation2D() override;
 
   // Render the cursor
-  vtkActor2D           *Actor;
-  vtkCoordinate        *MapperCoordinate;
-  vtkPolyDataMapper2D  *Mapper;
-  vtkGlyph2D           *Glypher;
-  vtkPolyData          *CursorShape;
-  vtkPolyData          *FocalData;
-  vtkPoints            *FocalPoint;
+  vtkActor2D* Actor;
+  vtkCoordinate* MapperCoordinate;
+  vtkPolyDataMapper2D* Mapper;
+  vtkGlyph2D* Glypher;
+  vtkPolyData* CursorShape;
+  vtkPolyData* FocalData;
+  vtkPoints* FocalPoint;
 
   // Support picking
   double LastPickPosition[3];
   double LastEventPosition[2];
 
   // Methods to manipulate the cursor
-  int  ConstraintAxis;
-  void Translate(double eventPos[2]);
-  void Scale(double eventPos[2]);
+  virtual void Translate(const double* eventPos) override;
+  void Scale(const double eventPos[2]);
 
   // Properties used to control the appearance of selected objects and
   // the manipulator in general.
-  vtkProperty2D *Property;
-  vtkProperty2D *SelectedProperty;
-  void           CreateDefaultProperties();
+  vtkProperty2D* Property;
+  vtkProperty2D* SelectedProperty;
+  void CreateDefaultProperties();
 
   // The size of the hot spot.
-  int    DetermineConstraintAxis(int constraint, double eventPos[2]);
-  int    WaitingForMotion;
-  int    WaitCount;
+  int WaitingForMotion;
+  int WaitCount;
 
 private:
   vtkPointHandleRepresentation2D(const vtkPointHandleRepresentation2D&) = delete;

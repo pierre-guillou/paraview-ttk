@@ -11,6 +11,8 @@
 #ifndef vtk_m_filter_VectorMagnitude_h
 #define vtk_m_filter_VectorMagnitude_h
 
+#include <vtkm/filter/vtkm_filter_export.h>
+
 #include <vtkm/filter/FilterField.h>
 #include <vtkm/worklet/Magnitude.h>
 
@@ -19,10 +21,13 @@ namespace vtkm
 namespace filter
 {
 
-class VectorMagnitude : public vtkm::filter::FilterField<VectorMagnitude>
+class VTKM_ALWAYS_EXPORT VectorMagnitude : public vtkm::filter::FilterField<VectorMagnitude>
 {
 public:
-  VTKM_CONT
+  //currently the VectorMagnitude filter only works on vector data.
+  using SupportedTypes = vtkm::TypeListVecCommon;
+
+  VTKM_FILTER_EXPORT
   VectorMagnitude();
 
   template <typename T, typename StorageType, typename DerivedPolicy>
@@ -34,13 +39,9 @@ public:
 private:
   vtkm::worklet::Magnitude Worklet;
 };
-
-template <>
-class FilterTraits<VectorMagnitude>
-{ //currently the VectorMagnitude filter only works on vector data.
-public:
-  using InputFieldTypeList = TypeListTagVecCommon;
-};
+#ifndef vtkm_filter_VectorMagnitude_cxx
+VTKM_FILTER_EXPORT_EXECUTE_METHOD(VectorMagnitude);
+#endif
 }
 } // namespace vtkm::filter
 

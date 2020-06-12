@@ -41,6 +41,7 @@
 # PARAVIEW_VERSION : ParaView version string used when creating the installtree
 
 message (STATUS "Building Examples against ParaView install tree")
+message("CTEST_FULL_OUTPUT") # Don't truncate test output.
 # Remove the drive letter from `PARAVIEW_INSTALL_DIR` so we can append it to
 # DESTDIR safely.
 if (WIN32 AND IS_ABSOLUTE "${PARAVIEW_INSTALL_DIR}")
@@ -91,6 +92,7 @@ execute_process (
   COMMAND ${CMAKE_COMMAND}
   ${generator_args}
   -DParaView_DIR:PATH=${ParaView_DIR}
+  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
   ${PARAVIEW_SOURCE_DIR}/Examples
   WORKING_DIRECTORY ${INSTALL_TEST_BUILD_DIR}
   RESULT_VARIABLE crv)

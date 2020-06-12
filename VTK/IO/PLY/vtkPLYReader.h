@@ -36,31 +36,31 @@
  *
  * @sa
  * vtkPLYWriter, vtkCleanPolyData
-*/
+ */
 
 #ifndef vtkPLYReader_h
 #define vtkPLYReader_h
 
-#include "vtkIOPLYModule.h" // For export macro
 #include "vtkAbstractPolyDataReader.h"
+#include "vtkIOPLYModule.h" // For export macro
 
 class vtkStringArray;
 
 class VTKIOPLY_EXPORT vtkPLYReader : public vtkAbstractPolyDataReader
 {
 public:
-  vtkTypeMacro(vtkPLYReader,vtkAbstractPolyDataReader);
+  vtkTypeMacro(vtkPLYReader, vtkAbstractPolyDataReader);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
    * Construct object with merging set to true.
    */
-  static vtkPLYReader *New();
+  static vtkPLYReader* New();
 
   /**
    * A simple, non-exhaustive check to see if a file is a valid ply file.
    */
-  static int CanReadFile(const char *filename);
+  static int CanReadFile(const char* filename);
 
   vtkGetObjectMacro(Comments, vtkStringArray);
 
@@ -71,6 +71,21 @@ public:
   vtkGetMacro(FaceTextureTolerance, float);
   vtkSetMacro(FaceTextureTolerance, float);
 
+  //@{
+  /**
+   * Enable reading from an InputString instead of the default, a file.
+   * Note that reading from an input stream would be more flexible (enabling
+   * other kind of streams) and possibly more efficient because we don't need
+   * to save the whole stream to a string. However a stream interface
+   * does not translate well to python and the string interface satisfies
+   * our current needs. So we leave the stream interface for future work.
+   */
+  vtkSetMacro(ReadFromInputString, bool);
+  vtkGetMacro(ReadFromInputString, bool);
+  vtkBooleanMacro(ReadFromInputString, bool);
+  void SetInputString(const std::string& s) { this->InputString = s; }
+  //@}
+
   /**
    * If true (default) and the "face" element has the property "texcoord" duplicate
    * face points if they have 2 or more different texture coordinates.
@@ -80,14 +95,19 @@ public:
   vtkGetMacro(DuplicatePointsForFaceTexture, bool);
   vtkSetMacro(DuplicatePointsForFaceTexture, bool);
 
-
 protected:
   vtkPLYReader();
   ~vtkPLYReader() override;
 
   vtkStringArray* Comments;
+  // Whether this object is reading from a string or a file.
+  // Default is 0: read from file.
+  bool ReadFromInputString;
+  // The input string.
+  std::string InputString;
 
-  int RequestData(vtkInformation *, vtkInformationVector **, vtkInformationVector *) override;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+
 private:
   vtkPLYReader(const vtkPLYReader&) = delete;
   void operator=(const vtkPLYReader&) = delete;

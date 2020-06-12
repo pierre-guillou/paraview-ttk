@@ -2,10 +2,20 @@
 //  Copyright (c) Kitware, Inc.
 //  All rights reserved.
 //  See LICENSE.txt for details.
-//
 //  This software is distributed WITHOUT ANY WARRANTY; without even
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
+//
+//  Copyright 2017 National Technology & Engineering Solutions of Sandia, LLC (NTESS).
+//  Copyright 2017 UT-Battelle, LLC.
+//  Copyright 2017 Los Alamos National Security.
+//
+//  Under the terms of Contract DE-NA0003525 with NTESS,
+//  the U.S. Government retains certain rights in this software.
+//
+//  Under the terms of Contract DE-AC52-06NA25396 with Los Alamos National
+//  Laboratory (LANL), the U.S. Government retains certain rights in
+//  this software.
 //============================================================================
 #ifndef Tuple_h
 #define Tuple_h
@@ -33,11 +43,13 @@ namespace vtkmstd
 using simple_tuple::get;
 using simple_tuple::make_tuple;
 using simple_tuple::tuple;
+using simple_tuple::tuple_element;
 using simple_tuple::tuple_size;
 #else
 using tao::get;
 using tao::make_tuple;
 using tao::tuple;
+using tao::tuple_element;
 using tao::tuple_size;
 #endif
 

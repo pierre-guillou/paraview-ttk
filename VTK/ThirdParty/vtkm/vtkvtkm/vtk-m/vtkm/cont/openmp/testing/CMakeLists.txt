@@ -9,8 +9,10 @@
 ##============================================================================
 
 set(unit_tests
+  UnitTestOpenMPAlgorithms.cxx
   UnitTestOpenMPArrayHandle.cxx
   UnitTestOpenMPArrayHandleFancy.cxx
+  UnitTestOpenMPArrayHandleMultiplexer.cxx
   UnitTestOpenMPArrayHandleVirtualCoordinates.cxx
   UnitTestOpenMPBitField.cxx
   UnitTestOpenMPCellLocatorRectilinearGrid.cxx
@@ -25,7 +27,10 @@ set(unit_tests
   UnitTestOpenMPPointLocatorUniformGrid.cxx
   UnitTestOpenMPVirtualObjectHandle.cxx
   )
-vtkm_unit_tests(OpenMP SOURCES ${unit_tests} DEFINES VTKM_NO_ERROR_ON_MIXED_CUDA_CXX_TAG)
+vtkm_unit_tests(SOURCES ${unit_tests}
+                LABEL "OPENMP"
+                DEFINES VTKM_NO_ERROR_ON_MIXED_CUDA_CXX_TAG
+                LIBRARIES vtkm_worklet)
 
 if (VTKm_ENABLE_TESTING)
   #We need to have all OpenMP tests run serially as they

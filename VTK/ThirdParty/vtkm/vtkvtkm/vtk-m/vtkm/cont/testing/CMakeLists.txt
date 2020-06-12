@@ -13,6 +13,7 @@ set(headers
   MakeTestDataSet.h
   Testing.h
   TestingArrayHandles.h
+  TestingArrayHandleMultiplexer.h
   TestingArrayHandleVirtualCoordinates.h
   TestingCellLocatorRectilinearGrid.h
   TestingCellLocatorUniformBins.h
@@ -34,11 +35,14 @@ vtkm_declare_headers(${headers})
 set(unit_tests
   UnitTestAlgorithm.cxx
   UnitTestArrayCopy.cxx
+  UnitTestArrayGetValues.cxx
   UnitTestArrayHandleCartesianProduct.cxx
   UnitTestArrayHandleCompositeVector.cxx
   UnitTestArrayHandleCounting.cxx
+  UnitTestArrayHandleDecorator.cxx
   UnitTestArrayHandleDiscard.cxx
   UnitTestArrayHandleExtractComponent.cxx
+  UnitTestArrayHandleExtrude.cxx
   UnitTestArrayHandleImplicit.cxx
   UnitTestArrayHandleIndex.cxx
   UnitTestArrayHandleReverse.cxx
@@ -48,11 +52,11 @@ set(unit_tests
   UnitTestArrayHandleUniformPointCoordinates.cxx
   UnitTestArrayHandleConcatenate.cxx
   UnitTestArrayHandleVirtual.cxx
-  UnitTestVariantArrayHandle.cxx
   UnitTestArrayPortalToIterators.cxx
   UnitTestCellLocatorGeneral.cxx
   UnitTestCellSet.cxx
   UnitTestCellSetExplicit.cxx
+  UnitTestCellSetExtrude.cxx
   UnitTestCellSetPermutation.cxx
   UnitTestContTesting.cxx
   UnitTestDataSetBuilderExplicit.cxx
@@ -64,19 +68,22 @@ set(unit_tests
   UnitTestDeviceAdapterAlgorithmDependency.cxx
   UnitTestDeviceAdapterAlgorithmGeneral.cxx
   UnitTestDynamicCellSet.cxx
+  UnitTestError.cxx
   UnitTestFieldRangeCompute.cxx
   UnitTestInitialize.cxx
   UnitTestLogging.cxx
   UnitTestMoveConstructors.cxx
-  UnitTestMultiBlock.cxx
+  UnitTestPartitionedDataSet.cxx
   UnitTestRuntimeDeviceInformation.cxx
   UnitTestRuntimeDeviceNames.cxx
   UnitTestScopedRuntimeDeviceTracker.cxx
   UnitTestStorageBasic.cxx
   UnitTestStorageImplicit.cxx
+  UnitTestStorageList.cxx
   UnitTestStorageListTag.cxx
   UnitTestTimer.cxx
   UnitTestTryExecute.cxx
+  UnitTestVariantArrayHandle.cxx
   )
 
 vtkm_unit_tests(SOURCES ${unit_tests} DEFINES VTKM_NO_ERROR_ON_MIXED_CUDA_CXX_TAG)

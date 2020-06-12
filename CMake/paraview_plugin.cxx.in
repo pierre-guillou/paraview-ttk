@@ -26,12 +26,10 @@ namespace
   // so it does not double-dlclose() an already unloaded plugin.
   // This does not affect static builds and hence we don't need to worry about
   // making sure this instance gets created in static builds.
-  static class @_paraview_build_plugin@PluginCleaner
+  class @_paraview_build_plugin@PluginCleaner
   {
   public:
-    @_paraview_build_plugin@PluginCleaner()
-    {
-    }
+    @_paraview_build_plugin@PluginCleaner() = default;
     ~@_paraview_build_plugin@PluginCleaner()
     {
       // The plugin library is being unloaded.
@@ -133,7 +131,7 @@ void @_paraview_build_plugin@Plugin::GetPythonSourceList(std::vector<std::string
 #endif
 
 //-----------------------------------------------------------------------------
-@_paraview_build_plugin@Plugin::@_paraview_build_plugin@Plugin()
+static void initialize_@_paraview_build_plugin@_plugin_qt_resources()
 {
 #if !_paraview_add_plugin_built_shared && _paraview_add_plugin_with_resources
   // For static builds, initialize the Qt resources.
@@ -143,6 +141,12 @@ void @_paraview_build_plugin@Plugin::GetPythonSourceList(std::vector<std::string
   // For static builds, initialize the Qt plugin.
   Q_IMPORT_PLUGIN(@_paraview_build_plugin@Plugin)
 #endif
+}
+
+//-----------------------------------------------------------------------------
+@_paraview_build_plugin@Plugin::@_paraview_build_plugin@Plugin()
+{
+  initialize_@_paraview_build_plugin@_plugin_qt_resources();
 }
 
 //-----------------------------------------------------------------------------

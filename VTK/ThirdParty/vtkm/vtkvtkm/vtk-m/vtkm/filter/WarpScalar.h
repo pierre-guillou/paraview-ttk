@@ -29,54 +29,16 @@ namespace filter
 class WarpScalar : public vtkm::filter::FilterField<WarpScalar>
 {
 public:
+  // WarpScalar can only applies to Float and Double Vec3 arrays
+  using SupportedTypes = vtkm::TypeListFieldVec3;
+
+  // WarpScalar often operates on a constant normal value
+  using AdditionalFieldStorage =
+    vtkm::List<vtkm::cont::ArrayHandleConstant<vtkm::Vec3f_32>::StorageTag,
+               vtkm::cont::ArrayHandleConstant<vtkm::Vec3f_64>::StorageTag>;
+
   VTKM_CONT
   WarpScalar(vtkm::FloatDefault scaleAmount);
-
-  //@{
-  /// Choose the primary field to operate on. In the warp op A + B *
-  /// scaleAmount * scalarFactor, A is the primary field
-  VTKM_CONT
-  void SetPrimaryField(
-    const std::string& name,
-    vtkm::cont::Field::Association association = vtkm::cont::Field::Association::ANY)
-  {
-    this->SetActiveField(name, association);
-  }
-  //@}
-
-  VTKM_CONT const std::string& GetPrimaryFieldName() const { return this->GetActiveFieldName(); }
-
-  VTKM_CONT vtkm::cont::Field::Association GetPrimaryFieldAssociation() const
-  {
-    return this->GetActiveFieldAssociation();
-  }
-
-  //@{
-  /// When set to true, filter uses a coordinate system as the primary field instead of the one selected
-  /// by name. Use SetPrimaryCoordinateSystem to select which coordinate system.
-  VTKM_CONT
-  void SetUseCoordinateSystemAsPrimaryField(bool flag)
-  {
-    this->SetUseCoordinateSystemAsField(flag);
-  }
-  VTKM_CONT
-  bool GetUseCoordinateSystemAsPrimaryField() const
-  {
-    return this->GetUseCoordinateSystemAsField();
-  }
-  //@}
-
-  //@{
-  /// Select the coordinate system index to use as the primary field. This only has an effect when
-  /// UseCoordinateSystemAsPrimaryField is true.
-  VTKM_CONT
-  void SetPrimaryCoordinateSystem(vtkm::Id index) { this->SetActiveCoordinateSystem(index); }
-  VTKM_CONT
-  vtkm::Id GetPrimaryCoordinateSystemIndex() const
-  {
-    return this->GetActiveCoordinateSystemIndex();
-  }
-  //@}
 
   //@{
   /// Choose the secondary field to operate on. In the warp op A + B *
@@ -135,24 +97,6 @@ private:
   std::string ScalarFactorFieldName;
   vtkm::cont::Field::Association ScalarFactorFieldAssociation;
   vtkm::FloatDefault ScaleAmount;
-};
-
-template <>
-class FilterTraits<WarpScalar>
-{
-public:
-  // WarpScalar can only applies to Float and Double Vec3 arrays
-  using InputFieldTypeList = vtkm::TypeListTagFieldVec3;
-};
-
-struct WarpScalarScalarFieldTag
-{
-};
-
-template <>
-struct FilterTraits<WarpScalar, WarpScalarScalarFieldTag>
-{
-  using InputFieldTypeList = vtkm::TypeListTagFieldScalar;
 };
 }
 }

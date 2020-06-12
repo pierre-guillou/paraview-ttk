@@ -9,8 +9,10 @@
 ##============================================================================
 
 set(unit_tests
+  UnitTestCudaAlgorithms.cu
   UnitTestCudaArrayHandle.cu
   UnitTestCudaArrayHandleFancy.cu
+  UnitTestCudaArrayHandleMultiplexer.cu
   UnitTestCudaArrayHandleVirtualCoordinates.cu
   UnitTestCudaBitField.cu
   UnitTestCudaCellLocatorRectilinearGrid.cu
@@ -23,9 +25,10 @@ set(unit_tests
   UnitTestCudaDeviceAdapter.cu
   UnitTestCudaGeometry.cu
   UnitTestCudaImplicitFunction.cu
+  UnitTestCudaIterators.cu
   UnitTestCudaMath.cu
   UnitTestCudaShareUserProvidedManagedMemory.cu
   UnitTestCudaPointLocatorUniformGrid.cu
   UnitTestCudaVirtualObjectHandle.cu
   )
-vtkm_unit_tests(SOURCES ${unit_tests})
+vtkm_unit_tests(SOURCES ${unit_tests} LABEL "CUDA" LIBRARIES vtkm_worklet)

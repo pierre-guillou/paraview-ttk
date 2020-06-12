@@ -18,20 +18,23 @@
 #include "vtkErrorCode.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
+#include "vtkNumberToString.h"
 #include "vtkPNGWriter.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 #include "vtkSmartPointer.h"
 #include "vtkTriangleStrip.h"
+
+#include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
 namespace
 {
 //----------------------------------------------------------------------------
-void WriteFaces(std::ofstream& f, vtkCellArray* faces, bool withNormals, bool withTCoords)
+void WriteFaces(std::ostream& f, vtkCellArray* faces, bool withNormals, bool withTCoords)
 {
   vtkIdType npts;
-  vtkIdType* indx;
+  const vtkIdType* indx;
   for (faces->InitTraversal(); faces->GetNextCell(npts, indx);)
   {
     f << "f";
@@ -56,10 +59,10 @@ void WriteFaces(std::ofstream& f, vtkCellArray* faces, bool withNormals, bool wi
 }
 
 //----------------------------------------------------------------------------
-void WriteLines(std::ofstream& f, vtkCellArray* lines)
+void WriteLines(std::ostream& f, vtkCellArray* lines)
 {
   vtkIdType npts;
-  vtkIdType* indx;
+  const vtkIdType* indx;
   for (lines->InitTraversal(); lines->GetNextCell(npts, indx);)
   {
     f << "l";
@@ -72,15 +75,17 @@ void WriteLines(std::ofstream& f, vtkCellArray* lines)
 }
 
 //----------------------------------------------------------------------------
-void WritePoints(std::ofstream& f, vtkPoints* pts, vtkDataArray* normals, vtkDataArray* tcoords)
+void WritePoints(std::ostream& f, vtkPoints* pts, vtkDataArray* normals, vtkDataArray* tcoords)
 {
+  vtkNumberToString convert;
   vtkIdType nbPts = pts->GetNumberOfPoints();
+
   // Positions
   for (vtkIdType i = 0; i < nbPts; i++)
   {
     double p[3];
     pts->GetPoint(i, p);
-    f << "v " << p[0] << " " << p[1] << " " << p[2] << "\n";
+    f << "v " << convert(p[0]) << " " << convert(p[1]) << " " << convert(p[2]) << "\n";
   }
 
   // Normals
@@ -90,7 +95,7 @@ void WritePoints(std::ofstream& f, vtkPoints* pts, vtkDataArray* normals, vtkDat
     {
       double p[3];
       normals->GetTuple(i, p);
-      f << "vn " << p[0] << " " << p[1] << " " << p[2] << "\n";
+      f << "vn " << convert(p[0]) << " " << convert(p[1]) << " " << convert(p[2]) << "\n";
     }
   }
 
@@ -101,16 +106,16 @@ void WritePoints(std::ofstream& f, vtkPoints* pts, vtkDataArray* normals, vtkDat
     {
       double p[2];
       tcoords->GetTuple(i, p);
-      f << "vt " << p[0] << " " << p[1] << "\n";
+      f << "vt " << convert(p[0]) << " " << convert(p[1]) << "\n";
     }
   }
 }
 
 //----------------------------------------------------------------------------
-bool WriteTexture(std::ofstream& f, const std::string& baseName, vtkImageData* texture)
+bool WriteTexture(std::ostream& f, const std::string& baseName, vtkImageData* texture)
 {
   std::string mtlName = baseName + ".mtl";
-  std::ofstream fmtl(mtlName, std::ofstream::out);
+  vtksys::ofstream fmtl(mtlName.c_str(), vtksys::ofstream::out);
   if (fmtl.fail())
   {
     return false;
@@ -191,7 +196,7 @@ void vtkOBJWriter::WriteData()
 
   vtkIdType npts = 0;
 
-  std::ofstream f(this->FileName, std::ofstream::out);
+  vtksys::ofstream f(this->FileName, vtksys::ofstream::out);
   if (f.fail())
   {
     vtkErrorMacro("Unable to open file: " << this->FileName);
@@ -221,7 +226,7 @@ void vtkOBJWriter::WriteData()
   vtkNew<vtkCellArray> polyStrips;
   if (strips->GetNumberOfCells() > 0)
   {
-    vtkIdType* ptIds = nullptr;
+    const vtkIdType* ptIds = nullptr;
     for (strips->InitTraversal(); strips->GetNextCell(npts, ptIds);)
     {
       vtkTriangleStrip::DecomposeStrip(npts, ptIds, polyStrips);

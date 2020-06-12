@@ -38,26 +38,11 @@ set_property(SOURCE vtkParseMain.c
 
 vtk_module_add_module("${ns}::WrappingTools"
   SOURCES ${sources}
-  HEADERS ${headers}
-  FORCE_STATIC)
-# This is a hard-coded path because `vtkType.h` from `VTK::CommonCore` is
-# used for VTK's integer types. However, it is not a public dependency. In
-# order for the compile tools project to be as minimal as possible, the
-# `VTK::CommonCore` target should also not be created.
-vtk_module_include("${ns}::WrappingTools"
-  PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../Common/Core"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../Utilities/KWIML")
-
-set(vtk_wrapping_tools_no_install)
-if (NOT _vtk_build_INSTALL_HEADERS)
-  set(vtk_wrapping_tools_no_install
-    NO_INSTALL)
-endif ()
+  HEADERS ${headers})
 
 if (NOT TARGET "${ns}::WrapHierarchy")
   vtk_module_add_executable(WrapHierarchy
-    ${vtk_wrapping_tools_no_install}
+    DEVELOPMENT
     BASENAME vtkWrapHierarchy
     vtkWrapHierarchy.c)
   target_link_libraries(WrapHierarchy
@@ -69,7 +54,7 @@ endif ()
 
 if (NOT TARGET WrapPython)
   vtk_module_add_executable(WrapPython
-    ${vtk_wrapping_tools_no_install}
+    DEVELOPMENT
     BASENAME vtkWrapPython
     vtkWrapPython.c
     vtkWrapPythonClass.c
@@ -88,7 +73,7 @@ if (NOT TARGET WrapPython)
     WrapPython)
 
   vtk_module_add_executable(WrapPythonInit
-    ${vtk_wrapping_tools_no_install}
+    DEVELOPMENT
     BASENAME vtkWrapPythonInit
     vtkWrapPythonInit.c)
   add_executable("${ns}::WrapPythonInit" ALIAS
@@ -97,7 +82,7 @@ endif ()
 
 if (NOT TARGET WrapJava)
   vtk_module_add_executable(ParseJava
-    ${vtk_wrapping_tools_no_install}
+    DEVELOPMENT
     BASENAME vtkParseJava
     vtkParseJava.c)
   target_link_libraries(ParseJava
@@ -107,7 +92,7 @@ if (NOT TARGET WrapJava)
     ParseJava)
 
   vtk_module_add_executable(WrapJava
-    ${vtk_wrapping_tools_no_install}
+    DEVELOPMENT
     BASENAME vtkWrapJava
     vtkWrapJava.c)
   target_link_libraries(WrapJava

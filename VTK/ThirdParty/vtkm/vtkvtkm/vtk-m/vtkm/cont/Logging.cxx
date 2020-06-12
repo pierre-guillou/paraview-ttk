@@ -18,8 +18,7 @@
 #pragma warning(disable : 4722)
 #endif // VTKM_MSVC
 
-#define LOGURU_IMPLEMENTATION 1
-#include <vtkm/thirdparty/loguru/vtkmloguru/loguru.hpp>
+#include <vtkm/thirdparty/loguru/vtkmloguru/loguru.cpp>
 
 #ifdef VTKM_MSVC
 #pragma warning(pop)
@@ -112,10 +111,12 @@ void InitLogging(int& argc, char* argv[])
   SetLogLevelName(vtkm::cont::LogLevel::Error, "ERR");
   SetLogLevelName(vtkm::cont::LogLevel::Warn, "WARN");
   SetLogLevelName(vtkm::cont::LogLevel::Info, "Info");
+  SetLogLevelName(vtkm::cont::LogLevel::DevicesEnabled, "Dev");
   SetLogLevelName(vtkm::cont::LogLevel::Perf, "Perf");
   SetLogLevelName(vtkm::cont::LogLevel::MemCont, "MemC");
   SetLogLevelName(vtkm::cont::LogLevel::MemExec, "MemE");
   SetLogLevelName(vtkm::cont::LogLevel::MemTransfer, "MemT");
+  SetLogLevelName(vtkm::cont::LogLevel::KernelLaunches, "Kern");
   SetLogLevelName(vtkm::cont::LogLevel::Cast, "Cast");
 
 
@@ -123,6 +124,8 @@ void InitLogging(int& argc, char* argv[])
   loguru::set_verbosity_to_name_callback(&verbosityToNameCallback);
   loguru::set_name_to_verbosity_callback(&nameToVerbosityCallback);
 
+  // Set the default log level to warning
+  SetStderrLogLevel(vtkm::cont::LogLevel::Warn);
   loguru::init(argc, argv);
 
   LOG_F(INFO, "Logging initialized.");
@@ -150,6 +153,16 @@ void SetStderrLogLevel(LogLevel level)
   loguru::g_stderr_verbosity = static_cast<loguru::Verbosity>(level);
 #else  // VTKM_ENABLE_LOGGING
   (void)level;
+#endif // VTKM_ENABLE_LOGGING
+}
+
+VTKM_CONT
+vtkm::cont::LogLevel GetStderrLogLevel()
+{
+#ifdef VTKM_ENABLE_LOGGING
+  return static_cast<vtkm::cont::LogLevel>(loguru::g_stderr_verbosity);
+#else  // VTKM_ENABLE_LOGGING
+  return vtkm::cont::LogLevel::Off;
 #endif // VTKM_ENABLE_LOGGING
 }
 

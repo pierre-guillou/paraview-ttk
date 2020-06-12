@@ -25,7 +25,7 @@
  * JB modify for introduce Scales by Jacques-Bernard Lekien, CEA 2018.
  * This work was supported by Commissariat a l'Energie Atomique
  * CEA, DAM, DIF, F-91297 Arpajon, France.
-*/
+ */
 
 #ifndef vtkUniformHyperTreeGrid_h
 #define vtkUniformHyperTreeGrid_h
@@ -57,6 +57,8 @@ public:
    * vtkUniformHyperTreeGrid object.
    */
   void CopyStructure(vtkDataObject*) override;
+
+  virtual void Initialize() override;
 
   //@{
   /**
@@ -98,7 +100,7 @@ public:
   /* JB A faire pour les Get !
   const vtkDataArray* GetXCoordinates() const override {
     throw std::domain_error("Cannot use GetZCoordinates on UniformHyperTreeGrid");
-  };
+  }
   */
   //@}
 
@@ -113,7 +115,7 @@ public:
   /* JB A faire pour les Get !
   const vtkDataArray* GetYCoordinates() const override {
     throw std::domain_error("Cannot use GetZCoordinates on UniformHyperTreeGrid");
-  };
+  }
   */
   //@}
 
@@ -128,7 +130,7 @@ public:
   /* JB A faire pour les Get !
   const vtkDataArray* GetZCoordinates() const override {
     throw std::domain_error("Cannot use GetZCoordinates on UniformHyperTreeGrid");
-  };
+  }
   */
   // JB A faire pour les autre Get !
   //@}
@@ -210,7 +212,7 @@ protected:
       return UINT_MAX;
     }
     return round((value - this->Origin[0]) / this->GridScale[0]);
-  };
+  }
   unsigned int FindDichotomicY(double value) const override
   {
     if (value < this->Origin[1] ||
@@ -219,7 +221,7 @@ protected:
       return UINT_MAX;
     }
     return round((value - this->Origin[1]) / this->GridScale[1]);
-  };
+  }
   unsigned int FindDichotomicZ(double value) const override
   {
     if (value < this->Origin[2] ||
@@ -228,7 +230,7 @@ protected:
       return UINT_MAX;
     }
     return round((value - this->Origin[2]) / this->GridScale[2]);
-  };
+  }
 
   /**
    * JB Storage of pre-computed per-level cell scales

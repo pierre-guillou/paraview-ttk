@@ -19,6 +19,10 @@
 #define diy vtkmdiy // mangle namespace diy (see below comments)
 #endif
 
+#if defined(VTKM_CLANG) || defined(VTKM_GCC)
+#pragma GCC visibility push(default)
+#endif
+
 // clang-format off
 VTKM_THIRDPARTY_PRE_INCLUDE
 #include VTKM_DIY_INCLUDE(assigner.hpp)
@@ -30,10 +34,15 @@ VTKM_THIRDPARTY_PRE_INCLUDE
 #include VTKM_DIY_INCLUDE(partners/swap.hpp)
 #include VTKM_DIY_INCLUDE(reduce.hpp)
 #include VTKM_DIY_INCLUDE(reduce-operations.hpp)
+#include VTKM_DIY_INCLUDE(resolve.hpp)
 #include VTKM_DIY_INCLUDE(serialization.hpp)
 #undef VTKM_DIY_INCLUDE
 VTKM_THIRDPARTY_POST_INCLUDE
 // clang-format on
+
+#if defined(VTKM_CLANG) || defined(VTKM_GCC)
+#pragma GCC visibility pop
+#endif
 
 // When using an external DIY
 // We need to alias the diy namespace to

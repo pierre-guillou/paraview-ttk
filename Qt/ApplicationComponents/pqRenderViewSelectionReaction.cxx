@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqActiveObjects.h"
 #include "pqCoreUtilities.h"
+#include "pqOutputPort.h"
 #include "pqPVApplicationCore.h"
 #include "pqRenderView.h"
 #include "pqSelectionManager.h"
@@ -42,14 +43,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkDataObject.h"
 #include "vtkIntArray.h"
 #include "vtkNew.h"
+#include "vtkPVArrayInformation.h"
+#include "vtkPVDataInformation.h"
+#include "vtkPVDataSetAttributesInformation.h"
 #include "vtkPVRenderView.h"
 #include "vtkRenderWindowInteractor.h"
+#include "vtkSMArrayListDomain.h"
 #include "vtkSMInteractiveSelectionPipeline.h"
+#include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMRenderViewProxy.h"
 #include "vtkSMSourceProxy.h"
+#include "vtkSMStringVectorProperty.h"
 #include "vtkSMTooltipSelectionPipeline.h"
 
+#include <QSet>
 #include <QToolTip>
 
 #include <cassert>
@@ -78,16 +86,17 @@ pqRenderViewSelectionReaction::pqRenderViewSelectionReaction(
 
   QObject::connect(parentObject, SIGNAL(triggered(bool)), this, SLOT(actionTriggered(bool)));
 
-  // if view == NULL, we track the active view.
-  if (view == NULL)
+  // if view == nullptr, we track the active view.
+  if (view == nullptr)
   {
     QObject::connect(
       &pqActiveObjects::instance(), SIGNAL(viewChanged(pqView*)), this, SLOT(setView(pqView*)));
     // this ensure that the enabled-state is set correctly.
-    this->setView(NULL);
+    this->setView(nullptr);
   }
 
-  if (this->Mode == CLEAR_SELECTION)
+  if (this->Mode == CLEAR_SELECTION || this->Mode == GROW_SELECTION ||
+    this->Mode == SHRINK_SELECTION)
   {
     if (pqPVApplicationCore* core = pqPVApplicationCore::instance())
     {
@@ -103,6 +112,15 @@ pqRenderViewSelectionReaction::pqRenderViewSelectionReaction(
   else
   {
     this->DisableSelectionModifiers = false;
+  }
+
+  this->setRepresentation(nullptr);
+  if (this->Mode == SELECT_SURFACE_POINTDATA_INTERACTIVELY ||
+    this->Mode == SELECT_SURFACE_CELLDATA_INTERACTIVELY)
+  {
+    QObject::connect(&pqActiveObjects::instance(),
+      SIGNAL(representationChanged(pqDataRepresentation*)), this,
+      SLOT(setRepresentation(pqDataRepresentation*)));
   }
 
   this->updateEnableState();
@@ -122,13 +140,13 @@ void pqRenderViewSelectionReaction::cleanupObservers()
 {
   for (size_t i = 0; i < sizeof(this->ObserverIds) / sizeof(this->ObserverIds[0]); ++i)
   {
-    if (this->ObservedObject != NULL && this->ObserverIds[i] > 0)
+    if (this->ObservedObject != nullptr && this->ObserverIds[i] > 0)
     {
       this->ObservedObject->RemoveObserver(this->ObserverIds[i]);
     }
     this->ObserverIds[i] = 0;
   }
-  this->ObservedObject = NULL;
+  this->ObservedObject = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -156,15 +174,83 @@ void pqRenderViewSelectionReaction::actionTriggered(bool val)
 //-----------------------------------------------------------------------------
 void pqRenderViewSelectionReaction::updateEnableState()
 {
-  bool enabled = true;
-  if (this->Mode == CLEAR_SELECTION)
+  this->endSelection();
+
+  auto paction = this->parentAction();
+  switch (this->Mode)
   {
-    if (pqPVApplicationCore* core = pqPVApplicationCore::instance())
+    case CLEAR_SELECTION:
+    case GROW_SELECTION:
+      if (pqPVApplicationCore* core = pqPVApplicationCore::instance())
+      {
+        paction->setEnabled(core->selectionManager()->hasActiveSelection());
+      }
+      else
+      {
+        paction->setEnabled(false);
+      }
+      break;
+    case SHRINK_SELECTION:
+      if (pqPVApplicationCore* core = pqPVApplicationCore::instance())
+      {
+        bool can_shrink = false;
+        for (auto port : core->selectionManager()->getSelectedPorts())
+        {
+          if (auto selsource = port->getSelectionInput())
+          {
+            vtkSMPropertyHelper helper(selsource, "NumberOfLayers");
+            can_shrink |= (helper.GetAsInt() >= 1);
+          }
+        }
+        paction->setEnabled(can_shrink);
+      }
+      else
+      {
+        paction->setEnabled(false);
+      }
+      break;
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
     {
-      enabled = core->selectionManager()->hasActiveSelection();
+      bool state = false;
+      if (this->Representation)
+      {
+        vtkSMProxy* proxy = this->Representation->getProxy();
+        vtkSMStringVectorProperty* prop =
+          vtkSMStringVectorProperty::SafeDownCast(proxy->GetProperty("ColorArrayName"));
+        if (prop)
+        {
+          int association = std::atoi(prop->GetElement(3));
+          const char* arrayName = prop->GetElement(4);
+
+          vtkPVDataInformation* dataInfo = this->Representation->getInputDataInformation();
+
+          vtkPVDataSetAttributesInformation* info = nullptr;
+          if (association == vtkDataObject::CELL &&
+            this->Mode == SELECT_SURFACE_CELLDATA_INTERACTIVELY)
+          {
+            info = dataInfo->GetCellDataInformation();
+          }
+          if (association == vtkDataObject::POINT &&
+            this->Mode == SELECT_SURFACE_POINTDATA_INTERACTIVELY)
+          {
+            info = dataInfo->GetPointDataInformation();
+          }
+
+          if (info)
+          {
+            vtkPVArrayInformation* arrayInfo = info->GetArrayInformation(arrayName);
+            state = arrayInfo && arrayInfo->GetDataType() == VTK_ID_TYPE;
+          }
+        }
+      }
+      paction->setEnabled(state);
     }
+    break;
+    default:
+      paction->setEnabled(true);
+      break;
   }
-  this->parentAction()->setEnabled(enabled);
 }
 
 //-----------------------------------------------------------------------------
@@ -179,7 +265,33 @@ void pqRenderViewSelectionReaction::setView(pqView* view)
   this->View = qobject_cast<pqRenderView*>(view);
 
   // update enable state.
-  this->parentAction()->setEnabled(this->View != NULL);
+  this->parentAction()->setEnabled(this->View != nullptr);
+}
+
+//-----------------------------------------------------------------------------
+void pqRenderViewSelectionReaction::setRepresentation(pqDataRepresentation* representation)
+{
+  if (this->Representation != representation)
+  {
+    // if we are currently in selection, finish that before changing the representation.
+    this->endSelection();
+
+    if (this->Representation != nullptr)
+    {
+      QObject::disconnect(this->RepresentationConnection);
+    }
+
+    this->Representation = representation;
+
+    if (this->Representation != nullptr)
+    {
+      this->RepresentationConnection = this->connect(
+        this->Representation, SIGNAL(colorArrayNameModified()), SLOT(updateEnableState()));
+    }
+
+    // update enable state.
+    this->updateEnableState();
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -231,6 +343,8 @@ void pqRenderViewSelectionReaction::beginSelection()
       vtkSMPropertyHelper(rmp, "InteractionMode").Set(vtkPVRenderView::INTERACTION_MODE_SELECTION);
       break;
 
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
     case SELECT_SURFACE_CELLS_INTERACTIVELY:
     case SELECT_SURFACE_POINTS_INTERACTIVELY:
       pqCoreUtilities::promptUser("pqInteractiveSelection", QMessageBox::Information,
@@ -298,6 +412,14 @@ void pqRenderViewSelectionReaction::beginSelection()
       }
       break;
 
+    case GROW_SELECTION:
+    case SHRINK_SELECTION:
+      if (pqPVApplicationCore* core = pqPVApplicationCore::instance())
+      {
+        core->selectionManager()->expandSelection(this->Mode == GROW_SELECTION ? 1 : -1);
+      }
+      break;
+
     default:
       this->View->setCursor(QCursor());
       break;
@@ -305,7 +427,7 @@ void pqRenderViewSelectionReaction::beginSelection()
   rmp->UpdateVTKObjects();
 
   // Setup observer.
-  assert(this->ObserverIds[0] == 0 && this->ObservedObject == NULL && this->ObserverIds[1] == 0);
+  assert(this->ObserverIds[0] == 0 && this->ObservedObject == nullptr && this->ObserverIds[1] == 0);
   switch (this->Mode)
   {
     case ZOOM_TO_BOX:
@@ -317,6 +439,8 @@ void pqRenderViewSelectionReaction::beginSelection()
     case CLEAR_SELECTION:
       break;
 
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
     case SELECT_SURFACE_CELLS_INTERACTIVELY:
     case SELECT_SURFACE_POINTS_INTERACTIVELY:
       this->ObservedObject = rmp->GetInteractor();
@@ -360,7 +484,7 @@ void pqRenderViewSelectionReaction::endSelection()
     return;
   }
 
-  pqRenderViewSelectionReaction::ActiveReaction = NULL;
+  pqRenderViewSelectionReaction::ActiveReaction = nullptr;
   vtkSMRenderViewProxy* rmp = this->View->getRenderViewProxy();
   vtkSMPropertyHelper(rmp, "InteractionMode").Set(this->PreviousRenderViewMode);
   this->PreviousRenderViewMode = -1;
@@ -457,6 +581,8 @@ void pqRenderViewSelectionReaction::onMouseMove()
       this->MouseMoving = true;
       VTK_FALLTHROUGH;
 
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
     case SELECT_SURFACE_CELLS_INTERACTIVELY:
     case SELECT_SURFACE_POINTS_INTERACTIVELY:
       this->preSelection();
@@ -478,7 +604,7 @@ void pqRenderViewSelectionReaction::preSelection()
   }
 
   vtkSMRenderViewProxy* rmp = this->View->getRenderViewProxy();
-  assert(rmp != NULL);
+  assert(rmp != nullptr);
 
   int x = rmp->GetInteractor()->GetEventPosition()[0];
   int y = rmp->GetInteractor()->GetEventPosition()[1];
@@ -487,6 +613,8 @@ void pqRenderViewSelectionReaction::preSelection()
   vtkSMPreselectionPipeline* pipeline;
   switch (this->Mode)
   {
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
     case SELECT_SURFACE_CELLS_INTERACTIVELY:
     case SELECT_SURFACE_POINTS_INTERACTIVELY:
       pipeline = vtkSMInteractiveSelectionPipeline::GetInstance();
@@ -518,24 +646,50 @@ void pqRenderViewSelectionReaction::preSelection()
   bool status = false;
   switch (this->Mode)
   {
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
+    {
+      pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
+      if (repr)
+      {
+        vtkSMStringVectorProperty* prop =
+          vtkSMStringVectorProperty::SafeDownCast(repr->getProxy()->GetProperty("ColorArrayName"));
+        if (prop)
+        {
+          int association = std::atoi(prop->GetElement(3));
+          const char* arrayName = prop->GetElement(4);
+
+          if (association == vtkDataObject::CELL &&
+            this->Mode == SELECT_SURFACE_CELLDATA_INTERACTIVELY)
+          {
+            status = rmp->SelectSurfaceCells(
+              region, selectedRepresentations, selectionSources, false, 0, false, arrayName);
+          }
+          if (association == vtkDataObject::POINT &&
+            this->Mode == SELECT_SURFACE_POINTDATA_INTERACTIVELY)
+          {
+            status = rmp->SelectSurfacePoints(
+              region, selectedRepresentations, selectionSources, false, 0, false, arrayName);
+          }
+        }
+      }
+    }
+    break;
+
     case SELECT_SURFACE_CELLS_INTERACTIVELY:
-      status = rmp->SelectSurfaceCells(
-        region, selectedRepresentations.GetPointer(), selectionSources.GetPointer());
+      status = rmp->SelectSurfaceCells(region, selectedRepresentations, selectionSources);
       break;
 
     case SELECT_SURFACE_POINTS_INTERACTIVELY:
-      status = rmp->SelectSurfacePoints(
-        region, selectedRepresentations.GetPointer(), selectionSources.GetPointer());
+      status = rmp->SelectSurfacePoints(region, selectedRepresentations, selectionSources);
       break;
 
     case SELECT_SURFACE_POINTS_TOOLTIP:
-      status = rmp->SelectSurfacePoints(
-        region, selectedRepresentations.GetPointer(), selectionSources.GetPointer());
+      status = rmp->SelectSurfacePoints(region, selectedRepresentations, selectionSources);
       break;
 
     case SELECT_SURFACE_CELLS_TOOLTIP:
-      status = rmp->SelectSurfaceCells(
-        region, selectedRepresentations.GetPointer(), selectionSources.GetPointer());
+      status = rmp->SelectSurfaceCells(region, selectedRepresentations, selectionSources);
       break;
 
     default:
@@ -615,7 +769,7 @@ void pqRenderViewSelectionReaction::onLeftButtonRelease()
   }
 
   vtkSMRenderViewProxy* viewProxy = this->View->getRenderViewProxy();
-  assert(viewProxy != NULL);
+  assert(viewProxy != nullptr);
 
   int x = viewProxy->GetInteractor()->GetEventPosition()[0];
   int y = viewProxy->GetInteractor()->GetEventPosition()[1];
@@ -636,6 +790,32 @@ void pqRenderViewSelectionReaction::onLeftButtonRelease()
 
   switch (this->Mode)
   {
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
+    {
+      pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
+      if (repr)
+      {
+        vtkSMStringVectorProperty* prop =
+          vtkSMStringVectorProperty::SafeDownCast(repr->getProxy()->GetProperty("ColorArrayName"));
+        if (prop)
+        {
+          int association = std::atoi(prop->GetElement(3));
+          const char* arrayName = prop->GetElement(4);
+
+          if (association == vtkDataObject::CELL)
+          {
+            this->View->selectOnSurface(region, selectionModifier, arrayName);
+          }
+          else
+          {
+            this->View->selectPointsOnSurface(region, selectionModifier, arrayName);
+          }
+        }
+      }
+    }
+    break;
+
     case SELECT_SURFACE_CELLS_INTERACTIVELY:
       this->View->selectOnSurface(region, selectionModifier);
       break;
@@ -656,7 +836,7 @@ int pqRenderViewSelectionReaction::getSelectionModifier()
   int selectionModifier = this->Superclass::getSelectionModifier();
 
   vtkSMRenderViewProxy* rmp = this->View->getRenderViewProxy();
-  assert(rmp != NULL);
+  assert(rmp != nullptr);
 
   bool ctrl = rmp->GetInteractor()->GetControlKey() == 1;
   bool shift = rmp->GetInteractor()->GetShiftKey() == 1;

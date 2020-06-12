@@ -41,8 +41,8 @@ public:
   /**
    * Standard methods for instantiation, obtaining type and printing instance values.
    */
-  static vtkCellTypeSource *New();
-  vtkTypeMacro(vtkCellTypeSource,vtkUnstructuredGridAlgorithm);
+  static vtkCellTypeSource* New();
+  vtkTypeMacro(vtkCellTypeSource, vtkUnstructuredGridAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
   //@}
 
@@ -115,8 +115,8 @@ public:
    * vtkAlgorithm::SINGLE_PRECISION (0) - Output single-precision floating point.
    * vtkAlgorithm::DOUBLE_PRECISION (1) - Output double-precision floating point.
    */
-  vtkSetClampMacro(OutputPrecision,int, 0, 1);
-  vtkGetMacro(OutputPrecision,int);
+  vtkSetClampMacro(OutputPrecision, int, 0, 1);
+  vtkGetMacro(OutputPrecision, int);
   //@}
 
   //@{
@@ -135,8 +135,8 @@ protected:
   vtkCellTypeSource();
   ~vtkCellTypeSource() override {}
 
-  int RequestData(vtkInformation *, vtkInformationVector **, vtkInformationVector *) override;
-  int RequestInformation(vtkInformation *, vtkInformationVector **, vtkInformationVector *) override;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   void GenerateTriangles(vtkUnstructuredGrid*, int extent[6]);
   void GenerateQuads(vtkUnstructuredGrid*, int extent[6]);
@@ -157,6 +157,13 @@ protected:
   void GenerateLagrangeTets(vtkUnstructuredGrid*, int extent[6]);
   void GenerateLagrangeHexes(vtkUnstructuredGrid*, int extent[6]);
   void GenerateLagrangeWedges(vtkUnstructuredGrid*, int extent[6]);
+
+  void GenerateBezierCurves(vtkUnstructuredGrid*, int extent[6]);
+  void GenerateBezierTris(vtkUnstructuredGrid*, int extent[6]);
+  void GenerateBezierQuads(vtkUnstructuredGrid*, int extent[6]);
+  void GenerateBezierTets(vtkUnstructuredGrid*, int extent[6]);
+  void GenerateBezierHexes(vtkUnstructuredGrid*, int extent[6]);
+  void GenerateBezierWedges(vtkUnstructuredGrid*, int extent[6]);
 
   virtual void ComputeFields(vtkUnstructuredGrid*);
   double GetValueOfOrder(int order, double coords[3]);

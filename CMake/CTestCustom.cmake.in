@@ -14,7 +14,15 @@ list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
 
   # Unreachable code in xutility causes C4702 warnings in MSVC.
   "xutility.*unreachable code"
+
+  # exclude warnings from dmfile.cxx
+  "dmfile.*"
   )
+
+list(APPEND CTEST_CUSTOM_ERROR_EXCEPTION
+  # Xcb error does not seem to cause errors in generated test images
+  "qt.qpa.xcb: internal error"
+)
 
 # Regular expression for excluding files from coverage testing
 list(APPEND CTEST_CUSTOM_COVERAGE_EXCLUDE

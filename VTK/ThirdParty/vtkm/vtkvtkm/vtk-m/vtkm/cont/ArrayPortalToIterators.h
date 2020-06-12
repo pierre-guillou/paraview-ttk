@@ -13,6 +13,31 @@
 #include <vtkm/cont/ArrayPortal.h>
 #include <vtkm/cont/internal/IteratorFromArrayPortal.h>
 
+namespace vtkmstd
+{
+/// Implementation of std::void_t (C++17):
+/// Allows for specialization of class templates based on members of template
+/// parameters.
+#if defined(VTKM_GCC) && (__GNUC__ < 5)
+// Due to a defect in the wording (CWG 1558) unused parameters in alias templates
+// were not guaranteed to ensure SFINAE, and therefore would consider everything
+// to match the 'true' side. For VTK-m the only known compiler that implemented
+// this defect is GCC < 5.
+template <class... T>
+struct void_pack
+{
+  using type = void;
+};
+template <class... T>
+using void_t = typename void_pack<T...>::type;
+#else
+template <typename...>
+using void_t = void;
+#endif
+
+
+} // end namespace vtkmstd
+
 namespace vtkm
 {
 namespace cont
@@ -31,7 +56,7 @@ namespace cont
 /// ArrayPortalFromIterator has a specialization to return the original
 /// iterators.
 ///
-template <typename PortalType>
+template <typename PortalType, typename CustomIterSFINAE = void>
 class ArrayPortalToIterators
 {
 public:
@@ -40,7 +65,7 @@ public:
   ///
   VTKM_SUPPRESS_EXEC_WARNINGS
   VTKM_EXEC_CONT
-  ArrayPortalToIterators(const PortalType& portal)
+  explicit ArrayPortalToIterators(const PortalType& portal)
     : Portal(portal)
   {
   }
@@ -63,6 +88,34 @@ public:
 
 private:
   PortalType Portal;
+};
+
+// Specialize for custom iterator types:
+template <typename PortalType>
+class ArrayPortalToIterators<PortalType, vtkmstd::void_t<typename PortalType::IteratorType>>
+{
+public:
+  using IteratorType = typename PortalType::IteratorType;
+
+  VTKM_SUPPRESS_EXEC_WARNINGS
+  VTKM_EXEC_CONT
+  explicit ArrayPortalToIterators(const PortalType& portal)
+    : Begin(portal.GetIteratorBegin())
+    , End(portal.GetIteratorEnd())
+  {
+  }
+
+  VTKM_SUPPRESS_EXEC_WARNINGS
+  VTKM_EXEC_CONT
+  IteratorType GetBegin() const { return this->Begin; }
+
+  VTKM_SUPPRESS_EXEC_WARNINGS
+  VTKM_EXEC_CONT
+  IteratorType GetEnd() const { return this->End; }
+
+private:
+  IteratorType Begin;
+  IteratorType End;
 };
 
 /// Convenience function for converting an ArrayPortal to a begin iterator.

@@ -1,29 +1,29 @@
-/* Copyright 2019 NVIDIA Corporation. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions
-* are met:
-*  * Redistributions of source code must retain the above copyright
-*    notice, this list of conditions and the following disclaimer.
-*  * Redistributions in binary form must reproduce the above copyright
-*    notice, this list of conditions and the following disclaimer in the
-*    documentation and/or other materials provided with the distribution.
-*  * Neither the name of NVIDIA CORPORATION nor the names of its
-*    contributors may be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-* EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-* PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-* CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-* PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-* PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-* OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+/* Copyright 2020 NVIDIA Corporation. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifndef vtknvindex_representation_h
 #define vtknvindex_representation_h
@@ -34,6 +34,7 @@
 
 #include "vtkImageVolumeRepresentation.h"
 #include "vtkIndeXRepresentationsModule.h"
+#include "vtkSmartPointer.h"
 
 #include "vtknvindex_rtc_kernel_params.h"
 
@@ -87,6 +88,15 @@ public:
   // Overrides from vtkPVDataRepresentation.
   int RequestUpdateExtent(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
+
+  // Overwrite from vtkAlgorithm.
+  void SetInputArrayToProcess(
+    int idx, int port, int connection, int fieldAssociation, const char* name) override;
+  void SetInputArrayToProcess(
+    int idx, int port, int connection, int fieldAssociation, int fieldAttributeType) override;
+  void SetInputArrayToProcess(int idx, vtkInformation* info) override;
+  void SetInputArrayToProcess(int idx, int port, int connection, const char* fieldAssociation,
+    const char* attributeTypeorName) override;
 
   // Get/Set the visibility for this representation. When the visibility of
   void SetVisibility(bool val) override;
@@ -172,6 +182,18 @@ public:
   void set_gradient_level(double gradient_level);
   void set_gradient_scale(double gradient_scale);
 
+  // Set custom parameters.
+  void set_kernel_filename(const char* kernel_filename);
+  void set_kernel_update();
+  void set_custom_pfloat_1(double custom_cf1);
+  void set_custom_pfloat_2(double custom_cf2);
+  void set_custom_pfloat_3(double custom_cf3);
+  void set_custom_pfloat_4(double custom_cf4);
+  void set_custom_pint_1(int ci1);
+  void set_custom_pint_2(int ci2);
+  void set_custom_pint_3(int ci3);
+  void set_custom_pint_4(int ci4);
+
   // Set region of interest.
   void update_index_roi();
 
@@ -225,6 +247,7 @@ private:
   mi::Sint32 m_interactive_image_reduction_factor;
 
   // boundary caching for time series
+  vtkSmartPointer<vtkPolyData> OutlineGeometry;
   mi::Sint32 m_has_time_steps;
   mi::Sint32 m_cur_time;
   std::map<mi::Sint32, vtknvindex_cached_bounds> m_time_to_cached_bounds;
@@ -234,6 +257,9 @@ private:
   vtknvindex_depth_enhancement_params m_depth_enhancement_params;
   vtknvindex_edge_enhancement_params m_edge_enhancement_params;
   vtknvindex_gradient_params m_gradient_params;
+  vtknvindex_custom_params m_custom_params;
+  std::string m_custom_kernel_filename;
+  std::string m_custom_kernel_program;
 };
 
 // Schwartz counter to manage initialization.

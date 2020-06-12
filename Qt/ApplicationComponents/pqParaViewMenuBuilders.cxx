@@ -49,7 +49,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqCatalystExportReaction.h"
 #include "pqCatalystPauseSimulationReaction.h"
 #include "pqCatalystRemoveBreakpointReaction.h"
-#include "pqCatalystScriptGeneratorReaction.h"
 #include "pqCatalystSetBreakpointReaction.h"
 #include "pqCategoryToolbarsBehavior.h"
 #include "pqChangePipelineInputReaction.h"
@@ -108,7 +107,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #if VTK_MODULE_ENABLE_ParaView_pqPython
 #include "pqMacroReaction.h"
 #include "pqPythonManager.h"
-#include "pqSGWritersMenuManager.h"
 #include "pqTraceReaction.h"
 #endif
 
@@ -119,9 +117,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QLayout>
 #include <QMainWindow>
 #include <QMenu>
+#include <QProxyStyle>
 
 #include "vtkPVFileInformation.h"
 #include "vtkSMProxyManager.h"
+
+//-----------------------------------------------------------------------------
+class pqActiveDisabledStyle : public QProxyStyle
+{
+public:
+  int styleHint(StyleHint hint, const QStyleOption* option = 0, const QWidget* widget = 0,
+    QStyleHintReturn* returnData = 0) const override
+  {
+    return hint == QStyle::SH_Menu_AllowActiveAndDisabled ? 1 : QProxyStyle::styleHint(
+                                                                  hint, option, widget, returnData);
+  }
+};
 
 //-----------------------------------------------------------------------------
 void pqParaViewMenuBuilders::buildFileMenu(QMenu& menu)
@@ -194,9 +205,9 @@ void pqParaViewMenuBuilders::buildEditMenu(QMenu& menu, pqPropertiesPanel* prope
 
   if (propertiesPanel)
   {
-    QAction* applyAction = new QAction(QIcon(":/pqWidgets/Icons/pqUpdate16.png"), "Apply", &menu);
+    QAction* applyAction = new QAction(QIcon(":/pqWidgets/Icons/pqApply.svg"), "Apply", &menu);
     applyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_A));
-    QAction* resetAction = new QAction(QIcon(":/pqWidgets/Icons/pqCancel16.png"), "Reset", &menu);
+    QAction* resetAction = new QAction(QIcon(":/pqWidgets/Icons/pqCancel.svg"), "Reset", &menu);
     resetAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_R));
     menu.insertAction(ui.actionDelete, applyAction);
     menu.insertAction(ui.actionDelete, resetAction);
@@ -223,6 +234,9 @@ void pqParaViewMenuBuilders::buildSourcesMenu(QMenu& menu, QMainWindow* mainWind
 void pqParaViewMenuBuilders::buildFiltersMenu(
   QMenu& menu, QMainWindow* mainWindow, bool hideDisabled, bool quickLaunchable)
 {
+  // Make sure disabled actions are still considered active
+  menu.setStyle(new pqActiveDisabledStyle);
+
   pqProxyGroupMenuManager* mgr =
     new pqProxyGroupMenuManager(&menu, "ParaViewFilters", quickLaunchable);
   mgr->addProxyDefinitionUpdateListener("filters");
@@ -314,8 +328,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
   QAction* actionPBOpen = new QAction(menu.parent());
   actionPBOpen->setObjectName(QStringLiteral("actionPBOpen"));
   QIcon icon4;
-  icon4.addFile(
-    QStringLiteral(":/pqWidgets/Icons/pqOpen24.png"), QSize(), QIcon::Normal, QIcon::Off);
+  icon4.addFile(QStringLiteral(":/pqWidgets/Icons/pqOpen.svg"), QSize(), QIcon::Normal, QIcon::Off);
   actionPBOpen->setIcon(icon4);
   actionPBOpen->setShortcutContext(Qt::WidgetShortcut);
   actionPBOpen->setText(
@@ -333,7 +346,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
   actionPBShowAll->setObjectName(QStringLiteral("actionPBShowAll"));
   QIcon showAllIcon;
   showAllIcon.addFile(
-    QStringLiteral(":/pqWidgets/Icons/pqEyeball.png"), QSize(), QIcon::Normal, QIcon::Off);
+    QStringLiteral(":/pqWidgets/Icons/pqEyeball.svg"), QSize(), QIcon::Normal, QIcon::Off);
   actionPBShowAll->setIcon(showAllIcon);
   actionPBShowAll->setText(
     QApplication::translate("pqPipelineBrowserContextMenu", "&Show All", Q_NULLPTR));
@@ -346,7 +359,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
   actionPBHideAll->setObjectName(QStringLiteral("actionPBHideAll"));
   QIcon hideAllIcon;
   hideAllIcon.addFile(
-    QStringLiteral(":/pqWidgets/Icons/pqEyeballClosed.png"), QSize(), QIcon::Normal, QIcon::Off);
+    QStringLiteral(":/pqWidgets/Icons/pqEyeballClosed.svg"), QSize(), QIcon::Normal, QIcon::Off);
   actionPBHideAll->setIcon(hideAllIcon);
   actionPBHideAll->setText(
     QApplication::translate("pqPipelineBrowserContextMenu", "&Hide All", Q_NULLPTR));
@@ -358,8 +371,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
   QAction* actionPBCopy = new QAction(menu.parent());
   actionPBCopy->setObjectName(QStringLiteral("actionPBCopy"));
   QIcon icon2;
-  icon2.addFile(
-    QStringLiteral(":/pqWidgets/Icons/pqCopy22.png"), QSize(), QIcon::Normal, QIcon::Off);
+  icon2.addFile(QStringLiteral(":/pqWidgets/Icons/pqCopy.svg"), QSize(), QIcon::Normal, QIcon::Off);
   actionPBCopy->setIcon(icon2);
   actionPBCopy->setText(
     QApplication::translate("pqPipelineBrowserContextMenu", "&Copy", Q_NULLPTR));
@@ -372,7 +384,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
   actionPBPaste->setObjectName(QStringLiteral("actionPBPaste"));
   QIcon icon3;
   icon3.addFile(
-    QStringLiteral(":/pqWidgets/Icons/pqPaste22.png"), QSize(), QIcon::Normal, QIcon::Off);
+    QStringLiteral(":/pqWidgets/Icons/pqPaste.svg"), QSize(), QIcon::Normal, QIcon::Off);
   actionPBPaste->setIcon(icon3);
   actionPBPaste->setText(
     QApplication::translate("pqPipelineBrowserContextMenu", "&Paste", Q_NULLPTR));
@@ -425,7 +437,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
   actionPBDelete->setObjectName(QStringLiteral("actionPBDelete"));
   QIcon icon;
   icon.addFile(
-    QStringLiteral(":/QtWidgets/Icons/pqDelete24.png"), QSize(), QIcon::Normal, QIcon::Off);
+    QStringLiteral(":/QtWidgets/Icons/pqDelete.svg"), QSize(), QIcon::Normal, QIcon::Off);
   actionPBDelete->setIcon(icon);
   actionPBDelete->setText(
     QApplication::translate("pqPipelineBrowserContextMenu", "&Delete", Q_NULLPTR));
@@ -687,8 +699,6 @@ void pqParaViewMenuBuilders::buildCatalystMenu(QMenu& menu, QWidget* exportConfi
     menu.addAction("Remove Breakpoint") << pqSetName("actionCatalystRemoveBreakpoint"));
 
 #if VTK_MODULE_ENABLE_ParaView_pqPython
-#define SHOWNEWCATALYSTGUI 1
-#if SHOWNEWCATALYSTGUI
   menu.addSeparator(); // --------------------------------------------------
   // QAction* cexport = menu.addAction("Configure Exports"); //WTH won't this show up on mac?
   // QAction* cexport = menu.addAction("Setup Exports"); //or this on mac?
@@ -705,20 +715,6 @@ void pqParaViewMenuBuilders::buildCatalystMenu(QMenu& menu, QWidget* exportConfi
     << pqSetName("actionExportTemporal");
   new pqTemporalExportReaction(gtemporal);
 
-#else
-  (void)exportConfiguration; // avoid unreferenced parameter comp warning
-#endif
-
-#define SHOWOLDCATALYSTGUI 1
-#if SHOWOLDCATALYSTGUI
-  menu.addSeparator(); // --------------------------------------------------
-  QAction* csg = menu.addAction("Generate Script -deprecated") << pqSetName("Export State");
-  new pqCatalystScriptGeneratorReaction(csg);
-
-  pqSGWritersMenuManager* menuMgr =
-    new pqSGWritersMenuManager(&menu, "&Writers", "CatalystWritersMenu", nullptr);
-  menuMgr->createMenu();
-#endif
 #else
   (void)exportConfiguration; // avoid unreferenced parameter comp warning
 #endif

@@ -6,7 +6,6 @@ DEPENDS
   VTK::CommonCore
   VTK::CommonExecutionModel
 PRIVATE_DEPENDS
-  ParaView::Core
   ParaView::VisItLib
   VTK::CommonDataModel
   VTK::CommonMisc

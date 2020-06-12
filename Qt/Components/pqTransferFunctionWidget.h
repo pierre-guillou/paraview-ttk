@@ -38,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class vtkScalarsToColors;
 class vtkPiecewiseFunction;
+class vtkTable;
 
 /**
 * pqTransferFunctionWidget provides a widget that can edit the control points
@@ -73,11 +74,22 @@ public:
   */
   vtkIdType numberOfControlPoints() const;
 
+  //@{
   /**
    * Switches the chart to use a log scaled X axis.
    */
   void SetLogScaleXAxis(bool logScale);
   bool GetLogScaleXAxis() const;
+  //@}
+
+  //@{
+  /**
+   * Provides access to vtkScalarsToColors and vtkPiecewiseFunction passed to
+   * `initialize`.
+   */
+  vtkScalarsToColors* scalarsToColors() const;
+  vtkPiecewiseFunction* piecewiseFunction() const;
+  //@}
 
 public slots:
   /**
@@ -98,6 +110,12 @@ public slots:
   */
   void render();
 
+  /**
+   * Set the histogram table to display as a plot bar.
+   * If set to nullptr, a simple color texture is used, the default.
+   */
+  void setHistogramTable(vtkTable* table);
+
 signals:
   /**
   * signal fired when the \c current selected control point changes.
@@ -110,13 +128,20 @@ signals:
   */
   void controlPointsModified();
 
-  //@{
   /**
-   * internal signals, do not use.
+   * signal fired when the chart range is modified.
    */
-  void pwfModified();
-  void ctfModified();
-  //@}
+  void chartRangeModified();
+
+  /**
+   * signal fired when the range handles changed the range.
+   */
+  void rangeHandlesRangeChanged(double rangeMin, double rangeMax);
+
+  /**
+   * signal fired when the range handles are double clicked.
+   */
+  void rangeHandlesDoubleClicked();
 
 protected slots:
   /**
@@ -124,6 +149,17 @@ protected slots:
   * vtkControlPointsItem::CurrentPointChangedEvent
   */
   void onCurrentChangedEvent();
+
+  /**
+   * slot called when the internal vtkRangeHandlesItem fires a
+   * vtkRangeHandlesItem::RangeHandlesRangeChanged
+   */
+  void onRangeHandlesRangeChanged();
+
+  /**
+   * Show usage info in the application status bar
+   */
+  void showUsageStatus();
 
 protected:
   /**

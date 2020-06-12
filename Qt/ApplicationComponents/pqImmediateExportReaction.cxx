@@ -50,6 +50,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPipelineSource.h"
 #include "pqServerManagerModel.h"
 
+#include <sstream>
+#include <string>
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter
 #include "vtkPythonInterpreter.h"
 #endif
@@ -126,44 +128,48 @@ void pqImmediateExportReaction::onTriggered()
     std::string filterName = formatS.substr(0, underP);
     filterName[0] = tolower(filterName[0]);
 
-    std::string track = vtkSMPropertyHelper(nextWriter, "Cinema Parameters").GetAsString(0);
-    if (track.size())
+    int nelems;
+    nelems = vtkSMPropertyHelper(nextWriter, "Cinema Parameters").GetNumberOfElements();
+    if (nelems > 0)
     {
       hasTrackSets = true;
       QString thisTrack = QString("'");
       thisTrack += QString(filterName.c_str());
       thisTrack += QString("':[");
-      thisTrack += QString(track.c_str());
+      std::stringstream track_cache;
+      for (int i = 0; i < nelems; ++i)
+      {
+        track_cache << vtkSMPropertyHelper(nextWriter, "Cinema Parameters").GetAsDouble(i);
+        track_cache << ", ";
+      }
+      thisTrack += QString(track_cache.str().c_str());
+      thisTrack.chop(1);
       thisTrack += QString("],");
       cinema_tracks += thisTrack;
     }
 
-    QString theseArrays = QString("'");
-    theseArrays += QString(filterName.c_str());
-    theseArrays += QString("':[");
+    if (vtkSMPropertyHelper(nextWriter, "ChooseArraysToWrite").GetAsInt(0) == 1)
+    {
+      QString theseArrays = QString("'");
+      theseArrays += QString(filterName.c_str());
+      theseArrays += QString("':[");
+      hasArraySets = true;
+      // TODO: there isn't an API to distinguish cell and point arrays or the same name
+      nelems = vtkSMPropertyHelper(nextWriter, "CellDataArrays").GetNumberOfElements();
+      for (int i = 0; i < nelems; ++i)
+      {
+        theseArrays += "'";
+        theseArrays += vtkSMPropertyHelper(nextWriter, "CellDataArrays").GetAsString(i);
+        theseArrays += "',";
+      }
 
-    // TODO: there isn't an API to distinguish cell and point arrays or the same name
-    bool hasArrays = false;
-    int nelems;
-    nelems = vtkSMPropertyHelper(nextWriter, "Cell Arrays").GetNumberOfElements();
-    for (int i = 0; i < nelems; ++i)
-    {
-      hasArrays = true;
-      theseArrays += "'";
-      theseArrays += vtkSMPropertyHelper(nextWriter, "Cell Arrays").GetAsString(i);
-      theseArrays += "',";
-    }
-
-    nelems = vtkSMPropertyHelper(nextWriter, "Point Arrays").GetNumberOfElements();
-    for (int i = 0; i < nelems; ++i)
-    {
-      hasArrays = true;
-      theseArrays += "'";
-      theseArrays += vtkSMPropertyHelper(nextWriter, "Point Arrays").GetAsString(i);
-      theseArrays += "',";
-    }
-    if (hasArrays)
-    {
+      nelems = vtkSMPropertyHelper(nextWriter, "PointDataArrays").GetNumberOfElements();
+      for (int i = 0; i < nelems; ++i)
+      {
+        theseArrays += "'";
+        theseArrays += vtkSMPropertyHelper(nextWriter, "PointDataArrays").GetAsString(i);
+        theseArrays += "',";
+      }
       hasArraySets = true;
       theseArrays.chop(1);
       theseArrays += "],";
@@ -415,7 +421,7 @@ void pqImmediateExportReaction::onTriggered()
     vtkPythonInterpreter::Initialize();
     vtkPythonInterpreter::RunSimpleString(command.toLocal8Bit().data());
 #else
-    qWarning("Export Now requires PARAVIEW_ENABLE_PYTHON");
+    qWarning("Export Now requires PARAVIEW_USE_PYTHON");
 #endif
   }
 }

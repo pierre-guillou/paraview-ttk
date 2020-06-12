@@ -47,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqSelectionManager.h"
 #include "pqSetName.h"
 #include "pqSpreadSheetViewModel.h"
+#include "vtkPVLogger.h"
 #include "vtkProcessModule.h"
 
 #if VTK_MODULE_ENABLE_ParaView_pqPython

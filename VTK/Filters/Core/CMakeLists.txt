@@ -11,6 +11,7 @@ set(classes
   vtkAttributeDataToFieldDataFilter
   vtkBinCellDataFilter
   vtkCellDataToPointData
+  vtkCellCenters
   vtkCenterOfMass
   vtkCleanPolyData
   vtkClipPolyData
@@ -50,6 +51,7 @@ set(classes
   vtkImageDataToExplicitStructuredGrid
   vtkImageAppend
   vtkImplicitPolyDataDistance
+  vtkImplicitProjectOnPlaneDistance
   vtkMarchingCubes
   vtkMarchingSquares
   vtkMaskFields

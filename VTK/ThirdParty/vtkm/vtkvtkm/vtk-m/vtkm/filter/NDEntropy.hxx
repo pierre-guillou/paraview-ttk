@@ -7,6 +7,8 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
+#ifndef vtk_m_filter_NDEntropy_hxx
+#define vtk_m_filter_NDEntropy_hxx
 
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/worklet/NDimsEntropy.h>
@@ -42,10 +44,15 @@ inline VTKM_CONT vtkm::cont::DataSet NDEntropy::DoExecute(
   }
 
   // Run worklet to calculate multi-variate entropy
+  vtkm::cont::ArrayHandle<vtkm::Float64> entropyHandle;
   vtkm::Float64 entropy = ndEntropy.Run();
+
+  entropyHandle.Allocate(1);
+  entropyHandle.GetPortalControl().Set(0, entropy);
+
+
   vtkm::cont::DataSet outputData;
-  outputData.AddField(vtkm::cont::make_Field(
-    "Entropy", vtkm::cont::Field::Association::POINTS, &entropy, 1, vtkm::CopyFlag::On));
+  outputData.AddField(vtkm::cont::make_FieldPoint("Entropy", entropyHandle));
   return outputData;
 }
 
@@ -60,3 +67,4 @@ inline VTKM_CONT bool NDEntropy::DoMapField(vtkm::cont::DataSet&,
 }
 }
 }
+#endif

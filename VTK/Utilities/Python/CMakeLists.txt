@@ -75,9 +75,6 @@ endif ()
 if (CMAKE_CONFIGURATION_TYPES)
   # For build systems with configuration types e.g. Xcode/Visual Studio,
   # we rely on generator expressions.
-  if (CMAKE_VERSION VERSION_LESS 3.4)
-    message(FATAL_ERROR "CMake 3.4 or newer if needed for your generator.")
-  endif ()
   set(VTK_BUILD_PYTHON_MODULES_DIR
     "${CMAKE_BINARY_DIR}/$<CONFIG>/${VTK_PYTHON_SITE_PACKAGES_SUFFIX}")
 else ()
@@ -93,29 +90,6 @@ if (NOT DEFINED VTK_INSTALL_PYTHON_MODULES_DIR)
     set(VTK_INSTALL_PYTHON_MODULES_DIR
       "${VTK_PYTHON_SITE_PACKAGES_SUFFIX}")
   endif ()
-endif ()
-
-set(_vtk_python_filename "vtk-python.cmake")
-set(_vtk_python_install_file "${CMAKE_BINARY_DIR}/CMakeFiles/${_vtk_python_filename}.install")
-set(_vtk_python_build_file "${CMAKE_BINARY_DIR}/${_vtk_build_CMAKE_DESTINATION}/${_vtk_python_filename}")
-
-file(WRITE "${_vtk_python_build_file}")
-file(WRITE "${_vtk_python_install_file}")
-
-_vtk_module_write_import_prefix(
-  "${_vtk_python_install_file}"
-  "${_vtk_build_CMAKE_DESTINATION}")
-file(APPEND "${_vtk_python_install_file}"
-  "set(VTK_PYTHONPATH \"\${_vtk_module_import_prefix}/${VTK_INSTALL_PYTHON_MODULES_DIR}\")\n")
-file(APPEND "${_vtk_python_build_file}"
-  "set(VTK_PYTHONPATH \"${VTK_BUILD_PYTHON_MODULES_DIR}\")\n")
-
-if (_vtk_build_INSTALL_HEADERS)
-  install(
-    FILES       "${_vtk_python_install_file}"
-    DESTINATION "${_vtk_build_CMAKE_DESTINATION}"
-    COMPONENT   "${_vtk_build_HEADERS_COMPONENT}"
-    RENAME      "${_vtk_python_filename}")
 endif ()
 
 # For static builds, since vtkPythonInterpreter cannot work off the library

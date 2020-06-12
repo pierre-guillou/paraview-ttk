@@ -8,10 +8,6 @@ foreach(policy
   endif()
 endforeach()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Android" AND CMAKE_VERSION VERSION_LESS 3.7)
-  message(FATAL_ERROR "CMake 3.7 or above is required to build for Android")
-endif()
-
 if (POLICY CMP0063)
   cmake_policy(SET CMP0063 NEW)
 endif ()
@@ -65,13 +61,10 @@ include(vtkCMakeBackports)
 # Should be included after vtkTesting
 include(vtkCompilerDynamicAnalysisFlags)
 
-#-----------------------------------------------------------------------------
-# Do we want examples built?
-option(VTK_BUILD_EXAMPLES "Build VTK examples." OFF)
-
 set(VTK_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 #-----------------------------------------------------------------------------
 # Add the Remote Subdirectory
@@ -153,10 +146,6 @@ endif ()
 # For vtkTkRenderWidget (only useful with Python, since WRAP_TCL is gone)
 if (VTK_USE_TK)
   set(VTK_GROUP_ENABLE_Tk YES)
-else ()
-  set(_vtk_module_group_default_Tk "DONT_WANT")
-  list(APPEND vtk_rejected_modules
-    VTK::RenderingTk)
 endif ()
 if (VTK_USE_MPI)
   set(VTK_GROUP_ENABLE_MPI YES)
@@ -430,6 +419,21 @@ endif()
 if(BUILD_TESTING AND VTK_WRAP_PYTHON)
   add_subdirectory(Utilities/vtkTclTest2Py)
 endif()
+
+if (NOT TARGET uninstall)
+  add_custom_target(uninstall
+    COMMAND
+      "${CMAKE_COMMAND}"
+        "-DCMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}"
+        -P "${CMAKE_CURRENT_LIST_DIR}/CMake/vtkUninstall.cmake"
+    USES_TERMINAL
+    COMMENT "Uninstalling VTK")
+endif ()
+
+install(
+  FILES       "${CMAKE_CURRENT_LIST_DIR}/Copyright.txt"
+  DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+  COMPONENT   "license")
 
 # TODO: HeaderTest exclusions for memcheck.
 

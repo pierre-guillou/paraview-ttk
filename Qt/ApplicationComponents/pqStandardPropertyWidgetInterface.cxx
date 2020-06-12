@@ -62,10 +62,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqInputDataTypeDecorator.h"
 #include "pqInputSelectorWidget.h"
 #include "pqIntMaskPropertyWidget.h"
+#include "pqLightPropertyWidget.h"
 #include "pqLinePropertyWidget.h"
 #include "pqListPropertyWidget.h"
 #include "pqMoleculePropertyWidget.h"
 #include "pqMultiComponentsDecorator.h"
+#include "pqOMETransferFunctionsPropertyWidget.h"
 #include "pqOSPRayHidingDecorator.h"
 #include "pqPauseLiveSourcePropertyWidget.h"
 #include "pqPropertyGroupButton.h"
@@ -83,10 +85,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqYoungsMaterialPropertyWidget.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyGroup.h"
-
-#if VTK_MODULE_ENABLE_ParaView_pqPython
-#include "pqCinemaConfiguration.h"
-#endif
 
 #include <QtDebug>
 
@@ -293,13 +291,13 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForPropertyGrou
   {
     return new pqCylinderPropertyWidget(proxy, group, parentWidget);
   }
-  else if (panelWidget == "cinema_export_selector")
+  else if (panelWidget == "InteractiveLight")
   {
-#if VTK_MODULE_ENABLE_ParaView_pqPython
-    return new pqCinemaConfiguration(proxy, group, parentWidget);
-#else
-    return NULL;
-#endif
+    return new pqLightPropertyWidget(proxy, group, parentWidget);
+  }
+  else if (panelWidget == "OMETransferFunctions")
+  {
+    return new pqOMETransferFunctionsPropertyWidget(proxy, group, parentWidget);
   }
   // *** NOTE: When adding new types, please update the header documentation ***
 

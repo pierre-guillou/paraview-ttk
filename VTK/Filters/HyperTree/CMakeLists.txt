@@ -6,13 +6,12 @@ set(classes
   vtkHyperTreeGridContour
   vtkHyperTreeGridDepthLimiter
   vtkHyperTreeGridEvaluateCoarse
-  vtkHyperTreeGridEvaluateCoarse
   vtkHyperTreeGridGeometry
-  vtkImageDataToHyperTreeGrid
   vtkHyperTreeGridPlaneCutter
   vtkHyperTreeGridThreshold
   vtkHyperTreeGridToDualGrid
   vtkHyperTreeGridToUnstructuredGrid
+  vtkImageDataToHyperTreeGrid
 )
 
 vtk_module_add_module(VTK::FiltersHyperTree

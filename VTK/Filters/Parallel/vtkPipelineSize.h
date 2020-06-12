@@ -15,7 +15,7 @@
 /**
  * @class   vtkPipelineSize
  * @brief   compute the memory required by a pipeline
-*/
+ */
 
 #ifndef vtkPipelineSize_h
 #define vtkPipelineSize_h
@@ -23,13 +23,12 @@
 #include "vtkFiltersParallelModule.h" // For export macro
 #include "vtkObject.h"
 class vtkAlgorithm;
-class vtkPolyDataMapper;
 
 class VTKFILTERSPARALLEL_EXPORT vtkPipelineSize : public vtkObject
 {
 public:
   static vtkPipelineSize* New();
-  vtkTypeMacro(vtkPipelineSize,vtkObject);
+  vtkTypeMacro(vtkPipelineSize, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
@@ -38,33 +37,25 @@ public:
    * calculations in here do not take into account the specifics of many
    * sources and filters.
    */
-  unsigned long GetEstimatedSize(vtkAlgorithm *input, int inputPort,
-                                 int connection);
+  unsigned long GetEstimatedSize(vtkAlgorithm* input, int inputPort, int connection);
 
   /**
    * Determine how many subpieces a mapper should use to fit a target memory
-   * limit. This takes into account the mapper's Piece and NumberOfPieces.
+   * limit. The piece and numPieces can be queried from the mapper using
+   * `vtkPolyDataMapper::GetPiece` and
+   * `vtkPolyDataMapper::GetNumberOfSubPieces`.
    */
-  unsigned long GetNumberOfSubPieces(unsigned long memoryLimit,
-                                     vtkPolyDataMapper *mapper);
+  unsigned long GetNumberOfSubPieces(
+    unsigned long memoryLimit, vtkAlgorithm* mapper, int piece, int numPieces);
 
 protected:
   vtkPipelineSize() {}
-  void GenericComputeSourcePipelineSize(vtkAlgorithm *src,
-                                        int outputPort,
-                                        unsigned long size[3]);
-  void ComputeSourcePipelineSize(vtkAlgorithm *src,
-                                 int outputPort,
-                                 unsigned long size[3]);
-  void ComputeOutputMemorySize( vtkAlgorithm *src,
-                                int outputPort,
-                                unsigned long *inputSize,
-                                unsigned long size[2] );
-  void GenericComputeOutputMemorySize( vtkAlgorithm *src,
-                                       int outputPort,
-                                       unsigned long *inputSize,
-                                       unsigned long size[2] );
-
+  void GenericComputeSourcePipelineSize(vtkAlgorithm* src, int outputPort, unsigned long size[3]);
+  void ComputeSourcePipelineSize(vtkAlgorithm* src, int outputPort, unsigned long size[3]);
+  void ComputeOutputMemorySize(
+    vtkAlgorithm* src, int outputPort, unsigned long* inputSize, unsigned long size[2]);
+  void GenericComputeOutputMemorySize(
+    vtkAlgorithm* src, int outputPort, unsigned long* inputSize, unsigned long size[2]);
 
 private:
   vtkPipelineSize(const vtkPipelineSize&) = delete;
@@ -72,5 +63,3 @@ private:
 };
 
 #endif
-
-

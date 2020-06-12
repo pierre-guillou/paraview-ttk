@@ -81,7 +81,9 @@ There are four ways for loading plugins:
       on startup to load plugins. This environment variable needs to be set on
       both the client and server sides to load their respective plugins. Note
       that plugins in PV_PLUGIN_PATH are always auto-loaded irrespective of the
-      status of the `Auto Load` checkbox in the `Plugin Manager`.
+      status of the `Auto Load` checkbox in the `Plugin Manager`. Paths in this
+      list may also be of the structure created by the ParaView plugin macros
+      (e.g., `MyPlugin/MyPlugin.so`).
     - Finer control can be used using the `PV_PLUGIN_CONFIG_FILE` environment
       variable. `PV_PLUGIN_CONFIG_FILE` can be used to list a set of XML plugin
       configuration files (separated by colon (`:`) on Unix platforms or
@@ -93,6 +95,8 @@ There are four ways for loading plugins:
 <?xml version="1.0"?>
 <Plugins>
   <Plugin name="MyPlugin" filename="/absolute/path/to/libMyPlugin.so"/>
+  <!-- Note that relative paths are calculated from the directory of this XML file. -->
+  <Plugin name="MyPluginRel" filename="relative/path/to/libMyPlugin.so"/>
 </Plugins>
 ```
 
@@ -262,10 +266,13 @@ into into a shared library. To do this, we can use the following top-level:
 cmake_minimum_required(VERSION 3.8)
 project(sharedlibrary)
 
-# These two lines are required in order to set up installation directories
+# These five lines are required in order to set up installation directories
 # (which also control build directory locations) and enable shared builds
 # (CMake's default is for a static build).
 include(GNUInstallDirs)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
 set(BUILD_SHARED_LIBS ON)
 
 # Find ParaView. This will bring in ParaView's CMake API and imported targets.
@@ -389,14 +396,19 @@ PRIVATE_DEPENDS
 ```
 
 And then the module is built with its associated server manager XML file
-attached to the module.
+attached to the module. Note that the module name cannot be the same as the
+plugin name due to the way the library targets are managed internally.
 
 ```cmake
 set(classes
   vtkMyElevationFilter)
 
+# Find external packages here using `find_package`.
+
 vtk_module_add_module(ElevationFilters
   CLASSES ${classes})
+
+# Link to external packages here using `vtk_module_link(ElevationFilters)`.
 
 paraview_add_server_manager_xmls(
   XMLS  MyElevationFilter.xml)
@@ -1242,6 +1254,7 @@ The code below shows how the `PV_PLUGIN` macros would be used to statically load
 plugins in custom applications:
 
 ```cpp
+#define PARAVIEW_BUILDING_PLUGIN
 #include "vtkPVPlugin.h"
 
 // Adds required forward declarations.

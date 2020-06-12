@@ -24,11 +24,15 @@ set(classes
   vtkCell
   vtkCell3D
   vtkCellArray
+  vtkCellArrayIterator
   vtkCellData
   vtkCellIterator
   vtkCellLinks
   vtkCellLocator
+  vtkCellLocatorStrategy
   vtkCellTypes
+  vtkClosestNPointsStrategy
+  vtkClosestPointStrategy
   vtkCompositeDataIterator
   vtkCompositeDataSet
   vtkCone
@@ -54,6 +58,7 @@ set(classes
   vtkExplicitStructuredGrid
   vtkExtractStructuredGridHelper
   vtkFieldData
+  vtkFindCellStrategy
   vtkGenericAdaptorCell
   vtkGenericAttribute
   vtkGenericAttributeCollection
@@ -110,6 +115,20 @@ set(classes
   vtkKdNode
   vtkKdTree
   vtkKdTreePointLocator
+  vtkHigherOrderCurve
+  vtkHigherOrderHexahedron
+  vtkHigherOrderInterpolation
+  vtkHigherOrderQuadrilateral
+  vtkHigherOrderTetra
+  vtkHigherOrderTriangle
+  vtkHigherOrderWedge
+  vtkBezierCurve
+  vtkBezierHexahedron
+  vtkBezierInterpolation
+  vtkBezierQuadrilateral
+  vtkBezierTetra
+  vtkBezierTriangle
+  vtkBezierWedge
   vtkLagrangeCurve
   vtkLagrangeHexahedron
   vtkLagrangeInterpolation
@@ -242,6 +261,7 @@ set(headers
   vtkDoubleDispatcher.h
   vtkHyperTreeGridTools.h
   vtkIntersectionCounter.h
+  vtkPolyDataInternals.h
   vtkRect.h
   vtkVector.h
   vtkVectorOperators.h)

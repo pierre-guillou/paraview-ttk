@@ -12,9 +12,7 @@ if (VTK_SMP_IMPLEMENTATION_TYPE STREQUAL "TBB")
   set(VTKm_ENABLE_TBB ON)
 endif ()
 
-if(VTK_USE_CUDA)
-  set(VTKm_ENABLE_CUDA ON)
-endif ()
+set(VTKm_ENABLE_CUDA ${VTK_USE_CUDA})
 
 set(VTKm_INSTALL_LIB_DIR "${_vtk_build_LIBRARY_DESTINATION}")
 set(VTKm_INSTALL_INCLUDE_DIR "${_vtk_build_HEADERS_DESTINATION}/vtkvtkm/vtk-m")
@@ -59,6 +57,7 @@ endif ()
 set(BUILD_SHARED_LIBS OFF)
 
 add_subdirectory(vtk-m)
+vtkm_setup_job_pool()
 
 vtk_module_add_module(VTK::vtkm
   HEADER_ONLY)

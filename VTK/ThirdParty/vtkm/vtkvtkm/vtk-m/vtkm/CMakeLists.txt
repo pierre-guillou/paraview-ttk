@@ -17,8 +17,8 @@ vtkm_install_headers(
   vtkm ${VTKm_BINARY_INCLUDE_DIR}/${kit_dir}/Version.h)
 
 set(headers
+  Algorithms.h
   Assert.h
-  BaseComponent.h
   BinaryPredicates.h
   BinaryOperators.h
   Bitset.h
@@ -26,15 +26,18 @@ set(headers
   CellClassification.h
   CellShape.h
   CellTraits.h
+  Deprecated.h
   Flags.h
   Geometry.h
   Hash.h
   ImplicitFunction.h
+  List.h
   ListTag.h
   Math.h
   Matrix.h
   NewtonsMethod.h
   Pair.h
+  Particle.h
   Range.h
   RangeId.h
   RangeId2.h
@@ -43,6 +46,7 @@ set(headers
   Swap.h
   TopologyElementTag.h
   Transform3D.h
+  TypeList.h
   TypeListTag.h
   Types.h
   TypeTraits.h
@@ -71,11 +75,14 @@ vtkm_declare_headers(
 #-----------------------------------------------------------------------------
 #first add all the components vtkm that are shared between control and exec
 add_subdirectory(thirdparty/diy)
-add_subdirectory(thirdparty/optionparser)
-add_subdirectory(thirdparty/taotuple)
+add_subdirectory(thirdparty/lodepng)
 if(VTKm_ENABLE_LOGGING)
   add_subdirectory(thirdparty/loguru)
 endif()
+add_subdirectory(thirdparty/optionparser)
+add_subdirectory(thirdparty/taotuple)
+add_subdirectory(thirdparty/lcl)
+
 add_subdirectory(testing)
 add_subdirectory(internal)
 
@@ -101,3 +108,6 @@ add_subdirectory(interop)
 #-----------------------------------------------------------------------------
 #add the io folder
 add_subdirectory(io)
+
+#add the source folder
+add_subdirectory(source)

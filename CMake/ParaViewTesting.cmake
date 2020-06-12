@@ -1,33 +1,25 @@
 function (paraview_add_test_python)
-  set(_vtk_testing_python_exe
-    "$<TARGET_FILE:ParaView::pvpython>"
-    -dr
-    ${paraview_python_args})
+  set(_vtk_testing_python_exe "$<TARGET_FILE:ParaView::pvpython>")
+  set(_vtk_test_python_args -dr ${paraview_python_args})
   vtk_add_test_python(${ARGN})
 endfunction ()
 
 function (paraview_add_test_python_mpi)
-  set(_vtk_testing_python_exe
-    "$<TARGET_FILE:ParaView::pvpython>"
-    -dr
-    ${paraview_python_args})
+  set(_vtk_testing_python_exe "$<TARGET_FILE:ParaView::pvpython>")
+  set(_vtk_test_python_args -dr ${paraview_python_args})
   vtk_add_test_python_mpi(${ARGN})
 endfunction ()
 
 function (paraview_add_test_pvbatch)
-  set(_vtk_testing_python_exe
-    "$<TARGET_FILE:ParaView::pvbatch>"
-    -dr
-    ${paraview_pvbatch_args})
+  set(_vtk_testing_python_exe "$<TARGET_FILE:ParaView::pvbatch>")
+  set(_vtk_test_python_args -dr ${paraview_pvbatch_args})
   set(vtk_test_prefix "Batch-${vtk_test_prefix}")
   vtk_add_test_python(${ARGN})
 endfunction ()
 
 function (paraview_add_test_pvbatch_mpi)
-  set(_vtk_testing_python_exe
-    "$<TARGET_FILE:ParaView::pvbatch>"
-    -dr
-    ${paraview_pvbatch_args})
+  set(_vtk_testing_python_exe "$<TARGET_FILE:ParaView::pvbatch>")
+  set(_vtk_test_python_args -dr ${paraview_pvbatch_args})
   set(vtk_test_prefix "Batch-${vtk_test_prefix}")
   vtk_add_test_python_mpi(${ARGN})
 endfunction ()
@@ -37,7 +29,7 @@ function(paraview_add_test_driven)
     return()
   endif ()
   set(_vtk_testing_python_exe "$<TARGET_FILE:ParaView::smTestDriver>")
-  list(APPEND VTK_PYTHON_ARGS
+  set(_vtk_test_python_args
     --server $<TARGET_FILE:ParaView::pvserver>
     --client $<TARGET_FILE:ParaView::pvpython> -dr)
   vtk_add_test_python(${ARGN})
@@ -47,7 +39,7 @@ function (_paraview_add_tests function)
   cmake_parse_arguments(_paraview_add_tests
     "FORCE_SERIAL;FORCE_LOCK"
     "LOAD_PLUGIN;PLUGIN_PATH;CLIENT;TEST_DIRECTORY;TEST_DATA_TARGET;PREFIX;SUFFIX;_ENABLE_SUFFIX;_DISABLE_SUFFIX;BASELINE_DIR;DATA_DIRECTORY"
-    "_COMMAND_PATTERN;TEST_SCRIPTS;ENVIRONMENT;ARGS;CLIENT_ARGS"
+    "_COMMAND_PATTERN;LOAD_PLUGINS;PLUGIN_PATHS;TEST_SCRIPTS;ENVIRONMENT;ARGS;CLIENT_ARGS"
     ${ARGN})
 
   if (_paraview_add_tests_UNPARSED_ARGUMENTS)
@@ -59,16 +51,6 @@ function (_paraview_add_tests function)
   if (NOT DEFINED _paraview_add_tests__COMMAND_PATTERN)
     message(FATAL_ERROR
       "The `_COMMAND_PATTERN` argument is required.")
-  endif ()
-
-  if (NOT DEFINED _paraview_add_tests_TEST_DATA_TARGET)
-    if (DEFINED _paraview_add_tests_default_test_data_target)
-      set(_paraview_add_tests_TEST_DATA_TARGET
-        "${_paraview_add_tests_default_test_data_target}")
-    else ()
-      message(FATAL_ERROR
-        "The `TEST_DATA_TARGET` argument is required.")
-    endif ()
   endif ()
 
   if (NOT DEFINED _paraview_add_tests_CLIENT)
@@ -94,13 +76,35 @@ function (_paraview_add_tests function)
     ${_paraview_add_tests_ARGS})
 
   if (DEFINED _paraview_add_tests_PLUGIN_PATH)
+    if (DEFINED _paraview_add_tests_PLUGIN_PATHS)
+      message(FATAL_ERROR
+        "The `PLUGIN_PATH` argument is incompatible "
+        "with `PLUGIN_PATHS`.")
+    endif ()
     list(APPEND _paraview_add_tests_args
       "--test-plugin-path=${_paraview_add_tests_PLUGIN_PATH}")
   endif ()
 
+  if (DEFINED _paraview_add_tests_PLUGIN_PATHS)
+    string(REPLACE ";" "," _plugin_paths "${_paraview_add_tests_PLUGIN_PATHS}")
+    list(APPEND _paraview_add_tests_args
+      "--test-plugin-paths=${_plugin_paths}")
+  endif ()
+
   if (DEFINED _paraview_add_tests_LOAD_PLUGIN)
+    if (DEFINED _paraview_add_tests_LOAD_PLUGINS)
+      message(FATAL_ERROR
+        "The `LOAD_PLUGIN` argument is incompatible "
+        "with `LOAD_PLUGINS`.")
+    endif ()
     list(APPEND _paraview_add_tests_args
       "--test-plugin=${_paraview_add_tests_LOAD_PLUGIN}")
+  endif ()
+
+  if (DEFINED _paraview_add_tests_LOAD_PLUGINS)
+    string(REPLACE ";" "," _load_plugins "${_paraview_add_tests_LOAD_PLUGINS}")
+    list(APPEND _paraview_add_tests_args
+      "--test-plugins=${_load_plugins}")
   endif ()
 
   string(REPLACE "__paraview_args__" "${_paraview_add_tests_args}"
@@ -127,20 +131,43 @@ function (_paraview_add_tests function)
       continue ()
     endif ()
 
+    if (NOT DEFINED _paraview_add_tests_TEST_DATA_TARGET)
+      if (DEFINED _paraview_add_tests_default_test_data_target)
+        set(_paraview_add_tests_TEST_DATA_TARGET
+          "${_paraview_add_tests_default_test_data_target}")
+      else()
+        if (NOT DEFINED "${_paraview_add_tests_name}_USES_DIRECT_DATA")
+          message(FATAL_ERROR "The `TEST_DATA_TARGET` argument is required.")
+        endif()
+      endif ()
+    endif ()
+
     # Build arguments to pass to the clients.
     set(_paraview_add_tests_client_args
       "--test-directory=${_paraview_add_tests_TEST_DIRECTORY}"
       ${_paraview_add_tests_CLIENT_ARGS})
     if (DEFINED _paraview_add_tests_BASELINE_DIR)
       if (DEFINED "${_paraview_add_tests_name}_BASELINE")
-        list(APPEND _paraview_add_tests_client_args
-          "--test-baseline=DATA{${_paraview_add_tests_BASELINE_DIR}/${${_paraview_add_tests_name_base}_BASELINE}}")
+        if (DEFINED "${_paraview_add_tests_name}_USES_DIRECT_DATA")
+          list(APPEND _paraview_add_tests_client_args
+            "--test-baseline=${_paraview_add_tests_BASELINE_DIR}/${${_paraview_add_tests_name_base}_BASELINE}")
+        else()
+          list(APPEND _paraview_add_tests_client_args
+            "--test-baseline=DATA{${_paraview_add_tests_BASELINE_DIR}/${${_paraview_add_tests_name_base}_BASELINE}}")
+        endif ()
       else ()
-        list(APPEND _paraview_add_tests_client_args
-          "--test-baseline=DATA{${_paraview_add_tests_BASELINE_DIR}/${_paraview_add_tests_name_base}.png}")
+        if (DEFINED "${_paraview_add_tests_name}_USES_DIRECT_DATA")
+          list(APPEND _paraview_add_tests_client_args
+            "--test-baseline=${_paraview_add_tests_BASELINE_DIR}/${_paraview_add_tests_name_base}.png")
+        else()
+          list(APPEND _paraview_add_tests_client_args
+            "--test-baseline=DATA{${_paraview_add_tests_BASELINE_DIR}/${_paraview_add_tests_name_base}.png}")
+        endif ()
       endif ()
-      ExternalData_Expand_Arguments("${_paraview_add_tests_TEST_DATA_TARGET}" _
-        "DATA{${_paraview_add_tests_BASELINE_DIR}/,REGEX:${_paraview_add_tests_name_base}(-.*)?(_[0-9]+)?.png}")
+      if (NOT DEFINED "${_paraview_add_tests_name}_USES_DIRECT_DATA")
+        ExternalData_Expand_Arguments("${_paraview_add_tests_TEST_DATA_TARGET}" _
+          "DATA{${_paraview_add_tests_BASELINE_DIR}/,REGEX:${_paraview_add_tests_name_base}(-.*)?(_[0-9]+)?.png}")
+      endif()
     endif ()
     if (DEFINED "${_paraview_add_tests_name}_THRESHOLD")
       list(APPEND _paraview_add_tests_client_args
@@ -161,11 +188,17 @@ function (_paraview_add_tests function)
       _paraview_add_tests_script_args
       "${_paraview_add_tests_script_args}")
 
-    ExternalData_add_test("${_paraview_add_tests_TEST_DATA_TARGET}"
-      NAME    "${_paraview_add_tests_PREFIX}.${_paraview_add_tests_name}"
-      COMMAND ParaView::smTestDriver
-              --enable-bt
-              ${_paraview_add_tests_script_args})
+    set(testArgs
+        NAME    "${_paraview_add_tests_PREFIX}.${_paraview_add_tests_name}"
+        COMMAND ParaView::smTestDriver
+                --enable-bt
+                ${_paraview_add_tests_script_args})
+    if (DEFINED "${_paraview_add_tests_name}_USES_DIRECT_DATA")
+      add_test(${testArgs})
+    else()
+      ExternalData_add_test("${_paraview_add_tests_TEST_DATA_TARGET}" ${testArgs})
+    endif()
+
     set_property(TEST "${_paraview_add_tests_PREFIX}.${_paraview_add_tests_name}"
       PROPERTY
         LABELS ParaView)
@@ -251,6 +284,7 @@ function (paraview_add_multi_client_tests)
   _paraview_add_tests("paraview_add_multi_client_tests"
     PREFIX "pvcs-multi-clients"
     _ENABLE_SUFFIX "_ENABLE_MULTI_CLIENT"
+    FORCE_SERIAL
     _COMMAND_PATTERN
       --test-multi-clients
       --server "$<TARGET_FILE:ParaView::pvserver>"

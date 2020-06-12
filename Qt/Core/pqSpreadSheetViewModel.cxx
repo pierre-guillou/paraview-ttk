@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqSpreadSheetViewModel.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkCSVExporter.h"
 #include "vtkCellType.h"
 #include "vtkDataArrayAccessor.h"
 #include "vtkEventQtSlotConnect.h"
@@ -337,6 +338,18 @@ public:
   }
 };
 };
+
+//-----------------------------------------------------------------------------
+QString pqSpreadSheetViewModel::GetRowsAsString() const
+{
+  vtkSpreadSheetView* view = this->GetView();
+  vtkNew<vtkCSVExporter> exporter;
+  exporter->WriteToOutputStringOn();
+  view->Export(exporter);
+
+  return exporter->GetOutputString().c_str();
+}
+
 //-----------------------------------------------------------------------------
 QVariant pqSpreadSheetViewModel::data(const QModelIndex& idx, int role /*=Qt::DisplayRole*/) const
 {
@@ -544,14 +557,8 @@ bool pqSpreadSheetViewModel::isDataValid(const QModelIndex& idx) const
     return false;
   }
 
-  // Ensure that the row of this index is less than the length of the
-  // data array associated with its column
-  if (idx.row() < this->Internal->VTKView->GetNumberOfRows())
-  {
-    return true;
-  }
-
-  return false;
+  vtkSpreadSheetView* view = this->GetView();
+  return view->IsDataValid(idx.row(), idx.column());
 }
 
 //-----------------------------------------------------------------------------

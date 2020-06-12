@@ -201,6 +201,7 @@ def ExportNow(root_directory,
     # export loop
     for tstep in timesteps:
         padded_tstep = str(tstep).rjust(file_name_padding, '0')
+        helpers = []
 
         # loop through the configured writers and export at the requested times
         ed.InitNextWriterProxy()
@@ -217,30 +218,49 @@ def ExportNow(root_directory,
                 proxyname = spm.GetProxyName("export_writers", wp)
                 inputname = proxyname[0:proxyname.find("|")]
                 inputproxy = FindSource(inputname)
+                if wp.GetProperty("ChooseArraysToWrite").GetElement(0) == 1:
+                    point_arrays = []
+                    cell_arrays = []
+                    arrays_property = wp.GetProperty("PointDataArrays")
+                    for i in range(arrays_property.GetNumberOfElements()):
+                        point_arrays.append(arrays_property.GetElement(i))
+                    arrays_property = wp.GetProperty("CellDataArrays")
+                    for i in range(arrays_property.GetNumberOfElements()):
+                        cell_arrays.append(arrays_property.GetElement(i))
+                    if not point_arrays:
+                        point_arrays = [' ']
+                    if not cell_arrays:
+                        cell_arrays = [' ']
+                    # create a temporary array culling filter
+                    pass_arrays = PassArrays(Input=inputproxy, \
+                        PointDataArrays=point_arrays, CellDataArrays=cell_arrays)
+                    inputproxy = pass_arrays
+                    helpers.append(inputproxy)
                 fname = wp.GetProperty("CatalystFilePattern").GetElement(0)
                 if wp.GetXMLName() == "ExodusIIWriter":
                     fnamefilled = root_directory+fname+padded_tstep
                 else:
                     fnamefilled = root_directory+fname.replace("%t", padded_tstep)
 
+                kwargs = {}
                 DataMode = wp.GetProperty("DataMode")
                 if DataMode is not None:
-                    DataMode = wp.GetProperty("DataMode").GetElement(0)
+                    kwargs["DataMode"] = wp.GetProperty("DataMode").GetElement(0)
                 HeaderType = wp.GetProperty("HeaderType")
                 if HeaderType is not None:
-                    HeaderType = wp.GetProperty("HeaderType").GetElement(0)
-                EncodeAppendedData=wp.GetProperty("EncodeAppendedData")
+                    kwargs["HeaderType"] = wp.GetProperty("HeaderType").GetElement(0)
+                EncodeAppendedData = wp.GetProperty("EncodeAppendedData")
                 if EncodeAppendedData is not None:
-                    EncodeAppendedData = wp.GetProperty("EncodeAppendedData").GetElement(0)
+                    kwargs["EncodeAppendedData"] = wp.GetProperty("EncodeAppendedData").GetElement(0)
                 CompressorType = wp.GetProperty("CompressorType")
                 if CompressorType is not None:
-                    CompressorType = wp.GetProperty("CompressorType").GetElement(0)
+                    kwargs["CompressorType"] = wp.GetProperty("CompressorType").GetElement(0)
                 CompressionLevel = wp.GetProperty("CompressionLevel")
                 if CompressionLevel is not None:
-                    CompressionLevel = wp.GetProperty("CompressionLevel").GetElement(0)
+                    kwargs["CompressionLevel"] = wp.GetProperty("CompressionLevel").GetElement(0)
 
                 # finally after all of the finageling above, save the data
-                SaveData(fnamefilled, inputproxy, DataMode=DataMode, HeaderType=HeaderType, EncodeAppendedData=EncodeAppendedData, CompressorType=CompressorType, CompressionLevel=CompressionLevel)
+                SaveData(fnamefilled, inputproxy, **kwargs)
                 # don't forget to tell cinema D about it
                 CIND.AppendToCinemaDTable(tnow, "writer_%s" % writercnt, fnamefilled)
             wp = ed.GetNextWriterProxy()
@@ -251,6 +271,9 @@ def ExportNow(root_directory,
         ssp = ed.GetNextScreenshotProxy()
         viewcnt = 0
         while ssp:
+            if not ssp.HasAnnotation("enabled") or not (ssp.GetAnnotation("enabled") is '1'):
+                ssp= ed.GetNextScreenshotProxy()
+                continue
             freq = ssp.GetProperty("WriteFrequency").GetElement(0)
             if tstep % freq==0:
                 fname = ssp.GetProperty("CatalystFilePattern").GetElement(0)
@@ -274,6 +297,10 @@ def ExportNow(root_directory,
         tstep = tstep + 1
         s.GoToNext()
         tnow = s.AnimationTime
+
+        # destroy array culling filters
+        for x in helpers:
+          Delete(x)
 
     # defer actual cinema D output until the end because we only know now what the full set of cinema D columns actually are
     CIND.Finalize()

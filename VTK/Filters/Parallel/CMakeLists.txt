@@ -11,6 +11,7 @@ set(classes
   vtkExtractPolyDataPiece
   vtkExtractUnstructuredGridPiece
   vtkExtractUserDefinedPiece
+  vtkHyperTreeGridGhostCellsGenerator
   vtkIntegrateAttributes
   vtkPCellDataToPointData
   vtkPExtractDataArraysOverTime
@@ -35,6 +36,7 @@ set(classes
   vtkPieceScalars
   vtkPipelineSize
   vtkProcessIdScalars
+  vtkPTextureMapToSphere
   vtkRectilinearGridOutlineFilter
   vtkRemoveGhosts
   vtkTransmitPolyDataPiece

@@ -78,10 +78,11 @@
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/ArrayHandleIndex.h>
 #include <vtkm/cont/ArrayHandlePermutation.h>
-#include <vtkm/worklet/Invoker.h>
+#include <vtkm/cont/Invoker.h>
 
 #include <vtkm/worklet/contourtree_augmented/PrintVectors.h>
 #include <vtkm/worklet/contourtree_augmented/Types.h>
+#include <vtkm/worklet/contourtree_augmented/mesh_dem/IdRelabler.h>
 #include <vtkm/worklet/contourtree_augmented/mesh_dem/SimulatedSimplicityComperator.h>
 #include <vtkm/worklet/contourtree_augmented/mesh_dem/SortIndices.h>
 
@@ -121,6 +122,9 @@ public:
   {
   }
 
+  // Getter function for nVertices
+  vtkm::Id GetNumberOfVertices() const { return nVertices; }
+
   // sorts the data and initializes the sortIndex & indexReverse
   void SortData(const vtkm::cont::ArrayHandle<T, StorageType>& values);
 
@@ -137,7 +141,7 @@ class Mesh_DEM_Triangulation_2D : public Mesh_DEM_Triangulation<T, StorageType>
 {
 public:
   // 2D mesh size parameters
-  vtkm::Id nRows, nCols;
+  vtkm::Id nCols, nRows;
 
   // Maximum outdegree
   static constexpr int MAX_OUTDEGREE = 3;
@@ -145,17 +149,17 @@ public:
   // empty constructor
   Mesh_DEM_Triangulation_2D()
     : Mesh_DEM_Triangulation<T, StorageType>()
-    , nRows(0)
     , nCols(0)
+    , nRows(0)
   {
     this->nDims = 2;
   }
 
   // base constructor
-  Mesh_DEM_Triangulation_2D(vtkm::Id nrows, vtkm::Id ncols)
+  Mesh_DEM_Triangulation_2D(vtkm::Id ncols, vtkm::Id nrows)
     : Mesh_DEM_Triangulation<T, StorageType>()
-    , nRows(nrows)
     , nCols(ncols)
+    , nRows(nrows)
   {
     this->nDims = 2;
     this->nVertices = nRows * nCols;
@@ -176,7 +180,7 @@ class Mesh_DEM_Triangulation_3D : public Mesh_DEM_Triangulation<T, StorageType>
 {
 public:
   // 2D mesh size parameters
-  vtkm::Id nRows, nCols, nSlices;
+  vtkm::Id nCols, nRows, nSlices;
 
   // Maximum outdegree
   static constexpr int MAX_OUTDEGREE = 6; // True for Freudenthal and Marching Cubes
@@ -184,18 +188,18 @@ public:
   // empty constructor
   Mesh_DEM_Triangulation_3D()
     : Mesh_DEM_Triangulation<T, StorageType>()
-    , nRows(0)
     , nCols(0)
+    , nRows(0)
     , nSlices(0)
   {
     this->nDims = 3;
   }
 
   // base constructor
-  Mesh_DEM_Triangulation_3D(vtkm::Id nrows, vtkm::Id ncols, vtkm::Id nslices)
+  Mesh_DEM_Triangulation_3D(vtkm::Id ncols, vtkm::Id nrows, vtkm::Id nslices)
     : Mesh_DEM_Triangulation<T, StorageType>()
-    , nRows(nrows)
     , nCols(ncols)
+    , nRows(nrows)
     , nSlices(nslices)
   {
     this->nDims = 3;
@@ -244,7 +248,7 @@ void Mesh_DEM_Triangulation<T, StorageType>::SortData(
   //  for (indexType vertex = 0; vertex < nVertices; vertex++)
   //            sortIndices[sortOrder[vertex]] = vertex;
   mesh_dem_worklets::SortIndices sortIndicesWorklet;
-  vtkm::worklet::Invoker invoke;
+  vtkm::cont::Invoker invoke;
   invoke(sortIndicesWorklet, sortOrder, sortIndices);
 
   // Debug print statement

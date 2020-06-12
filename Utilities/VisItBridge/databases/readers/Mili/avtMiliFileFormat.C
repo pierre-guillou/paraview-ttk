@@ -668,7 +668,8 @@ avtMiliFileFormat::GetMesh(int ts, int dom, const char *mesh)
                     {
                         if (sand_vals[cell] > 0.5) // element status is "good"
                         {
-                            vtkIdType npts = 0, *pts = 0;
+                            vtkIdType npts = 0;
+                            const vtkIdType *pts = 0;
                             rv->GetCellPoints(cell, npts, pts);
                             if (npts && pts)
                             {
@@ -742,7 +743,8 @@ avtMiliFileFormat::GetMesh(int ts, int dom, const char *mesh)
     {
         if (sand_vals[cell] > 0.5) // element status is "good"
         {
-            vtkIdType npts = 0, *pts = 0;
+            vtkIdType npts = 0;
+            const vtkIdType *pts = 0;
             rv->GetCellPoints(cell, npts, pts);
             if (npts && pts)
             {

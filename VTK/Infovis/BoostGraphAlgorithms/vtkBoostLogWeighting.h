@@ -29,13 +29,13 @@
  *
  * @par Thanks:
  * Developed by Timothy M. Shead (tshead@sandia.gov) at Sandia National Laboratories.
-*/
+ */
 
 #ifndef vtkBoostLogWeighting_h
 #define vtkBoostLogWeighting_h
 
-#include "vtkInfovisBoostGraphAlgorithmsModule.h" // For export macro
 #include "vtkArrayDataAlgorithm.h"
+#include "vtkInfovisBoostGraphAlgorithmsModule.h" // For export macro
 
 class VTKINFOVISBOOSTGRAPHALGORITHMS_EXPORT vtkBoostLogWeighting : public vtkArrayDataAlgorithm
 {
@@ -69,12 +69,9 @@ public:
 
 protected:
   vtkBoostLogWeighting();
-  ~vtkBoostLogWeighting();
+  ~vtkBoostLogWeighting() override;
 
-  int RequestData(
-    vtkInformation*,
-    vtkInformationVector**,
-    vtkInformationVector*) override;
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 private:
   vtkBoostLogWeighting(const vtkBoostLogWeighting&) = delete;
@@ -82,8 +79,6 @@ private:
 
   int Base;
   bool EmitProgress;
-
 };
 
 #endif
-

@@ -55,16 +55,21 @@
 #include "vtkStructuredData.h" // For static method usage
 
 class vtkCellArray;
-class vtkCellLinks;
+class vtkAbstractCellLinks;
 class vtkEmptyCell;
 class vtkHexahedron;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkExplicitStructuredGrid : public vtkPointSet
 {
 public:
+  //@{
+  /**
+   * Standard methods for instantiation, type information, and printing.
+   */
   static vtkExplicitStructuredGrid* New();
   vtkTypeMacro(vtkExplicitStructuredGrid, vtkPointSet);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+  //@}
 
   /**
    * Return what type of dataset this is.
@@ -84,8 +89,7 @@ public:
   vtkIdType GetNumberOfCells() override;
   void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override;
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override;
-  void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType*& pts);
-  int GetMaxCellSize() override { return 8; }; // hexahedron is the largest
+  int GetMaxCellSize() override { return 8; } // hexahedron is the largest
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   //@}
 
@@ -157,13 +161,18 @@ public:
    * Enables topologically complex queries.
    */
   void BuildLinks();
-  vtkGetObjectMacro(Links, vtkCellLinks);
+  vtkGetObjectMacro(Links, vtkAbstractCellLinks);
   //@}
 
   /**
    * Get direct raw pointer to the 8 points indices of an hexahedra.
    */
   vtkIdType* GetCellPoints(vtkIdType cellId);
+
+  /**
+   * More efficient method to obtain cell points.
+   */
+  void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType*& pts);
 
   /**
    * Get cell neighbors of the cell for every faces.
@@ -178,11 +187,8 @@ public:
    * extent beginning.
    * The default adjustForExtent is true.
    */
-  void ComputeCellStructuredCoords(vtkIdType cellId,
-    int& i,
-    int& j,
-    int& k,
-    bool adjustForExtent = true);
+  void ComputeCellStructuredCoords(
+    vtkIdType cellId, int& i, int& j, int& k, bool adjustForExtent = true);
 
   /**
    * Given a location in structured coordinates (i-j-k), return the cell id.
@@ -249,7 +255,8 @@ public:
    * and the source generated more than the update extent.
    */
   void Crop(const int* updateExtent) override;
-  virtual void Crop(const int* updateExtent, bool generateOriginalCellIds);
+  virtual void Crop(
+    vtkExplicitStructuredGrid* input, const int* updateExtent, bool generateOriginalCellIds);
   //@}
 
   //@{
@@ -349,7 +356,7 @@ protected:
   vtkNew<vtkEmptyCell> EmptyCell;
 
   vtkCellArray* Cells;
-  vtkCellLinks* Links;
+  vtkAbstractCellLinks* Links;
   int Extent[6];
   char* FacesConnectivityFlagsArrayName;
 
@@ -371,11 +378,8 @@ inline void vtkExplicitStructuredGrid::GetCellDims(int cellDims[3])
 }
 
 //----------------------------------------------------------------------------
-inline void vtkExplicitStructuredGrid::ComputeCellStructuredCoords(vtkIdType cellId,
-  int& i,
-  int& j,
-  int& k,
-  bool adjustForExtent)
+inline void vtkExplicitStructuredGrid::ComputeCellStructuredCoords(
+  vtkIdType cellId, int& i, int& j, int& k, bool adjustForExtent)
 {
   int ijk[3];
   if (adjustForExtent)

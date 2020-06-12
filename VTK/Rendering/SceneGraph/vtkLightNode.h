@@ -17,7 +17,7 @@
  * @brief   vtkViewNode specialized for vtkLights
  *
  * State storage and graph traversal for vtkLight
-*/
+ */
 
 #ifndef vtkLightNode_h
 #define vtkLightNode_h
@@ -25,8 +25,7 @@
 #include "vtkRenderingSceneGraphModule.h" // For export macro
 #include "vtkViewNode.h"
 
-class VTKRENDERINGSCENEGRAPH_EXPORT vtkLightNode :
-  public vtkViewNode
+class VTKRENDERINGSCENEGRAPH_EXPORT vtkLightNode : public vtkViewNode
 {
 public:
   static vtkLightNode* New();
@@ -35,7 +34,7 @@ public:
 
 protected:
   vtkLightNode();
-  ~vtkLightNode();
+  ~vtkLightNode() override;
 
 private:
   vtkLightNode(const vtkLightNode&) = delete;
