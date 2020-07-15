@@ -32,6 +32,7 @@
 #include <map>              //for map!
 #include <set>              //for set!
 #include <vector>           //for vector!
+#include <string>
 
 class vtkOSPRayMaterialLibraryInternals;
 class vtkTexture;
