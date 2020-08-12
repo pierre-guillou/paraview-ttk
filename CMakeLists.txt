@@ -803,3 +803,18 @@ install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example2.vti
 install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example3.vti
   DESTINATION share/paraview-5.8/examples/
   COMPONENT Development)
+
+#-----------------------------------------------------------------------------
+# Generate a .deb package
+set(CPACK_PACKAGE_NAME "TTK-ParaView")
+set(CPACK_PACKAGE_FILE_NAME "ttk-paraview")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ParaView built with TTK patches")
+set(CPACK_PACKAGE_CONTACT "Julien Tierny <julien.tierny@sorbonne-universite.fr>")
+set(CPACK_PACKAGE_VENDOR "LIP6 - Sorbonne Université")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://topology-tool-kit.github.io/")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PARAVIEW_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PARAVIEW_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PARAVIEW_VERSION_PATCH})
+# autogenerate dependency information
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+include(CPack)
