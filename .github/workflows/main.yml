@@ -6,7 +6,10 @@ name: CI
 # events but only for the master branch
 on:
   push:
-    branches: [ master ]
+    branch-ignore:
+      - 'master'
+    tags:
+      - 'latest'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -32,15 +35,7 @@ jobs:
           libqt5svg5-dev \
           dpkg-dev
 
-    - name: Cache ParaView .deb package
-      id: cache-paraview
-      uses: actions/cache@v2
-      with:
-        path: build/ttk-paraview.deb
-        key: ${{ runner.os }}-pv-deb-v5.8.0
-
-    - name: Build & install patched ParaView
-      if: steps.cache-paraview.outputs.cache-hit != 'true'
+    - name: Build patched ParaView & create package
       run: |
         mkdir build && cd build
         cmake \
@@ -49,4 +44,29 @@ jobs:
           -DVTK_ENABLE_OSPRAY=OFF \
           $GITHUB_WORKSPACE
         make -j$(nproc) package
-        sudo dpkg -i ttk-paraview.deb
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        # This pulls from the CREATE RELEASE step above, referencing it's ID
+        # to get its outputs object, which include a `upload_url`. See this
+        # blog post for more info:
+        # https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/ttk-paraview.deb
+        asset_name: ttk-paraview.deb
+        asset_content_type: application/vnd.debian.binary-package
