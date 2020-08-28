@@ -46,6 +46,73 @@ jobs:
         make -j$(nproc)
         cpack -G DEB
 
+    - name: Upload .deb package
+      uses: actions/upload-artifact@v2
+      with:
+        name: ttk-paraview.deb
+        path: build/ttk-paraview.deb
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install macOS dependencies
+      run: |
+        brew cask install xquartz
+        brew install wget python libomp mesa glew boost qt ninja
+
+    - name: Build patched ParaView & create package
+      run: |
+        mkdir build && cd build
+        cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr \
+          -DVTK_ENABLE_OSPRAY=OFF \
+          -DQt5_DIR=$(brew --prefix qt)/lib/cmake/Qt5 \
+          -GNinja \
+          $GITHUB_WORKSPACE
+        ninja
+        cpack -G productbuild
+
+    - name: Upload .pgk package
+      uses: actions/upload-artifact@v2
+      with:
+        name: ttk-paraview.pkg
+        path: build/ttk-paraview.pkg
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: s-weigand/setup-conda@v1
+
+    - name: Install qt with conda
+      shell: bash
+      run: |
+        conda install -c anaconda qt
+
+    - name: Configure & build ParaView
+      shell: cmd
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DVTK_ENABLE_OSPRAY=OFF -GNinja ..
+        ninja
+        cpack -G NSIS64
+
+    - name: Upload .exe installer
+      uses: actions/upload-artifact@v2
+      with:
+        name: ttk-paraview.exe
+        path: build/ttk-paraview.exe
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-macos, build-windows]
+    steps:
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -57,39 +124,47 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Upload Release Asset
-      id: upload-release-asset
+    - name: Fetch .deb artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ttk-paraview.deb
+
+    - name: Upload .deb as Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        # This pulls from the CREATE RELEASE step above, referencing it's ID
-        # to get its outputs object, which include a `upload_url`. See this
-        # blog post for more info:
-        # https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/ttk-paraview.deb
+        asset_path: ttk-paraview.deb
         asset_name: ttk-paraview.deb
         asset_content_type: application/vnd.debian.binary-package
 
-  build-macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v2
+    - name: Fetch .pkg artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ttk-paraview.pkg
 
-    - name: Install macOS dependencies
-      run: |
-        brew cask install xquartz
-        brew install wget python libomp mesa glew boost qt
+    - name: Upload .pkg as Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ttk-paraview.pkg
+        asset_name: ttk-paraview.pkg
+        asset_content_type: application/x-newton-compatible-pkg
 
-    - name: Build patched ParaView & create package
-      run: |
-        mkdir build && cd build
-        cmake \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX=/usr \
-          -DVTK_ENABLE_OSPRAY=OFF \
-          -DQt5_DIR=$(brew --prefix qt)/lib/cmake/Qt5 \
-          $GITHUB_WORKSPACE
-        make -j$(sysctl -n hw.ncpu)
-        cpack -G PRODUCTBUILD
+    - name: Fetch .exe artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ttk-paraview.exe
+
+    - name: Upload .exe as Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ttk-paraview.exe
+        asset_name: ttk-paraview.exe
+        asset_content_type: application/vnd.microsoft.portable-executable
