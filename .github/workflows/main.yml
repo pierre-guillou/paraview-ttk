@@ -14,7 +14,7 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
-  build:
+  build-linux:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -43,7 +43,8 @@ jobs:
           -DCMAKE_INSTALL_PREFIX=/usr \
           -DVTK_ENABLE_OSPRAY=OFF \
           $GITHUB_WORKSPACE
-        make -j$(nproc) package
+        make -j$(nproc)
+        cpack -G DEB
 
     - name: Create Release
       id: create_release
@@ -70,3 +71,25 @@ jobs:
         asset_path: build/ttk-paraview.deb
         asset_name: ttk-paraview.deb
         asset_content_type: application/vnd.debian.binary-package
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install macOS dependencies
+      run: |
+        brew cask install xquartz
+        brew install wget python libomp mesa glew boost qt
+
+    - name: Build patched ParaView & create package
+      run: |
+        mkdir build && cd build
+        cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr \
+          -DVTK_ENABLE_OSPRAY=OFF \
+          -DQt5_DIR=$(brew --prefix qt)/lib/cmake/Qt5 \
+          $GITHUB_WORKSPACE
+        make -j$(sysctl -n hw.ncpu)
+        cpack -G PRODUCTBUILD
