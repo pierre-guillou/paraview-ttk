@@ -794,15 +794,15 @@ endif ()
 # Install TTK example data
 install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example1.vti
   DESTINATION share/paraview-5.8/examples/
-  COMPONENT Development)
+  COMPONENT development)
 
 install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example2.vti
   DESTINATION share/paraview-5.8/examples/
-  COMPONENT Development)
+  COMPONENT development)
 
 install(FILES ${ParaView_SOURCE_DIR}/TTK/Data/Example3.vti
   DESTINATION share/paraview-5.8/examples/
-  COMPONENT Development)
+  COMPONENT development)
 
 #-----------------------------------------------------------------------------
 # Generate a .deb package
