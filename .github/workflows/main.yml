@@ -46,6 +46,20 @@ jobs:
         make -j$(nproc)
         cpack -G DEB
 
+    - name: Update package informations
+      run: |
+        cd build
+        # unpack deb package to access control file
+        mkdir tmp
+        dpkg-deb -x ttk-paraview.deb tmp
+        dpkg-deb --control ttk-paraview.deb tmp/DEBIAN
+        # modify control file, remove libgcc-s1 dependency
+        sed 's/libgcc-s1[^,]*, //g' -i tmp/DEBIAN/control
+        # build updated deb package
+        dpkg -b tmp ttk-paraview.deb.new
+        # replace old package with new
+        mv ttk-paraview.deb.new ttk-paraview.deb
+
     - name: Upload .deb package
       uses: actions/upload-artifact@v2
       with:
