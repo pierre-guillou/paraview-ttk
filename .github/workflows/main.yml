@@ -141,25 +141,28 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Fetch .deb artifact
+    - name: Fetch all uploaded artifacts
       uses: actions/download-artifact@v2
-      with:
-        name: ttk-paraview.deb
 
-    - name: Upload .deb as Release Asset
+    - name: Upload Ubuntu Bionic .deb as Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ttk-paraview.deb
-        asset_name: ttk-paraview.deb
+        asset_path: ttk-paraview-ubuntu-18.04.deb/ttk-paraview.deb
+        asset_name: ttk-paraview-ubuntu-18.04.deb
         asset_content_type: application/vnd.debian.binary-package
 
-    - name: Fetch .pkg artifact
-      uses: actions/download-artifact@v2
+    - name: Upload Ubuntu Focal .deb as Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: ttk-paraview.pkg
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ttk-paraview-ubuntu-20.04.deb/ttk-paraview.deb
+        asset_name: ttk-paraview-ubuntu-20.04.deb
+        asset_content_type: application/vnd.debian.binary-package
 
     - name: Upload .pkg as Release Asset
       uses: actions/upload-release-asset@v1
@@ -167,14 +170,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ttk-paraview.pkg
+        asset_path: ttk-paraview.pkg/ttk-paraview.pkg
         asset_name: ttk-paraview.pkg
         asset_content_type: application/x-newton-compatible-pkg
-
-    - name: Fetch .exe artifact
-      uses: actions/download-artifact@v2
-      with:
-        name: ttk-paraview.exe
 
     - name: Upload .exe as Release Asset
       uses: actions/upload-release-asset@v1
@@ -182,6 +180,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ttk-paraview.exe
+        asset_path: ttk-paraview.exe/ttk-paraview.exe
         asset_name: ttk-paraview.exe
         asset_content_type: application/vnd.microsoft.portable-executable
