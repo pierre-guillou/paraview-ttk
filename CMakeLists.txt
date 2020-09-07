@@ -812,6 +812,9 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ParaView built with TTK patches")
 set(CPACK_PACKAGE_CONTACT "Julien Tierny <julien.tierny@sorbonne-universite.fr>")
 set(CPACK_PACKAGE_VENDOR "LIP6 - Sorbonne Université")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://topology-tool-kit.github.io/")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS
+  "qt5-default, qttools5-dev, libqt5x11extras5-dev, qtxmlpatterns5-dev-tools, libqt5svg5-dev, libxt-dev"
+  )
 set(CPACK_PACKAGE_VERSION_MAJOR ${PARAVIEW_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PARAVIEW_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PARAVIEW_VERSION_PATCH})
