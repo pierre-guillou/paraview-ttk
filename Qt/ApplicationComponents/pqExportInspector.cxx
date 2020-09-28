@@ -222,14 +222,24 @@ void pqExportInspector::UpdateGlobalOptions()
 //-----------------------------------------------------------------------------
 void pqExportInspector::UpdateGlobalOptions(const QString& searchString)
 {
-  vtkSMExportProxyDepot* ed =
-    vtkSMProxyManager::GetProxyManager()->GetActiveSessionProxyManager()->GetExportDepot();
-  vtkSMProxy* globalProxy = ed->GetGlobalOptions();
-
   if (this->Internals->GlobalOptionsUI)
   {
     delete this->Internals->GlobalOptionsUI;
+    this->Internals->GlobalOptionsUI = nullptr;
   }
+
+  auto pm = vtkSMProxyManager::GetProxyManager();
+  if (!pm)
+  {
+    return;
+  }
+  auto pxm = pm->GetActiveSessionProxyManager();
+  if (!pxm)
+  {
+    return;
+  }
+  vtkSMExportProxyDepot* ed = pxm->GetExportDepot();
+  vtkSMProxy* globalProxy = ed->GetGlobalOptions();
 
   this->Internals->GlobalOptionsUI = new pqProxyWidget(globalProxy, this->Internals->Ui.container);
   this->Internals->GlobalOptionsUI->filterWidgets(
@@ -639,11 +649,11 @@ void pqExportInspector::ConfigureScreenshotProxy()
     ed->GetScreenshotProxy(view, viewName.toStdString().c_str(), ssName.toStdString().c_str()));
 
   pqProxyWidgetDialog dialog(ssProxy, pqCoreUtilities::mainWidget());
-  dialog.setObjectName("SaveScreenshotDialog");
+  dialog.setObjectName("ExportImageOptionsDialog");
   dialog.setApplyChangesImmediately(true);
-  dialog.setWindowTitle("Save Screenshot Options");
+  dialog.setWindowTitle("Export Image Options");
   dialog.setEnableSearchBar(true);
-  dialog.setSettingsKey("SaveScreenshotDialog");
+  dialog.setSettingsKey("ExportImageOptionsDialog");
   dialog.exec();
 }
 

@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqInterfaceTracker.h"
 #include "pqObjectBuilder.h"
 #include "pqPropertyLinks.h"
+#include "pqQVTKWidget.h"
 #include "pqServerManagerModel.h"
 #include "pqUndoStack.h"
 #include "pqView.h"
@@ -48,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCommand.h"
 #include "vtkErrorCode.h"
 #include "vtkImageData.h"
+#include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMProperty.h"
@@ -102,6 +104,8 @@ public:
   QScopedPointer<QWidget> PopoutPlaceholder;
 
   pqPropertyLinks Links;
+
+  double CustomDevicePixelRatio = 0.0;
 
   pqInternals(pqMultiViewWidget* self)
     : Popout(false)
@@ -195,12 +199,13 @@ public:
 
   void preview(const QSize& size)
   {
+    vtkLogScopeF(TRACE, "preview (%d, %d)", size.width(), size.height());
     this->PreviewSize = size;
     if (size.isEmpty())
     {
+      this->setCustomDevicePixelRatio(0.0); // set to 0 to not use custom value.
       this->Container->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
       this->Container->layout()->setSpacing(PARAVIEW_DEFAULT_LAYOUT_SPACING);
-
       auto palette = this->Container->parentWidget()->palette();
       this->Container->setPalette(palette);
     }
@@ -216,10 +221,29 @@ public:
       vtkVector2i tsize(size.width(), size.height());
       const QRect crect = this->Container->parentWidget()->contentsRect();
       vtkVector2i csize(crect.width(), crect.height());
-      vtkSMSaveScreenshotProxy::ComputeMagnification(tsize, csize);
+      const int magnification = vtkSMSaveScreenshotProxy::ComputeMagnification(tsize, csize);
+      this->setCustomDevicePixelRatio(magnification);
       this->Container->setMaximumSize(csize[0], csize[1]);
+      vtkLogF(
+        TRACE, "cur=(%d, %d), new=(%d, %d)", crect.width(), crect.height(), csize[0], csize[1]);
     }
     this->updateDecorations();
+  }
+
+  const QSize& previewSize() const { return this->PreviewSize; }
+
+  void setCustomDevicePixelRatio(double sf)
+  {
+    if (this->CustomDevicePixelRatio != sf)
+    {
+      this->CustomDevicePixelRatio = sf;
+      for (auto renderWidget : this->Container->findChildren<pqQVTKWidget*>())
+      {
+        renderWidget->setCustomDevicePixelRatio(sf);
+        // need to disable font-scaling if custom ratio is being used.
+        renderWidget->setEnableHiDPI(sf == 0.0 ? true : false);
+      }
+    }
   }
 
   void setDecorationsVisibility(bool val)
@@ -368,12 +392,19 @@ void pqMultiViewWidget::setLayoutManager(vtkSMViewLayoutProxy* vlayout)
         vlayout->AddObserver(vtkCommand::ConfigureEvent, this, &pqMultiViewWidget::reload));
       internals.ObserverIds.push_back(vlayout->AddObserver(
         vtkCommand::PropertyModifiedEvent, this, &pqMultiViewWidget::layoutPropertyModified));
+
+      // explicitly call `layoutPropertyModified` for all properties we care
+      // about to ensure our state is initialized to the current values from the
+      // layout proxy.
       this->layoutPropertyModified(
         vlayout, vtkCommand::PropertyModifiedEvent, const_cast<char*>("SeparatorWidth"));
       this->layoutPropertyModified(
         vlayout, vtkCommand::PropertyModifiedEvent, const_cast<char*>("SeparatorColor"));
+      this->layoutPropertyModified(
+        vlayout, vtkCommand::PropertyModifiedEvent, const_cast<char*>("PreviewMode"));
     }
   }
+
   // we delay the setting of the LayoutManager to avoid the duplicate `reload`
   // call when `addPropertyLink` is called if the window decorations
   // visibility changed.
@@ -446,6 +477,18 @@ bool pqMultiViewWidget::eventFilter(QObject* caller, QEvent* evt)
   }
 
   return this->Superclass::eventFilter(caller, evt);
+}
+
+//-----------------------------------------------------------------------------
+void pqMultiViewWidget::resizeEvent(QResizeEvent* evt)
+{
+  this->Superclass::resizeEvent(evt);
+  auto& internals = (*this->Internals);
+  const auto& psize = internals.previewSize();
+  if (!psize.isEmpty())
+  {
+    internals.preview(psize);
+  }
 }
 
 //-----------------------------------------------------------------------------

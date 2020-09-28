@@ -93,7 +93,8 @@ timestep.
           <Group name="filters" />
         </ProxyGroupDomain>
         <DataTypeDomain name="input_type">
-          <DataType value="vtkDataSet" />
+          <DataType value="vtkDataObject" />
+          <DataType value="vtkHyperTreeGrid" />
         </DataTypeDomain>
         <InputArrayDomain attribute_type="field"
                           name="input_array"
@@ -274,7 +275,7 @@ annotation text.
                             number_of_elements="1">
         <Documentation>The Python expression evaluated during execution.
         FieldData arrays are directly available through their name. Set of
-        provided variables [input, t_value, t_steps, t_range, t_index,
+        provided variables [inputs, t_value, t_steps, t_range, t_index,
         FieldData, PointData, CellData] (i.e.: "Momentum: (%f, %f, %f)" %
         (XMOM[t_index,0], YMOM[t_index,0], ZMOM[t_index,0]) )</Documentation>
       </StringVectorProperty>
@@ -313,6 +314,7 @@ annotation text.
         </ProxyGroupDomain>
         <DataTypeDomain name="input_type">
           <DataType value="vtkDataObject" />
+          <DataType value="vtkHyperTreeGrid" />
         </DataTypeDomain>
         <Documentation>This property specifies the input(s) to the programmable
         filter.</Documentation>
@@ -350,6 +352,8 @@ annotation text.
                  value="15" />
           <!-- <Entry value="16" text="vtkGenericDataSet"/> -->
           <!-- <Entry value="17" text="vtkHyperOctree"/> -->
+          <Entry text="vtkHyperTreeGrid"
+                 value="32" />
           <!-- <Entry value="18" text="vtkTemporalDataSet"/> -->
           <Entry text="vtkTable"
                  value="19" />

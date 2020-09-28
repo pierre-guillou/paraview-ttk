@@ -72,6 +72,14 @@ if (NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
   set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
 endif ()
 
+set(CMAKE_INSTALL_LICENSEDIR ""
+  CACHE PATH "License files (DATAROOTDIR/licenses/${CMAKE_PROJECT_NAME}")
+mark_as_advanced(CMAKE_INSTALL_LICENSEDIR)
+if (NOT CMAKE_INSTALL_LICENSEDIR)
+  set(CMAKE_INSTALL_LICENSEDIR
+    "${CMAKE_INSTALL_DATAROOTDIR}/licenses/${CMAKE_PROJECT_NAME}")
+endif ()
+
 set(paraview_cmake_dir "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 set(vtk_cmake_dir "${CMAKE_CURRENT_SOURCE_DIR}/VTK/CMake")
 list(APPEND CMAKE_MODULE_PATH
@@ -164,13 +172,6 @@ set(BUILD_TESTING OFF)
 if (PARAVIEW_BUILD_TESTING)
   set(BUILD_TESTING ON)
 endif ()
-
-cmake_dependent_option(PARAVIEW_BUILD_CATALYST_ADAPTORS
-  "Build Adaptors for various simulation codes" OFF
-  # XXX: Adaptors need some work yet.
-  "FALSE;NOT WIN32" OFF)
-mark_as_advanced(PARAVIEW_BUILD_CATALYST_ADAPTORS)
-
 
 if (PARAVIEW_USE_PYTHON)
   set(PARAVIEW_PYTHON_VERSION "3"
@@ -272,6 +273,7 @@ set(paraview_default_plugins
   PacMan
   PanoramicProjectionView
   # ParFlow - Because of dependency to nlohmann_json
+  SaveStateAndScreenshot
   SLACTools
   SierraPlotTools
   StreamLinesRepresentation
@@ -295,6 +297,7 @@ paraview_plugin_scan(
 set(paraview_source_directories
   "${CMAKE_CURRENT_SOURCE_DIR}/Kits"
   "${CMAKE_CURRENT_SOURCE_DIR}/Clients"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Adaptors"
   "${CMAKE_CURRENT_SOURCE_DIR}/Qt"
   "${CMAKE_CURRENT_SOURCE_DIR}/VTKExtensions"
   "${CMAKE_CURRENT_SOURCE_DIR}/Web"
@@ -488,6 +491,7 @@ else ()
     INSTALL_HEADERS     "${PARAVIEW_INSTALL_DEVELOPMENT_FILES}"
     HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/paraview${paraview_version_suffix}"
     CMAKE_DESTINATION   "${paraview_cmake_destination}/vtk"
+    LICENSE_DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
     HIERARCHY_DESTINATION "${CMAKE_INSTALL_LIBDIR}/vtk/hierarchy/${CMAKE_PROJECT_NAME}"
     LIBRARY_NAME_SUFFIX "${PARAVIEW_CUSTOM_LIBRARY_SUFFIX}"
     VERSION             "${PARAVIEW_VERSION}"
@@ -512,7 +516,7 @@ else ()
 
   install(
     FILES       "${CMAKE_CURRENT_SOURCE_DIR}/VTK/Copyright.txt"
-    DESTINATION "${CMAKE_INSTALL_DOCDIR}/VTK"
+    DESTINATION "${CMAKE_INSTALL_LICENSEDIR}/VTK"
     COMPONENT   "license")
 endif ()
 
@@ -532,6 +536,7 @@ vtk_module_build(
   INSTALL_HEADERS     "${PARAVIEW_INSTALL_DEVELOPMENT_FILES}"
   HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/paraview${paraview_version_suffix}"
   CMAKE_DESTINATION   "${paraview_cmake_destination}"
+  LICENSE_DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   HIERARCHY_DESTINATION "${CMAKE_INSTALL_LIBDIR}/vtk/hierarchy/${CMAKE_PROJECT_NAME}"
   LIBRARY_NAME_SUFFIX "${PARAVIEW_CUSTOM_LIBRARY_SUFFIX}"
   VERSION             "${PARAVIEW_VERSION}"
@@ -554,6 +559,17 @@ list(LENGTH vtk_modules vtk_modules_len)
 list(LENGTH paraview_modules paraview_modules_len)
 message(STATUS "Enabled modules: VTK(${vtk_modules_len}), ParaView(${paraview_modules_len})")
 
+set(autoload_plugins)
+foreach (paraview_plugin IN LISTS paraview_plugins)
+  option("PARAVIEW_PLUGIN_AUTOLOAD_${paraview_plugin}" "Autoload the ${paraview_plugin} plugin" OFF)
+  mark_as_advanced("PARAVIEW_PLUGIN_AUTOLOAD_${paraview_plugin}")
+
+  if (PARAVIEW_PLUGIN_AUTOLOAD_${paraview_plugin})
+    list(APPEND autoload_plugins
+      "${paraview_plugin}")
+  endif ()
+endforeach ()
+
 paraview_plugin_build(
   HEADERS_DESTINATION   "${CMAKE_INSTALL_INCLUDEDIR}/paraview${paraview_version_suffix}"
   RUNTIME_DESTINATION   "${CMAKE_INSTALL_BINDIR}"
@@ -566,7 +582,8 @@ paraview_plugin_build(
   INSTALL_HEADERS   "${PARAVIEW_INSTALL_DEVELOPMENT_FILES}"
   TARGET_COMPONENT  "development"
   PLUGINS_COMPONENT "plugins"
-  PLUGINS ${paraview_plugins})
+  PLUGINS ${paraview_plugins}
+  AUTOLOAD ${autoload_plugins})
 
 set(CMAKE_INSTALL_RPATH
   "${_paraview_CMAKE_INSTALL_RPATH_save}")
@@ -771,18 +788,10 @@ endif()
 endif()
 #------------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
-if (PARAVIEW_BUILD_CATALYST_ADAPTORS)
-  # BuildAdaptors.cmake builds the adaptors as a separate project. We mark is
-  # OPTIONAL for Catalyst packages that don't have the adaptors included.
-  include(${CMAKE_CURRENT_SOURCE_DIR}/CoProcessing/Adaptors/BuildAdaptors.cmake
-          OPTIONAL)
-endif()
-
 install(
   FILES       "${CMAKE_CURRENT_SOURCE_DIR}/Copyright.txt"
               "${CMAKE_CURRENT_SOURCE_DIR}/License_v1.2.txt"
-  DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+  DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   COMPONENT   "license")
 
 #-----------------------------------------------------------------------------
