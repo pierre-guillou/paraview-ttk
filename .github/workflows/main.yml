@@ -39,7 +39,7 @@ jobs:
           libqt5svg5-dev \
           dpkg-dev
 
-    - name: Build patched ParaView & create package
+    - name: Configure ParaView build
       run: |
         mkdir build && cd build
         cmake \
@@ -48,7 +48,15 @@ jobs:
           -DVTK_ENABLE_OSPRAY=OFF \
           -DPARAVIEW_PYTHON_SITE_PACKAGES_SUFFIX=lib/python3/dist-packages \
           $GITHUB_WORKSPACE
+
+    - name: Build patched ParaView
+      run: |
+        cd build
         make -j$(nproc)
+
+    - name: Create package
+      run: |
+        cd build
         cpack -G DEB
 
     - name: Update package informations
@@ -81,7 +89,7 @@ jobs:
         brew cask install xquartz
         brew install wget libomp mesa glew boost qt ninja python
 
-    - name: Build patched ParaView & create package
+    - name: Configure ParaView build
       run: |
         # switch to Xcode 11 since Xcode 12 breaks the ParaView build
         sudo xcode-select -s "/Applications/Xcode_11.7.app"
@@ -93,7 +101,15 @@ jobs:
           -DQt5_DIR=$(brew --prefix qt)/lib/cmake/Qt5 \
           -GNinja \
           $GITHUB_WORKSPACE
+
+    - name: Build patched ParaView
+      run: |
+        cd build
         ninja
+
+    - name: Create package
+      run: |
+        cd build
         cpack -G productbuild
 
     - name: Upload .pgk package
@@ -114,14 +130,24 @@ jobs:
       run: |
         conda install -c anaconda qt
 
-    - name: Configure & build ParaView
+    - name: Configure ParaView build
       shell: cmd
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         mkdir build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DVTK_ENABLE_OSPRAY=OFF -GNinja ..
-        ninja
+        cmake -DVTK_ENABLE_OSPRAY=OFF -GNinja ..
+
+    - name: Build patched ParaView
+      shell: bash
+      run: |
+        cd build
+        cmake --build . --config Release --parallel
+
+    - name: Create package
+      shell: bash
+      run: |
+        cd build
         cpack -G NSIS64
 
     - name: Upload .exe installer
