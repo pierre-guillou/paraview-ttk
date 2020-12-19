@@ -45,7 +45,6 @@ jobs:
         cmake \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr \
-          -DVTK_ENABLE_OSPRAY=OFF \
           -DPARAVIEW_PYTHON_SITE_PACKAGES_SUFFIX=lib/python3/dist-packages \
           $GITHUB_WORKSPACE
 
@@ -97,7 +96,6 @@ jobs:
         cmake \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr \
-          -DVTK_ENABLE_OSPRAY=OFF \
           -DQt5_DIR=$(brew --prefix qt)/lib/cmake/Qt5 \
           -GNinja \
           $GITHUB_WORKSPACE
@@ -136,7 +134,7 @@ jobs:
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         mkdir build
         cd build
-        cmake -DVTK_ENABLE_OSPRAY=OFF -GNinja ..
+        cmake -GNinja ..
 
     - name: Build patched ParaView
       shell: bash
