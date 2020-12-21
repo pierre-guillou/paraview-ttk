@@ -124,6 +124,11 @@ jobs:
 
     - uses: s-weigand/setup-conda@v1
 
+    - name: Remove hosted Python
+      shell: bash
+      run: |
+        rm -rf C:/hostedtoolcache/windows/Python
+
     - name: Install qt with conda
       shell: bash
       run: |
