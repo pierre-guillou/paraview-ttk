@@ -95,7 +95,7 @@ jobs:
         mkdir build && cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX=/usr \
+          -DCMAKE_INSTALL_PREFIX=/Applications \
           -DQt5_DIR=$(brew --prefix qt)/lib/cmake/Qt5 \
           -GNinja \
           $GITHUB_WORKSPACE
