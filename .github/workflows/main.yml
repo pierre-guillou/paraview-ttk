@@ -179,45 +179,33 @@ jobs:
       uses: actions/download-artifact@v2
 
     - name: Upload Ubuntu Bionic .deb as Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: svenstaro/upload-release-action@v2
       with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ttk-paraview-ubuntu-18.04.deb/ttk-paraview.deb
+        file: ttk-paraview-ubuntu-18.04.deb/ttk-paraview.deb
         asset_name: ttk-paraview-$tag-ubuntu-18.04.deb
-        asset_content_type: application/vnd.debian.binary-package
 
     - name: Upload Ubuntu Focal .deb as Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: svenstaro/upload-release-action@v2
       with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ttk-paraview-ubuntu-20.04.deb/ttk-paraview.deb
+        file: ttk-paraview-ubuntu-20.04.deb/ttk-paraview.deb
         asset_name: ttk-paraview-$tag-ubuntu-20.04.deb
-        asset_content_type: application/vnd.debian.binary-package
 
     - name: Upload .pkg as Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: svenstaro/upload-release-action@v2
       with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ttk-paraview.pkg/ttk-paraview.pkg
+        file: ttk-paraview.pkg/ttk-paraview.pkg
         asset_name: ttk-paraview-$tag.pkg
-        asset_content_type: application/x-newton-compatible-pkg
 
     - name: Upload .exe as Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: svenstaro/upload-release-action@v2
       with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ttk-paraview.exe/ttk-paraview.exe
+        file: ttk-paraview.exe/ttk-paraview.exe
         asset_name: ttk-paraview-$tag.exe
-        asset_content_type: application/vnd.microsoft.portable-executable
