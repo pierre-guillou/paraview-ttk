@@ -58,6 +58,13 @@ public:
   //@}
 
   /**
+   * This method does nothing.
+   *
+   * \return 1 if inflation was successful, 0 if no inflation was performed
+   */
+  int Inflate(double) override { return 0; }
+
+  /**
    * Given parametric coordinates of a point, return the closest cell
    * boundary, and whether the point is inside or outside of the cell. The
    * cell boundary is defined by a list of points (pts) that specify a vertex
@@ -121,7 +128,7 @@ public:
 
 protected:
   vtkVertex();
-  ~vtkVertex() override {}
+  ~vtkVertex() override = default;
 
 private:
   vtkVertex(const vtkVertex&) = delete;

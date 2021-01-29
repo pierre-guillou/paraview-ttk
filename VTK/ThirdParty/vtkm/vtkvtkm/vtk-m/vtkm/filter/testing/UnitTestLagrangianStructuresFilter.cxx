@@ -10,7 +10,6 @@
 
 #include <iostream>
 #include <vtkm/cont/DataSetBuilderUniform.h>
-#include <vtkm/cont/DataSetFieldAdd.h>
 #include <vtkm/cont/testing/Testing.h>
 
 #include <vtkm/filter/LagrangianStructures.h>
@@ -32,9 +31,9 @@ void ValidateLCSFilterResult(const vtkm::cont::ArrayHandle<vtkm::FloatDefault>& 
 
   const vtkm::FloatDefault tolerance = static_cast<vtkm::FloatDefault>(1e-3);
 
-  auto vtkmPortal = vtkmOutput.GetPortalConstControl();
-  auto visitPortal = visitOutput.GetPortalConstControl();
-  auto diffPortal = expDiff.GetPortalConstControl();
+  auto vtkmPortal = vtkmOutput.ReadPortal();
+  auto visitPortal = visitOutput.ReadPortal();
+  auto diffPortal = expDiff.ReadPortal();
 
   for (vtkm::Id index = 0; index < vtkmOutput.GetNumberOfValues(); index++)
   {
@@ -328,11 +327,13 @@ void Test2DLCS()
 
   auxiliary::PopulateData(fieldVec, visitVec, diffVec, auxiliary::Option::_2D);
 
-  vtkm::cont::ArrayHandle<vtkm::FloatDefault> diffHandle = vtkm::cont::make_ArrayHandle(diffVec);
-  vtkm::cont::ArrayHandle<vtkm::FloatDefault> visitHandle = vtkm::cont::make_ArrayHandle(visitVec);
-  vtkm::cont::ArrayHandle<vtkm::Vec3f> fieldHandle = vtkm::cont::make_ArrayHandle(fieldVec);
-  vtkm::cont::DataSetFieldAdd fieldAdder;
-  fieldAdder.AddPointField(inputData, "velocity", fieldHandle);
+  vtkm::cont::ArrayHandle<vtkm::FloatDefault> diffHandle =
+    vtkm::cont::make_ArrayHandle(diffVec, vtkm::CopyFlag::On);
+  vtkm::cont::ArrayHandle<vtkm::FloatDefault> visitHandle =
+    vtkm::cont::make_ArrayHandle(visitVec, vtkm::CopyFlag::On);
+  vtkm::cont::ArrayHandle<vtkm::Vec3f> fieldHandle =
+    vtkm::cont::make_ArrayHandle(fieldVec, vtkm::CopyFlag::On);
+  inputData.AddPointField("velocity", fieldHandle);
 
   vtkm::filter::LagrangianStructures lagrangianStructures;
   lagrangianStructures.SetStepSize(0.025f);
@@ -365,11 +366,13 @@ void Test3DLCS()
 
   auxiliary::PopulateData(fieldVec, visitVec, diffVec, auxiliary::Option::_3D);
 
-  vtkm::cont::ArrayHandle<vtkm::FloatDefault> diffHandle = vtkm::cont::make_ArrayHandle(diffVec);
-  vtkm::cont::ArrayHandle<vtkm::FloatDefault> visitHandle = vtkm::cont::make_ArrayHandle(visitVec);
-  vtkm::cont::ArrayHandle<vtkm::Vec3f> fieldHandle = vtkm::cont::make_ArrayHandle(fieldVec);
-  vtkm::cont::DataSetFieldAdd fieldAdder;
-  fieldAdder.AddPointField(inputData, "velocity", fieldHandle);
+  vtkm::cont::ArrayHandle<vtkm::FloatDefault> diffHandle =
+    vtkm::cont::make_ArrayHandle(diffVec, vtkm::CopyFlag::On);
+  vtkm::cont::ArrayHandle<vtkm::FloatDefault> visitHandle =
+    vtkm::cont::make_ArrayHandle(visitVec, vtkm::CopyFlag::On);
+  vtkm::cont::ArrayHandle<vtkm::Vec3f> fieldHandle =
+    vtkm::cont::make_ArrayHandle(fieldVec, vtkm::CopyFlag::On);
+  inputData.AddPointField("velocity", fieldHandle);
 
   vtkm::filter::LagrangianStructures lagrangianStructures;
   lagrangianStructures.SetStepSize(0.01f);

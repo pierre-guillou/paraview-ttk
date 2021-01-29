@@ -36,13 +36,14 @@
 #include "vtkStaticPointLocator.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+#include <cassert>
 #include <vector>
 
 vtkStandardNewMacro(vtkPointInterpolator);
 vtkCxxSetObjectMacro(vtkPointInterpolator, Locator, vtkAbstractPointLocator);
 vtkCxxSetObjectMacro(vtkPointInterpolator, Kernel, vtkInterpolationKernel);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Helper classes to support efficient computing, and threaded execution.
 namespace
 {
@@ -87,7 +88,7 @@ struct ProbePoints
       vtkDataArray* array = this->InPD->GetArray(arrayName);
       if (array != nullptr)
       {
-        outPD->RemoveArray(array->GetName());
+        assert(outPD->GetArray(arrayName) == nullptr);
         this->Arrays.ExcludeArray(array);
       }
     }
@@ -219,7 +220,7 @@ struct ImageProbePoints : public ProbePoints
 } // anonymous namespace
 
 //================= Begin class proper =======================================
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPointInterpolator::vtkPointInterpolator()
 {
   this->SetNumberOfInputPorts(2);
@@ -241,26 +242,26 @@ vtkPointInterpolator::vtkPointInterpolator()
   this->PassFieldArrays = true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPointInterpolator::~vtkPointInterpolator()
 {
   this->SetLocator(nullptr);
   this->SetKernel(nullptr);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPointInterpolator::SetSourceConnection(vtkAlgorithmOutput* algOutput)
 {
   this->SetInputConnection(1, algOutput);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPointInterpolator::SetSourceData(vtkDataObject* input)
 {
   this->SetInputData(1, input);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObject* vtkPointInterpolator::GetSource()
 {
   if (this->GetNumberOfInputConnections(1) < 1)
@@ -271,7 +272,7 @@ vtkDataObject* vtkPointInterpolator::GetSource()
   return this->GetExecutive()->GetInputData(1, 0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPointInterpolator::ExtractImageDescription(
   vtkImageData* input, int dims[3], double origin[3], double spacing[3])
 {
@@ -280,7 +281,7 @@ void vtkPointInterpolator::ExtractImageDescription(
   input->GetSpacing(spacing);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // The driver of the algorithm
 void vtkPointInterpolator::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataSet* output)
 {
@@ -304,6 +305,11 @@ void vtkPointInterpolator::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataS
   vtkIdType numPts = input->GetNumberOfPoints();
   vtkPointData* inPD = source->GetPointData();
   vtkPointData* outPD = output->GetPointData();
+
+  for (const auto& excludedArray : this->ExcludedArrays)
+  {
+    outPD->CopyFieldOff(excludedArray.c_str());
+  }
   outPD->InterpolateAllocate(inPD, numPts);
 
   // Masking if requested
@@ -347,7 +353,7 @@ void vtkPointInterpolator::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataS
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPointInterpolator::PassAttributeData(
   vtkDataSet* input, vtkDataObject* vtkNotUsed(source), vtkDataSet* output)
 {
@@ -381,7 +387,7 @@ void vtkPointInterpolator::PassAttributeData(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPointInterpolator::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -413,7 +419,7 @@ int vtkPointInterpolator::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPointInterpolator::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -443,7 +449,7 @@ int vtkPointInterpolator::RequestInformation(vtkInformation* vtkNotUsed(request)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPointInterpolator::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -467,7 +473,7 @@ int vtkPointInterpolator::RequestUpdateExtent(vtkInformation* vtkNotUsed(request
   return 1;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMTimeType vtkPointInterpolator::GetMTime()
 {
   vtkMTimeType mTime = this->Superclass::GetMTime();
@@ -485,7 +491,7 @@ vtkMTimeType vtkPointInterpolator::GetMTime()
   return mTime;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPointInterpolator::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkDataObject* source = this->GetSource();

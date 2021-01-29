@@ -34,6 +34,8 @@ PURPOSE.  See the above copyright notice for more information.
 #ifndef vtkStatisticsAlgorithmPrivate_h
 #define vtkStatisticsAlgorithmPrivate_h
 
+#ifndef __VTK_WRAP__
+
 #include "vtkStdString.h"
 
 #include <set> // used to iterate over internal organs
@@ -41,8 +43,6 @@ PURPOSE.  See the above copyright notice for more information.
 class vtkStatisticsAlgorithmPrivate
 {
 public:
-  vtkStatisticsAlgorithmPrivate() {}
-  ~vtkStatisticsAlgorithmPrivate() {}
   // --------------------------------------------------------------------
   /**
    * Empty current set of requests
@@ -138,7 +138,7 @@ public:
     {
       return 0;
     }
-    std::set<std::set<vtkStdString> >::iterator it = this->Requests.begin();
+    std::set<std::set<vtkStdString>>::iterator it = this->Requests.begin();
     for (vtkIdType i = 0; i < r; ++i)
     {
       ++it;
@@ -158,7 +158,7 @@ public:
     {
       return false;
     }
-    std::set<std::set<vtkStdString> >::const_iterator it = this->Requests.begin();
+    std::set<std::set<vtkStdString>>::const_iterator it = this->Requests.begin();
     for (vtkIdType i = 0; i < r; ++i)
     {
       ++it;
@@ -177,9 +177,11 @@ public:
   }
   //@}
 
-  std::set<std::set<vtkStdString> > Requests;
+  std::set<std::set<vtkStdString>> Requests;
   std::set<vtkStdString> Buffer;
 };
+
+#endif // __VTK_WRAP__
 
 #endif // vtkStatisticsAlgorithmPrivate_h
 

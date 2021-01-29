@@ -145,7 +145,7 @@ struct vtkLabeledContourPolyDataItem::Private
   std::vector<PDILabelMetric> LabelMetrics;
 
   // One PDILabelInfo per label groups by isoline.
-  std::vector<std::vector<PDILabelInfo> > LabelInfos;
+  std::vector<std::vector<PDILabelInfo>> LabelInfos;
 
   // Info for calculating display coordinates:
   vtkTuple<double, 16> AMVP;               // actor-model-view-projection matrix
@@ -209,7 +209,7 @@ struct vtkLabeledContourPolyDataItem::Private
 
 vtkStandardNewMacro(vtkLabeledContourPolyDataItem);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLabeledContourPolyDataItem::vtkLabeledContourPolyDataItem()
 {
   this->SkipDistance = 0.;
@@ -233,14 +233,14 @@ vtkLabeledContourPolyDataItem::vtkLabeledContourPolyDataItem()
   this->Reset();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLabeledContourPolyDataItem::~vtkLabeledContourPolyDataItem()
 {
   this->FreeTextActors();
   delete this->Internal;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLabeledContourPolyDataItem::Paint(vtkContext2D* painter)
 {
   if (!this->CheckInputs())
@@ -488,7 +488,7 @@ bool vtkLabeledContourPolyDataItem::PrepareRender()
   const vtkIdType* ids;
   for (lines->InitTraversal(); lines->GetNextCell(numPts, ids);)
   {
-    this->Internal->LabelMetrics.push_back(PDILabelMetric());
+    this->Internal->LabelMetrics.emplace_back();
     PDILabelMetric& metric = this->Internal->LabelMetrics.back();
     if (!(metric.Valid = (numPts > 0)))
     {
@@ -583,7 +583,7 @@ bool vtkLabeledContourPolyDataItem::PlaceLabels()
   {
     assert(metric != this->Internal->LabelMetrics.end());
 
-    this->Internal->LabelInfos.push_back(std::vector<PDILabelInfo>());
+    this->Internal->LabelInfos.emplace_back();
 
     // Test if it is possible to place a label (e.g. the line is big enough
     // to not be completely obscured)
@@ -612,7 +612,7 @@ bool vtkLabeledContourPolyDataItem::PlaceLabels()
 bool vtkLabeledContourPolyDataItem::ResolveLabels()
 {
   typedef std::vector<PDILabelInfo>::iterator InnerIterator;
-  typedef std::vector<std::vector<PDILabelInfo> >::iterator OuterIterator;
+  typedef std::vector<std::vector<PDILabelInfo>>::iterator OuterIterator;
 
   bool removedA = false;
   bool removedB = false;
@@ -803,7 +803,7 @@ bool vtkLabeledContourPolyDataItem::FreeTextActors()
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLabeledContourPolyDataItem::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os, indent);
@@ -904,7 +904,7 @@ bool vtkLabeledContourPolyDataItem::Private::SetViewInfo(
 
   if (vtkWindow* win = ren->GetVTKWindow())
   {
-    int* size = win->GetSize();
+    const int* size = win->GetSize();
     this->WindowSize[0] = size[0];
     this->WindowSize[1] = size[1];
 

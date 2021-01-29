@@ -37,7 +37,7 @@
 #include <set>
 #include <vector>
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // VTK's native classes for defining transfer functions is actually slow to
 // access, so we have to cache it somehow.  This class is straightforward
@@ -73,7 +73,7 @@ void vtkPartialPreIntegrationTransferFunction::GetTransferFunction(vtkColorTrans
   {
     return;
   }
-  while (1)
+  while (true)
   {
     cpset.insert(function[0]);
     if (function[0] == function_range[1])
@@ -169,7 +169,7 @@ void vtkPartialPreIntegrationTransferFunction::GetTransferFunction(vtkColorTrans
 
   function_range = opacity->GetRange();
   function = opacity->GetDataPointer();
-  while (1)
+  while (true)
   {
     cpset.insert(function[0]);
     if (function[0] == function_range[0])
@@ -209,7 +209,7 @@ void vtkPartialPreIntegrationTransferFunction::GetTransferFunction(vtkPiecewiseF
 
   double* function_range = intensity->GetRange();
   double* function = intensity->GetDataPointer();
-  while (1)
+  while (true)
   {
     cpset.insert(function[0]);
     if (function[0] == function_range[1])
@@ -219,7 +219,7 @@ void vtkPartialPreIntegrationTransferFunction::GetTransferFunction(vtkPiecewiseF
 
   function_range = opacity->GetRange();
   function = opacity->GetDataPointer();
-  while (1)
+  while (true)
   {
     cpset.insert(function[0]);
     if (function[0] == function_range[0])
@@ -284,14 +284,14 @@ inline void vtkPartialPreIntegrationTransferFunction::GetColor(double x, double 
   c[3] = (1 - interp) * beforec[3] + interp * afterc[3];
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkStandardNewMacro(vtkUnstructuredGridPartialPreIntegration);
 
 float vtkUnstructuredGridPartialPreIntegration::PsiTable[PSI_TABLE_SIZE * PSI_TABLE_SIZE];
 int vtkUnstructuredGridPartialPreIntegration::PsiTableBuilt = 0;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkUnstructuredGridPartialPreIntegration::vtkUnstructuredGridPartialPreIntegration()
 {
@@ -300,19 +300,19 @@ vtkUnstructuredGridPartialPreIntegration::vtkUnstructuredGridPartialPreIntegrati
   this->NumIndependentComponents = 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkUnstructuredGridPartialPreIntegration::~vtkUnstructuredGridPartialPreIntegration()
 {
   delete[] this->TransferFunctions;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkUnstructuredGridPartialPreIntegration::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkUnstructuredGridPartialPreIntegration::Initialize(vtkVolume* volume, vtkDataArray* scalars)
 {
@@ -370,7 +370,7 @@ void vtkUnstructuredGridPartialPreIntegration::Initialize(vtkVolume* volume, vtk
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkUnstructuredGridPartialPreIntegration::Integrate(vtkDoubleArray* intersectionLengths,
   vtkDataArray* nearIntersections, vtkDataArray* farIntersections, float color[4])
@@ -527,7 +527,7 @@ void vtkUnstructuredGridPartialPreIntegration::Integrate(vtkDoubleArray* interse
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkUnstructuredGridPartialPreIntegration::BuildPsiTable()
 {

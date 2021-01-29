@@ -42,10 +42,10 @@ public:
 
   //@{
   /**
-   * Get/Set the input cubemap.
+   * Get/Set the input texture.
    */
-  void SetInputCubeMap(vtkOpenGLTexture*);
-  vtkGetObjectMacro(InputCubeMap, vtkOpenGLTexture);
+  void SetInputTexture(vtkOpenGLTexture*);
+  vtkGetObjectMacro(InputTexture, vtkOpenGLTexture);
   //@}
 
   /**
@@ -60,24 +60,9 @@ public:
 
   //@{
   /**
-   * Set/Get size of texture.
-   * Default is 128.
-   * This value should be increased if glossy materials are present
-   * in order to have better reflections.
+   * Get size of texture (input texture height).
    */
   vtkGetMacro(PrefilterSize, unsigned int);
-  vtkSetMacro(PrefilterSize, unsigned int);
-  //@}
-
-  //@{
-  /**
-   * Set/Get the number of samples used during Monte-Carlo integration.
-   * Default is 1024.
-   * In some OpenGL drivers (OSMesa, old OSX), the default value might be too high leading to
-   * artifacts.
-   */
-  vtkGetMacro(PrefilterSamples, unsigned int);
-  vtkSetMacro(PrefilterSamples, unsigned int);
   //@}
 
   //@{
@@ -91,8 +76,19 @@ public:
 
   //@{
   /**
+   * Set/Get the maximum number of samples.
+   * The number of samples for each roughness is between 1
+   * at roughness = 0 and PrefilterMaxSamples at roughness = 1
+   * Default is 512.
+   */
+  vtkGetMacro(PrefilterMaxSamples, unsigned int);
+  vtkSetMacro(PrefilterMaxSamples, unsigned int);
+  //@}
+
+  //@{
+  /**
    * Set/Get the conversion to linear color space.
-   * If the input cubemap is in sRGB color space and the conversion is not done by OpenGL
+   * If the input texture is in sRGB color space and the conversion is not done by OpenGL
    * directly with the texture format, the conversion can be done in the shader with this flag.
    */
   vtkGetMacro(ConvertToLinear, bool);
@@ -112,10 +108,10 @@ protected:
   vtkPBRPrefilterTexture() = default;
   ~vtkPBRPrefilterTexture() override;
 
-  unsigned int PrefilterSize = 128;
+  unsigned int PrefilterSize;
   unsigned int PrefilterLevels = 5;
-  unsigned int PrefilterSamples = 1024;
-  vtkOpenGLTexture* InputCubeMap = nullptr;
+  unsigned int PrefilterMaxSamples = 512;
+  vtkOpenGLTexture* InputTexture = nullptr;
   bool ConvertToLinear = false;
 
 private:

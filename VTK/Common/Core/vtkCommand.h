@@ -108,7 +108,7 @@
  *  - Rendering/vtkInteractorStyleImage returns a pointer to itself
  * - vtkCommand::CharEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QKeyEvent *
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QKeyEvent *
  * - vtkCommand::TimerEvent
  *  - most of the objects return a to an int representing a timer id
  *  - Widgets/vtkHoverWidget returns nullptr
@@ -124,37 +124,37 @@
  * representing a pedigree id
  * - vtkCommand::KeyPressEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QKeyEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QKeyEvent*
  * - vtkCommand::KeyReleaseEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QKeyEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QKeyEvent*
  * - vtkCommand::LeftButtonPressEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QMouseEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QMouseEvent*
  * - vtkCommand::LeftButtonReleaseEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QMouseEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QMouseEvent*
  * - vtkCommand::MouseMoveEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QMouseEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QMouseEvent*
  * - vtkCommand::MouseWheelForwardEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QWheelEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QWheelEvent*
  * - vtkCommand::MouseWheelBackwardEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QWheelEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QWheelEvent*
  * - vtkCommand::RightButtonPressEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QMouseEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QMouseEvent*
  * - vtkCommand::RightButtonReleaseEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QMouseEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QMouseEvent*
  * - vtkCommand::MiddleButtonPressEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QMouseEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QMouseEvent*
  * - vtkCommand::MiddleButtonReleaseEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QMouseEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QMouseEvent*
  * - vtkCommand::CursorChangedEvent
  *  - most of the objects return a pointer to an int representing a shape
  *  - Rendering/vtkInteractorObserver returns nullptr
@@ -168,24 +168,24 @@
  *  - Rendering/vtkRenderer returns a pointer to the created camera
  * - vtkCommand::EnterEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QEvent*
  * - vtkCommand::LeaveEvent
  *  - most of the objects return nullptr
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QEvent*
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QEvent*
  * - vtkCommand::RenderWindowMessageEvent
  *  - Rendering/vtkWin32OpenGLRenderWindow return a pointer to a UINT message
  * - vtkCommand::ComputeVisiblePropBoundsEvent
  *  - Rendering/vtkRenderer returns a pointer to itself
- * - QVTKOpenGLWidget::ContextMenuEvent
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QContextMenuEvent*
- * - QVTKOpenGLWidget::DragEnterEvent
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QDragEnterEvent*
- * - QVTKOpenGLWidget::DragMoveEvent
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QDragMoveEvent*
- * - QVTKOpenGLWidget::DragLeaveEvent
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QDragLeaveEvent*
- * - QVTKOpenGLWidget::DropEvent
- *  - GUISupport/Qt/QVTKOpenGLWidget returns a QDropEvent*
+ * - QVTKOpenGLStereoWidget::ContextMenuEvent
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QContextMenuEvent*
+ * - QVTKOpenGLStereoWidget::DragEnterEvent
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QDragEnterEvent*
+ * - QVTKOpenGLStereoWidget::DragMoveEvent
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QDragMoveEvent*
+ * - QVTKOpenGLStereoWidget::DragLeaveEvent
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QDragLeaveEvent*
+ * - QVTKOpenGLStereoWidget::DropEvent
+ *  - GUISupport/Qt/QVTKOpenGLStereoWidget returns a QDropEvent*
  * - vtkCommand::ViewProgressEvent
  *  - View/vtkView returns a ViewProgressEventCallData*
  * - vtkCommand::VolumeMapperRenderProgressEvent
@@ -208,6 +208,12 @@
  *  - most of the objects return nullptr
  * - vtkCommand::FifthButtonReleaseEvent
  *  - most of the objects return nullptr
+ * - vtkCommand::MouseWheelLeftEvent
+ *  - most of the objects return nullptr
+ *  - GUISupport/Qt/QVTKOpenGLWidget returns a QWheelEvent*
+ * - vtkCommand::MouseWheelRightEvent
+ *  - most of the objects return nullptr
+ *  - GUISupport/Qt/QVTKOpenGLWidget returns a QWheelEvent*
  * - vtkCommand::ErrorEvent
  *  - vtkOutputWindow fires this with `char char*` for the error message
  * - vtkCommand::WarningEvent
@@ -275,6 +281,8 @@
     _vtk_add_event(ErrorEvent)                                                                     \
     _vtk_add_event(WarningEvent)                                                                   \
     _vtk_add_event(StartInteractionEvent)                                                          \
+    _vtk_add_event(DropFilesEvent)                                                                 \
+    _vtk_add_event(UpdateDropLocationEvent)                                                        \
         /*^ mainly used by vtkInteractorObservers*/                                                \
     _vtk_add_event(InteractionEvent)                                                               \
     _vtk_add_event(EndInteractionEvent)                                                            \
@@ -361,7 +369,10 @@
     _vtk_add_event(Button3DEvent)                                                                  \
     _vtk_add_event(TextEvent)                                                                      \
     _vtk_add_event(LeftButtonDoubleClickEvent)                                                     \
-    _vtk_add_event(RightButtonDoubleClickEvent)
+    _vtk_add_event(MiddleButtonDoubleClickEvent)                                                   \
+    _vtk_add_event(RightButtonDoubleClickEvent)                                                    \
+    _vtk_add_event(MouseWheelLeftEvent)                                                            \
+    _vtk_add_event(MouseWheelRightEvent)
 // clang-format on
 
 #define vtkEventDeclarationMacro(_enum_name)                                                       \
@@ -448,7 +459,7 @@ protected:
   int PassiveObserver;
 
   vtkCommand();
-  ~vtkCommand() override {}
+  ~vtkCommand() override = default;
 
   friend class vtkSubjectHelper;
 

@@ -51,9 +51,9 @@ namespace impl
 struct Motion;
 
 using MapOfVectorOfMotions =
-  std::map<std::string, std::vector<std::shared_ptr<const impl::Motion> > >;
+  std::map<std::string, std::vector<std::shared_ptr<const impl::Motion>>>;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // this exception is fired to indicate that a required parameter is missing for
 // the motion definition.
 class MissingParameterError : public std::runtime_error
@@ -69,7 +69,7 @@ public:
   }
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // these are a bunch of convenience methods used in constructors for various
 // motion types that read parameter values from a map of params and then sets
 // appropriate member variable. If the parameter is missing, then raises
@@ -110,7 +110,7 @@ void set(double& ref, const char* pname, const MapType& params)
   ref = iter->second.DoubleValue[0];
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // this is a variant of set that doesn't raise MissingParameterError exception
 // instead set the param to the default value indicated.
 template <typename Value, typename MapType>
@@ -126,7 +126,7 @@ void set(Value& ref, const char* pname, const MapType& params, const Value& defa
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Superclass for all motions
 // The member variable names match the keyworks in the cfg file and hence are
 // left lower-case.
@@ -156,7 +156,7 @@ struct Motion
     set(this->t_damping, "t_damping", params, 0.0);
     set(this->stl, "stl", params);
   }
-  virtual ~Motion() {}
+  virtual ~Motion() = default;
 
   virtual bool Move(vtkPoints* pts, double time) const = 0;
 
@@ -225,7 +225,7 @@ protected:
   };
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Move given velocity
 struct ImposeVelMotion : public Motion
 {
@@ -302,7 +302,7 @@ private:
   };
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Rotate around an arbitrary axis.
 struct RotateAxisMotion : public Motion
 {
@@ -381,7 +381,7 @@ struct RotateAxisMotion : public Motion
   }
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Rotate around x,y,z coordinate axes.
 struct RotateMotion : public Motion
 {
@@ -445,7 +445,7 @@ struct RotateMotion : public Motion
   }
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Planetary motion
 struct PlanetaryMotion : public Motion
 {
@@ -568,7 +568,7 @@ struct PlanetaryMotion : public Motion
   }
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Move given a position file.
 struct PositionFileMotion : public Motion
 {
@@ -795,7 +795,7 @@ namespace Actions
 {
 using namespace tao::pegtl;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // actions when parsing LegacyPositionFile::Grammar or
 // OrientationsPositionFile::Grammar
 namespace PositionFile
@@ -856,11 +856,11 @@ struct action<MotionFX::OrientationsPositionFile::Row>
 };
 } // namespace PositionFile
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // actions when parsing CFG::Grammar
 namespace CFG
 {
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // When parsing CFG, we need to accumulate values and keep track of them.
 // Value and ActiveState help us do that.
 struct Value
@@ -885,13 +885,13 @@ struct ActiveState
     : Motions(motions)
   {
   }
-  ~ActiveState() {}
+  ~ActiveState() = default;
 
 private:
   ActiveState(const ActiveState&) = delete;
   void operator=(const ActiveState&) = delete;
 };
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 template <typename Rule>
 struct action : nothing<Rule>
@@ -907,7 +907,7 @@ struct action<MotionFX::CFG::Value>
   {
     auto content = in.string();
     // the value can have trailing spaces; remove them.
-    while (content.size() > 0 && std::isspace(content.back()))
+    while (!content.empty() && std::isspace(content.back()))
     {
       content.pop_back();
     }
@@ -1042,7 +1042,7 @@ public:
     , Geometries()
   {
   }
-  ~vtkInternals() {}
+  ~vtkInternals() = default;
 
   const vtkVector2d& GetTimeRange() const { return this->TimeRange; }
 
@@ -1051,7 +1051,7 @@ public:
     tao::pegtl::read_input<> in(filename);
     Actions::CFG::ActiveState state(this->Motions);
     tao::pegtl::parse<MotionFX::CFG::Grammar, Actions::CFG::action>(in, state);
-    if (this->Motions.size() == 0)
+    if (this->Motions.empty())
     {
       vtkGenericWarningMacro(
         "No valid 'motions' were parsed from the CFG file. "
@@ -1082,8 +1082,7 @@ public:
         vtkPolyData* pd = reader->GetOutput();
         if (pd->GetNumberOfPoints() > 0)
         {
-          this->Geometries.push_back(
-            std::pair<std::string, vtkSmartPointer<vtkPolyData> >(iter->first, pd));
+          this->Geometries.emplace_back(iter->first, pd);
           ++iter;
           continue;
         }
@@ -1093,7 +1092,7 @@ public:
       iter = this->Motions.erase(iter);
     }
 
-    if (this->Motions.size() == 0)
+    if (this->Motions.empty())
     {
       vtkGenericWarningMacro("All parsed `motion`s were skipped!");
       return false;
@@ -1165,11 +1164,11 @@ private:
 
   impl::MapOfVectorOfMotions Motions;
   vtkVector2d TimeRange;
-  std::vector<std::pair<std::string, vtkSmartPointer<vtkPolyData> > > Geometries;
+  std::vector<std::pair<std::string, vtkSmartPointer<vtkPolyData>>> Geometries;
 };
 
 vtkStandardNewMacro(vtkMotionFXCFGReader);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMotionFXCFGReader::vtkMotionFXCFGReader()
   : FileName()
   , TimeResolution(100)
@@ -1179,14 +1178,14 @@ vtkMotionFXCFGReader::vtkMotionFXCFGReader()
   this->SetNumberOfOutputPorts(1);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMotionFXCFGReader::~vtkMotionFXCFGReader()
 {
   delete this->Internals;
   this->Internals = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkMotionFXCFGReader::SetFileName(const char* fname)
 {
   const std::string arg(fname ? fname : "");
@@ -1198,7 +1197,7 @@ void vtkMotionFXCFGReader::SetFileName(const char* fname)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkMotionFXCFGReader::RequestInformation(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -1232,7 +1231,7 @@ int vtkMotionFXCFGReader::RequestInformation(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkMotionFXCFGReader::RequestData(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -1266,7 +1265,7 @@ int vtkMotionFXCFGReader::RequestData(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkMotionFXCFGReader::ReadMetaData()
 {
   if (this->FileNameMTime < this->MetaDataMTime)
@@ -1296,7 +1295,7 @@ bool vtkMotionFXCFGReader::ReadMetaData()
   return (this->Internals != nullptr);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkMotionFXCFGReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

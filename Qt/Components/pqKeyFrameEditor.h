@@ -1,15 +1,15 @@
 /*=========================================================================
 
-   Program:   ParaQ
+   Program:   ParaView
    Module:    pqKeyFrameEditor.h
 
    Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
    All rights reserved.
 
-   ParaQ is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaQ license version 1.2.
+   ParaView is a free software; you can redistribute it and/or modify it
+   under the terms of the ParaView license version 1.2.
 
-   See License_v1.2.txt for the full ParaQ license.
+   See License_v1.2.txt for the full ParaView license.
    A copy of this license can be obtained by contacting
    Kitware Inc.
    28 Corporate Drive
@@ -62,7 +62,7 @@ public:
   void setValuesOnly(bool);
   bool valuesOnly() const;
 
-public slots:
+public Q_SLOTS:
   /**
   * read the key frame data and display it
   */
@@ -72,11 +72,12 @@ public slots:
   */
   void writeKeyFrameData();
 
-private slots:
+private Q_SLOTS:
   void newKeyFrame();
   void deleteKeyFrame();
   void deleteAllKeyFrames();
   void useCurrentCamera(QObject*);
+  void updateCurrentCamera(QObject*);
 
 private:
   class pqInternal;

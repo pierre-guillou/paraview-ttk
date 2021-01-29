@@ -59,7 +59,10 @@ public:
   /**
    * Initialize smart pointer to nullptr.
    */
-  vtkSmartPointer() noexcept : vtkSmartPointerBase() {}
+  vtkSmartPointer() noexcept
+    : vtkSmartPointerBase()
+  {
+  }
 
   /**
    * Initialize smart pointer with a new reference to the same object
@@ -85,10 +88,14 @@ public:
    * @{
    */
   // Need both overloads because the move-constructor must be non-templated:
-  vtkSmartPointer(vtkSmartPointer&& r) noexcept : vtkSmartPointerBase(std::move(r)) {}
+  vtkSmartPointer(vtkSmartPointer&& r) noexcept
+    : vtkSmartPointerBase(std::move(r))
+  {
+  }
 
   template <class U>
-  vtkSmartPointer(vtkSmartPointer<U>&& r) noexcept : vtkSmartPointerBase(std::move(r))
+  vtkSmartPointer(vtkSmartPointer<U>&& r) noexcept
+    : vtkSmartPointerBase(std::move(r))
   {
     vtkSmartPointer::CheckTypes<U>();
   }
@@ -216,6 +223,15 @@ public:
    * Create an instance of a VTK object.
    */
   static vtkSmartPointer<T> New() { return vtkSmartPointer<T>(T::New(), NoReference()); }
+  /**
+   * Create an instance of a VTK object in a memkind extended memory space. Note that not all
+   * vtkObjects support this yet and that VTK needs to be compiled with VTK_USE_MEMKIND to enable
+   * those that do. If not enabled, this is equivalent to calling New()
+   */
+  static vtkSmartPointer<T> ExtendedNew()
+  {
+    return vtkSmartPointer<T>(T::ExtendedNew(), NoReference());
+  }
 
   /**
    * Create a new instance of the given VTK object.

@@ -60,8 +60,8 @@
 //  Oliver Ruebel (LBNL)
 //==============================================================================
 
-#ifndef vtkm_worklet_contourtree_augmented_contourtree_mesh_inc_compress_neighbours_worklet_h
-#define vtkm_worklet_contourtree_augmented_contourtree_mesh_inc_compress_neighbours_worklet_h
+#ifndef vtk_m_worklet_contourtree_augmented_contourtree_mesh_inc_compress_neighbours_worklet_h
+#define vtk_m_worklet_contourtree_augmented_contourtree_mesh_inc_compress_neighbours_worklet_h
 
 #include <vtkm/worklet/WorkletMapField.h>
 #include <vtkm/worklet/contourtree_augmented/Types.h>
@@ -95,20 +95,19 @@ public:
                             vtkm::Id& arcTargetIndexFrom,
                             const OutFieldPortalType& neighboursPortal) const
   {
-    if (!noSuchElement(to))
+    if (!NoSuchElement(to))
     {
       neighboursPortal.Set(2 * arcTargetIndexFrom + 0, 2 * from + 0);
       neighboursPortal.Set(2 * arcTargetIndexFrom + 1, 2 * from + 1);
     }
 
     // In serial this worklet implements the following operation
-    // #pragma omp parallel for
     // for (indexVector::size_type from = 0; from < arcs.size(); ++from)
     //  {
     //    indexType to = arcs[from];
-    //    if (!noSuchElement(to))
+    //    if (!NoSuchElement(to))
     //      {
-    //         assert(maskedIndex(to) != from);
+    //         assert(MaskedIndex(to) != from);
     //         neighbours[2*arcTargetIndex[from]+0] = 2*from+0;
     //         neighbours[2*arcTargetIndex[from]+1] = 2*from+1;
     //      }

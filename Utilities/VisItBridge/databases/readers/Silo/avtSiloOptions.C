@@ -1,40 +1,6 @@
-/*****************************************************************************
-*
-* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
-* Produced at the Lawrence Livermore National Laboratory
-* LLNL-CODE-442911
-* All rights reserved.
-*
-* This file is  part of VisIt. For  details, see https://visit.llnl.gov/.  The
-* full copyright notice is contained in the file COPYRIGHT located at the root
-* of the VisIt distribution or at http://www.llnl.gov/visit/copyright.html.
-*
-* Redistribution  and  use  in  source  and  binary  forms,  with  or  without
-* modification, are permitted provided that the following conditions are met:
-*
-*  - Redistributions of  source code must  retain the above  copyright notice,
-*    this list of conditions and the disclaimer below.
-*  - Redistributions in binary form must reproduce the above copyright notice,
-*    this  list of  conditions  and  the  disclaimer (as noted below)  in  the
-*    documentation and/or other materials provided with the distribution.
-*  - Neither the name of  the LLNS/LLNL nor the names of  its contributors may
-*    be used to endorse or promote products derived from this software without
-*    specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT  HOLDERS AND CONTRIBUTORS "AS IS"
-* AND ANY EXPRESS OR  IMPLIED WARRANTIES, INCLUDING,  BUT NOT  LIMITED TO, THE
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND  FITNESS FOR A PARTICULAR  PURPOSE
-* ARE  DISCLAIMED. IN  NO EVENT  SHALL LAWRENCE  LIVERMORE NATIONAL  SECURITY,
-* LLC, THE  U.S.  DEPARTMENT OF  ENERGY  OR  CONTRIBUTORS BE  LIABLE  FOR  ANY
-* DIRECT,  INDIRECT,   INCIDENTAL,   SPECIAL,   EXEMPLARY,  OR   CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT  LIMITED TO, PROCUREMENT OF  SUBSTITUTE GOODS OR
-* SERVICES; LOSS OF  USE, DATA, OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER
-* CAUSED  AND  ON  ANY  THEORY  OF  LIABILITY,  WHETHER  IN  CONTRACT,  STRICT
-* LIABILITY, OR TORT  (INCLUDING NEGLIGENCE OR OTHERWISE)  ARISING IN ANY  WAY
-* OUT OF THE  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-* DAMAGE.
-*
-*****************************************************************************/
+// Copyright (c) Lawrence Livermore National Security, LLC and other VisIt
+// Project developers.  See the top-level LICENSE file for dates and other
+// details.  No copyright assignment is required to contribute to VisIt.
 
 // ************************************************************************* //
 //                             avtSiloOptions.C                              //
@@ -123,9 +89,12 @@ GetSiloReadOptions(void)
 //
 //    Mark C. Miller, Tue Mar 17 18:13:22 PDT 2009
 //    Use const char * option name symbols defined in avtSiloOptions.h
-
+//
 //    Mark C. Miller, Fri May  8 17:09:39 PDT 2009
 //    Added compression/checksum options.
+//
+//    Mark C. Miller, Wed Apr 10 11:43:29 PDT 2019
+//    Add help string.
 // ****************************************************************************
 
 DBOptionsAttributes *
@@ -143,6 +112,27 @@ GetSiloWriteOptions(void)
     rv->SetEnumStrings(SILO_WROPT_DRIVER, drivers);
     rv->SetBool(SILO_WROPT_CKSUMS, false);
     rv->SetString(SILO_WROPT_COMPRESSION, "");
+
+    char helpStr[512];
+    snprintf(helpStr, sizeof(helpStr),
+        "<p><b>%s</b>:"
+        "<ul>"
+        "<li>PDB: Silo library will create a PDB file.</li>"
+        "<li>HDF5: Silo library will create an HDF5 file.</li>"
+        "</ul>"
+        "<p><b>%s</b>:"
+        "<ul>"
+        "<li>Valid only for HDF5 files.</li>"
+        "<li>Enables HDF5's Fletcher32 checksum filter.</li>"
+        "</ul>"
+        "<p><b>%s</b>:"
+        "Enter any compression string that would be valid to pass to Silo's"
+        "<a href=\"https://wci.llnl.gov/content/assets/docs/simulation/computer-codes/silo/LLNL-SM-654357.pdf#page=49\">"
+        "DBSetCompression()</a> method.",
+        SILO_WROPT_DRIVER,
+        SILO_WROPT_CKSUMS,
+        SILO_WROPT_COMPRESSION);
+    rv->SetHelp(helpStr);
 
     return rv;
 }

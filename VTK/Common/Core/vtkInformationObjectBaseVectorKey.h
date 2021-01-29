@@ -40,7 +40,7 @@ public:
   /**
    * The name of the static instance and the class in which
    * it is defined(location) should be passed to the constructor.
-   * Providing "requiredClass" name one can insure that only
+   * Providing "requiredClass" name one can ensure that only
    * objects of type "requiredClass" are stored in vectors
    * associated with the instance of this key type created.
    * These should be string literals as they are not copied.
@@ -69,10 +69,10 @@ public:
   void Clear(vtkInformation* info);
 
   /**
-   * Resize (extend) the vector to hold n objects. Any new elements
+   * Resize (extend) the vector to hold size objects. Any new elements
    * created will be null initialized.
    */
-  void Resize(vtkInformation* info, int n);
+  void Resize(vtkInformation* info, int size);
 
   /**
    * Get the vector's length.
@@ -131,7 +131,7 @@ public:
    * object to another.  If there is no entry in the first information
    * object for this key, the value is removed from the second.
    */
-  void ShallowCopy(vtkInformation* from, vtkInformation* to) override;
+  void ShallowCopy(vtkInformation* source, vtkInformation* dest) override;
 
   /**
    * Print the key's value in an information object to a stream.

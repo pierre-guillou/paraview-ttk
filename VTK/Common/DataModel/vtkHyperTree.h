@@ -142,11 +142,9 @@
 #include <memory>  // std::shared_ptr
 
 class vtkBitArray;
-class vtkUnsignedLongArray;
-
 class vtkIdList;
-
 class vtkHyperTreeGridScales;
+class vtkTypeInt64Array;
 
 //=============================================================================
 struct vtkHyperTreeData
@@ -230,7 +228,7 @@ public:
    * corresponding. It is useless to declare all the latest values
    * to False.
    */
-  virtual void GetByLevelForWriter(vtkBitArray* inIsMasked, vtkUnsignedLongArray* nbVerticesbyLevel,
+  virtual void GetByLevelForWriter(vtkBitArray* inIsMasked, vtkTypeInt64Array* nbVerticesbyLevel,
     vtkBitArray* isParent, vtkBitArray* isMasked, vtkIdList* ids) = 0;
 
   /**
@@ -441,6 +439,12 @@ public:
    */
   virtual vtkIdType GetElderChildIndex(unsigned int index_parent) const = 0;
 
+  /**
+   * Return the elder child index array, internals of the tree structure
+   * Should be used with great care, for consulting and not modifying.
+   */
+  virtual const unsigned int* GetElderChildIndexArray(size_t& nbElements) const = 0;
+
   //@{
   /**
    * In an hypertree, all cells are the same size by level. This
@@ -470,14 +474,9 @@ public:
   //@}
 
 protected:
-  vtkHyperTree()
-    : BranchFactor(2)
-    , Dimension(3)
-    , NumberOfChildren(8)
-  {
-  }
+  vtkHyperTree();
 
-  virtual ~vtkHyperTree() override {}
+  ~vtkHyperTree() override = default;
 
   virtual void InitializePrivate() = 0;
   virtual void PrintSelfPrivate(ostream& os, vtkIndent indent) = 0;
@@ -504,6 +503,8 @@ protected:
   mutable std::shared_ptr<vtkHyperTreeGridScales> Scales;
 
 private:
+  void InitializeBase(
+    unsigned char branchFactor, unsigned char dimension, unsigned char numberOfChildren);
   vtkHyperTree(const vtkHyperTree&) = delete;
   void operator=(const vtkHyperTree&) = delete;
 };

@@ -15,13 +15,13 @@
 #include "vtkHyperTreeGridDepthLimiter.h"
 
 #include "vtkBitArray.h"
+#include "vtkCellData.h"
 #include "vtkDoubleArray.h"
 #include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkObjectFactory.h"
-#include "vtkPointData.h"
 #include "vtkUniformHyperTreeGrid.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -29,7 +29,7 @@
 
 vtkStandardNewMacro(vtkHyperTreeGridDepthLimiter);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridDepthLimiter::vtkHyperTreeGridDepthLimiter()
 {
   // Require root-level depth by default
@@ -48,7 +48,7 @@ vtkHyperTreeGridDepthLimiter::vtkHyperTreeGridDepthLimiter()
   this->AppropriateOutput = true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridDepthLimiter::~vtkHyperTreeGridDepthLimiter()
 {
   if (this->OutMask)
@@ -58,7 +58,7 @@ vtkHyperTreeGridDepthLimiter::~vtkHyperTreeGridDepthLimiter()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridDepthLimiter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -68,14 +68,14 @@ void vtkHyperTreeGridDepthLimiter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "CurrentId: " << this->CurrentId << endl;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridDepthLimiter::FillOutputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkHyperTreeGrid");
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridDepthLimiter::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject* outputDO)
 {
   // Downcast output data object to hyper tree grid
@@ -106,8 +106,8 @@ int vtkHyperTreeGridDepthLimiter::ProcessTrees(vtkHyperTreeGrid* input, vtkDataO
   output->SetInterfaceInterceptsName(input->GetInterfaceInterceptsName());
 
   // Initialize output point data
-  this->InData = input->GetPointData();
-  this->OutData = output->GetPointData();
+  this->InData = input->GetCellData();
+  this->OutData = output->GetCellData();
   this->OutData->CopyAllocate(this->InData);
 
   // Output indices begin at 0
@@ -150,7 +150,7 @@ int vtkHyperTreeGridDepthLimiter::ProcessTrees(vtkHyperTreeGrid* input, vtkDataO
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridDepthLimiter::RecursivelyProcessTree(
   vtkHyperTreeGridNonOrientedCursor* inCursor, vtkHyperTreeGridNonOrientedCursor* outCursor)
 {

@@ -55,7 +55,7 @@
                          number_of_elements="1"
                          panel_visibility="advanced">
         <IntRangeDomain max="128"
-                        min="0"
+                        min="3"
                         name="range" />
         <Documentation>This property specifies the number of faces of the shaft
         of the arrow (the cylinder). As the resolution increases, the cylinder
@@ -146,6 +146,18 @@
                  value="72" />
           <Entry text="Lagrange Wedge"
                  value="73" />
+          <Entry text="Bezier Curve"
+                 value="75" />
+          <Entry text="Bezier Triangle"
+                 value="76" />
+          <Entry text="Bezier Quadrilateral"
+                 value="77" />
+          <Entry text="Bezier Tetrahedron"
+                 value="78" />
+          <Entry text="Bezier Hexahedron"
+                 value="79" />
+          <Entry text="Bezier Wedge"
+                 value="80" />
         </EnumerationDomain>
       </IntVectorProperty>
       <IntVectorProperty command="SetOutputPrecision"
@@ -1364,7 +1376,7 @@
 
     <!-- ==================================================================== -->
     <SourceProxy class="vtkLineSource"
-                 label="High Resolution Line Source"
+                 label="Line"
                  name="HighResLineSource">
       <DoubleVectorProperty animateable="1"
                             command="SetPoint1"
@@ -1461,7 +1473,7 @@
 
     <!-- ==================================================================== -->
     <SourceProxy class="vtkPointSource"
-                 label="Point Source"
+                 label="Point Cloud"
                  name="PointSource">
       <DoubleVectorProperty animateable="1"
                             command="SetCenter"
@@ -1503,7 +1515,7 @@
                      name="DummyInput">
         <!-- Used when this source is added to a proxy list domain. -->
       </InputProperty>
-      <PropertyGroup label="Sphere Parameters" panel_widget="InteractiveSphere">
+      <PropertyGroup label="Point Cloud Parameters" panel_widget="InteractiveSphere">
         <Property function="Center" name="Center" />
         <Property function="Radius" name="Radius" />
         <Property function="Input" name="DummyInput" />

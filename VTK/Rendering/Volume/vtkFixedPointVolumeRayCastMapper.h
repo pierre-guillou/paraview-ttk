@@ -57,6 +57,7 @@
 #define vtkFixedPointVolumeRayCastMapper_h
 
 #include "vtkRenderingVolumeModule.h" // For export macro
+#include "vtkThreads.h"               // for VTK_THREAD_RETURN_TYPE
 #include "vtkVolumeMapper.h"
 
 #define VTKKW_FP_SHIFT 15
@@ -357,10 +358,10 @@ protected:
 
   // Internal method for computing matrices needed during
   // ray casting
-  void ComputeMatrices(double volumeOrigin[3], double volumeSpacing[3], int volumeExtent[6],
+  void ComputeMatrices(double inputOrigin[3], double inputSpacing[3], int inputExtent[6],
     vtkRenderer* ren, vtkVolume* vol);
 
-  int ComputeRowBounds(vtkRenderer* ren, int imageFlag, int rowBoundsFlag, int volumeExtent[6]);
+  int ComputeRowBounds(vtkRenderer* ren, int imageFlag, int rowBoundsFlag, int inputExtent[6]);
 
   void CaptureZBuffer(vtkRenderer* ren);
 
@@ -453,7 +454,7 @@ protected:
   vtkVolume* Volume;
 
   int ClipRayAgainstVolume(
-    float rayStart[3], float rayEnd[3], float rayDirection[3], double bounds[6]);
+    double rayStart[3], double rayEnd[3], float rayDirection[3], double bounds[6]);
 
   int UpdateColorTable(vtkVolume* vol);
   int UpdateGradients(vtkVolume* vol);
@@ -463,7 +464,7 @@ protected:
   void ComputeGradients(vtkVolume* vol);
 
   int ClipRayAgainstClippingPlanes(
-    float rayStart[3], float rayEnd[3], int numClippingPlanes, float* clippingPlanes);
+    double rayStart[3], double rayEnd[3], int numClippingPlanes, float* clippingPlanes);
 
   unsigned int FixedPointCroppingRegionPlanes[6];
   unsigned int CroppingRegionMask[27];

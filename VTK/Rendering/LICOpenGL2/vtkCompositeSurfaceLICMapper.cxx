@@ -90,18 +90,18 @@ private:
   void operator=(const vtkCompositeLICHelper&) = delete;
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkObjectFactoryNewMacro(vtkCompositeLICHelper);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeLICHelper::vtkCompositeLICHelper()
 {
   this->SetInputArrayToProcess(
     0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS_THEN_CELLS, vtkDataSetAttributes::VECTORS);
 }
 
-//----------------------------------------------------------------------------
-vtkCompositeLICHelper::~vtkCompositeLICHelper() {}
+//------------------------------------------------------------------------------
+vtkCompositeLICHelper::~vtkCompositeLICHelper() = default;
 
 void vtkCompositeLICHelper::ReplaceShaderValues(
   std::map<vtkShader::Type, vtkShader*> shaders, vtkRenderer* ren, vtkActor* actor)
@@ -122,26 +122,29 @@ void vtkCompositeLICHelper::ReplaceShaderValues(
     "uniform mat3 normalMatrix;\n"
     "in vec3 tcoordVCVSOutput;");
 
-  vtkShaderProgram::Substitute(FSSource, "//VTK::TCoord::Impl",
-    // projected vectors
-    "  vec3 tcoordLIC = normalMatrix * tcoordVCVSOutput;\n"
-    "  vec3 normN = normalize(normalVCVSOutput);\n"
-    "  float k = dot(tcoordLIC, normN);\n"
-    "  tcoordLIC = (tcoordLIC - k*normN);\n"
-    "  gl_FragData[1] = vec4(tcoordLIC.x, tcoordLIC.y, 0.0 , gl_FragCoord.z);\n"
-    //   "  gl_FragData[1] = vec4(tcoordVC.xyz, gl_FragCoord.z);\n"
-    // vectors for fragment masking
-    "  if (uMaskOnSurface == 0)\n"
-    "    {\n"
-    "    gl_FragData[2] = vec4(tcoordVCVSOutput, gl_FragCoord.z);\n"
-    "    }\n"
-    "  else\n"
-    "    {\n"
-    "    gl_FragData[2] = vec4(tcoordLIC.x, tcoordLIC.y, 0.0 , gl_FragCoord.z);\n"
-    "    }\n"
-    //   "  gl_FragData[2] = vec4(19.0, 19.0, tcoordVC.x, gl_FragCoord.z);\n"
-    ,
-    false);
+  if (this->LastLightComplexity[this->LastBoundBO] > 0)
+  {
+    vtkShaderProgram::Substitute(FSSource, "//VTK::TCoord::Impl",
+      // projected vectors
+      "  vec3 tcoordLIC = normalMatrix * tcoordVCVSOutput;\n"
+      "  vec3 normN = normalize(normalVCVSOutput);\n"
+      "  float k = dot(tcoordLIC, normN);\n"
+      "  tcoordLIC = (tcoordLIC - k*normN);\n"
+      "  gl_FragData[1] = vec4(tcoordLIC.x, tcoordLIC.y, 0.0 , gl_FragCoord.z);\n"
+      //   "  gl_FragData[1] = vec4(tcoordVC.xyz, gl_FragCoord.z);\n"
+      // vectors for fragment masking
+      "  if (uMaskOnSurface == 0)\n"
+      "    {\n"
+      "    gl_FragData[2] = vec4(tcoordVCVSOutput, gl_FragCoord.z);\n"
+      "    }\n"
+      "  else\n"
+      "    {\n"
+      "    gl_FragData[2] = vec4(tcoordLIC.x, tcoordLIC.y, 0.0 , gl_FragCoord.z);\n"
+      "    }\n"
+      //   "  gl_FragData[2] = vec4(19.0, 19.0, tcoordVC.x, gl_FragCoord.z);\n"
+      ,
+      false);
+  }
 
   shaders[vtkShader::Vertex]->SetSource(VSSource);
   shaders[vtkShader::Fragment]->SetSource(FSSource);
@@ -159,7 +162,7 @@ void vtkCompositeLICHelper::SetMapperShaderParameters(
       ->GetMaskOnSurface());
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeLICHelper::AppendOneBufferObject(vtkRenderer* ren, vtkActor* act,
   vtkCompositeMapperHelperData* hdata, vtkIdType& voffset, std::vector<unsigned char>& newColors,
   std::vector<float>& newNorms)
@@ -180,18 +183,18 @@ void vtkCompositeLICHelper::AppendOneBufferObject(vtkRenderer* ren, vtkActor* ac
 // Now the main class methods
 
 vtkStandardNewMacro(vtkCompositeSurfaceLICMapper);
-//----------------------------------------------------------------------------
-vtkCompositeSurfaceLICMapper::vtkCompositeSurfaceLICMapper() {}
+//------------------------------------------------------------------------------
+vtkCompositeSurfaceLICMapper::vtkCompositeSurfaceLICMapper() = default;
 
-//----------------------------------------------------------------------------
-vtkCompositeSurfaceLICMapper::~vtkCompositeSurfaceLICMapper() {}
+//------------------------------------------------------------------------------
+vtkCompositeSurfaceLICMapper::~vtkCompositeSurfaceLICMapper() = default;
 
 vtkCompositeMapperHelper2* vtkCompositeSurfaceLICMapper::CreateHelper()
 {
   return vtkCompositeLICHelper::New();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeSurfaceLICMapper::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -204,7 +207,7 @@ void vtkCompositeSurfaceLICMapper::CopyMapperValuesToHelper(vtkCompositeMapperHe
   helper->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Method initiates the mapping process. Generally sent by the actor
 // as each frame is rendered.

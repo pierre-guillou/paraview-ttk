@@ -55,7 +55,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
 #include "vtkSpreadSheetView.h"
-#include "vtkStdString.h"
 #include "vtkTable.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkVariant.h"
@@ -232,8 +231,8 @@ void pqSpreadSheetViewModel::forceUpdate()
     if (rows && columns)
     {
       // we always invalidate header data, just to be on a safe side.
-      emit this->headerDataChanged(Qt::Horizontal, 0, columns - 1);
-      emit this->dataChanged(this->index(0, 0), this->index(rows - 1, columns - 1));
+      Q_EMIT this->headerDataChanged(Qt::Horizontal, 0, columns - 1);
+      Q_EMIT this->dataChanged(this->index(0, 0), this->index(rows - 1, columns - 1));
     }
   }
   // this ensures that we update the selected based on the current state.
@@ -252,7 +251,7 @@ void pqSpreadSheetViewModel::delayedUpdate()
 //-----------------------------------------------------------------------------
 void pqSpreadSheetViewModel::triggerSelectionChanged()
 {
-  emit this->selectionChanged(this->Internal->SelectionModel.selection());
+  Q_EMIT this->selectionChanged(this->Internal->SelectionModel.selection());
 }
 
 //-----------------------------------------------------------------------------
@@ -369,8 +368,8 @@ QVariant pqSpreadSheetViewModel::data(const QModelIndex& idx, int role /*=Qt::Di
 
   if (!this->isDataValid(idx))
   {
-    // If displaying field data, check to make sure that the data is valid
-    // since its arrays can be of different lengths
+    // a cell may not have valid entry for partial arrays for field data
+    // arrays with variable lengths.
     return QVariant("");
   }
 
@@ -545,14 +544,8 @@ QSet<pqSpreadSheetViewModel::vtkIndex> pqSpreadSheetViewModel::getVTKIndices(
 //-----------------------------------------------------------------------------
 bool pqSpreadSheetViewModel::isDataValid(const QModelIndex& idx) const
 {
-  if (this->getFieldType() != vtkDataObject::FIELD_ASSOCIATION_NONE)
-  {
-    return true;
-  }
-
   // First make sure the index itself is valid
-  pqDataRepresentation* repr = this->activeRepresentation();
-  if (!idx.isValid() || repr == NULL)
+  if (!idx.isValid() || this->activeRepresentationProxy() == nullptr)
   {
     return false;
   }
@@ -664,6 +657,6 @@ void pqSpreadSheetViewModel::hiddenColumnsChanged()
   const int numCols = this->columnCount();
   if (numCols > 0)
   {
-    emit this->headerDataChanged(Qt::Horizontal, 0, this->columnCount() - 1);
+    Q_EMIT this->headerDataChanged(Qt::Horizontal, 0, this->columnCount() - 1);
   }
 }

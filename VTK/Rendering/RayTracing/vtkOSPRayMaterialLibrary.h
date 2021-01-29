@@ -31,6 +31,7 @@
 #include <initializer_list> //for initializer_list!
 #include <map>              //for map!
 #include <set>              //for set!
+#include <string>           //for string!
 #include <vector>           //for vector!
 
 class vtkOSPRayMaterialLibraryInternals;
@@ -180,7 +181,7 @@ public:
 
 protected:
   vtkOSPRayMaterialLibrary();
-  virtual ~vtkOSPRayMaterialLibrary();
+  ~vtkOSPRayMaterialLibrary() override;
 
   bool InternalParse(const char* name, bool IsFile);
   bool InternalParseJSON(const char* name, bool IsFile, std::istream* doc);

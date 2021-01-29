@@ -58,7 +58,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqOutputPort.h"
 #include "pqPipelineSource.h"
 #include "pqProgressManager.h"
-#include "pqQVTKWidgetBase.h"
+#include "pqQVTKWidget.h"
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
 #include "pqTimeKeeper.h"
@@ -201,7 +201,7 @@ void pqView::cancelPendingRenders()
 //-----------------------------------------------------------------------------
 void pqView::emitSelectionSignals(bool frustum)
 {
-  emit selectionModeChanged(frustum);
+  Q_EMIT selectionModeChanged(frustum);
 }
 
 //-----------------------------------------------------------------------------
@@ -229,8 +229,8 @@ void pqView::forceRender()
 {
   // avoid calling render if the widget isn't valid, i.e. if the context isn't
   // ready yet. This is due to asynchronous initialization of the context by
-  // the pqQVTKWidgetBase class.
-  pqQVTKWidgetBase* qwdg = qobject_cast<pqQVTKWidgetBase*>(this->widget());
+  // the pqQVTKWidget class.
+  pqQVTKWidget* qwdg = qobject_cast<pqQVTKWidget*>(this->widget());
   if (qwdg != nullptr && !qwdg->isValid())
   {
     return;
@@ -348,8 +348,8 @@ void pqView::onRepresentationsChanged()
       this->Internal->Representations.append(QPointer<pqRepresentation>(repr));
       QObject::connect(
         repr, SIGNAL(visibilityChanged(bool)), this, SLOT(onRepresentationVisibilityChanged(bool)));
-      emit this->representationAdded(repr);
-      emit this->representationVisibilityChanged(repr, repr->isVisible());
+      Q_EMIT this->representationAdded(repr);
+      Q_EMIT this->representationVisibilityChanged(repr, repr->isVisible());
     }
   }
 
@@ -363,8 +363,8 @@ void pqView::onRepresentationsChanged()
       repr->setView(0);
       iter = this->Internal->Representations.erase(iter);
       QObject::disconnect(repr, 0, this, 0);
-      emit this->representationVisibilityChanged(repr, false);
-      emit this->representationRemoved(repr);
+      Q_EMIT this->representationVisibilityChanged(repr, false);
+      Q_EMIT this->representationRemoved(repr);
     }
     else
     {
@@ -384,7 +384,7 @@ void pqView::representationCreated(pqRepresentation* repr)
     this->Internal->Representations.append(repr);
     QObject::connect(
       repr, SIGNAL(visibilityChanged(bool)), this, SLOT(onRepresentationVisibilityChanged(bool)));
-    emit this->representationAdded(repr);
+    Q_EMIT this->representationAdded(repr);
   }
 }
 
@@ -394,7 +394,7 @@ void pqView::onRepresentationVisibilityChanged(bool visible)
   pqRepresentation* disp = qobject_cast<pqRepresentation*>(this->sender());
   if (disp)
   {
-    emit this->representationVisibilityChanged(disp, visible);
+    Q_EMIT this->representationVisibilityChanged(disp, visible);
   }
 }
 
@@ -422,12 +422,12 @@ bool pqView::canDisplay(pqOutputPort* opPort) const
 void pqView::onBeginRender()
 {
   BEGIN_UNDO_EXCLUDE();
-  emit this->beginRender();
+  Q_EMIT this->beginRender();
 }
 
 //-----------------------------------------------------------------------------
 void pqView::onEndRender()
 {
-  emit this->endRender();
+  Q_EMIT this->endRender();
   END_UNDO_EXCLUDE();
 }

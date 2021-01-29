@@ -42,7 +42,7 @@ PURPOSE.  See the above copyright notice for more information.
 vtkStandardNewMacro(vtkOrderIndependentTranslucentPass);
 vtkCxxSetObjectMacro(vtkOrderIndependentTranslucentPass, TranslucentPass, vtkRenderPass);
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkOrderIndependentTranslucentPass::vtkOrderIndependentTranslucentPass()
   : Framebuffer(nullptr)
   , State(nullptr)
@@ -62,7 +62,7 @@ vtkOrderIndependentTranslucentPass::vtkOrderIndependentTranslucentPass()
   this->ViewportHeight = 100;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkOrderIndependentTranslucentPass::~vtkOrderIndependentTranslucentPass()
 {
   if (this->TranslucentPass != nullptr)
@@ -91,7 +91,7 @@ vtkOrderIndependentTranslucentPass::~vtkOrderIndependentTranslucentPass()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Destructor. Delete SourceCode if any.
 void vtkOrderIndependentTranslucentPass::ReleaseGraphicsResources(vtkWindow* w)
@@ -127,7 +127,7 @@ void vtkOrderIndependentTranslucentPass::ReleaseGraphicsResources(vtkWindow* w)
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOrderIndependentTranslucentPass::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -169,7 +169,7 @@ void vtkOrderIndependentTranslucentPass::BlendFinalPeel(vtkOpenGLRenderWindow* r
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Perform rendering according to a render state \p s.
 // \pre s_exists: s!=0
@@ -238,15 +238,22 @@ void vtkOrderIndependentTranslucentPass::Render(const vtkRenderState* s)
     // what depth format should we use?
     this->TranslucentZTexture->SetContext(renWin);
     int dbits = renWin->GetDepthBufferSize();
-    if (dbits == 32)
+    if (renWin->GetStencilCapable())
     {
-      this->TranslucentZTexture->AllocateDepth(
-        this->ViewportWidth, this->ViewportHeight, vtkTextureObject::Fixed32);
+      this->TranslucentZTexture->AllocateDepthStencil(this->ViewportWidth, this->ViewportHeight);
     }
     else
     {
-      this->TranslucentZTexture->AllocateDepth(
-        this->ViewportWidth, this->ViewportHeight, vtkTextureObject::Fixed24);
+      if (dbits == 32)
+      {
+        this->TranslucentZTexture->AllocateDepth(
+          this->ViewportWidth, this->ViewportHeight, vtkTextureObject::Fixed32);
+      }
+      else
+      {
+        this->TranslucentZTexture->AllocateDepth(
+          this->ViewportWidth, this->ViewportHeight, vtkTextureObject::Fixed24);
+      }
     }
     this->TranslucentZTexture->SetWrapS(vtkTextureObject::ClampToEdge);
     this->TranslucentZTexture->SetWrapT(vtkTextureObject::ClampToEdge);

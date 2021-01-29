@@ -1,5 +1,6 @@
 set(SOURCES
   avtMiliFileFormat.C
+  avtMiliMetaData.C
   )
 
 ADD_VISIT_READER(VisItMiliReader "1.0"

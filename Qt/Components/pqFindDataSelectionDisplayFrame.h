@@ -54,7 +54,7 @@ class PQCOMPONENTS_EXPORT pqFindDataSelectionDisplayFrame : public QWidget
   typedef QWidget Superclass;
 
 public:
-  pqFindDataSelectionDisplayFrame(QWidget* parent = 0, Qt::WindowFlags f = 0);
+  pqFindDataSelectionDisplayFrame(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags{});
   ~pqFindDataSelectionDisplayFrame() override;
 
   /**
@@ -65,7 +65,7 @@ public:
   void setUseVerticalLayout(bool);
   bool useVerticalLayout() const;
 
-public slots:
+public Q_SLOTS:
   /**
   * Set the output port that is currently selected for which we are
   * controlling the selection display properties.
@@ -79,7 +79,7 @@ public slots:
   */
   void setView(pqView*);
 
-private slots:
+private Q_SLOTS:
   void updatePanel();
   void fillCellLabels();
   void fillPointLabels();

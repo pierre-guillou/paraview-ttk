@@ -13,7 +13,6 @@
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/ArrayHandleImplicit.h>
 #include <vtkm/cont/DeviceAdapter.h>
-#include <vtkm/cont/StorageBasic.h>
 
 #include <vtkm/exec/FunctorBase.h>
 
@@ -58,12 +57,14 @@ struct CheckPermutationFunctor : vtkm::exec::FunctorBase
 template <typename PermutedArrayHandleType, typename Device>
 VTKM_CONT CheckPermutationFunctor<
   typename PermutedArrayHandleType::template ExecutionTypes<Device>::PortalConst>
-make_CheckPermutationFunctor(const PermutedArrayHandleType& permutedArray, Device)
+make_CheckPermutationFunctor(const PermutedArrayHandleType& permutedArray,
+                             Device,
+                             vtkm::cont::Token& token)
 {
   using PermutedPortalType =
     typename PermutedArrayHandleType::template ExecutionTypes<Device>::PortalConst;
   CheckPermutationFunctor<PermutedPortalType> functor;
-  functor.PermutedPortal = permutedArray.PrepareForInput(Device());
+  functor.PermutedPortal = permutedArray.PrepareForInput(Device(), token);
   return functor;
 }
 
@@ -87,12 +88,14 @@ struct InPlacePermutationFunctor : vtkm::exec::FunctorBase
 template <typename PermutedArrayHandleType, typename Device>
 VTKM_CONT InPlacePermutationFunctor<
   typename PermutedArrayHandleType::template ExecutionTypes<Device>::Portal>
-make_InPlacePermutationFunctor(PermutedArrayHandleType& permutedArray, Device)
+make_InPlacePermutationFunctor(PermutedArrayHandleType& permutedArray,
+                               Device,
+                               vtkm::cont::Token& token)
 {
   using PermutedPortalType =
     typename PermutedArrayHandleType::template ExecutionTypes<Device>::Portal;
   InPlacePermutationFunctor<PermutedPortalType> functor;
-  functor.PermutedPortal = permutedArray.PrepareForInPlace(Device());
+  functor.PermutedPortal = permutedArray.PrepareForInPlace(Device(), token);
   return functor;
 }
 
@@ -136,12 +139,14 @@ struct OutputPermutationFunctor : vtkm::exec::FunctorBase
 template <typename PermutedArrayHandleType, typename Device>
 VTKM_CONT OutputPermutationFunctor<
   typename PermutedArrayHandleType::template ExecutionTypes<Device>::Portal>
-make_OutputPermutationFunctor(PermutedArrayHandleType& permutedArray, Device)
+make_OutputPermutationFunctor(PermutedArrayHandleType& permutedArray,
+                              Device,
+                              vtkm::cont::Token& token)
 {
   using PermutedPortalType =
     typename PermutedArrayHandleType::template ExecutionTypes<Device>::Portal;
   OutputPermutationFunctor<PermutedPortalType> functor;
-  functor.PermutedPortal = permutedArray.PrepareForOutput(ARRAY_SIZE, Device());
+  functor.PermutedPortal = permutedArray.PrepareForOutput(ARRAY_SIZE, Device(), token);
   return functor;
 }
 
@@ -191,14 +196,7 @@ struct PermutationTests
     }
 
     // Create an ArrayHandle from the buffer
-    ValueArrayType array = vtkm::cont::make_ArrayHandle(buffer);
-
-    // Copy the array so that the data is not destroyed when we return from
-    // this method.
-    ValueArrayType arrayCopy;
-    Algorithm::Copy(array, arrayCopy);
-
-    return arrayCopy;
+    return vtkm::cont::make_ArrayHandle(buffer, vtkm::CopyFlag::On);
   }
 
   void operator()() const
@@ -212,23 +210,30 @@ struct PermutationTests
 
     VTKM_TEST_ASSERT(permutationArray.GetNumberOfValues() == ARRAY_SIZE,
                      "Permutation array wrong size.");
-    VTKM_TEST_ASSERT(permutationArray.GetPortalControl().GetNumberOfValues() == ARRAY_SIZE,
+    VTKM_TEST_ASSERT(permutationArray.WritePortal().GetNumberOfValues() == ARRAY_SIZE,
                      "Permutation portal wrong size.");
-    VTKM_TEST_ASSERT(permutationArray.GetPortalConstControl().GetNumberOfValues() == ARRAY_SIZE,
+    VTKM_TEST_ASSERT(permutationArray.ReadPortal().GetNumberOfValues() == ARRAY_SIZE,
                      "Permutation portal wrong size.");
+
+    vtkm::cont::Token token;
 
     std::cout << "Test initial values in execution environment" << std::endl;
-    Algorithm::Schedule(make_CheckPermutationFunctor(permutationArray, Device()), ARRAY_SIZE);
+    Algorithm::Schedule(make_CheckPermutationFunctor(permutationArray, Device(), token),
+                        ARRAY_SIZE);
 
     std::cout << "Try in place operation" << std::endl;
-    Algorithm::Schedule(make_InPlacePermutationFunctor(permutationArray, Device()), ARRAY_SIZE);
-    CheckInPlaceResult(valueArray.GetPortalControl());
-    CheckInPlaceResult(valueArray.GetPortalConstControl());
+    Algorithm::Schedule(make_InPlacePermutationFunctor(permutationArray, Device(), token),
+                        ARRAY_SIZE);
+    token.DetachFromAll();
+    CheckInPlaceResult(valueArray.WritePortal());
+    CheckInPlaceResult(valueArray.ReadPortal());
 
     std::cout << "Try output operation" << std::endl;
-    Algorithm::Schedule(make_OutputPermutationFunctor(permutationArray, Device()), ARRAY_SIZE);
-    CheckOutputResult(valueArray.GetPortalConstControl());
-    CheckOutputResult(valueArray.GetPortalControl());
+    Algorithm::Schedule(make_OutputPermutationFunctor(permutationArray, Device(), token),
+                        ARRAY_SIZE);
+    token.DetachFromAll();
+    CheckOutputResult(valueArray.ReadPortal());
+    CheckOutputResult(valueArray.WritePortal());
   }
 };
 

@@ -15,7 +15,6 @@
 #include <vtkm/cont/ArrayHandleConstant.h>
 #include <vtkm/cont/ArrayHandleExtractComponent.h>
 #include <vtkm/cont/ArrayHandleIndex.h>
-#include <vtkm/cont/StorageBasic.h>
 #include <vtkm/cont/serial/DeviceAdapterSerial.h>
 
 #include <vtkm/cont/testing/Testing.h>
@@ -53,16 +52,7 @@ vtkm::cont::ArrayHandle<ValueType, StorageTag> MakeInputArray(int arrayId)
   }
 
   // Make an array handle that points to this buffer.
-  using ArrayHandleType = vtkm::cont::ArrayHandle<ValueType, StorageTag>;
-  ArrayHandleType bufferHandle = vtkm::cont::make_ArrayHandle(buffer, ARRAY_SIZE);
-
-  // When this function returns, the array is going to go out of scope, which
-  // will invalidate the array handle we just created. So copy to a new buffer
-  // that will stick around after we return.
-  ArrayHandleType copyHandle;
-  vtkm::cont::ArrayCopy(bufferHandle, copyHandle);
-
-  return copyHandle;
+  return vtkm::cont::make_ArrayHandle(buffer, ARRAY_SIZE, vtkm::CopyFlag::On);
 }
 
 template <typename ValueType, typename C>
@@ -76,7 +66,7 @@ void CheckArray(const vtkm::cont::ArrayHandle<ValueType, C>& outArray,
   ArrayHandleType arrayCopy;
   vtkm::cont::ArrayCopy(outArray, arrayCopy);
 
-  typename ArrayHandleType::PortalConstControl portal = arrayCopy.GetPortalConstControl();
+  typename ArrayHandleType::ReadPortalType portal = arrayCopy.ReadPortal();
   using VTraits = vtkm::VecTraits<ValueType>;
   for (vtkm::Id index = 0; index < ARRAY_SIZE; index++)
   {
@@ -246,7 +236,7 @@ void TrySpecialArrays()
 
   VTKM_TEST_ASSERT(compositeArray.GetNumberOfValues() == ARRAY_SIZE, "Wrong array size.");
 
-  auto compositePortal = compositeArray.GetPortalConstControl();
+  auto compositePortal = compositeArray.ReadPortal();
   for (vtkm::Id index = 0; index < ARRAY_SIZE; index++)
   {
     VTKM_TEST_ASSERT(test_equal(compositePortal.Get(index), vtkm::Id2(index, 295)), "Bad value.");

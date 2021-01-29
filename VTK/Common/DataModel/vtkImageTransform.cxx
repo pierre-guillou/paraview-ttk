@@ -27,7 +27,7 @@
 vtkStandardNewMacro(vtkImageTransform);
 
 //============================================================================
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Functors to support threaded execution
 namespace
 { // anonymous
@@ -202,10 +202,21 @@ struct InPlaceTransformVectors
 } // anonymous namespace
 
 //============================================================================
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Here is the VTK class proper.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// A convenience function to transform points (in the point set) as well as
+// associated normals and vectors.
 void vtkImageTransform::TransformPointSet(vtkImageData* im, vtkPointSet* ps)
+{
+  vtkImageTransform::TransformPointSet(im, ps, true, true);
+}
+
+//------------------------------------------------------------------------------
+// A convenience method to transform a point set, with the ability to control
+// whether normals and vectors are transformed as well.
+void vtkImageTransform::TransformPointSet(
+  vtkImageData* im, vtkPointSet* ps, bool transformNormals, bool transformVectors)
 {
   // Check input
   if (im == nullptr || ps == nullptr)
@@ -239,35 +250,40 @@ void vtkImageTransform::TransformPointSet(vtkImageData* im, vtkPointSet* ps)
     return;
   }
 
+  // Otherwise, need to transform points and optionally
+  // vectors and normals.
   vtkImageTransform::TransformPoints(m4, pts);
 
-  vtkDataArray* normals = ps->GetPointData()->GetNormals();
-  if (normals != nullptr)
+  if (transformNormals)
   {
-    vtkImageTransform::TransformNormals(m3, ar, normals);
+    vtkDataArray* normals = ps->GetPointData()->GetNormals();
+    if (normals != nullptr)
+    {
+      vtkImageTransform::TransformNormals(m3, ar, normals);
+    }
+    normals = ps->GetCellData()->GetNormals();
+    if (normals != nullptr)
+    {
+      vtkImageTransform::TransformNormals(m3, ar, normals);
+    }
   }
 
-  vtkDataArray* vectors = ps->GetPointData()->GetVectors();
-  if (vectors != nullptr)
+  if (transformVectors)
   {
-    vtkImageTransform::TransformVectors(m3, ar, vectors);
-  }
-
-  // Grab the cells-related-data and process as appropriate
-  normals = ps->GetCellData()->GetNormals();
-  if (normals != nullptr)
-  {
-    vtkImageTransform::TransformNormals(m3, ar, normals);
-  }
-
-  vectors = ps->GetCellData()->GetVectors();
-  if (vectors != nullptr)
-  {
-    vtkImageTransform::TransformVectors(m3, ar, vectors);
+    vtkDataArray* vectors = ps->GetPointData()->GetVectors();
+    if (vectors != nullptr)
+    {
+      vtkImageTransform::TransformVectors(m3, ar, vectors);
+    }
+    vectors = ps->GetCellData()->GetVectors();
+    if (vectors != nullptr)
+    {
+      vtkImageTransform::TransformVectors(m3, ar, vectors);
+    }
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkImageTransform::TranslatePoints(double* t, vtkDataArray* da)
 {
   void* pts = da->GetVoidPointer(0);
@@ -279,7 +295,7 @@ void vtkImageTransform::TranslatePoints(double* t, vtkDataArray* da)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkImageTransform::TransformPoints(vtkMatrix4x4* m4, vtkDataArray* da)
 {
   void* pts = da->GetVoidPointer(0);
@@ -291,7 +307,7 @@ void vtkImageTransform::TransformPoints(vtkMatrix4x4* m4, vtkDataArray* da)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkImageTransform::TransformNormals(vtkMatrix3x3* m3, double spacing[3], vtkDataArray* da)
 {
   void* n = da->GetVoidPointer(0);
@@ -303,7 +319,7 @@ void vtkImageTransform::TransformNormals(vtkMatrix3x3* m3, double spacing[3], vt
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkImageTransform::TransformVectors(vtkMatrix3x3* m3, double spacing[3], vtkDataArray* da)
 {
   void* v = da->GetVoidPointer(0);
@@ -315,7 +331,7 @@ void vtkImageTransform::TransformVectors(vtkMatrix3x3* m3, double spacing[3], vt
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkImageTransform::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

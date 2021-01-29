@@ -39,7 +39,7 @@
 
 class vtkExtractExodusGlobalTemporalVariables::vtkInternals
 {
-  std::map<std::string, vtkSmartPointer<vtkAbstractArray> > Arrays;
+  std::map<std::string, vtkSmartPointer<vtkAbstractArray>> Arrays;
 
 public:
   bool InContinueExecuting = false;
@@ -77,7 +77,7 @@ public:
 
   bool Accumulate(vtkFieldData* fd)
   {
-    std::map<std::string, vtkSmartPointer<vtkAbstractArray> > arrays;
+    std::map<std::string, vtkSmartPointer<vtkAbstractArray>> arrays;
 
     for (int cc = 0, max = (fd ? fd->GetNumberOfArrays() : 0); cc < max; ++cc)
     {
@@ -91,7 +91,7 @@ public:
         if (key && key->GetName() && strcmp(key->GetName(), "GLOBAL_TEMPORAL_VARIABLE") == 0 &&
           arr->GetName())
         {
-          if (arrays.size() == 0 ||
+          if (arrays.empty() ||
             arrays.begin()->second->GetNumberOfTuples() == arr->GetNumberOfTuples())
           {
             arrays[arr->GetName()] = arr;
@@ -100,7 +100,7 @@ public:
       }
     }
 
-    if (arrays.size() == 0)
+    if (arrays.empty())
     {
       return false;
     }
@@ -176,16 +176,16 @@ public:
 };
 
 vtkStandardNewMacro(vtkExtractExodusGlobalTemporalVariables);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExtractExodusGlobalTemporalVariables::vtkExtractExodusGlobalTemporalVariables()
   : Internals(new vtkExtractExodusGlobalTemporalVariables::vtkInternals())
 {
 }
 
-//----------------------------------------------------------------------------
-vtkExtractExodusGlobalTemporalVariables::~vtkExtractExodusGlobalTemporalVariables() {}
+//------------------------------------------------------------------------------
+vtkExtractExodusGlobalTemporalVariables::~vtkExtractExodusGlobalTemporalVariables() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExtractExodusGlobalTemporalVariables::GetContinuationState(
   bool& continue_executing_flag, size_t& offset) const
 {
@@ -194,7 +194,7 @@ void vtkExtractExodusGlobalTemporalVariables::GetContinuationState(
   offset = internals.Offset;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExtractExodusGlobalTemporalVariables::SetContinuationState(
   bool continue_executing_flag, size_t offset)
 {
@@ -203,7 +203,7 @@ void vtkExtractExodusGlobalTemporalVariables::SetContinuationState(
   internals.Offset = offset;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExtractExodusGlobalTemporalVariables::FillInputPortInformation(
   int vtkNotUsed(port), vtkInformation* info)
 {
@@ -212,7 +212,7 @@ int vtkExtractExodusGlobalTemporalVariables::FillInputPortInformation(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExtractExodusGlobalTemporalVariables::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -241,7 +241,7 @@ int vtkExtractExodusGlobalTemporalVariables::RequestInformation(vtkInformation* 
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExtractExodusGlobalTemporalVariables::RequestUpdateExtent(vtkInformation*,
   vtkInformationVector** inputVector, vtkInformationVector* vtkNotUsed(outputVector))
 {
@@ -253,7 +253,7 @@ int vtkExtractExodusGlobalTemporalVariables::RequestUpdateExtent(vtkInformation*
   // restarts. In case of restarts, have to start from the first timestep since
   // it's unclear how to know which set of timesteps are provided by the current
   // dataset.
-  if (internals.InContinueExecuting && internals.TimeSteps.size() > 0 &&
+  if (internals.InContinueExecuting && !internals.TimeSteps.empty() &&
     internals.Offset < internals.TimeSteps.size())
   {
     const double timeReq = internals.TimeSteps[internals.Offset];
@@ -269,7 +269,7 @@ int vtkExtractExodusGlobalTemporalVariables::RequestUpdateExtent(vtkInformation*
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExtractExodusGlobalTemporalVariables::RequestData(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -277,7 +277,7 @@ int vtkExtractExodusGlobalTemporalVariables::RequestData(
 
   auto& internals = (*this->Internals);
   internals.InContinueExecuting = false;
-  if (internals.TimeSteps.size() == 0)
+  if (internals.TimeSteps.empty())
   {
     // nothing to do when data is not temporal.
     vtkLogF(TRACE, "rd: no ts, nothing to do");
@@ -353,7 +353,7 @@ int vtkExtractExodusGlobalTemporalVariables::RequestData(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExtractExodusGlobalTemporalVariables::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

@@ -30,17 +30,17 @@
 #include "vtkTestingInteractor.h"
 #include "vtkTextProperty.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class GL2PSMathTextOutputTest : public vtkContextItem
 {
 public:
   static GL2PSMathTextOutputTest* New();
   vtkTypeMacro(GL2PSMathTextOutputTest, vtkContextItem);
   // Paint event for the chart, called whenever the chart needs to be drawn
-  virtual bool Paint(vtkContext2D* painter) override;
+  bool Paint(vtkContext2D* painter) override;
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestGL2PSMathTextOutput(int, char*[])
 {
   // Set up a 2D context view, context test object and add it to the scene

@@ -51,7 +51,8 @@ void parallel_sort(HandleType& values,
                    BinaryCompare binary_compare,
                    vtkm::cont::internal::radix::PSortTag)
 {
-  auto arrayPortal = values.PrepareForInPlace(vtkm::cont::DeviceAdapterTagTBB());
+  vtkm::cont::Token token;
+  auto arrayPortal = values.PrepareForInPlace(vtkm::cont::DeviceAdapterTagTBB(), token);
 
   using IteratorsType = vtkm::cont::ArrayPortalToIterators<decltype(arrayPortal)>;
   IteratorsType iterators(arrayPortal);
@@ -68,8 +69,10 @@ void parallel_sort(vtkm::cont::ArrayHandle<T, StorageT>& values,
 {
   using namespace vtkm::cont::internal::radix;
   auto c = get_std_compare(binary_compare, T{});
+  vtkm::cont::Token token;
+  auto valuesPortal = values.PrepareForInPlace(vtkm::cont::DeviceAdapterTagTBB{}, token);
   parallel_radix_sort(
-    values.GetStorage().GetArray(), static_cast<std::size_t>(values.GetNumberOfValues()), c);
+    valuesPortal.GetIteratorBegin(), static_cast<std::size_t>(values.GetNumberOfValues()), c);
 }
 
 // Value sort -- static switch between quicksort and radix sort
@@ -106,10 +109,11 @@ void parallel_sort_bykey(vtkm::cont::ArrayHandle<T, StorageT>& keys,
     const vtkm::Id size = values.GetNumberOfValues();
 
     {
+      vtkm::cont::Token token;
       auto handle = ArrayHandleIndex(keys.GetNumberOfValues());
-      auto inputPortal = handle.PrepareForInput(DeviceAdapterTagTBB());
+      auto inputPortal = handle.PrepareForInput(DeviceAdapterTagTBB(), token);
       auto outputPortal =
-        indexArray.PrepareForOutput(keys.GetNumberOfValues(), DeviceAdapterTagTBB());
+        indexArray.PrepareForOutput(keys.GetNumberOfValues(), DeviceAdapterTagTBB(), token);
       tbb::CopyPortals(inputPortal, outputPortal, 0, 0, keys.GetNumberOfValues());
     }
 
@@ -118,14 +122,19 @@ void parallel_sort_bykey(vtkm::cont::ArrayHandle<T, StorageT>& keys,
                   vtkm::cont::internal::KeyCompare<T, vtkm::Id, BinaryCompare>(binary_compare),
                   PSortTag());
 
-    tbb::ScatterPortal(values.PrepareForInput(vtkm::cont::DeviceAdapterTagTBB()),
-                       indexArray.PrepareForInput(vtkm::cont::DeviceAdapterTagTBB()),
-                       valuesScattered.PrepareForOutput(size, vtkm::cont::DeviceAdapterTagTBB()));
+    {
+      vtkm::cont::Token token;
+      tbb::ScatterPortal(
+        values.PrepareForInput(vtkm::cont::DeviceAdapterTagTBB(), token),
+        indexArray.PrepareForInput(vtkm::cont::DeviceAdapterTagTBB(), token),
+        valuesScattered.PrepareForOutput(size, vtkm::cont::DeviceAdapterTagTBB(), token));
+    }
 
     {
-      auto inputPortal = valuesScattered.PrepareForInput(DeviceAdapterTagTBB());
+      vtkm::cont::Token token;
+      auto inputPortal = valuesScattered.PrepareForInput(DeviceAdapterTagTBB(), token);
       auto outputPortal =
-        values.PrepareForOutput(valuesScattered.GetNumberOfValues(), DeviceAdapterTagTBB());
+        values.PrepareForOutput(valuesScattered.GetNumberOfValues(), DeviceAdapterTagTBB(), token);
       tbb::CopyPortals(inputPortal, outputPortal, 0, 0, valuesScattered.GetNumberOfValues());
     }
   }
@@ -149,8 +158,11 @@ void parallel_sort_bykey(vtkm::cont::ArrayHandle<T, StorageT>& keys,
 {
   using namespace vtkm::cont::internal::radix;
   auto c = get_std_compare(binary_compare, T{});
-  parallel_radix_sort_key_values(keys.GetStorage().GetArray(),
-                                 values.GetStorage().GetArray(),
+  vtkm::cont::Token token;
+  auto keysPortal = keys.PrepareForInPlace(vtkm::cont::DeviceAdapterTagTBB{}, token);
+  auto valuesPortal = values.PrepareForInPlace(vtkm::cont::DeviceAdapterTagTBB{}, token);
+  parallel_radix_sort_key_values(keysPortal.GetIteratorBegin(),
+                                 valuesPortal.GetIteratorBegin(),
                                  static_cast<std::size_t>(keys.GetNumberOfValues()),
                                  c);
 }
@@ -172,10 +184,11 @@ void parallel_sort_bykey(vtkm::cont::ArrayHandle<T, StorageT>& keys,
   const vtkm::Id size = values.GetNumberOfValues();
 
   {
+    vtkm::cont::Token token;
     auto handle = ArrayHandleIndex(keys.GetNumberOfValues());
-    auto inputPortal = handle.PrepareForInput(DeviceAdapterTagTBB());
+    auto inputPortal = handle.PrepareForInput(DeviceAdapterTagTBB(), token);
     auto outputPortal =
-      indexArray.PrepareForOutput(keys.GetNumberOfValues(), DeviceAdapterTagTBB());
+      indexArray.PrepareForOutput(keys.GetNumberOfValues(), DeviceAdapterTagTBB(), token);
     tbb::CopyPortals(inputPortal, outputPortal, 0, 0, keys.GetNumberOfValues());
   }
 
@@ -191,14 +204,19 @@ void parallel_sort_bykey(vtkm::cont::ArrayHandle<T, StorageT>& keys,
                   vtkm::cont::internal::radix::PSortTag{});
   }
 
-  tbb::ScatterPortal(values.PrepareForInput(vtkm::cont::DeviceAdapterTagTBB()),
-                     indexArray.PrepareForInput(vtkm::cont::DeviceAdapterTagTBB()),
-                     valuesScattered.PrepareForOutput(size, vtkm::cont::DeviceAdapterTagTBB()));
+  {
+    vtkm::cont::Token token;
+    tbb::ScatterPortal(
+      values.PrepareForInput(vtkm::cont::DeviceAdapterTagTBB(), token),
+      indexArray.PrepareForInput(vtkm::cont::DeviceAdapterTagTBB(), token),
+      valuesScattered.PrepareForOutput(size, vtkm::cont::DeviceAdapterTagTBB(), token));
+  }
 
   {
-    auto inputPortal = valuesScattered.PrepareForInput(DeviceAdapterTagTBB());
+    vtkm::cont::Token token;
+    auto inputPortal = valuesScattered.PrepareForInput(DeviceAdapterTagTBB(), token);
     auto outputPortal =
-      values.PrepareForOutput(valuesScattered.GetNumberOfValues(), DeviceAdapterTagTBB());
+      values.PrepareForOutput(valuesScattered.GetNumberOfValues(), DeviceAdapterTagTBB(), token);
     tbb::CopyPortals(inputPortal, outputPortal, 0, 0, valuesScattered.GetNumberOfValues());
   }
 }

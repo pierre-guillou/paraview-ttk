@@ -29,6 +29,7 @@
 #include "vtkPolyData.h"
 #include "vtkShortArray.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStructuredData.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
@@ -38,7 +39,7 @@
 
 vtkStandardNewMacro(vtkSynchronizedTemplates2D);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Construct object with initial scalar range (0,1) and single contour value
 // of 0.0. The ImageRange are set to extract the first k-plane.
@@ -58,7 +59,7 @@ vtkSynchronizedTemplates2D::~vtkSynchronizedTemplates2D()
   this->ContourValues->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Overload standard modified time function. If contour values are modified,
 // then this object is modified as well.
@@ -71,7 +72,7 @@ vtkMTimeType vtkSynchronizedTemplates2D::GetMTime()
   return mTime;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Contouring filter specialized for images
 //
@@ -385,7 +386,7 @@ void vtkContourImage(vtkSynchronizedTemplates2D* self, T* scalars, vtkPoints* ne
   delete[] isect1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Contouring filter specialized for images (or slices from images)
 //
@@ -404,13 +405,13 @@ int vtkSynchronizedTemplates2D::RequestData(vtkInformation* vtkNotUsed(request),
   vtkCellArray* newLines;
   vtkDataArray* inScalars;
   vtkDataArray* newScalars = nullptr;
-  int* ext;
+  int ext[6];
   int dims[3];
   int dataSize, estimatedSize;
 
   vtkDebugMacro(<< "Executing 2D structured contour");
 
-  ext = inInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT());
+  input->GetExtent(ext);
   inScalars = this->GetInputArrayToProcess(0, inputVector);
   if (inScalars == nullptr)
   {
@@ -430,10 +431,7 @@ int vtkSynchronizedTemplates2D::RequestData(vtkInformation* vtkNotUsed(request),
 
   // We have to compute the dimenisons from the update extent because
   // the extent may be larger.
-  dims[0] = ext[1] - ext[0] + 1;
-  dims[1] = ext[3] - ext[2] + 1;
-  dims[2] = ext[5] - ext[4] + 1;
-
+  vtkStructuredData::GetDimensionsFromExtent(ext, dims);
   //
   // Check dimensionality of data and get appropriate form
   //
@@ -499,14 +497,14 @@ int vtkSynchronizedTemplates2D::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkSynchronizedTemplates2D::FillInputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSynchronizedTemplates2D::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

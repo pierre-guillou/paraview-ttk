@@ -61,7 +61,7 @@ static void CreateImplFile(const char* libName, const char* importName, int numD
 
   for (i = 0; i < numFiles; i++)
   {
-    fprintf(fout, "extern \"C\" { PyObject *PyVTKAddFile_%s(PyObject *dict); }\n", files[i]);
+    fprintf(fout, "extern \"C\" { void PyVTKAddFile_%s(PyObject *dict); }\n", files[i]);
   }
 
   fprintf(fout, "\nstatic PyMethodDef Py%s_Methods[] = {\n", libName);
@@ -164,14 +164,14 @@ int main(int argc, char* argv[])
   }
 
   /* read the info from the file */
-  if (fscanf(file, "%s", libName) != 1)
+  if (fscanf(file, "%249s", libName) != 1)
   {
     fprintf(stderr, "Error getting libName\n");
     fclose(file);
     return 1;
   }
   /* read in the classes */
-  while (fscanf(file, "%s", tmpVal) != EOF)
+  while (fscanf(file, "%249s", tmpVal) != EOF)
   {
     if (strcmp(tmpVal, "DEPENDS") == 0)
     {

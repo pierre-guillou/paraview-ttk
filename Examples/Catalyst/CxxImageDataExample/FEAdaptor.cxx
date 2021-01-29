@@ -5,12 +5,13 @@
 #include <vtkCPDataDescription.h>
 #include <vtkCPInputDataDescription.h>
 #include <vtkCPProcessor.h>
-#include <vtkCPPythonScriptPipeline.h>
+#include <vtkCPPythonPipeline.h>
 #include <vtkCellData.h>
 #include <vtkCellType.h>
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
+#include <vtkLogger.h>
 #include <vtkNew.h>
 #include <vtkPointData.h>
 #include <vtkPoints.h>
@@ -49,7 +50,7 @@ void UpdateVTKAttributes(Grid& grid, Attributes& attributes, vtkCPInputDataDescr
       velocity->SetName("velocity");
       velocity->SetNumberOfComponents(3);
       velocity->SetNumberOfTuples(static_cast<vtkIdType>(grid.GetNumberOfLocalPoints()));
-      VTKGrid->GetPointData()->AddArray(velocity.GetPointer());
+      VTKGrid->GetPointData()->AddArray(velocity);
     }
     vtkDoubleArray* velocity =
       vtkDoubleArray::SafeDownCast(VTKGrid->GetPointData()->GetArray("velocity"));
@@ -73,7 +74,7 @@ void UpdateVTKAttributes(Grid& grid, Attributes& attributes, vtkCPInputDataDescr
       vtkNew<vtkFloatArray> pressure;
       pressure->SetName("pressure");
       pressure->SetNumberOfComponents(1);
-      VTKGrid->GetCellData()->AddArray(pressure.GetPointer());
+      VTKGrid->GetCellData()->AddArray(pressure);
     }
     vtkFloatArray* pressure =
       vtkFloatArray::SafeDownCast(VTKGrid->GetCellData()->GetArray("pressure"));
@@ -107,9 +108,14 @@ void Initialize(int numScripts, char* scripts[])
   }
   for (int i = 0; i < numScripts; i++)
   {
-    vtkNew<vtkCPPythonScriptPipeline> pipeline;
-    pipeline->Initialize(scripts[i]);
-    Processor->AddPipeline(pipeline.GetPointer());
+    if (auto pipeline = vtkCPPythonPipeline::CreateAndInitializePipeline(scripts[i]))
+    {
+      Processor->AddPipeline(pipeline);
+    }
+    else
+    {
+      vtkLogF(ERROR, "failed to setup pipeline for '%s'", scripts[i]);
+    }
   }
 }
 
@@ -139,7 +145,7 @@ void CoProcess(
     // is the last time step.
     dataDescription->ForceOutputOn();
   }
-  if (Processor->RequestDataDescription(dataDescription.GetPointer()) != 0)
+  if (Processor->RequestDataDescription(dataDescription) != 0)
   {
     vtkCPInputDataDescription* idd = dataDescription->GetInputDescriptionByName("input");
     BuildVTKDataStructures(grid, attributes, idd);
@@ -152,7 +158,7 @@ void CoProcess(
     }
 
     dataDescription->GetInputDescriptionByName("input")->SetWholeExtent(wholeExtent);
-    Processor->CoProcess(dataDescription.GetPointer());
+    Processor->CoProcess(dataDescription);
   }
 }
 } // end of Catalyst namespace

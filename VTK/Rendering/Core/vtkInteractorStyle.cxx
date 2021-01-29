@@ -36,7 +36,7 @@
 vtkStandardNewMacro(vtkInteractorStyle);
 vtkCxxSetObjectMacro(vtkInteractorStyle, TDxStyle, vtkTDxInteractorStyle);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkInteractorStyle::vtkInteractorStyle()
 {
   this->State = VTKIS_NONE;
@@ -82,7 +82,7 @@ vtkInteractorStyle::vtkInteractorStyle()
   this->TDxStyle = vtkTDxInteractorStyleCamera::New();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkInteractorStyle::~vtkInteractorStyle()
 {
   // Remove observers
@@ -115,7 +115,7 @@ vtkInteractorStyle::~vtkInteractorStyle()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::SetEnabled(int enabling)
 {
   if (!this->Interactor)
@@ -152,7 +152,7 @@ void vtkInteractorStyle::SetEnabled(int enabling)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // NOTE!!! This does not do any reference counting!!!
 // This is to avoid some ugly reference counting loops
 // and the benefit of being able to hold only an entire
@@ -187,18 +187,31 @@ void vtkInteractorStyle::SetInteractor(vtkRenderWindowInteractor* i)
 
     i->AddObserver(vtkCommand::LeftButtonReleaseEvent, this->EventCallbackCommand, this->Priority);
 
+    i->AddObserver(
+      vtkCommand::LeftButtonDoubleClickEvent, this->EventCallbackCommand, this->Priority);
+
     i->AddObserver(vtkCommand::MiddleButtonPressEvent, this->EventCallbackCommand, this->Priority);
 
     i->AddObserver(
       vtkCommand::MiddleButtonReleaseEvent, this->EventCallbackCommand, this->Priority);
 
+    i->AddObserver(
+      vtkCommand::MiddleButtonDoubleClickEvent, this->EventCallbackCommand, this->Priority);
+
     i->AddObserver(vtkCommand::RightButtonPressEvent, this->EventCallbackCommand, this->Priority);
 
     i->AddObserver(vtkCommand::RightButtonReleaseEvent, this->EventCallbackCommand, this->Priority);
 
+    i->AddObserver(
+      vtkCommand::RightButtonDoubleClickEvent, this->EventCallbackCommand, this->Priority);
+
     i->AddObserver(vtkCommand::MouseWheelForwardEvent, this->EventCallbackCommand, this->Priority);
 
     i->AddObserver(vtkCommand::MouseWheelBackwardEvent, this->EventCallbackCommand, this->Priority);
+
+    i->AddObserver(vtkCommand::MouseWheelLeftEvent, this->EventCallbackCommand, this->Priority);
+
+    i->AddObserver(vtkCommand::MouseWheelRightEvent, this->EventCallbackCommand, this->Priority);
 
     i->AddObserver(vtkCommand::ExposeEvent, this->EventCallbackCommand, this->Priority);
 
@@ -247,6 +260,9 @@ void vtkInteractorStyle::SetInteractor(vtkRenderWindowInteractor* i)
 
     i->AddObserver(vtkCommand::Move3DEvent, this->EventCallbackCommand, this->Priority);
     i->AddObserver(vtkCommand::Button3DEvent, this->EventCallbackCommand, this->Priority);
+
+    i->AddObserver(vtkCommand::DropFilesEvent, this->EventCallbackCommand, this->Priority);
+    i->AddObserver(vtkCommand::UpdateDropLocationEvent, this->EventCallbackCommand, this->Priority);
   }
 
   this->EventForwarder->SetTarget(this->Interactor);
@@ -262,13 +278,13 @@ void vtkInteractorStyle::SetInteractor(vtkRenderWindowInteractor* i)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::FindPokedRenderer(int x, int y)
 {
   this->SetCurrentRenderer(this->Interactor->FindPokedRenderer(x, y));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::HighlightProp(vtkProp* prop)
 {
   this->CurrentProp = prop;
@@ -298,7 +314,7 @@ void vtkInteractorStyle::HighlightProp(vtkProp* prop)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // When pick action successfully selects a vtkProp3Dactor, this method
 // highlights the vtkProp3D appropriately. Currently this is done by placing a
 // bounding box around the vtkProp3D.
@@ -350,7 +366,7 @@ void vtkInteractorStyle::HighlightProp3D(vtkProp3D* prop3D)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::HighlightActor2D(vtkActor2D* actor2D)
 {
   // If nothing has changed, just return
@@ -394,9 +410,9 @@ void vtkInteractorStyle::HighlightActor2D(vtkActor2D* actor2D)
   this->PickedActor2D = actor2D;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Implementation of motion state control methods
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartState(int newstate)
 {
   this->State = newstate;
@@ -420,7 +436,7 @@ void vtkInteractorStyle::StartState(int newstate)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StopState()
 {
   this->State = VTKIS_NONE;
@@ -444,7 +460,7 @@ void vtkInteractorStyle::StopState()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // JCP animation control
 void vtkInteractorStyle::StartAnimate()
 {
@@ -461,7 +477,7 @@ void vtkInteractorStyle::StartAnimate()
   rwi->Render();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StopAnimate()
 {
   vtkRenderWindowInteractor* rwi = this->Interactor;
@@ -477,7 +493,7 @@ void vtkInteractorStyle::StopAnimate()
 }
 
 // JCP Animation control
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartRotate()
 {
   if (this->State != VTKIS_NONE)
@@ -487,7 +503,7 @@ void vtkInteractorStyle::StartRotate()
   this->StartState(VTKIS_ROTATE);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndRotate()
 {
   if (this->State != VTKIS_ROTATE)
@@ -497,7 +513,7 @@ void vtkInteractorStyle::EndRotate()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartZoom()
 {
   if (this->State != VTKIS_NONE)
@@ -507,7 +523,7 @@ void vtkInteractorStyle::StartZoom()
   this->StartState(VTKIS_ZOOM);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndZoom()
 {
   if (this->State != VTKIS_ZOOM)
@@ -517,7 +533,7 @@ void vtkInteractorStyle::EndZoom()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartPan()
 {
   if (this->State != VTKIS_NONE)
@@ -527,7 +543,7 @@ void vtkInteractorStyle::StartPan()
   this->StartState(VTKIS_PAN);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndPan()
 {
   if (this->State != VTKIS_PAN)
@@ -537,7 +553,7 @@ void vtkInteractorStyle::EndPan()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartSpin()
 {
   if (this->State != VTKIS_NONE)
@@ -547,7 +563,7 @@ void vtkInteractorStyle::StartSpin()
   this->StartState(VTKIS_SPIN);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndSpin()
 {
   if (this->State != VTKIS_SPIN)
@@ -557,7 +573,7 @@ void vtkInteractorStyle::EndSpin()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartDolly()
 {
   if (this->State != VTKIS_NONE)
@@ -567,7 +583,7 @@ void vtkInteractorStyle::StartDolly()
   this->StartState(VTKIS_DOLLY);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndDolly()
 {
   if (this->State != VTKIS_DOLLY)
@@ -577,7 +593,7 @@ void vtkInteractorStyle::EndDolly()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartUniformScale()
 {
   if (this->State != VTKIS_NONE)
@@ -587,7 +603,7 @@ void vtkInteractorStyle::StartUniformScale()
   this->StartState(VTKIS_USCALE);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndUniformScale()
 {
   if (this->State != VTKIS_USCALE)
@@ -597,7 +613,7 @@ void vtkInteractorStyle::EndUniformScale()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartTimer()
 {
   if (this->State != VTKIS_NONE)
@@ -607,7 +623,7 @@ void vtkInteractorStyle::StartTimer()
   this->StartState(VTKIS_TIMER);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndTimer()
 {
   if (this->State != VTKIS_TIMER)
@@ -617,7 +633,7 @@ void vtkInteractorStyle::EndTimer()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartTwoPointer()
 {
   if (this->State != VTKIS_NONE)
@@ -627,7 +643,7 @@ void vtkInteractorStyle::StartTwoPointer()
   this->StartState(VTKIS_TWO_POINTER);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndTwoPointer()
 {
   if (this->State != VTKIS_TWO_POINTER)
@@ -637,7 +653,7 @@ void vtkInteractorStyle::EndTwoPointer()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::StartGesture()
 {
   if (this->State != VTKIS_NONE)
@@ -647,7 +663,7 @@ void vtkInteractorStyle::StartGesture()
   this->StartState(VTKIS_GESTURE);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::EndGesture()
 {
   if (this->State != VTKIS_GESTURE)
@@ -657,10 +673,30 @@ void vtkInteractorStyle::EndGesture()
   this->StopState();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void vtkInteractorStyle::StartEnvRotate()
+{
+  if (this->State != VTKIS_NONE)
+  {
+    return;
+  }
+  this->StartState(VTKIS_ENV_ROTATE);
+}
+
+//------------------------------------------------------------------------------
+void vtkInteractorStyle::EndEnvRotate()
+{
+  if (this->State != VTKIS_ENV_ROTATE)
+  {
+    return;
+  }
+  this->StopState();
+}
+
+//------------------------------------------------------------------------------
 // By overriding the Rotate, Rotate members we can
 // use this timer routine for Joystick or Trackball - quite tidy
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::OnTimer()
 {
   vtkRenderWindowInteractor* rwi = this->Interactor;
@@ -706,6 +742,10 @@ void vtkInteractorStyle::OnTimer()
       this->UniformScale();
       break;
 
+    case VTKIS_ENV_ROTATE:
+      this->EnvironmentRotate();
+      break;
+
     case VTKIS_TIMER:
       rwi->Render();
       break;
@@ -715,7 +755,7 @@ void vtkInteractorStyle::OnTimer()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::OnChar()
 {
   vtkRenderWindowInteractor* rwi = this->Interactor;
@@ -893,7 +933,7 @@ void vtkInteractorStyle::OnChar()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -943,7 +983,7 @@ void vtkInteractorStyle::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::DelegateTDxEvent(unsigned long event, void* calldata)
 {
   if (this->TDxStyle != nullptr)
@@ -952,7 +992,7 @@ void vtkInteractorStyle::DelegateTDxEvent(unsigned long event, void* calldata)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyle::ProcessEvents(
   vtkObject* vtkNotUsed(object), unsigned long event, void* clientdata, void* calldata)
 {
@@ -1099,6 +1139,39 @@ void vtkInteractorStyle::ProcessEvents(
       }
       break;
 
+    case vtkCommand::LeftButtonDoubleClickEvent:
+      if (self->HandleObservers && self->HasObserver(vtkCommand::LeftButtonDoubleClickEvent))
+      {
+        self->InvokeEvent(vtkCommand::vtkCommand::LeftButtonDoubleClickEvent, nullptr);
+      }
+      else
+      {
+        self->OnLeftButtonDoubleClick();
+      }
+      break;
+
+    case vtkCommand::MiddleButtonDoubleClickEvent:
+      if (self->HandleObservers && self->HasObserver(vtkCommand::MiddleButtonDoubleClickEvent))
+      {
+        self->InvokeEvent(vtkCommand::vtkCommand::MiddleButtonDoubleClickEvent, nullptr);
+      }
+      else
+      {
+        self->OnMiddleButtonDoubleClick();
+      }
+      break;
+
+    case vtkCommand::RightButtonDoubleClickEvent:
+      if (self->HandleObservers && self->HasObserver(vtkCommand::RightButtonDoubleClickEvent))
+      {
+        self->InvokeEvent(vtkCommand::vtkCommand::RightButtonDoubleClickEvent, nullptr);
+      }
+      else
+      {
+        self->OnRightButtonDoubleClick();
+      }
+      break;
+
     case vtkCommand::MouseWheelForwardEvent:
       if (self->HandleObservers && self->HasObserver(vtkCommand::MouseWheelForwardEvent))
       {
@@ -1118,6 +1191,28 @@ void vtkInteractorStyle::ProcessEvents(
       else
       {
         self->OnMouseWheelBackward();
+      }
+      break;
+
+    case vtkCommand::MouseWheelLeftEvent:
+      if (self->HandleObservers && self->HasObserver(vtkCommand::MouseWheelLeftEvent))
+      {
+        self->InvokeEvent(vtkCommand::MouseWheelLeftEvent, nullptr);
+      }
+      else
+      {
+        self->OnMouseWheelLeft();
+      }
+      break;
+
+    case vtkCommand::MouseWheelRightEvent:
+      if (self->HandleObservers && self->HasObserver(vtkCommand::MouseWheelRightEvent))
+      {
+        self->InvokeEvent(vtkCommand::MouseWheelRightEvent, nullptr);
+      }
+      else
+      {
+        self->OnMouseWheelRight();
       }
       break;
 
@@ -1375,6 +1470,28 @@ void vtkInteractorStyle::ProcessEvents(
       if (!aborted)
       {
         self->OnButton3D(static_cast<vtkEventData*>(calldata));
+      }
+      break;
+
+    case vtkCommand::DropFilesEvent:
+      if (self->HandleObservers && self->HasObserver(vtkCommand::DropFilesEvent))
+      {
+        aborted = (self->InvokeEvent(vtkCommand::DropFilesEvent, calldata) == 1);
+      }
+      if (!aborted)
+      {
+        self->OnDropFiles(static_cast<vtkStringArray*>(calldata));
+      }
+      break;
+
+    case vtkCommand::UpdateDropLocationEvent:
+      if (self->HandleObservers && self->HasObserver(vtkCommand::UpdateDropLocationEvent))
+      {
+        aborted = (self->InvokeEvent(vtkCommand::UpdateDropLocationEvent, calldata) == 1);
+      }
+      if (!aborted)
+      {
+        self->OnDropLocation(static_cast<double*>(calldata));
       }
       break;
   }

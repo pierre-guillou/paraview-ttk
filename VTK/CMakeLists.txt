@@ -1,19 +1,4 @@
-cmake_minimum_required(VERSION 3.8...3.12 FATAL_ERROR)
-foreach(policy
-    CMP0083 # CMake 3.14
-    CMP0071 # CMake 3.10
-    )
-  if(POLICY ${policy})
-    cmake_policy(SET ${policy} NEW)
-  endif()
-endforeach()
-
-if (POLICY CMP0063)
-  cmake_policy(SET CMP0063 NEW)
-endif ()
-if (POLICY CMP0065)
-  cmake_policy(SET CMP0065 NEW)
-endif ()
+cmake_minimum_required(VERSION 3.12...3.16 FATAL_ERROR)
 
 project(VTK)
 
@@ -25,9 +10,12 @@ if (APPLE)
 endif ()
 
 # must be before the following iOS / Android
+find_package(Git QUIET)
+include(VTKDetermineVersion)
 include(vtkVersion)
 set(VTK_VERSION
     "${VTK_MAJOR_VERSION}.${VTK_MINOR_VERSION}.${VTK_BUILD_VERSION}")
+determine_version("${CMAKE_CURRENT_SOURCE_DIR}" "${GIT_EXECUTABLE}" "VTK")
 
 option(VTK_IOS_BUILD "Build vtk.framework for iOS" OFF)
 mark_as_advanced(VTK_IOS_BUILD)
@@ -43,6 +31,14 @@ if (VTK_ANDROID_BUILD)
   return()
 endif()
 
+include(vtkCMakeBackports)
+
+if (VTK_WHEEL_BUILD)
+  include(vtkWheelPreparation)
+endif ()
+
+include(GNUInstallDirs)
+
 include(vtkCompilerChecks)
 include(vtkCompilerPlatformFlags)
 include(vtkCompilerExtraFlags)
@@ -50,12 +46,18 @@ include(vtkInitializeBuildType)
 include(vtkSupportMacros)
 include(vtkDownload)
 include(vtkTesting)
-include(vtkDirectories)
 include(vtkMobileDevices)
-include(vtkCrossCompiling)
 include(vtkWrapSettings)
+include(vtkCrossCompiling)
 include(vtkObjectFactory)
-include(vtkCMakeBackports)
+
+set(CMAKE_INSTALL_LICENSEDIR ""
+  CACHE PATH "License files (DATAROOTDIR/licenses/${CMAKE_PROJECT_NAME}")
+mark_as_advanced(CMAKE_INSTALL_LICENSEDIR)
+if (NOT CMAKE_INSTALL_LICENSEDIR)
+  set(CMAKE_INSTALL_LICENSEDIR
+    "${CMAKE_INSTALL_DATAROOTDIR}/licenses/${CMAKE_PROJECT_NAME}")
+endif ()
 
 # Setup compiler flags for dynamic analysis
 # Should be included after vtkTesting
@@ -76,8 +78,7 @@ include(CheckCXXSourceRuns)
 file(READ "${vtk_cmake_dir}/vtkRequireLargeFilesSupport.cxx"
   VTK_REQUIRE_LARGE_FILE_SUPPORT_FILE)
 check_cxx_source_runs("${VTK_REQUIRE_LARGE_FILE_SUPPORT_FILE}"
-  CMAKE_REQUIRE_LARGE_FILE_SUPPORT "Support for 64 bit file systems")
-set(VTK_REQUIRE_LARGE_FILE_SUPPORT ${CMAKE_REQUIRE_LARGE_FILE_SUPPORT})
+  VTK_REQUIRE_LARGE_FILE_SUPPORT)
 
 #-----------------------------------------------------------------------------
 # Provide compatibility options.
@@ -92,7 +93,11 @@ include(CheckTypeSize)
 
 option(VTK_USE_MPI "Support MPI" OFF)
 
-set(VTK_BUILD_TESTING "WANT"
+option(VTK_SERIAL_TESTS_USE_MPIEXEC "Used on HPC to run serial tests on compute nodes" OFF)
+mark_as_advanced(VTK_SERIAL_TESTS_USE_MPIEXEC)
+
+
+set(VTK_BUILD_TESTING "OFF"
   CACHE STRING "Build module testing directories")
 set_property(CACHE VTK_BUILD_TESTING
   PROPERTY
@@ -101,6 +106,12 @@ set(BUILD_TESTING OFF)
 if (VTK_BUILD_TESTING)
   set(BUILD_TESTING ON)
 endif ()
+
+#-----------------------------------------------------------------------------
+# Add an option to enable memkind
+if (UNIX AND NOT APPLE)
+  option(VTK_USE_MEMKIND "Build support for extended memory" OFF)
+endif()
 
 #-----------------------------------------------------------------------------
 # Add an option to enable/disable components that have CUDA.
@@ -129,7 +140,6 @@ set(vtk_rejected_modules)
 if (VTK_WRAP_PYTHON)
   list(APPEND vtk_requested_modules
     VTK::WrappingPythonCore
-    VTK::WrappingTools
     VTK::PythonInterpreter)
 else ()
   list(APPEND vtk_rejected_modules
@@ -137,8 +147,7 @@ else ()
 endif ()
 if (VTK_WRAP_JAVA)
   list(APPEND vtk_requested_modules
-    VTK::Java
-    VTK::WrappingTools)
+    VTK::Java)
 else ()
   list(APPEND vtk_rejected_modules
     VTK::Java)
@@ -170,9 +179,13 @@ endif ()
 list(APPEND vtk_requested_modules
   # Required for just about everything.
   VTK::CommonCore
-  VTK::CommonDataModel
-  # Required for wrapping with hierarchy files.
-  VTK::WrappingTools)
+  VTK::CommonDataModel)
+
+if (VTK_ENABLE_WRAPPING)
+  list(APPEND vtk_requested_modules
+    # Required for wrapping with hierarchy files.
+    VTK::WrappingTools)
+endif ()
 
 if (vtk_requested_modules)
   list(REMOVE_DUPLICATES vtk_requested_modules)
@@ -187,6 +200,9 @@ set_property(GLOBAL
 
 option(VTK_BUILD_ALL_MODULES "Build all modules by default" OFF)
 mark_as_advanced(VTK_BUILD_ALL_MODULES)
+
+option(VTK_TARGET_SPECIFIC_COMPONENTS "Install files in target-specific components" OFF)
+mark_as_advanced(VTK_TARGET_SPECIFIC_COMPONENTS)
 
 # Turn on these groups by default.
 set(_vtk_module_group_default_StandAlone "WANT")
@@ -213,7 +229,6 @@ set(vtk_source_directories
   "${CMAKE_CURRENT_SOURCE_DIR}/Interaction"
   "${CMAKE_CURRENT_SOURCE_DIR}/IO"
   "${CMAKE_CURRENT_SOURCE_DIR}/Parallel"
-  "${CMAKE_CURRENT_SOURCE_DIR}/Remote"
   "${CMAKE_CURRENT_SOURCE_DIR}/Rendering"
   "${CMAKE_CURRENT_SOURCE_DIR}/Testing"
   "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty"
@@ -221,6 +236,18 @@ set(vtk_source_directories
   "${CMAKE_CURRENT_SOURCE_DIR}/Views"
   "${CMAKE_CURRENT_SOURCE_DIR}/Web"
   "${CMAKE_CURRENT_SOURCE_DIR}/Wrapping")
+
+set(remote_default ON)
+if (VTK_WHEEL_BUILD)
+  set(remote_default OFF)
+endif ()
+option(VTK_ENABLE_REMOTE_MODULES "Enable remote modules" ON)
+mark_as_advanced(VTK_ENABLE_REMOTE_MODULES)
+if (VTK_ENABLE_REMOTE_MODULES)
+  list(APPEND vtk_source_directories
+    "${CMAKE_CURRENT_SOURCE_DIR}/Remote")
+endif ()
+
 vtk_module_find_modules(vtk_module_files ${vtk_source_directories})
 vtk_module_find_kits(vtk_kit_files ${vtk_source_directories})
 
@@ -279,14 +306,16 @@ if (VTK_VERSIONED_INSTALL)
 endif ()
 
 set(vtk_install_export VTK)
-set(vtk_cmake_destination
-  "${CMAKE_INSTALL_LIBDIR}/cmake/vtk${vtk_version_suffix}")
-set(vtk_target_package)
-if (VTK_BUILD_COMPILE_TOOLS_ONLY)
-  set(vtk_install_export VTKCompileTools)
+if (NOT DEFINED vtk_cmake_destination)
   set(vtk_cmake_destination
-    "${CMAKE_INSTALL_LIBDIR}/cmake/vtkcompiletools${vtk_version_suffix}")
-  set(vtk_target_package PACKAGE "${vtk_install_export}")
+    "${CMAKE_INSTALL_LIBDIR}/cmake/vtk${vtk_version_suffix}")
+  set(vtk_target_package)
+  if (VTK_BUILD_COMPILE_TOOLS_ONLY)
+    set(vtk_install_export VTKCompileTools)
+    set(vtk_cmake_destination
+      "${CMAKE_INSTALL_LIBDIR}/cmake/vtkcompiletools${vtk_version_suffix}")
+    set(vtk_target_package PACKAGE "${vtk_install_export}")
+  endif ()
 endif ()
 
 set(VTK_CUSTOM_LIBRARY_SUFFIX "<DEFAULT>"
@@ -306,7 +335,9 @@ vtk_module_build(
   INSTALL_EXPORT      "${vtk_install_export}"
   ${vtk_target_package}
   HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/vtk${vtk_version_suffix}"
+  ${vtk_hierarchy_destination_args}
   CMAKE_DESTINATION   "${vtk_cmake_destination}"
+  LICENSE_DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   LIBRARY_NAME_SUFFIX "${VTK_CUSTOM_LIBRARY_SUFFIX}"
   VERSION             "${VTK_VERSION}"
   SOVERSION           "1"
@@ -314,6 +345,8 @@ vtk_module_build(
   INSTALL_HEADERS     "${VTK_INSTALL_SDK}"
   BUILD_WITH_KITS     "${VTK_ENABLE_KITS}"
   USE_EXTERNAL        "${VTK_USE_EXTERNAL}"
+  ENABLE_WRAPPING     "${VTK_ENABLE_WRAPPING}"
+  TARGET_SPECIFIC_COMPONENTS  "${VTK_TARGET_SPECIFIC_COMPONENTS}"
   TEST_INPUT_DATA_DIRECTORY   "${CMAKE_CURRENT_SOURCE_DIR}/Testing"
   TEST_OUTPUT_DATA_DIRECTORY  "${CMAKE_CURRENT_BINARY_DIR}/ExternalData/Testing")
 include(vtkModuleJson)
@@ -336,6 +369,8 @@ if (VTK_WRAP_PYTHON)
   string(REPLACE ";" "\n" vtk_required_python_modules "${vtk_required_python_modules}")
   file(WRITE "${CMAKE_BINARY_DIR}/requirements.txt"
     "${vtk_required_python_modules}\n")
+  get_property(vtk_soabi GLOBAL
+    PROPERTY  _vtk_python_soabi)
   vtk_module_wrap_python(
     MODULES         ${vtk_modules}
     INSTALL_EXPORT  VTKPython
@@ -344,7 +379,9 @@ if (VTK_WRAP_PYTHON)
     MODULE_DESTINATION  "${VTK_PYTHON_SITE_PACKAGES_SUFFIX}"
     CMAKE_DESTINATION   "${vtk_cmake_destination}"
     INSTALL_HEADERS     "${VTK_INSTALL_SDK}"
+    SOABI               "${vtk_soabi}"
     WRAPPED_MODULES vtk_python_wrapped_modules
+    TARGET_SPECIFIC_COMPONENTS "${VTK_TARGET_SPECIFIC_COMPONENTS}"
     TARGET          VTK::vtkpythonmodules)
 
   add_subdirectory(Wrapping/Python)
@@ -362,6 +399,8 @@ if (VTK_WRAP_PYTHON)
 endif ()
 
 if (VTK_WRAP_JAVA)
+  enable_language(Java)
+
   add_subdirectory(Wrapping/Java)
 endif ()
 
@@ -432,10 +471,14 @@ endif ()
 
 install(
   FILES       "${CMAKE_CURRENT_LIST_DIR}/Copyright.txt"
-  DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+  DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   COMPONENT   "license")
 
 # TODO: HeaderTest exclusions for memcheck.
+
+if (VTK_WHEEL_BUILD)
+  include(vtkWheelFinalization)
+endif ()
 
 #-----------------------------------------------------------------------------
 # Do this at the end so the all variables it uses are setup.

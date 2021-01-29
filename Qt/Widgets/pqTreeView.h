@@ -93,6 +93,13 @@ public:
   void setMaximumRowCountBeforeScrolling(int val) { this->MaximumRowCountBeforeScrolling = val; }
   int maximumRowCountBeforeScrolling() const { return this->MaximumRowCountBeforeScrolling; }
 
+  /**
+   * Helper method to change the header type after construction. This is useful
+   * when pqTreeView is created using a UI file since the optional argument to
+   * the constructor cannot be passed easily in that case.
+   */
+  void setupCustomHeader(bool use_pqHeaderView = false);
+
 protected:
   //@{
   /**
@@ -115,7 +122,7 @@ protected:
   bool edit(const QModelIndex& index, EditTrigger trigger, QEvent* event) override;
   //@}
 
-private slots:
+private Q_SLOTS:
   void invalidateLayout();
 
 private:

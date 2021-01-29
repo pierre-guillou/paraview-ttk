@@ -14,6 +14,8 @@
 =========================================================================*/
 #include "vtkPlane.h"
 
+#include <vtkPoints.h>
+
 #include "vtkArrayDispatch.h"
 #include "vtkDataArrayRange.h"
 #include "vtkMath.h"
@@ -24,7 +26,7 @@
 
 vtkStandardNewMacro(vtkPlane);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Construct plane passing through origin and normal to z-axis.
 vtkPlane::vtkPlane()
 {
@@ -37,13 +39,13 @@ vtkPlane::vtkPlane()
   this->Origin[2] = 0.0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkPlane::DistanceToPlane(double x[3])
 {
   return this->DistanceToPlane(x, this->GetNormal(), this->GetOrigin());
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlane::ProjectPoint(
   const double x[3], const double origin[3], const double normal[3], double xproj[3])
 {
@@ -60,13 +62,13 @@ void vtkPlane::ProjectPoint(
   xproj[2] = x[2] - t * normal[2];
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlane::ProjectPoint(const double x[3], double xproj[3])
 {
   this->ProjectPoint(x, this->GetOrigin(), this->GetNormal(), xproj);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlane::ProjectVector(
   const double v[3], const double vtkNotUsed(origin)[3], const double normal[3], double vproj[3])
 {
@@ -81,13 +83,13 @@ void vtkPlane::ProjectVector(
   vproj[2] = v[2] - t * normal[2] / n2;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlane::ProjectVector(const double v[3], double vproj[3])
 {
   this->ProjectVector(v, this->GetOrigin(), this->GetNormal(), vproj);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlane::Push(double distance)
 {
   int i;
@@ -103,7 +105,7 @@ void vtkPlane::Push(double distance)
   this->Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Project a point x onto plane defined by origin and normal. The
 // projected point is returned in xproj. NOTE : normal NOT required to
 // have magnitude 1.
@@ -133,13 +135,13 @@ void vtkPlane::GeneralizedProjectPoint(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlane::GeneralizedProjectPoint(const double x[3], double xproj[3])
 {
   this->GeneralizedProjectPoint(x, this->GetOrigin(), this->GetNormal(), xproj);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Evaluate plane equation for point x[3].
 double vtkPlane::EvaluateFunction(double x[3])
 {
@@ -147,7 +149,7 @@ double vtkPlane::EvaluateFunction(double x[3])
     this->Normal[2] * (x[2] - this->Origin[2]));
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Evaluate function gradient at point x[3].
 void vtkPlane::EvaluateGradient(double vtkNotUsed(x)[3], double n[3])
 {
@@ -159,7 +161,7 @@ void vtkPlane::EvaluateGradient(double vtkNotUsed(x)[3], double n[3])
 
 #define VTK_PLANE_TOL 1.0e-06
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Given a line defined by the two points p1,p2; and a plane defined by the
 // normal n and point p0, compute an intersection. The parametric
 // coordinate along the line is returned in t, and the coordinates of
@@ -285,7 +287,7 @@ struct CutFunctionWorker
 };
 } // end anon namespace
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlane::EvaluateFunction(vtkDataArray* input, vtkDataArray* output)
 {
   CutFunctionWorker worker(this->Normal, this->Origin);
@@ -298,13 +300,13 @@ void vtkPlane::EvaluateFunction(vtkDataArray* input, vtkDataArray* output)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPlane::IntersectWithLine(const double p1[3], const double p2[3], double& t, double x[3])
 {
   return this->IntersectWithLine(p1, p2, this->GetNormal(), this->GetOrigin(), t, x);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPlane::IntersectWithFinitePlane(double n[3], double o[3], double pOrigin[3], double px[3],
   double py[3], double x0[3], double x1[3])
 {
@@ -344,9 +346,9 @@ int vtkPlane::IntersectWithFinitePlane(double n[3], double o[3], double pOrigin[
   }
 
   // Third line
-  xr0[0] = pOrigin[0] + px[0] + py[0];
-  xr0[1] = pOrigin[1] + px[1] + py[1];
-  xr0[2] = pOrigin[2] + px[2] + py[2];
+  xr0[0] = px[0] + py[0] - pOrigin[0];
+  xr0[1] = px[1] + py[1] - pOrigin[1];
+  xr0[2] = px[2] + py[2] - pOrigin[2];
   if (vtkPlane::IntersectWithLine(xr0, xr1, n, o, t, x))
   {
     numInts++;
@@ -374,7 +376,120 @@ int vtkPlane::IntersectWithFinitePlane(double n[3], double o[3], double pOrigin[
   return 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool vtkPlane::ComputeBestFittingPlane(vtkPoints* pts, double* origin, double* normal)
+{
+  //
+  // Note:
+  // For details see https://www.ilikebigbits.com/2017_09_25_plane_from_points_2.html
+  //
+
+  origin[0] = 0;
+  origin[1] = 0;
+  origin[2] = 0;
+
+  normal[0] = 0;
+  normal[1] = 0;
+  normal[2] = 1; // default normal direction
+
+  vtkIdType npts = pts->GetNumberOfPoints();
+  if (npts < 3)
+  {
+    return false;
+  }
+
+  // 1. Calculate the centroid of the points; this will become origin
+  double sum[3] = { 0, 0, 0 };
+  for (vtkIdType i = 0; i < npts; i++)
+  {
+    vtkMath::Add(sum, pts->GetPoint(i), sum);
+  }
+
+  vtkMath::Add(origin, sum, origin);
+  vtkMath::MultiplyScalar(origin, 1.0 / npts);
+
+  // 2. Calculate the covariance matrix of the points relative to the centroid
+  double xx = 0;
+  double xy = 0;
+  double xz = 0;
+  double yy = 0;
+  double yz = 0;
+  double zz = 0;
+
+  double r[3];
+  for (vtkIdType i = 0; i < npts; i++)
+  {
+    vtkMath::Subtract(pts->GetPoint(i), origin, r);
+    xx += r[0] * r[0];
+    xy += r[0] * r[1];
+    xz += r[0] * r[2];
+    yy += r[1] * r[1];
+    yz += r[1] * r[2];
+    zz += r[2] * r[2];
+  }
+
+  xx /= npts;
+  xy /= npts;
+  xz /= npts;
+  yy /= npts;
+  yz /= npts;
+  zz /= npts;
+
+  // 3. Do linear regression along the X, Y and Z axis
+  // 4. Weight he result of the linear regressions based on the square of the determinant
+  double weighted_dir[3] = { 0, 0, 0 };
+  {
+    double det_x = yy * zz - yz * yz;
+    double axis_dir[3] = { det_x, xz * yz - xy * zz, xy * yz - xz * yy };
+    double weight = det_x * det_x;
+    if (vtkMath::Dot(weighted_dir, axis_dir) < 0.0)
+    {
+      weight = -weight;
+    }
+    vtkMath::MultiplyScalar(axis_dir, weight);
+    vtkMath::Add(weighted_dir, axis_dir, weighted_dir);
+  }
+  {
+    double det_y = xx * zz - xz * xz;
+    double axis_dir[3] = { xz * yz - xy * zz, det_y, xy * xz - yz * xx };
+    double weight = det_y * det_y;
+    if (vtkMath::Dot(weighted_dir, axis_dir) < 0.0)
+    {
+      weight = -weight;
+    }
+    vtkMath::MultiplyScalar(axis_dir, weight);
+    vtkMath::Add(weighted_dir, axis_dir, weighted_dir);
+  }
+  {
+    double det_z = xx * yy - xy * xy;
+    double axis_dir[3] = { xy * yz - xz * yy, xy * xz - yz * xx, det_z };
+    double weight = det_z * det_z;
+    if (vtkMath::Dot(weighted_dir, axis_dir) < 0.0)
+    {
+      weight = -weight;
+    }
+    vtkMath::MultiplyScalar(axis_dir, weight);
+    vtkMath::Add(weighted_dir, axis_dir, weighted_dir);
+  }
+
+  // normalize the weighted direction
+  double nrm = vtkMath::Normalize(weighted_dir);
+
+  // if weighted_dir is faulty then exit here without altering the default normal direction
+  if (!vtkMath::IsFinite(nrm) || (nrm == 0))
+  {
+    return false;
+  }
+
+  // use weighted direction as normal vector
+  normal[0] = weighted_dir[0];
+  normal[1] = weighted_dir[1];
+  normal[2] = weighted_dir[2];
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 int vtkPlane::IntersectWithFinitePlane(
   double pOrigin[3], double px[3], double py[3], double x0[3], double x1[3])
 {
@@ -382,7 +497,7 @@ int vtkPlane::IntersectWithFinitePlane(
     this->GetNormal(), this->GetOrigin(), pOrigin, px, py, x0, x1);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlane::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

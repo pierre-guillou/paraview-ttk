@@ -14,11 +14,12 @@ PURPOSE.  See the above copyright notice for more information.
 =========================================================================*/
 /**
  * @class   vtkBoundingBox
- * @brief   Fast Simple Class for dealing with 3D bounds
+ * @brief   Fast, simple class for representing and operating on 3D bounds
  *
- * vtkBoundingBox maintains a 3D axis aligned bounding box.  It is very light
- * weight and many of the member functions are in-lined so it is very fast.
- * It is not derived from vtkObject so it can be allocated on the stack
+ * vtkBoundingBox maintains and performs operations on a 3D axis aligned
+ * bounding box. It is very light weight and many of the member functions are
+ * in-lined so it is very fast. It is not derived from vtkObject so it can
+ * be allocated on the stack.
  *
  * @sa
  * vtkBox
@@ -28,6 +29,8 @@ PURPOSE.  See the above copyright notice for more information.
 #define vtkBoundingBox_h
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkSystemIncludes.h"
+
+class vtkPoints;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkBoundingBox
 {
@@ -67,6 +70,30 @@ public:
    */
   void SetBounds(const double bounds[6]);
   void SetBounds(double xMin, double xMax, double yMin, double yMax, double zMin, double zMax);
+  //@}
+
+  //@{
+  /**
+   * Compute the bounding box from an array of vtkPoints. It uses a fast path
+   * when possible. The second signature (with point uses) only considers
+   * points with ptUses[i] != 0 in the bounds calculation. The non-static
+   * ComputeBounds() methods update the current bounds of an instance of this
+   * class.
+   */
+  static void ComputeBounds(vtkPoints* pts, double bounds[6]);
+  static void ComputeBounds(vtkPoints* pts, const unsigned char* ptUses, double bounds[6]);
+  void ComputeBounds(vtkPoints* pts) { this->ComputeBounds(pts, (unsigned char*)nullptr); }
+  void ComputeBounds(vtkPoints* pts, unsigned char* ptUses)
+  {
+    double bds[6];
+    vtkBoundingBox::ComputeBounds(pts, ptUses, bds);
+    this->MinPnt[0] = bds[0];
+    this->MinPnt[1] = bds[2];
+    this->MinPnt[2] = bds[4];
+    this->MaxPnt[0] = bds[1];
+    this->MaxPnt[1] = bds[3];
+    this->MaxPnt[2] = bds[5];
+  }
   //@}
 
   //@{
@@ -118,6 +145,11 @@ public:
   void AddBounds(const double bounds[]);
 
   /**
+   * Returns true if this instance is entirely contained by bbox.
+   */
+  bool IsSubsetOf(const vtkBoundingBox& bbox) const;
+
+  /**
    * Intersect this box with bbox. The method returns 1 if both boxes are
    * valid and they do have overlap else it will return 0.  If 0 is returned
    * the box has not been modified.
@@ -135,6 +167,17 @@ public:
    * Returns false otherwise.
    */
   bool IntersectPlane(double origin[3], double normal[3]);
+
+  /**
+   * Intersect this box with a sphere.
+   * Parameters involve the center of the sphere and the squared radius.
+   */
+  bool IntersectsSphere(double center[3], double squaredRadius) const;
+
+  /**
+   * Returns the inner dimension of the bounding box.
+   */
+  int ComputeInnerDimension() const;
 
   /**
    * Returns 1 if the min and max points of bbox are contained
@@ -194,7 +237,7 @@ public:
   void GetCenter(double center[3]) const;
 
   /**
-   * Get the length of each sode of the box.
+   * Get the length of each side of the box.
    */
   void GetLengths(double lengths[3]) const;
 
@@ -251,16 +294,22 @@ public:
   //@}
 
   /**
-   * Compute the number of divisions in the z-y-z directions given a target
-   * number of total bins (i.e., product of divisions in the x-y-z
-   * directions). The computation is done in such a way as to create near
-   * cuboid bins. Also note that the returned bounds may be different than
-   * the bounds defined in this class, as the bounds in the z-y-z directions
-   * can never be <= 0. Note that the total number of divisions
-   * (divs[0]*divs[1]*divs[2]) should be less than or equal to the target number
-   * of bins, but it may be slightly larger in certain cases.
+   * Compute the number of divisions in the x-y-z directions given a
+   * psoitive, target number of total bins (i.e., product of divisions in the
+   * x-y-z directions). The computation is done in such a way as to create
+   * near cuboid bins. Also note that the returned bounds may be different
+   * than the bounds defined in this class, as the bounds in the x-y-z
+   * directions can never be <= 0. Note that the total number of divisions
+   * (divs[0]*divs[1]*divs[2]) will be less than or equal to the target
+   * number of bins (as long as totalBins>=1).
    */
   vtkIdType ComputeDivisions(vtkIdType totalBins, double bounds[6], int divs[3]) const;
+
+  /**
+   * Clamp the number of divisions to be less than or equal to a target number
+   * of bins, and the divs[i] >= 1.
+   */
+  static void ClampDivisions(vtkIdType targetBins, int divs[3]);
 
   /**
    * Returns the box to its initialized state.
@@ -348,6 +397,15 @@ inline void vtkBoundingBox::GetCenter(double center[3]) const
   center[0] = 0.5 * (this->MaxPnt[0] + this->MinPnt[0]);
   center[1] = 0.5 * (this->MaxPnt[1] + this->MinPnt[1]);
   center[2] = 0.5 * (this->MaxPnt[2] + this->MinPnt[2]);
+}
+
+inline bool vtkBoundingBox::IsSubsetOf(const vtkBoundingBox& bbox) const
+{
+  const double* bboxMaxPnt = bbox.GetMaxPoint();
+  const double* bboxMinPnt = bbox.GetMinPoint();
+  return this->MaxPnt[0] < bboxMaxPnt[0] && this->MinPnt[0] > bboxMinPnt[0] &&
+    this->MaxPnt[1] < bboxMaxPnt[1] && this->MinPnt[1] > bboxMinPnt[1] &&
+    this->MaxPnt[2] < bboxMaxPnt[2] && this->MinPnt[2] > bboxMinPnt[2];
 }
 
 inline void vtkBoundingBox::SetBounds(const double bounds[6])

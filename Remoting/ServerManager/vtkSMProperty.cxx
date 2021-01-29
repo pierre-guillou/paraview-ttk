@@ -27,6 +27,7 @@
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyLink.h"
 #include "vtkSMProxy.h"
+#include "vtkSMProxyProperty.h"
 #include "vtkSmartPointer.h"
 
 #include <sstream>
@@ -132,7 +133,7 @@ int vtkSMProperty::IsInDomains(vtkSMDomain** ptr)
   this->DomainIterator->Begin();
   while (!this->DomainIterator->IsAtEnd())
   {
-    if (!this->DomainIterator->GetDomain()->IsInDomain(this))
+    if (this->DomainIterator->GetDomain()->IsInDomain(this) == vtkSMDomain::NOT_IN_DOMAIN)
     {
       if (ptr)
       {
@@ -573,7 +574,8 @@ void vtkSMProperty::WriteTo(vtkSMMessage* msg)
 bool vtkSMProperty::ResetToDomainDefaults(bool use_unchecked_values)
 {
   if (vtkProcessModule::GetProcessModule() &&
-    vtkProcessModule::GetProcessModule()->GetSymmetricMPIMode())
+    vtkProcessModule::GetProcessModule()->GetSymmetricMPIMode() &&
+    vtkSMProxyProperty::SafeDownCast(this) == nullptr)
   {
     // when using symmetric mpi, we disable domains since they don't always have
     // the most updated information.

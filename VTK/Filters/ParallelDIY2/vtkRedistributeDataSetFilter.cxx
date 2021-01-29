@@ -41,6 +41,13 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
+#include <memory>
+
+// clang-format off
+#include "vtk_diy2.h"
+#include VTK_DIY2(diy/assigner.hpp)
+// clang-format on
+
 namespace
 {
 static const char* CELL_OWNERSHIP_ARRAYNAME = "__RDSF_CELL_OWNERSHIP__";
@@ -49,27 +56,11 @@ static const char* GHOST_CELL_ARRAYNAME = "__RDSF_GHOST_CELLS__";
 
 namespace detail
 {
-vtkBoundingBox GetBounds(vtkDataObject* dobj)
+vtkBoundingBox GetBounds(vtkDataObject* dobj, diy::mpi::communicator& comm)
 {
-  if (auto pds = vtkPartitionedDataSet::SafeDownCast(dobj))
-  {
-    double bds[6];
-    pds->GetBounds(bds);
-    return vtkBoundingBox(bds);
-  }
-  else if (auto mbds = vtkMultiBlockDataSet::SafeDownCast(dobj))
-  {
-    double bds[6];
-    mbds->GetBounds(bds);
-    return vtkBoundingBox(bds);
-  }
-  else if (auto ds = vtkDataSet::SafeDownCast(dobj))
-  {
-    double bds[6];
-    ds->GetBounds(bds);
-    return vtkBoundingBox(bds);
-  }
-  return vtkBoundingBox();
+  auto lbounds = vtkDIYUtilities::GetLocalBounds(dobj);
+  vtkDIYUtilities::AllReduce(comm, lbounds);
+  return lbounds;
 }
 
 /**
@@ -78,7 +69,7 @@ vtkBoundingBox GetBounds(vtkDataObject* dobj)
  * `true`, the for boundary cells, there will be multiple cut-indexes that the
  * cell may belong to. Otherwise, a cell can belong to at most 1 region.
  */
-std::vector<std::vector<int> > GenerateCellRegions(
+std::vector<std::vector<int>> GenerateCellRegions(
   vtkDataSet* dataset, const std::vector<vtkBoundingBox>& cuts, bool duplicate_boundary_cells)
 {
   assert(dataset != nullptr && cuts.size() > 0 && dataset->GetNumberOfCells() > 0);
@@ -86,7 +77,7 @@ std::vector<std::vector<int> > GenerateCellRegions(
   auto ghostCells = vtkUnsignedCharArray::SafeDownCast(
     dataset->GetCellData()->GetArray(vtkDataSetAttributes::GhostArrayName()));
 
-  std::vector<std::vector<int> > cellRegions(dataset->GetNumberOfCells());
+  std::vector<std::vector<int>> cellRegions(dataset->GetNumberOfCells());
 
   // call GetCell/GetCellBounds once to make it thread safe (see vtkDataSet::GetCell).
   vtkNew<vtkGenericCell> acell;
@@ -99,7 +90,7 @@ std::vector<std::vector<int> > GenerateCellRegions(
   {
     // vtkKdNode helps us do fast cell/cut intersections. So convert each cut to a
     // vtkKdNode.
-    std::vector<vtkSmartPointer<vtkKdNode> > kdnodes;
+    std::vector<vtkSmartPointer<vtkKdNode>> kdnodes;
     for (const auto& bbox : cuts)
     {
       auto kdnode = vtkSmartPointer<vtkKdNode>::New();
@@ -203,9 +194,10 @@ vtkSmartPointer<vtkUnstructuredGrid> ClipPlane(vtkDataSet* dataset, vtkSmartPoin
 
 vtkStandardNewMacro(vtkRedistributeDataSetFilter);
 vtkCxxSetObjectMacro(vtkRedistributeDataSetFilter, Controller, vtkMultiProcessController);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkRedistributeDataSetFilter::vtkRedistributeDataSetFilter()
-  : Controller(nullptr)
+  : Assigner(nullptr)
+  , Controller(nullptr)
   , BoundaryMode(vtkRedistributeDataSetFilter::ASSIGN_TO_ONE_REGION)
   , NumberOfPartitions(0)
   , PreservePartitionsInOutput(false)
@@ -220,13 +212,13 @@ vtkRedistributeDataSetFilter::vtkRedistributeDataSetFilter()
   this->SetController(vtkMultiProcessController::GetGlobalController());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkRedistributeDataSetFilter::~vtkRedistributeDataSetFilter()
 {
   this->SetController(nullptr);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkRedistributeDataSetFilter::FillInputPortInformation(
   int vtkNotUsed(port), vtkInformation* info)
 {
@@ -236,7 +228,7 @@ int vtkRedistributeDataSetFilter::FillInputPortInformation(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkRedistributeDataSetFilter::SetExplicitCuts(const std::vector<vtkBoundingBox>& boxes)
 {
   if (this->ExplicitCuts != boxes)
@@ -246,17 +238,17 @@ void vtkRedistributeDataSetFilter::SetExplicitCuts(const std::vector<vtkBounding
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkRedistributeDataSetFilter::RemoveAllExplicitCuts()
 {
-  if (this->ExplicitCuts.size() > 0)
+  if (!this->ExplicitCuts.empty())
   {
     this->ExplicitCuts.clear();
     this->Modified();
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkRedistributeDataSetFilter::AddExplicitCut(const vtkBoundingBox& bbox)
 {
   if (bbox.IsValid() &&
@@ -268,20 +260,20 @@ void vtkRedistributeDataSetFilter::AddExplicitCut(const vtkBoundingBox& bbox)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkRedistributeDataSetFilter::AddExplicitCut(const double bounds[6])
 {
   vtkBoundingBox bbox(bounds);
   this->AddExplicitCut(bbox);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkRedistributeDataSetFilter::GetNumberOfExplicitCuts() const
 {
   return static_cast<int>(this->ExplicitCuts.size());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const vtkBoundingBox& vtkRedistributeDataSetFilter::GetExplicitCut(int index) const
 {
   if (index >= 0 && index < this->GetNumberOfExplicitCuts())
@@ -293,7 +285,7 @@ const vtkBoundingBox& vtkRedistributeDataSetFilter::GetExplicitCut(int index) co
   return nullbox;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkRedistributeDataSetFilter::RequestDataObject(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -325,21 +317,21 @@ int vtkRedistributeDataSetFilter::RequestDataObject(vtkInformation* vtkNotUsed(r
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkRedistributeDataSetFilter::RequestData(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
   auto inputDO = vtkDataObject::GetData(inputVector[0], 0);
   auto outputDO = vtkDataObject::GetData(outputVector, 0);
-  this->MarkValidDimensions(inputDO);
 
-  if (this->UseExplicitCuts && this->ExpandExplicitCuts)
+  auto comm = vtkDIYUtilities::GetCommunicator(this->Controller);
+  auto gbounds = detail::GetBounds(inputDO, comm);
+  this->MarkValidDimensions(gbounds);
+
+  if (this->UseExplicitCuts && this->ExpandExplicitCuts && gbounds.IsValid())
   {
-    auto bbox = detail::GetBounds(inputDO);
-    if (bbox.IsValid())
-    {
-      bbox.Inflate(0.1 * bbox.GetDiagonalLength());
-    }
+    auto bbox = gbounds;
+    bbox.Inflate(0.01 * bbox.GetLength(0), 0.01 * bbox.GetLength(1), 0.01 * bbox.GetLength(2));
     this->Cuts = vtkRedistributeDataSetFilter::ExpandCuts(this->ExplicitCuts, bbox);
   }
   else if (this->UseExplicitCuts)
@@ -414,18 +406,23 @@ int vtkRedistributeDataSetFilter::RequestData(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::vector<vtkBoundingBox> vtkRedistributeDataSetFilter::GenerateCuts(vtkDataObject* dobj)
 {
   auto controller = this->GetController();
   const int num_partitions = (controller && this->GetNumberOfPartitions() == 0)
     ? controller->GetNumberOfProcesses()
     : this->GetNumberOfPartitions();
+  auto bbox = vtkDIYUtilities::GetLocalBounds(dobj);
+  bbox.Inflate(0.01 * bbox.GetLength(0), 0.01 * bbox.GetLength(1), 0.01 * bbox.GetLength(2));
+
+  double bds[6];
+  bbox.GetBounds(bds);
   return vtkDIYKdTreeUtilities::GenerateCuts(
-    dobj, std::max(1, num_partitions), /*use_cell_centers=*/true, controller);
+    dobj, std::max(1, num_partitions), /*use_cell_centers=*/true, controller, bds);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkRedistributeDataSetFilter::Redistribute(vtkDataObject* inputDO,
   vtkPartitionedDataSet* outputPDS, const std::vector<vtkBoundingBox>& cuts,
   vtkIdType* mb_offset /*=nullptr*/)
@@ -478,20 +475,20 @@ bool vtkRedistributeDataSetFilter::Redistribute(vtkDataObject* inputDO,
       input_partitions.resize(allsize, nullptr);
     }
 
-    if (input_partitions.size() == 0)
+    if (input_partitions.empty())
     {
       // all ranks have empty data.
       return true;
     }
 
-    std::vector<vtkSmartPointer<vtkPartitionedDataSet> > results;
+    std::vector<vtkSmartPointer<vtkPartitionedDataSet>> results;
     for (auto& ds : input_partitions)
     {
       vtkNew<vtkPartitionedDataSet> curOutput;
       if (this->RedistributeDataSet(ds, curOutput, cuts))
       {
         assert(curOutput->GetNumberOfPartitions() == static_cast<unsigned int>(cuts.size()));
-        results.push_back(curOutput);
+        results.emplace_back(curOutput);
       }
     }
 
@@ -595,7 +592,7 @@ bool vtkRedistributeDataSetFilter::Redistribute(vtkDataObject* inputDO,
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkRedistributeDataSetFilter::RedistributeMultiBlockDataSet(
   vtkMultiBlockDataSet* input, vtkMultiBlockDataSet* output, vtkIdType* mb_offset /*=nullptr*/)
 {
@@ -658,7 +655,7 @@ int vtkRedistributeDataSetFilter::RedistributeMultiBlockDataSet(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // only for vtkMultiPieceDataSets that are part of a vtkMultiBlockDataSet
 int vtkRedistributeDataSetFilter::RedistributeMultiPieceDataSet(
   vtkMultiPieceDataSet* input, vtkMultiPieceDataSet* output, vtkIdType* mb_offset /*=nullptr*/)
@@ -670,26 +667,20 @@ int vtkRedistributeDataSetFilter::RedistributeMultiPieceDataSet(
 
   output->CopyStructure(input);
 
-  // because different ranks may have different numbers of pieces, we combine
-  // into a single unstructured grid before redistributing data
-  vtkNew<vtkAppendFilter> input_appender;
-  vtkNew<vtkUnstructuredGrid> inputUG;
+  // ranks may have different number of non-null datasets;
+  // lets package the input pieces into a `vtkPartitionedDataSet` and call the
+  // vtkPartitionedDataSet-based implementation.
+  vtkNew<vtkPartitionedDataSet> inputAsPDS;
   for (unsigned int piece_id = 0; piece_id < input->GetNumberOfPieces(); ++piece_id)
   {
     if (auto ds = input->GetPiece(piece_id))
     {
-      input_appender->AddInputDataObject(ds);
+      inputAsPDS->SetPartition(inputAsPDS->GetNumberOfPartitions(), ds);
     }
-  }
-  if (input_appender->GetNumberOfInputConnections(0) > 0)
-  {
-    input_appender->Update();
-    inputUG->ShallowCopy(input_appender->GetOutput(0));
   }
 
   vtkNew<vtkPartitionedDataSet> parts;
-
-  if (!this->Redistribute(inputUG, parts, this->Cuts, mb_offset))
+  if (!this->Redistribute(inputAsPDS, parts, this->Cuts, mb_offset))
   {
     return 0;
   }
@@ -726,7 +717,7 @@ int vtkRedistributeDataSetFilter::RedistributeMultiPieceDataSet(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkRedistributeDataSetFilter::RedistributeDataSet(
   vtkDataSet* inputDS, vtkPartitionedDataSet* outputPDS, const std::vector<vtkBoundingBox>& cuts)
 {
@@ -734,13 +725,13 @@ bool vtkRedistributeDataSetFilter::RedistributeDataSet(
   auto parts = this->SplitDataSet(inputDS, cuts);
   assert(parts->GetNumberOfPartitions() == static_cast<unsigned int>(cuts.size()));
 
-  auto pieces = vtkDIYKdTreeUtilities::Exchange(parts, this->GetController());
+  auto pieces = vtkDIYKdTreeUtilities::Exchange(parts, this->GetController(), this->Assigner);
   assert(pieces->GetNumberOfPartitions() == parts->GetNumberOfPartitions());
   outputPDS->ShallowCopy(pieces);
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPointer<vtkDataSet> vtkRedistributeDataSetFilter::ClipDataSet(
   vtkDataSet* dataset, const vtkBoundingBox& bbox)
 {
@@ -779,11 +770,11 @@ vtkSmartPointer<vtkDataSet> vtkRedistributeDataSetFilter::ClipDataSet(
   return nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPointer<vtkPartitionedDataSet> vtkRedistributeDataSetFilter::SplitDataSet(
   vtkDataSet* dataset, const std::vector<vtkBoundingBox>& cuts)
 {
-  if (!dataset || cuts.size() == 0 || dataset->GetNumberOfCells() == 0)
+  if (!dataset || cuts.empty() || dataset->GetNumberOfCells() == 0)
   //        (dataset->GetNumberOfCells() == 0 && dataset->GetNumberOfPoints() == 0))
   {
     vtkNew<vtkPartitionedDataSet> result;
@@ -816,7 +807,7 @@ vtkSmartPointer<vtkPartitionedDataSet> vtkRedistributeDataSetFilter::SplitDataSe
 
   // convert cell_regions to a collection of cell-ids for each region so that we
   // can use `vtkExtractCells` to extract cells for each region.
-  std::vector<std::vector<vtkIdType> > region_cell_ids(cuts.size());
+  std::vector<std::vector<vtkIdType>> region_cell_ids(cuts.size());
   vtkSMPTools::For(0, static_cast<int>(cuts.size()),
     [&region_cell_ids, &cell_regions, &numCells, &cell_ownership](int first, int last) {
       for (int cutId = first; cutId < last; ++cutId)
@@ -862,7 +853,7 @@ vtkSmartPointer<vtkPartitionedDataSet> vtkRedistributeDataSetFilter::SplitDataSe
   for (size_t region_idx = 0; region_idx < region_cell_ids.size(); ++region_idx)
   {
     const auto& cell_ids = region_cell_ids[region_idx];
-    if (cell_ids.size() > 0)
+    if (!cell_ids.empty())
     {
       extractor->SetCellIds(&cell_ids[0], static_cast<vtkIdType>(cell_ids.size()));
       extractor->Update();
@@ -875,7 +866,7 @@ vtkSmartPointer<vtkPartitionedDataSet> vtkRedistributeDataSetFilter::SplitDataSe
   return result;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPointer<vtkDataSet> vtkRedistributeDataSetFilter::AssignGlobalCellIds(
   vtkDataSet* input, vtkIdType* mb_offset /*=nullptr*/)
 {
@@ -887,7 +878,7 @@ vtkSmartPointer<vtkDataSet> vtkRedistributeDataSetFilter::AssignGlobalCellIds(
   return output->GetPartition(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPointer<vtkPartitionedDataSet> vtkRedistributeDataSetFilter::AssignGlobalCellIds(
   vtkPartitionedDataSet* pieces, vtkIdType* mb_offset /*=nullptr*/)
 {
@@ -936,7 +927,7 @@ vtkSmartPointer<vtkPartitionedDataSet> vtkRedistributeDataSetFilter::AssignGloba
   return result;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkRedistributeDataSetFilter::MarkGhostCells(vtkPartitionedDataSet* pieces)
 {
   for (unsigned int partId = 0; partId < pieces->GetNumberOfPartitions(); ++partId)
@@ -990,7 +981,7 @@ void vtkRedistributeDataSetFilter::MarkGhostCells(vtkPartitionedDataSet* pieces)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::vector<vtkBoundingBox> vtkRedistributeDataSetFilter::ExpandCuts(
   const std::vector<vtkBoundingBox>& cuts, const vtkBoundingBox& bounds)
 {
@@ -1031,21 +1022,17 @@ std::vector<vtkBoundingBox> vtkRedistributeDataSetFilter::ExpandCuts(
   return result;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Determine which dimensions in the initial bounding box (before any inflation
 // of the bounds occurs) has a non-zero length. This is necessary for clipping
 // when the BoundaryMode is set to SPLIT_BOUNDARY_CELLS. Otherwise if a dataset
 // ends up being 2D, performing plane clips on all sides of the bounding box may
 // result in full dataset being clipped away.
-void vtkRedistributeDataSetFilter::MarkValidDimensions(vtkDataObject* inputDO)
+void vtkRedistributeDataSetFilter::MarkValidDimensions(const vtkBoundingBox& gbounds)
 {
   static const int max_dim = 3;
-  auto bbox = detail::GetBounds(inputDO);
-  auto comm = vtkDIYUtilities::GetCommunicator(this->Controller);
-  vtkDIYUtilities::AllReduce(comm, bbox);
-
   double len[max_dim];
-  bbox.GetLengths(len);
+  gbounds.GetLengths(len);
   for (int i = 0; i < max_dim; ++i)
   {
     if (len[i] <= 0)
@@ -1059,7 +1046,29 @@ void vtkRedistributeDataSetFilter::MarkValidDimensions(vtkDataObject* inputDO)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void vtkRedistributeDataSetFilter::SetAssigner(std::shared_ptr<diy::Assigner> assigner)
+{
+  if (this->Assigner != assigner)
+  {
+    this->Assigner = assigner;
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+std::shared_ptr<diy::Assigner> vtkRedistributeDataSetFilter::GetAssigner()
+{
+  return this->Assigner;
+}
+
+//------------------------------------------------------------------------------
+std::shared_ptr<const diy::Assigner> vtkRedistributeDataSetFilter::GetAssigner() const
+{
+  return this->Assigner;
+}
+
+//------------------------------------------------------------------------------
 void vtkRedistributeDataSetFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

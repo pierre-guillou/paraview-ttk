@@ -161,6 +161,7 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqFileChooserWidget`.");
     pqFileChooserWidget* chooser = new pqFileChooserWidget(this);
     chooser->setObjectName("FileChooser");
+    chooser->setTitle(QString("Select %1").arg(smProperty->GetXMLLabel()));
 
     // decide whether to allow multiple files
     if (smProperty->GetRepeatable())
@@ -226,8 +227,15 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
       chooser->setExtension(supportedExtensions.join(";;"));
     }
 
-    pqServerManagerModel* smm = pqApplicationCore::instance()->getServerManagerModel();
-    chooser->setServer(smm->findServer(smProxy->GetSession()));
+    if (hints == nullptr || hints->FindNestedElementByName("BrowseLocalFileSystem") == nullptr)
+    {
+      pqServerManagerModel* smm = pqApplicationCore::instance()->getServerManagerModel();
+      chooser->setServer(smm->findServer(smProxy->GetSession()));
+    }
+    else
+    {
+      chooser->setServer(nullptr);
+    }
 
     vbox->addWidget(chooser);
   }
@@ -360,7 +368,8 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     textEdit->setFont(textFont);
     textEdit->setObjectName(smProxy->GetPropertyName(smProperty));
     textEdit->setAcceptRichText(false);
-    textEdit->setTabStopWidth(2);
+    // tab is 2 spaces
+    textEdit->setTabStopDistance(this->fontMetrics().horizontalAdvance("  "));
     textEdit->setLineWrapMode(QTextEdit::NoWrap);
 
     this->setChangeAvailableAsChangeFinished(false);

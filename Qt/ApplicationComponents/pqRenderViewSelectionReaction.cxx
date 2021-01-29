@@ -47,12 +47,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPVDataInformation.h"
 #include "vtkPVDataSetAttributesInformation.h"
 #include "vtkPVRenderView.h"
+#include "vtkPVRenderViewSettings.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkSMArrayListDomain.h"
 #include "vtkSMInteractiveSelectionPipeline.h"
 #include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMRenderViewProxy.h"
+#include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStringVectorProperty.h"
 #include "vtkSMTooltipSelectionPipeline.h"
@@ -79,6 +81,8 @@ pqRenderViewSelectionReaction::pqRenderViewSelectionReaction(
   , MouseMovingTimer(this)
   , MouseMoving(false)
 {
+  this->MousePosition[0] = 0;
+  this->MousePosition[1] = 0;
   for (size_t i = 0; i < sizeof(this->ObserverIds) / sizeof(this->ObserverIds[0]); ++i)
   {
     this->ObserverIds[i] = 0;
@@ -497,6 +501,19 @@ void pqRenderViewSelectionReaction::endSelection()
   this->MouseMovingTimer.stop();
   this->MouseMoving = false;
   this->UpdateTooltip();
+
+  if (this->CurrentRepresentation != nullptr)
+  {
+    vtkSMSessionProxyManager* pxm = rmp->GetSessionProxyManager();
+    vtkSMProxy* emptySel = pxm->NewProxy("sources", "IDSelectionSource");
+
+    vtkSMPropertyHelper(this->CurrentRepresentation, "Selection").Set(emptySel);
+    this->CurrentRepresentation->UpdateVTKObjects();
+    this->CurrentRepresentation = nullptr;
+    emptySel->Delete();
+
+    rmp->StillRender();
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -545,12 +562,12 @@ void pqRenderViewSelectionReaction::selectionChanged(vtkObject*, unsigned long, 
       break;
 
     case SELECT_CUSTOM_BOX:
-      emit this->selectedCustomBox(region);
-      emit this->selectedCustomBox(region[0], region[1], region[2], region[3]);
+      Q_EMIT this->selectedCustomBox(region);
+      Q_EMIT this->selectedCustomBox(region[0], region[1], region[2], region[3]);
       break;
 
     case SELECT_CUSTOM_POLYGON:
-      emit this->selectedCustomPolygon(vtkIntArray::SafeDownCast(unsafe_object));
+      Q_EMIT this->selectedCustomPolygon(vtkIntArray::SafeDownCast(unsafe_object));
       break;
 
     case ZOOM_TO_BOX:
@@ -581,13 +598,22 @@ void pqRenderViewSelectionReaction::onMouseMove()
     case SELECT_SURFACE_CELLS_TOOLTIP:
       this->MouseMovingTimer.start(TOOLTIP_WAITING_TIME);
       this->MouseMoving = true;
-      VTK_FALLTHROUGH;
+      // fast preselection is not working with the tooltip yet
+      this->preSelection();
+      break;
 
     case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
     case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
     case SELECT_SURFACE_CELLS_INTERACTIVELY:
     case SELECT_SURFACE_POINTS_INTERACTIVELY:
-      this->preSelection();
+      if (vtkPVRenderViewSettings::GetInstance()->GetEnableFastPreselection())
+      {
+        this->fastPreSelection();
+      }
+      else
+      {
+        this->preSelection();
+      }
       break;
 
     default:
@@ -611,6 +637,8 @@ void pqRenderViewSelectionReaction::preSelection()
   int x = rmp->GetInteractor()->GetEventPosition()[0];
   int y = rmp->GetInteractor()->GetEventPosition()[1];
   int* size = rmp->GetInteractor()->GetSize();
+  this->MousePosition[0] = x;
+  this->MousePosition[1] = y;
 
   vtkSMPreselectionPipeline* pipeline;
   switch (this->Mode)
@@ -714,6 +742,109 @@ void pqRenderViewSelectionReaction::preSelection()
 }
 
 //-----------------------------------------------------------------------------
+void pqRenderViewSelectionReaction::fastPreSelection()
+{
+  if (pqRenderViewSelectionReaction::ActiveReaction != this)
+  {
+    qWarning("Unexpected call to fastPreSelection.");
+    return;
+  }
+
+  vtkSMRenderViewProxy* rmp = this->View->getRenderViewProxy();
+  assert(rmp != nullptr);
+
+  int x = rmp->GetInteractor()->GetEventPosition()[0];
+  int y = rmp->GetInteractor()->GetEventPosition()[1];
+  this->MousePosition[0] = x;
+  this->MousePosition[1] = y;
+
+  int region[4] = { x, y, x, y };
+
+  vtkNew<vtkCollection> selectedRepresentations;
+  vtkNew<vtkCollection> selectionSources;
+  bool status = false;
+  switch (this->Mode)
+  {
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
+    {
+      pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
+      if (repr)
+      {
+        vtkSMStringVectorProperty* prop =
+          vtkSMStringVectorProperty::SafeDownCast(repr->getProxy()->GetProperty("ColorArrayName"));
+        if (prop)
+        {
+          int association = std::atoi(prop->GetElement(3));
+          const char* arrayName = prop->GetElement(4);
+
+          if (association == vtkDataObject::CELL &&
+            this->Mode == SELECT_SURFACE_CELLDATA_INTERACTIVELY)
+          {
+            status = rmp->SelectSurfaceCells(
+              region, selectedRepresentations, selectionSources, false, 0, false, arrayName);
+          }
+          if (association == vtkDataObject::POINT &&
+            this->Mode == SELECT_SURFACE_POINTDATA_INTERACTIVELY)
+          {
+            status = rmp->SelectSurfacePoints(
+              region, selectedRepresentations, selectionSources, false, 0, false, arrayName);
+          }
+        }
+      }
+    }
+    break;
+
+    case SELECT_SURFACE_CELLS_INTERACTIVELY:
+      status = rmp->SelectSurfaceCells(region, selectedRepresentations, selectionSources);
+      break;
+
+    case SELECT_SURFACE_POINTS_INTERACTIVELY:
+      status = rmp->SelectSurfacePoints(region, selectedRepresentations, selectionSources);
+      break;
+
+    default:
+      qCritical("Invalid call to pqRenderViewSelectionReaction::fastPreSelection");
+      return;
+  }
+
+  if (status)
+  {
+    vtkSMPVRepresentationProxy* repr =
+      vtkSMPVRepresentationProxy::SafeDownCast(selectedRepresentations->GetItemAsObject(0));
+
+    if (this->CurrentRepresentation != nullptr && repr != this->CurrentRepresentation)
+    {
+      vtkSMSessionProxyManager* pxm = repr->GetSessionProxyManager();
+      vtkSMProxy* emptySel = pxm->NewProxy("sources", "IDSelectionSource");
+
+      vtkSMPropertyHelper(this->CurrentRepresentation, "Selection").Set(emptySel);
+      this->CurrentRepresentation->UpdateVTKObjects();
+      emptySel->Delete();
+    }
+
+    this->CurrentRepresentation = repr;
+
+    vtkSMSourceProxy* sel = vtkSMSourceProxy::SafeDownCast(selectionSources->GetItemAsObject(0));
+
+    vtkSMPropertyHelper(repr, "Selection").Set(sel);
+    repr->UpdateVTKObjects();
+  }
+  else if (this->CurrentRepresentation != nullptr)
+  {
+    vtkSMSessionProxyManager* pxm = rmp->GetSessionProxyManager();
+    vtkSMProxy* emptySel = pxm->NewProxy("sources", "IDSelectionSource");
+
+    vtkSMPropertyHelper(this->CurrentRepresentation, "Selection").Set(emptySel);
+    this->CurrentRepresentation->UpdateVTKObjects();
+    this->CurrentRepresentation = nullptr;
+    emptySel->Delete();
+  }
+
+  rmp->StillRender();
+}
+
+//-----------------------------------------------------------------------------
 void pqRenderViewSelectionReaction::onMouseStop()
 {
   this->MouseMoving = false;
@@ -738,10 +869,8 @@ void pqRenderViewSelectionReaction::UpdateTooltip()
   bool showTooltip;
   if (pipeline->CanDisplayTooltip(showTooltip))
   {
-    double tooltipPos[2];
     std::string tooltipText;
-    if (showTooltip && !this->MouseMoving &&
-      pipeline->GetTooltipInfo(association, tooltipPos, tooltipText))
+    if (showTooltip && !this->MouseMoving && pipeline->GetTooltipInfo(association, tooltipText))
     {
       QWidget* widget = this->View->widget();
 
@@ -749,8 +878,8 @@ void pqRenderViewSelectionReaction::UpdateTooltip()
       qreal dpr = widget->devicePixelRatioF();
 
       // Convert renderer based position to a global position
-      QPoint pos = widget->mapToGlobal(
-        QPoint(tooltipPos[0] / dpr, widget->size().height() - (tooltipPos[1] / dpr)));
+      QPoint pos = widget->mapToGlobal(QPoint(
+        this->MousePosition[0] / dpr, widget->size().height() - (this->MousePosition[1] / dpr)));
 
       QToolTip::showText(pos, tooltipText.c_str());
     }

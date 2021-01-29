@@ -33,7 +33,7 @@
 
 vtkStandardNewMacro(vtkLegendScaleActor);
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLegendScaleActor::vtkLegendScaleActor()
 {
   this->LabelMode = DISTANCE;
@@ -164,7 +164,7 @@ vtkLegendScaleActor::vtkLegendScaleActor()
   this->Coordinate->SetCoordinateSystemToDisplay();
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLegendScaleActor::~vtkLegendScaleActor()
 {
   this->RightAxis->Delete();
@@ -187,7 +187,7 @@ vtkLegendScaleActor::~vtkLegendScaleActor()
   this->Coordinate->Delete();
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLegendScaleActor::GetActors2D(vtkPropCollection* pc)
 {
   pc->AddItem(this->RightAxis);
@@ -196,7 +196,7 @@ void vtkLegendScaleActor::GetActors2D(vtkPropCollection* pc)
   pc->AddItem(this->BottomAxis);
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLegendScaleActor::ReleaseGraphicsResources(vtkWindow* w)
 {
   this->RightAxis->ReleaseGraphicsResources(w);
@@ -212,7 +212,7 @@ void vtkLegendScaleActor::ReleaseGraphicsResources(vtkWindow* w)
   }
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkLegendScaleActor::RenderOpaqueGeometry(vtkViewport* viewport)
 {
   this->BuildRepresentation(viewport);
@@ -248,7 +248,7 @@ int vtkLegendScaleActor::RenderOpaqueGeometry(vtkViewport* viewport)
   return renderedSomething;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkLegendScaleActor::RenderOverlay(vtkViewport* viewport)
 {
   int renderedSomething = 0;
@@ -282,16 +282,16 @@ int vtkLegendScaleActor::RenderOverlay(vtkViewport* viewport)
   return renderedSomething;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLegendScaleActor::BuildRepresentation(vtkViewport* viewport)
 {
-  if (1) // it's probably best just to rerender every time
+  if (true) // it's probably best just to rerender every time
   //   if ( this->GetMTime() > this->BuildTime ||
   //        (this->Renderer && this->Renderer->GetVTKWindow() &&
   //         this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime) )
   {
     // Specify the locations of the axes.
-    int* size = viewport->GetSize();
+    const int* size = viewport->GetSize();
 
     this->RightAxis->GetPositionCoordinate()->SetValue(
       size[0] - this->RightBorderOffset, this->CornerOffsetFactor * this->BottomBorderOffset, 0.0);
@@ -424,7 +424,7 @@ void vtkLegendScaleActor::BuildRepresentation(vtkViewport* viewport)
   }
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLegendScaleActor::AllAnnotationsOn()
 {
   if (this->RightAxisVisibility && this->TopAxisVisibility && this->LeftAxisVisibility &&
@@ -442,7 +442,7 @@ void vtkLegendScaleActor::AllAnnotationsOn()
   this->Modified();
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLegendScaleActor::AllAnnotationsOff()
 {
   if (!this->RightAxisVisibility && !this->TopAxisVisibility && !this->LeftAxisVisibility &&
@@ -460,7 +460,7 @@ void vtkLegendScaleActor::AllAnnotationsOff()
   this->Modified();
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLegendScaleActor::AllAxesOn()
 {
   if (this->RightAxisVisibility && this->TopAxisVisibility && this->LeftAxisVisibility &&
@@ -477,7 +477,7 @@ void vtkLegendScaleActor::AllAxesOn()
   this->Modified();
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLegendScaleActor::AllAxesOff()
 {
   if (!this->RightAxisVisibility && !this->TopAxisVisibility && !this->LeftAxisVisibility &&
@@ -494,7 +494,7 @@ void vtkLegendScaleActor::AllAxesOff()
   this->Modified();
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLegendScaleActor::PrintSelf(ostream& os, vtkIndent indent)
 {
   // Superclass typedef defined in vtkTypeMacro() found in vtkSetGet.h

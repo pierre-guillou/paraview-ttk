@@ -50,7 +50,7 @@ class PQCOMPONENTS_EXPORT pqFindDataCurrentSelectionFrame : public QWidget
   typedef QWidget Superclass;
 
 public:
-  pqFindDataCurrentSelectionFrame(QWidget* parent = 0, Qt::WindowFlags f = 0);
+  pqFindDataCurrentSelectionFrame(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags{});
   ~pqFindDataCurrentSelectionFrame() override;
 
   /**
@@ -59,14 +59,14 @@ public:
   */
   pqOutputPort* showingPort() const;
 
-signals:
+Q_SIGNALS:
   /**
   * signal fired to indicate the selected port that currently being shown in
   * the frame.
   */
   void showing(pqOutputPort*);
 
-private slots:
+private Q_SLOTS:
   /**
   * show the selected data from the given output port in the frame.
   */

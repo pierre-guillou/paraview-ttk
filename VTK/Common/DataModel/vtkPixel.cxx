@@ -16,10 +16,12 @@
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkDataArrayRange.h"
 #include "vtkIncrementalPointLocator.h"
 #include "vtkLine.h"
 #include "vtkMarchingSquaresLineCases.h"
 #include "vtkMath.h"
+#include "vtkMathUtilities.h"
 #include "vtkObjectFactory.h"
 #include "vtkPlane.h"
 #include "vtkPointData.h"
@@ -27,9 +29,12 @@
 #include "vtkQuad.h"
 #include "vtkTriangle.h"
 
+#include <algorithm>
+#include <array>
+
 vtkStandardNewMacro(vtkPixel);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Construct the pixel with four points.
 vtkPixel::vtkPixel()
 {
@@ -48,13 +53,13 @@ vtkPixel::vtkPixel()
   this->Line = vtkLine::New();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPixel::~vtkPixel()
 {
   this->Line->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPixel::EvaluatePosition(const double x[3], double closestPoint[3], int& subId,
   double pcoords[3], double& dist2, double weights[])
 {
@@ -137,7 +142,7 @@ int vtkPixel::EvaluatePosition(const double x[3], double closestPoint[3], int& s
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPixel::EvaluateLocation(int& subId, const double pcoords[3], double x[3], double* weights)
 {
   double pt1[3], pt2[3], pt3[3];
@@ -155,6 +160,92 @@ void vtkPixel::EvaluateLocation(int& subId, const double pcoords[3], double x[3]
   }
 
   this->InterpolationFunctions(pcoords, weights);
+}
+
+//------------------------------------------------------------------------------
+int vtkPixel::ComputeNormal(double n[3])
+{
+  double p0[3], p1[3], p2[3];
+  this->Points->GetPoint(0, p0);
+  this->Points->GetPoint(1, p1);
+  this->Points->GetPoint(2, p2);
+  p1[0] -= p0[0];
+  p1[1] -= p0[1];
+  p1[2] -= p0[2];
+  p2[0] -= p0[0];
+  p2[1] -= p0[1];
+  p2[2] -= p0[2];
+  vtkMath::Cross(p1, p2, n);
+  if (std::abs(n[0]) < VTK_DBL_EPSILON && std::abs(n[1]) < VTK_DBL_EPSILON &&
+    std::abs(n[2]) < VTK_DBL_EPSILON)
+  {
+    return -1;
+  }
+  vtkMath::Normalize(n);
+  return (std::abs(n[1]) > 0.5) + (std::abs(n[2]) > 0.5) * 2;
+}
+
+//----------------------------------------------------------------------------
+int vtkPixel::Inflate(double dist)
+{
+  auto range = vtk::DataArrayTupleRange<3>(this->Points->GetData());
+  using TupleRef = typename decltype(range)::TupleReferenceType;
+  using ConstTupleRef = typename decltype(range)::ConstTupleReferenceType;
+  using ConstScalar = typename ConstTupleRef::value_type;
+
+  ConstTupleRef p0 = range[0], p3 = range[3];
+
+  int normalDirection = static_cast<int>(vtkMathUtilities::NearlyEqual<ConstScalar>(p3[0], p0[0])) |
+    (static_cast<int>(vtkMathUtilities::NearlyEqual<ConstScalar>(p3[1], p0[1])) << 1) |
+    (static_cast<int>(vtkMathUtilities::NearlyEqual<ConstScalar>(p3[2], p0[2])) << 2);
+  int degeneratePixelDirection = -1;
+
+  if (normalDirection == 0x7)
+  {
+    // Pixel is collapsed to a single point
+    return 0;
+  }
+  if ((normalDirection - 1) & normalDirection)
+  {
+    static constexpr std::array<int, 5> myLog2{ -1, 0, 1, -1, 2 };
+    // Pixel is degenerate, it is homogeneous to a 1D line.
+    degeneratePixelDirection = myLog2[(~normalDirection & 0x7)];
+  }
+  int index = 0;
+  for (TupleRef point : range)
+  {
+    switch (normalDirection)
+    {
+      case 1:
+        point[1] += dist * (index % 2 ? 1.0 : -1.0);
+        point[2] += dist * (index / 2 ? 1.0 : -1.0);
+        break;
+      case 2:
+        point[0] += dist * (index % 2 ? 1.0 : -1.0);
+        point[2] += dist * (index / 2 ? 1.0 : -1.0);
+        break;
+      case 4:
+        point[0] += dist * (index % 2 ? 1.0 : -1.0);
+        point[1] += dist * (index / 2 ? 1.0 : -1.0);
+        break;
+      default:
+        point[degeneratePixelDirection] += dist * (index % 2 ? 1.0 : -1.0);
+        break;
+    }
+    ++index;
+  }
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+double vtkPixel::ComputeBoundingSphere(double center[3]) const
+{
+  auto points = vtk::DataArrayTupleRange(this->Points->GetData());
+  auto p0 = points[0], p3 = points[3];
+  center[0] = 0.5 * (p0[0] + p3[0]);
+  center[1] = 0.5 * (p0[1] + p3[1]);
+  center[2] = 0.5 * (p0[2] + p3[2]);
+  return vtkMath::Distance2BetweenPoints(center, p0);
 }
 
 //----------------------------------------------------------------------------
@@ -201,7 +292,7 @@ int vtkPixel::CellBoundary(int vtkNotUsed(subId), const double pcoords[3], vtkId
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Marching squares
 //
@@ -268,7 +359,7 @@ void vtkPixel::Contour(double value, vtkDataArray* cellScalars, vtkIncrementalPo
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCell* vtkPixel::GetEdge(int edgeId)
 {
   int* verts;
@@ -286,7 +377,7 @@ vtkCell* vtkPixel::GetEdge(int edgeId)
   return this->Line;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Compute interpolation functions (similar but different than Quad interpolation
 // functions)
@@ -303,7 +394,7 @@ void vtkPixel::InterpolationFunctions(const double pcoords[3], double sf[4])
   sf[2] = rm * pcoords[1];
   sf[3] = pcoords[0] * pcoords[1];
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Compute derivatives of interpolation functions.
 //
@@ -327,7 +418,7 @@ void vtkPixel::InterpolationDerivs(const double pcoords[3], double derivs[8])
   derivs[7] = pcoords[0];
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Intersect plane; see whether point is inside.
 //
@@ -378,7 +469,7 @@ int vtkPixel::IntersectWithLine(const double p1[3], const double p2[3], double t
   return 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPixel::Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts)
 {
   pts->Reset();
@@ -420,7 +511,7 @@ int vtkPixel::Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPixel::Derivatives(
   int vtkNotUsed(subId), const double pcoords[3], const double* values, int dim, double* derivs)
 {
@@ -484,13 +575,14 @@ void vtkPixel::Derivatives(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // support pixel clipping
 typedef int PIXEL_EDGE_LIST;
-typedef struct
+struct PIXEL_CASES_t
 {
   PIXEL_EDGE_LIST edges[14];
-} PIXEL_CASES;
+};
+using PIXEL_CASES = struct PIXEL_CASES_t;
 
 static PIXEL_CASES pixelCases[] = {
   { { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 } },    // 0
@@ -530,7 +622,7 @@ static PIXEL_CASES pixelCasesComplement[] = {
   { { 4, 100, 101, 103, 102, -1, -1, -1, -1, -1, -1, -1, -1, -1 } }, // 15
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Clip this pixel using scalar value provided. Like contouring, except
 // that it cuts the pixel to produce quads and/or triangles.
 void vtkPixel::Clip(double value, vtkDataArray* cellScalars, vtkIncrementalPointLocator* locator,
@@ -662,7 +754,7 @@ void vtkPixel::Clip(double value, vtkDataArray* cellScalars, vtkIncrementalPoint
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 static double vtkPixelCellPCoords[12] = { 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0,
   0.0 };
 
@@ -671,7 +763,7 @@ double* vtkPixel::GetParametricCoords()
   return vtkPixelCellPCoords;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPixel::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

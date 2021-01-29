@@ -14,6 +14,8 @@
 =========================================================================*/
 #include "vtkExternalOpenGLRenderer.h"
 
+#include "vtk_glew.h"
+
 #include "vtkCamera.h"
 #include "vtkCommand.h"
 #include "vtkExternalLight.h"
@@ -24,7 +26,6 @@
 #include "vtkMatrix4x4.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkOpenGL.h"
 #include "vtkOpenGLError.h"
 #include "vtkRenderWindow.h"
 #include "vtkTexture.h"
@@ -33,7 +34,7 @@
 
 vtkStandardNewMacro(vtkExternalOpenGLRenderer);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExternalOpenGLRenderer::vtkExternalOpenGLRenderer()
 {
   this->PreserveColorBuffer = 1;
@@ -44,14 +45,14 @@ vtkExternalOpenGLRenderer::vtkExternalOpenGLRenderer()
   this->ExternalLights = vtkLightCollection::New();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExternalOpenGLRenderer::~vtkExternalOpenGLRenderer()
 {
   this->ExternalLights->Delete();
   this->ExternalLights = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLRenderer::Render(void)
 {
   // Copy GL camera matrices
@@ -70,7 +71,7 @@ void vtkExternalOpenGLRenderer::Render(void)
   this->Superclass::Render();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLRenderer::SynchronizeGLCameraMatrices()
 {
   GLdouble mv[16], p[16];
@@ -115,7 +116,7 @@ void vtkExternalOpenGLRenderer::SynchronizeGLCameraMatrices()
   matrix->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLRenderer::SynchronizeGLLights()
 {
   // Lights
@@ -336,7 +337,7 @@ void vtkExternalOpenGLRenderer::SynchronizeGLLights()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCamera* vtkExternalOpenGLRenderer::MakeCamera()
 {
   vtkCamera* cam = vtkExternalOpenGLCamera::New();
@@ -344,7 +345,7 @@ vtkCamera* vtkExternalOpenGLRenderer::MakeCamera()
   return cam;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLRenderer::AddExternalLight(vtkExternalLight* light)
 {
   if (!light)
@@ -369,19 +370,19 @@ void vtkExternalOpenGLRenderer::AddExternalLight(vtkExternalLight* light)
   this->ExternalLights->AddItem(light);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLRenderer::RemoveExternalLight(vtkExternalLight* light)
 {
   this->ExternalLights->RemoveItem(light);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLRenderer::RemoveAllExternalLights()
 {
   this->ExternalLights->RemoveAllItems();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLRenderer::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

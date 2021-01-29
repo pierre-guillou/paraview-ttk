@@ -71,8 +71,6 @@ public:
    * for all blocks to true.
    */
   void RemoveBlockVisibilities();
-  // This method is deprecated and will be removed in VTK 8.2. It is misspelled.
-  VTK_LEGACY(void RemoveBlockVisibilites());
 
   /**
    * Returns true if any block has any block visibility is set.

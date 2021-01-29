@@ -20,6 +20,7 @@
 #include "vtkDataObject.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkInformation.h"
+#include "vtkLegacy.h" // For VTK_LEGACY_SILENT
 #include "vtkObjectFactory.h"
 #include "vtkSMPTools.h"
 #include "vtkSelectionNode.h"
@@ -59,7 +60,7 @@ public:
   }
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This is used for the cases where the SelectionList is a 1-component array,
 // implying that the values are exact matches.
 struct ArrayValueMatchFunctor
@@ -78,8 +79,8 @@ struct ArrayValueMatchFunctor
   template <typename InputArrayType, typename SelectionListArrayType>
   void operator()(InputArrayType* fArray, SelectionListArrayType* selList)
   {
-    static_assert(std::is_same<vtk::GetAPIType<InputArrayType>,
-                    vtk::GetAPIType<SelectionListArrayType> >::value,
+    static_assert(
+      std::is_same<vtk::GetAPIType<InputArrayType>, vtk::GetAPIType<SelectionListArrayType>>::value,
       "value types mismatched!");
     VTK_ASSUME(selList->GetNumberOfComponents() == 1);
     VTK_ASSUME(fArray->GetNumberOfComponents() > this->ComponentNo);
@@ -147,7 +148,7 @@ struct ArrayValueMatchFunctor
   }
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This is used for the cases where the SelectionList is a 2-component array,
 // implying that the values are ranges.
 struct ArrayValueRangeFunctor
@@ -165,8 +166,8 @@ struct ArrayValueRangeFunctor
   template <typename InputArrayType, typename SelectionListArrayType>
   void operator()(InputArrayType* fArray, SelectionListArrayType* selList)
   {
-    static_assert(std::is_same<vtk::GetAPIType<InputArrayType>,
-                    vtk::GetAPIType<SelectionListArrayType> >::value,
+    static_assert(
+      std::is_same<vtk::GetAPIType<InputArrayType>, vtk::GetAPIType<SelectionListArrayType>>::value,
       "value types mismatched!");
 
     using ValueType = vtk::GetAPIType<SelectionListArrayType>;
@@ -251,7 +252,7 @@ struct ArrayValueRangeFunctor
 };
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class vtkValueSelector::vtkInternals
 {
   vtkSmartPointer<vtkAbstractArray> SelectionList;
@@ -286,7 +287,7 @@ public:
   }
 
   // returns false on any failure or unhandled case.
-  bool Execute(vtkDataObject* dobj, vtkSignedCharArray* darray);
+  bool Execute(vtkDataObject* dobj, vtkSignedCharArray* insidednessArray);
 
 private:
   vtkInternals(vtkAbstractArray* selectionList, const std::string& fieldName, int fieldAssociation,
@@ -459,7 +460,7 @@ private:
   }
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkValueSelector::vtkInternals::Execute(
   vtkDataObject* dobj, vtkSignedCharArray* insidednessArray)
 {
@@ -485,16 +486,16 @@ bool vtkValueSelector::vtkInternals::Execute(
 
 //============================================================================
 vtkStandardNewMacro(vtkValueSelector);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkValueSelector::vtkValueSelector()
   : Internals(nullptr)
 {
 }
 
-//----------------------------------------------------------------------------
-vtkValueSelector::~vtkValueSelector() {}
+//------------------------------------------------------------------------------
+vtkValueSelector::~vtkValueSelector() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValueSelector::Initialize(vtkSelectionNode* node)
 {
   assert(node);
@@ -591,13 +592,13 @@ void vtkValueSelector::Initialize(vtkSelectionNode* node)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValueSelector::Finalize()
 {
   this->Internals.reset();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkValueSelector::ComputeSelectedElements(
   vtkDataObject* input, vtkSignedCharArray* insidednessArray)
 {
@@ -605,7 +606,7 @@ bool vtkValueSelector::ComputeSelectedElements(
   return this->Internals ? this->Internals->Execute(input, insidednessArray) : false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValueSelector::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

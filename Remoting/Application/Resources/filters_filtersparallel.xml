@@ -749,7 +749,7 @@
         </Hints>
       </StringVectorProperty>
       <DoubleVectorProperty command="SetVolumeFractionSurfaceValue"
-                            default_values="0.1"
+                            default_values="0.45"
                             label="Volume Fraction Value"
                             name="VolumeFractionSurfaceValue"
                             number_of_elements="1">
@@ -945,6 +945,75 @@
     </SourceProxy>
 
     <!-- ==================================================================== -->
+    <SourceProxy class="vtkAdaptiveTemporalInterpolator"
+                 label="Temporal Interpolator"
+                 name="TemporalInterpolator">
+      <Documentation long_help="Interpolate between time steps."
+                     short_help="Interpolate between time steps.">The Temporal
+                     Interpolator converts data that is defined at discrete
+                     time steps to one that is defined over a continuum of time
+                     by linearly interpolating the data's field data between
+                     two adjacent time steps. The interpolated values are a
+                     simple approximation and should not be interpreted as
+                     anything more. The Temporal Interpolator assumes that the
+                     topology between adjacent time steps does not
+                     change.</Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain composite_data_supported="1"
+                        name="input_type">
+          <DataType value="vtkDataObject" />
+        </DataTypeDomain>
+        <Documentation>This property specifies the input of the Temporal
+        Interpolator.</Documentation>
+      </InputProperty>
+      <DoubleVectorProperty command="SetDiscreteTimeStepInterval"
+                            default_values="0.0"
+                            name="DiscreteTimeStepInterval"
+                            number_of_elements="1">
+        <DoubleRangeDomain name="range" />
+        <Documentation>If Discrete Time Step Interval is set to 0, then the
+        Temporal Interpolator will provide a continuous region of time on its
+        output. If set to anything else, then the output will define a finite
+        set of time points on its output, each spaced by the Discrete Time Step
+        Interval. The output will have (time range)/(discrete time step
+        interval) time steps. (Note that the time range is defined by the time
+        range of the data of the input filter, which may be different from
+        other pipeline objects or the range defined in the animation
+        inspector.) This is a useful option to use if you have a dataset with
+        one missing time step and wish to 'fill in' the missing data with an
+        interpolated value from the steps on either side.</Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty information_only="1"
+                            name="TimestepValues">
+        <TimeStepsInformationHelper />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty information_only="1"
+                            name="TimeRange">
+        <TimeRangeInformationHelper />
+      </DoubleVectorProperty>
+
+      <IntVectorProperty command="SetResampleFactor"
+                         default_values="1"
+                         name="ResampleFactor"
+                         number_of_elements="1">
+        <IntRangeDomain min="1" name="range" />
+        <Documentation>When ResampleFactor is a non zero positive integer, each pair
+          of input time steps will be interpolated between with the number
+          of steps specified. For example an input of 1,2,3,4,5 and a resample factor
+          of 10, will produce steps 0f 1.0, 1.1, 1.2, ..., 1.9, 2.0.
+          Irregular input steps will produce irregular output steps.
+          Resample factor will only be used if DiscreteTimeStepInterval is zero,
+          otherwise the DiscreteTimeStepInterval takes precedence</Documentation>
+      </IntVectorProperty>
+      <!-- End TemporalInterpolator -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
     <SourceProxy class="vtkPMaskPoints"
                  label="Mask Points"
                  name="MaskPoints">
@@ -1042,6 +1111,12 @@
                  value="1" />
           <Entry text="Spatially Stratified Random Sampling"
                  value="2" />
+          <Entry text="Uniform Spatial Distribution (Bounds Based)"
+                 value="3"/>
+          <Entry text="Uniform Spatial Distribution (Surface Sampling)"
+                 value="4"/>
+          <Entry text="Uniform Spatial Distribution (Volume Sampling)"
+                 value="5"/>
         </EnumerationDomain>
         <Documentation>Randomized Id Strides picks points with random id
         increments starting at Offset (the output probably isn't a
@@ -1049,7 +1124,14 @@
         random sample of the input, ignoring Offset (fast - O(sample size)).
         Spatially Stratified Random Sampling is a variant of random sampling
         that splits the points into equal sized spatial strata before randomly
-        sampling (slow - O(N log N)).</Documentation>
+        sampling (slow - O(N log N)). The Uniform Spatial Distribution (Bound
+        based) samples points using random poisitions inside the bounds of
+        the data set and a point locator. The Uniform Spatial Distribution
+        (Surface Sampling) samples points randomly via an inverse transform on
+        surface area of each cell (3D cells are ignored). The Uniform Spatial
+        Distribution (Volume Sampling) samples points randomly sampled via an
+        inverse transform on volume area of each cell (2D cells are ignored).
+        </Documentation>
       </IntVectorProperty>
       <IntVectorProperty command="SetGenerateVertices"
                          default_values="0"

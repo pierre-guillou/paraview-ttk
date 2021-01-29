@@ -157,7 +157,7 @@ void pqPipelineSource::updatePipeline()
 //-----------------------------------------------------------------------------
 void pqPipelineSource::dataUpdated()
 {
-  emit this->dataUpdated(this);
+  Q_EMIT this->dataUpdated(this);
 }
 
 //-----------------------------------------------------------------------------
@@ -170,7 +170,7 @@ void pqPipelineSource::onSelectionChanged(
     auto port = this->getOutputPort(static_cast<int>(portIndex));
     if (port)
     {
-      emit selectionChanged(port);
+      Q_EMIT selectionChanged(port);
     }
   }
 }
@@ -178,43 +178,43 @@ void pqPipelineSource::onSelectionChanged(
 //-----------------------------------------------------------------------------
 void pqPipelineSource::prePortConnectionAdded(pqOutputPort* op, pqPipelineSource* cons)
 {
-  emit this->preConnectionAdded(this, cons, op->getPortNumber());
+  Q_EMIT this->preConnectionAdded(this, cons, op->getPortNumber());
 }
 
 //-----------------------------------------------------------------------------
 void pqPipelineSource::portConnectionAdded(pqOutputPort* op, pqPipelineSource* cons)
 {
-  emit this->connectionAdded(this, cons, op->getPortNumber());
+  Q_EMIT this->connectionAdded(this, cons, op->getPortNumber());
 }
 
 //-----------------------------------------------------------------------------
 void pqPipelineSource::prePortConnectionRemoved(pqOutputPort* op, pqPipelineSource* cons)
 {
-  emit this->preConnectionRemoved(this, cons, op->getPortNumber());
+  Q_EMIT this->preConnectionRemoved(this, cons, op->getPortNumber());
 }
 //-----------------------------------------------------------------------------
 void pqPipelineSource::portConnectionRemoved(pqOutputPort* op, pqPipelineSource* cons)
 {
-  emit this->connectionRemoved(this, cons, op->getPortNumber());
+  Q_EMIT this->connectionRemoved(this, cons, op->getPortNumber());
 }
 
 //-----------------------------------------------------------------------------
 void pqPipelineSource::portRepresentationAdded(pqOutputPort* op, pqDataRepresentation* cons)
 {
-  emit this->representationAdded(this, cons, op->getPortNumber());
+  Q_EMIT this->representationAdded(this, cons, op->getPortNumber());
 }
 
 //-----------------------------------------------------------------------------
 void pqPipelineSource::portRepresentationRemoved(pqOutputPort* op, pqDataRepresentation* cons)
 {
-  emit this->representationRemoved(this, cons, op->getPortNumber());
+  Q_EMIT this->representationRemoved(this, cons, op->getPortNumber());
 }
 
 //-----------------------------------------------------------------------------
 void pqPipelineSource::portVisibilityChanged(
   pqOutputPort* vtkNotUsed(op), pqDataRepresentation* cons)
 {
-  emit this->visibilityChanged(this, cons);
+  Q_EMIT this->visibilityChanged(this, cons);
 }
 
 //-----------------------------------------------------------------------------
@@ -305,7 +305,7 @@ QList<pqPipelineSource*> pqPipelineSource::getAllConsumers() const
 //-----------------------------------------------------------------------------
 void pqPipelineSource::onRepresentationVisibilityChanged()
 {
-  emit this->visibilityChanged(this, qobject_cast<pqDataRepresentation*>(this->sender()));
+  Q_EMIT this->visibilityChanged(this, qobject_cast<pqDataRepresentation*>(this->sender()));
 }
 
 //-----------------------------------------------------------------------------
@@ -343,10 +343,19 @@ QList<pqView*> pqPipelineSource::getViews() const
 
   foreach (pqOutputPort* opPort, this->Internal->OutputPorts)
   {
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
     views.unite(QSet<pqView*>::fromList(opPort->getViews()));
+#else
+    auto const& port_views = opPort->getViews();
+    views.unite(QSet<pqView*>(port_views.begin(), port_views.end()));
+#endif
   }
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
   return QList<pqView*>::fromSet(views);
+#else
+  return QList<pqView*>(views.begin(), views.end());
+#endif
 }
 
 //-----------------------------------------------------------------------------

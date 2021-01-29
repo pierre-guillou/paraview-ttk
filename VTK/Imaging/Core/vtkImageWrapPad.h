@@ -38,10 +38,10 @@ public:
   vtkTypeMacro(vtkImageWrapPad, vtkImagePadFilter);
 
 protected:
-  vtkImageWrapPad() {}
-  ~vtkImageWrapPad() override {}
+  vtkImageWrapPad() = default;
+  ~vtkImageWrapPad() override = default;
 
-  void ComputeInputUpdateExtent(int inExt[6], int outExt[6], int wExt[6]) override;
+  void ComputeInputUpdateExtent(int inExt[6], int outExt[6], int wholeExtent[6]) override;
   void ThreadedRequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector, vtkImageData*** inData, vtkImageData** outData, int ext[6],
     int id) override;

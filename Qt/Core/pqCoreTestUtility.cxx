@@ -45,7 +45,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "QtTestingConfigure.h"
 
 #include "QVTKOpenGLNativeWidget.h"
-#include "QVTKOpenGLWidget.h"
+#include "QVTKOpenGLStereoWidget.h"
 #include "pqApplicationCore.h"
 #include "pqCollaborationEventPlayer.h"
 #include "pqColorButtonEventPlayer.h"
@@ -62,10 +62,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqImageUtil.h"
 #include "pqLineEditEventPlayer.h"
 #include "pqOptions.h"
+#include "pqQVTKWidget.h"
 #include "pqQVTKWidgetEventPlayer.h"
 #include "pqQVTKWidgetEventTranslator.h"
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
+#include "pqUndoStack.h"
 #include "pqView.h"
 #include "pqXMLEventObserver.h"
 #include "pqXMLEventSource.h"
@@ -309,13 +311,13 @@ bool pqCoreTestUtility::CompareImage(QWidget* widget, const QString& referenceIm
   }
 
   // try to recover the render window directly
-  QVTKOpenGLWidget* glWidget = qobject_cast<QVTKOpenGLWidget*>(widget);
+  QVTKOpenGLStereoWidget* glWidget = qobject_cast<QVTKOpenGLStereoWidget*>(widget);
   if (glWidget)
   {
     vtkRenderWindow* rw = glWidget->renderWindow();
     if (rw)
     {
-      cout << "Using QVTKOpenGLWidget RenderWindow API for capture" << endl;
+      cout << "Using QVTKOpenGLStereoWidget RenderWindow API for capture" << endl;
       return pqCoreTestUtility::CompareImage(
         rw, referenceImage, threshold, std::cerr, tempDirectory, size);
     }
@@ -324,6 +326,17 @@ bool pqCoreTestUtility::CompareImage(QWidget* widget, const QString& referenceIm
   if (nativeWidget)
   {
     vtkRenderWindow* rw = nativeWidget->renderWindow();
+    if (rw)
+    {
+      cout << "Using QVTKOpenGLNativeWidget RenderWindow API for capture" << endl;
+      return pqCoreTestUtility::CompareImage(
+        rw, referenceImage, threshold, std::cerr, tempDirectory, size);
+    }
+  }
+
+  if (pqQVTKWidget* const qvtkWidget = qobject_cast<pqQVTKWidget*>(widget))
+  {
+    vtkRenderWindow* rw = qvtkWidget->renderWindow();
     if (rw)
     {
       cout << "Using QVTKOpenGLNativeWidget RenderWindow API for capture" << endl;
@@ -341,6 +354,8 @@ bool pqCoreTestUtility::CompareView(pqView* curView, const QString& referenceIma
   double threshold, const QString& tempDirectory, const QSize& size /*=QSize()*/)
 {
   assert(curView != NULL);
+
+  SCOPED_UNDO_EXCLUDE();
 
   auto viewProxy = curView->getViewProxy();
 

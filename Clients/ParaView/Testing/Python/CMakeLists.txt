@@ -12,10 +12,16 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/can.ex2}"
   "DATA{${paraview_test_data_directory_input}/Data/iron_protein.vtk}"
   "DATA{${paraview_test_data_directory_input}/Data/multicomb_0.vts}"
+  "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0000.vtm}"
+  "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0000/,REGEX:.*}"
+  "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0062.vtm}"
+  "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0062/,REGEX:.*}"
 
   # baselines
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonViewMatplotlibScript.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonViewNumpyScript.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestCatalystClient.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FontSize.png}"
   )
 
 # only enable TestPythonAnnotationFilter test if numpy is available
@@ -49,10 +55,18 @@ if (numpy_found)
   endif()
 endif()
 
+paraview_add_test_pvbatch(
+  NO_DATA NO_RT
+
+  # Adding as a pvbatch test (i.e. use offscreen)
+  # since the test may fail on X due to X window size sync issues
+  # on certain dashboards
+  OutputImageResolution.py
+)
+
 paraview_add_test_python(
   NO_DATA NO_RT
   ColorBy.py
-  OutputImageResolution.py
   PartialArrayIndication.py
   ResetSession.py
   TestClipCylinder.py
@@ -61,6 +75,7 @@ paraview_add_test_python(
   TestHoudiniWriter.py
   TestLineChartLabelPrefix.py
   TestPythonViewScript.py
+  TestResetCameraToDirection.py
 )
 
 paraview_add_test_python(
@@ -69,6 +84,7 @@ paraview_add_test_python(
   MergeBlocksPolyData.py
   PointPicking.py
   TestResetProperty.py
+  TestOverlappingCellsDetector.py
 )
 
 paraview_add_test_python(
@@ -77,11 +93,13 @@ paraview_add_test_python(
   LoadStateWithOptions.py
   Plot3DReader.py
   SaveDataWithArraySelection.py
+  ReadTimeArray.py
 )
 
 # These tests could run safely in serial and parallel.
 set(PVBATCH_TESTS
   BatchAxesGrid.py
+  FontSize.py # BUG #19816
   PLYWriter.py
   VolumeCellSelection.py
   SaveDataWithArraySelection.py,NO_VALID
@@ -172,4 +190,19 @@ paraview_add_test_python(
   TestStereoSaveScreenshot.py
 )
 unset(paraview_python_args)
+
 #------------------------------------------------------------------------------
+if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE)
+  set(_vtk_testing_python_exe "$<TARGET_FILE:ParaView::smTestDriver>")
+  set(_vtk_test_python_args
+    --script $<TARGET_FILE:ParaView::pvbatch> -sym
+      -m paraview.demos.wavelet_miniapp
+      -s ${CMAKE_CURRENT_SOURCE_DIR}/DoLive.py
+      -t 10
+      --size 21
+      --delay 2
+    --client $<TARGET_FILE:ParaView::pvpython> --force-offscreen-rendering -dr)
+  vtk_add_test_python(NO_DATA NO_RT TestCatalystClient.py)
+  unset(_vtk_testing_python_exe)
+  unset(_vtk_test_python_args)
+endif()

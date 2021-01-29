@@ -15,12 +15,14 @@
 #include "vtkSMProxyManager.h"
 
 #include "vtkCommand.h"
+#include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVConfig.h" // for PARAVIEW_VERSION_*
 #include "vtkPVXMLElement.h"
 #include "vtkProcessModule.h"
 #include "vtkSIProxyDefinitionManager.h"
 #include "vtkSMPluginManager.h"
+#include "vtkSMProxyIterator.h"
 #include "vtkSMReaderFactory.h"
 #include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
@@ -31,6 +33,9 @@
 #include "vtkWeakPointer.h"
 
 #include <map>
+#include <set>
+#include <sstream>
+#include <vector>
 
 #define PARAVIEW_SOURCE_VERSION "paraview version " PARAVIEW_VERSION_FULL
 //***************************************************************************
@@ -71,20 +76,15 @@ vtkSMProxyManager::vtkSMProxyManager()
   this->UndoStackBuilder = NULL;
 
   this->ReaderFactory = vtkSMReaderFactory::New();
-  // Keep track of when proxy definitions change and then if it's a new
-  // reader we add it to ReaderFactory.
-  this->AddObserver(vtkSIProxyDefinitionManager::ProxyDefinitionsUpdated, this->ReaderFactory,
-    &vtkSMReaderFactory::UpdateAvailableReaders);
-  this->AddObserver(vtkSIProxyDefinitionManager::CompoundProxyDefinitionsUpdated,
-    this->ReaderFactory, &vtkSMReaderFactory::UpdateAvailableReaders);
-
   this->WriterFactory = vtkSMWriterFactory::New();
+
   // Keep track of when proxy definitions change and then if it's a new
-  // writer we add it to WriterFactory.
-  this->AddObserver(vtkSIProxyDefinitionManager::ProxyDefinitionsUpdated, this->WriterFactory,
-    &vtkSMWriterFactory::UpdateAvailableWriters);
-  this->AddObserver(vtkSIProxyDefinitionManager::CompoundProxyDefinitionsUpdated,
-    this->WriterFactory, &vtkSMWriterFactory::UpdateAvailableWriters);
+  // reader or writer we add it to ReaderFactory or WriterFactory.
+  this->BlockProxyDefinitionUpdates = false;
+  this->AddObserver(vtkSIProxyDefinitionManager::ProxyDefinitionsUpdated, this,
+    &vtkSMProxyManager::UpdateProxyDefinitions);
+  this->AddObserver(vtkSIProxyDefinitionManager::CompoundProxyDefinitionsUpdated, this,
+    &vtkSMProxyManager::UpdateProxyDefinitions);
 
   // Monitor session creations. If a new session is created and we don't have an
   // active one, we make that new session active.
@@ -237,6 +237,17 @@ vtkSMSessionProxyManager* vtkSMProxyManager::GetSessionProxyManager(vtkSMSession
   return session ? session->GetSessionProxyManager() : NULL;
 }
 
+//---------------------------------------------------------------------------
+
+void vtkSMProxyManager::UpdateProxyDefinitions()
+{
+  if (!this->BlockProxyDefinitionUpdates)
+  {
+    this->ReaderFactory->UpdateAvailableReaders();
+    this->WriterFactory->UpdateAvailableWriters();
+  }
+}
+
 //----------------------------------------------------------------------------
 void vtkSMProxyManager::PrintSelf(ostream& os, vtkIndent indent)
 {
@@ -319,4 +330,65 @@ const char* vtkSMProxyManager::GetProxyName(const char* groupname, vtkSMProxy* p
     vtkErrorMacro("No active session found.");
   }
   return NULL;
+}
+
+//---------------------------------------------------------------------------
+std::string vtkSMProxyManager::GetUniqueProxyName(
+  const char* groupname, const char* prefix, bool alwaysAppend)
+{
+  std::vector<vtkSMSessionProxyManager*> pxms;
+  vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
+  vtkSessionIterator* iter = pm->NewSessionIterator();
+  for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
+  {
+    if (auto session = vtkSMSession::SafeDownCast(iter->GetCurrentSession()))
+    {
+      pxms.push_back(session->GetSessionProxyManager());
+    }
+  }
+  iter->Delete();
+
+  if (!groupname || !prefix || pxms.size() == 0)
+  {
+    return std::string();
+  }
+
+  if (pxms.size() == 1)
+  {
+    return pxms[0]->GetUniqueProxyName(groupname, prefix, alwaysAppend);
+  }
+
+  // find unique name across all sessions.
+  std::set<std::string> existingNames;
+
+  vtkNew<vtkSMProxyIterator> piter;
+  for (auto pxm : pxms)
+  {
+    piter->SetSessionProxyManager(pxm);
+    for (piter->Begin(groupname); !piter->IsAtEnd(); piter->Next())
+    {
+      existingNames.insert(piter->GetKey());
+    }
+  }
+
+  if (!alwaysAppend)
+  {
+    if (existingNames.find(prefix) == existingNames.end())
+    {
+      return prefix;
+    }
+  }
+
+  for (int suffix = 1; suffix < VTK_INT_MAX; ++suffix)
+  {
+    std::ostringstream name_stream;
+    name_stream << prefix << suffix;
+    if (existingNames.find(name_stream.str()) == existingNames.end())
+    {
+      return name_stream.str();
+    }
+  }
+
+  vtkErrorMacro("Failed to come up with a unique name!");
+  abort();
 }

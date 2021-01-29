@@ -82,10 +82,10 @@ int vtkPruneTreeFilter::RequestData(
   builder->GetFieldData()->DeepCopy(inputTree->GetFieldData());
 
   // Build a copy of the tree, skipping the parent vertex to remove.
-  std::vector<std::pair<vtkIdType, vtkIdType> > vertStack;
+  std::vector<std::pair<vtkIdType, vtkIdType>> vertStack;
   if (inputTree->GetRoot() != this->ParentVertex)
   {
-    vertStack.push_back(std::make_pair(inputTree->GetRoot(), builder->AddVertex()));
+    vertStack.emplace_back(inputTree->GetRoot(), builder->AddVertex());
   }
   while (!vertStack.empty())
   {
@@ -105,7 +105,7 @@ int vtkPruneTreeFilter::RequestData(
           vtkIdType child = builder->AddVertex();
           vtkEdgeType e = builder->AddEdge(v, child);
           builderEdgeData->CopyData(inputEdgeData, tree_e.Id, e.Id);
-          vertStack.push_back(std::make_pair(tree_child, child));
+          vertStack.emplace_back(tree_child, child);
         }
       }
       else
@@ -115,7 +115,7 @@ int vtkPruneTreeFilter::RequestData(
         builderEdgeData->CopyData(inputEdgeData, tree_e.Id, e.Id);
         if (tree_child != this->ParentVertex)
         {
-          vertStack.push_back(std::make_pair(tree_child, child));
+          vertStack.emplace_back(tree_child, child);
         }
         else
         {

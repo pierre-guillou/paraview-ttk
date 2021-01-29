@@ -45,7 +45,7 @@
 
 #define VTK_CREATE(type, var) vtkSmartPointer<type> var = vtkSmartPointer<type>::New()
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 class vtkTestMagnifyRenderManager : public vtkParallelRenderManager
 {
@@ -57,10 +57,10 @@ protected:
   vtkTestMagnifyRenderManager();
   ~vtkTestMagnifyRenderManager() override;
 
-  virtual void PreRenderProcessing() override;
-  virtual void PostRenderProcessing() override;
+  void PreRenderProcessing() override;
+  void PostRenderProcessing() override;
 
-  virtual void ReadReducedImage() override;
+  void ReadReducedImage() override;
 
   vtkImageMandelbrotSource* Mandelbrot;
 
@@ -198,7 +198,7 @@ void vtkTestMagnifyRenderManager::ReadReducedImage()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 int PrmMagnify(int argc, char* argv[])
 {

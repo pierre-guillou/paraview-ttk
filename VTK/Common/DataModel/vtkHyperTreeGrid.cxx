@@ -16,6 +16,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include "vtkBitArray.h"
 #include "vtkBoundingBox.h"
+#include "vtkCellData.h"
 #include "vtkCollection.h"
 #include "vtkDoubleArray.h"
 #include "vtkFieldData.h"
@@ -39,7 +40,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 #include "vtkStructuredData.h"
 #include "vtkUnsignedCharArray.h"
@@ -113,7 +113,7 @@ void vtkHyperTreeGrid::SetMask(vtkBitArray* _arg)
       : nullptr))
 #define GetHyperTreeFromThisMacro(_index_) GetHyperTreeFromOtherMacro(this, _index_)
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGrid::vtkHyperTreeGrid()
 {
   // Default state
@@ -196,12 +196,12 @@ vtkHyperTreeGrid::vtkHyperTreeGrid()
   this->Center[2] = 0.0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::Initialize()
 {
   this->Superclass::Initialize();
-  // DataObject Initialize will not do PointData
-  this->PointData->Initialize();
+  // DataObject Initialize will not do CellData
+  this->CellData->Initialize();
   // Delete existing trees
   this->HyperTrees.clear();
 
@@ -221,9 +221,7 @@ void vtkHyperTreeGrid::Initialize()
   this->DepthLimiter = UINT_MAX;
 
   // Masked primal leaves
-  vtkBitArray* mask = vtkBitArray::New();
-  this->SetMask(mask);
-  mask->FastDelete();
+  this->SetMask(nullptr);
 
   // No interface by default
   this->HasInterface = false;
@@ -300,7 +298,7 @@ void vtkHyperTreeGrid::Initialize()
   this->Center[2] = 0.0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::Squeeze()
 {
   if (!this->FreezeState)
@@ -321,7 +319,7 @@ void vtkHyperTreeGrid::Squeeze()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGrid::~vtkHyperTreeGrid()
 {
   if (this->ModeSqueeze)
@@ -363,7 +361,7 @@ vtkHyperTreeGrid::~vtkHyperTreeGrid()
   this->SetInterfaceInterceptsName(nullptr);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -415,23 +413,23 @@ void vtkHyperTreeGrid::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << indent << "HyperTrees: " << this->HyperTrees.size() << endl;
 
-  os << indent << "PointData:" << endl;
-  this->PointData->PrintSelf(os, indent.GetNextIndent());
+  os << indent << "CellData:" << endl;
+  this->CellData->PrintSelf(os, indent.GetNextIndent());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGrid* vtkHyperTreeGrid::GetData(vtkInformation* info)
 {
   return info ? vtkHyperTreeGrid::SafeDownCast(info->Get(DATA_OBJECT())) : nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGrid* vtkHyperTreeGrid::GetData(vtkInformationVector* v, int i)
 {
   return vtkHyperTreeGrid::GetData(v->GetInformationObject(i));
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::CopyEmptyStructure(vtkDataObject* ds)
 {
   assert("pre: ds_exists" && ds != nullptr);
@@ -469,10 +467,10 @@ void vtkHyperTreeGrid::CopyEmptyStructure(vtkDataObject* ds)
   this->SetInterfaceNormalsName(htg->InterfaceNormalsName);
   this->SetInterfaceInterceptsName(htg->InterfaceInterceptsName);
 
-  this->PointData->CopyStructure(htg->GetPointData());
+  this->CellData->CopyStructure(htg->GetCellData());
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::CopyStructure(vtkDataObject* ds)
 {
   assert("pre: ds_exists" && ds != nullptr);
@@ -514,7 +512,7 @@ void vtkHyperTreeGrid::CopyStructure(vtkDataObject* ds)
   this->SetMask(htg->GetMask());
   vtkSetObjectBodyMacro(PureMask, vtkBitArray, htg->GetPureMask());
 
-  this->PointData->CopyStructure(htg->GetPointData());
+  this->CellData->CopyStructure(htg->GetCellData());
 
   // Search for hyper tree with given index
   this->HyperTrees.clear();
@@ -529,17 +527,6 @@ void vtkHyperTreeGrid::CopyStructure(vtkDataObject* ds)
   }
 }
 
-//-----------------------------------------------------------------------------
-
-/*JB ??
-void vtkHyperTreeGrid::GetNumberOfTreesPerDimension(unsigned int* dimsOut)
-{
-  dimsOut[0] = this->CellDims[0];
-  dimsOut[1] = this->CellDims[1];
-  dimsOut[2] = this->CellDims[2];
-}
-*/
-
 // ============================================================================
 // BEGIN - RectilinearGrid common API
 // ============================================================================
@@ -549,33 +536,33 @@ void vtkHyperTreeGrid::SetDimensions(const int dim[3])
   this->SetExtent(0, dim[0] - 1, 0, dim[1] - 1, 0, dim[2] - 1);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::SetDimensions(int i, int j, int k)
 {
   this->SetExtent(0, i - 1, 0, j - 1, 0, k - 1);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::SetDimensions(const unsigned int dim[3])
 {
   this->SetExtent(0, static_cast<int>(dim[0]) - 1, 0, static_cast<int>(dim[1]) - 1, 0,
     static_cast<int>(dim[2]) - 1);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::SetDimensions(unsigned int i, unsigned int j, unsigned int k)
 {
   this->SetExtent(
     0, static_cast<int>(i) - 1, 0, static_cast<int>(j) - 1, 0, static_cast<int>(k) - 1);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const unsigned int* vtkHyperTreeGrid::GetDimensions() const
 {
   return this->Dimensions;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetDimensions(int dim[3]) const
 {
   dim[0] = static_cast<int>(this->Dimensions[0]);
@@ -583,7 +570,7 @@ void vtkHyperTreeGrid::GetDimensions(int dim[3]) const
   dim[2] = static_cast<int>(this->Dimensions[2]);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetDimensions(unsigned int dim[3]) const
 {
   dim[0] = this->Dimensions[0];
@@ -591,13 +578,13 @@ void vtkHyperTreeGrid::GetDimensions(unsigned int dim[3]) const
   dim[2] = this->Dimensions[2];
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const unsigned int* vtkHyperTreeGrid::GetCellDims() const
 {
   return this->CellDims;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetCellDims(int cellDims[3]) const
 {
   cellDims[0] = static_cast<int>(this->CellDims[0]);
@@ -605,7 +592,7 @@ void vtkHyperTreeGrid::GetCellDims(int cellDims[3]) const
   cellDims[2] = static_cast<int>(this->CellDims[2]);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetCellDims(unsigned int cellDims[3]) const
 {
   cellDims[0] = this->CellDims[0];
@@ -613,7 +600,7 @@ void vtkHyperTreeGrid::GetCellDims(unsigned int cellDims[3]) const
   cellDims[2] = this->CellDims[2];
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::SetExtent(const int extent[6])
 {
   assert("pre: valid_extent_0" && extent[0] == 0);
@@ -705,7 +692,7 @@ void vtkHyperTreeGrid::SetExtent(const int extent[6])
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::SetExtent(int i0, int i1, int j0, int j1, int k0, int k1)
 {
   int extent[6];
@@ -724,7 +711,7 @@ void vtkHyperTreeGrid::SetExtent(int i0, int i1, int j0, int j1, int k0, int k1)
 // END - RectilinearGrid common API
 // ============================================================================
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::SetBranchFactor(unsigned int factor)
 {
   assert("pre: valid_factor" && factor >= 2 && factor <= 3);
@@ -748,26 +735,26 @@ void vtkHyperTreeGrid::SetBranchFactor(unsigned int factor)
   this->Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkHyperTreeGrid::HasMask()
 {
   return this->Mask && this->Mask->GetNumberOfTuples() != 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkHyperTreeGrid::GetMaxNumberOfTrees()
 {
   return this->CellDims[0] * this->CellDims[1] * this->CellDims[2];
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned int vtkHyperTreeGrid::GetNumberOfLevels(vtkIdType index)
 {
   vtkHyperTree* tree = GetHyperTreeFromThisMacro(index);
   return tree ? tree->GetNumberOfLevels() : 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned int vtkHyperTreeGrid::GetNumberOfLevels()
 {
   vtkIdType nLevels = 0;
@@ -788,7 +775,7 @@ unsigned int vtkHyperTreeGrid::GetNumberOfLevels()
   return nLevels;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkHyperTreeGrid::GetNumberOfVertices()
 {
   vtkIdType nVertices = 0;
@@ -803,7 +790,7 @@ vtkIdType vtkHyperTreeGrid::GetNumberOfVertices()
   return nVertices;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkHyperTreeGrid::GetNumberOfLeaves()
 {
   vtkIdType nLeaves = 0;
@@ -819,20 +806,20 @@ vtkIdType vtkHyperTreeGrid::GetNumberOfLeaves()
   return nLeaves;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeTreeIterator(vtkHyperTreeGridIterator& it)
 {
   it.Initialize(this);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeOrientedCursor(
   vtkHyperTreeGridOrientedCursor* cursor, vtkIdType index, bool create)
 {
   cursor->Initialize(this, index, create);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridOrientedCursor* vtkHyperTreeGrid::NewOrientedCursor(vtkIdType index, bool create)
 {
   vtkHyperTreeGridOrientedCursor* cursor = vtkHyperTreeGridOrientedCursor::New();
@@ -840,14 +827,14 @@ vtkHyperTreeGridOrientedCursor* vtkHyperTreeGrid::NewOrientedCursor(vtkIdType in
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeOrientedGeometryCursor(
   vtkHyperTreeGridOrientedGeometryCursor* cursor, vtkIdType index, bool create)
 {
   cursor->Initialize(this, index, create);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridOrientedGeometryCursor* vtkHyperTreeGrid::NewOrientedGeometryCursor(
   vtkIdType index, bool create)
 {
@@ -856,14 +843,14 @@ vtkHyperTreeGridOrientedGeometryCursor* vtkHyperTreeGrid::NewOrientedGeometryCur
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeNonOrientedCursor(
   vtkHyperTreeGridNonOrientedCursor* cursor, vtkIdType index, bool create)
 {
   cursor->Initialize(this, index, create);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridNonOrientedCursor* vtkHyperTreeGrid::NewNonOrientedCursor(
   vtkIdType index, bool create)
 {
@@ -872,14 +859,14 @@ vtkHyperTreeGridNonOrientedCursor* vtkHyperTreeGrid::NewNonOrientedCursor(
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeNonOrientedGeometryCursor(
   vtkHyperTreeGridNonOrientedGeometryCursor* cursor, vtkIdType index, bool create)
 {
   cursor->Initialize(this, index, create);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridNonOrientedGeometryCursor* vtkHyperTreeGrid::NewNonOrientedGeometryCursor(
   vtkIdType index, bool create)
 {
@@ -889,9 +876,9 @@ vtkHyperTreeGridNonOrientedGeometryCursor* vtkHyperTreeGrid::NewNonOrientedGeome
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // #define TRACE
 
 unsigned int vtkHyperTreeGrid::RecurseDichotomic(
@@ -1057,14 +1044,14 @@ vtkHyperTreeGridNonOrientedGeometryCursor* vtkHyperTreeGrid::FindNonOrientedGeom
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeNonOrientedVonNeumannSuperCursor(
   vtkHyperTreeGridNonOrientedVonNeumannSuperCursor* cursor, vtkIdType index, bool create)
 {
   cursor->Initialize(this, index, create);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridNonOrientedVonNeumannSuperCursor*
 vtkHyperTreeGrid::NewNonOrientedVonNeumannSuperCursor(vtkIdType index, bool create)
 {
@@ -1074,14 +1061,14 @@ vtkHyperTreeGrid::NewNonOrientedVonNeumannSuperCursor(vtkIdType index, bool crea
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeNonOrientedVonNeumannSuperCursorLight(
   vtkHyperTreeGridNonOrientedVonNeumannSuperCursorLight* cursor, vtkIdType index, bool create)
 {
   cursor->Initialize(this, index, create);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridNonOrientedVonNeumannSuperCursorLight*
 vtkHyperTreeGrid::NewNonOrientedVonNeumannSuperCursorLight(vtkIdType index, bool create)
 {
@@ -1091,14 +1078,14 @@ vtkHyperTreeGrid::NewNonOrientedVonNeumannSuperCursorLight(vtkIdType index, bool
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeNonOrientedMooreSuperCursor(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkIdType index, bool create)
 {
   cursor->Initialize(this, index, create);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridNonOrientedMooreSuperCursor* vtkHyperTreeGrid::NewNonOrientedMooreSuperCursor(
   vtkIdType index, bool create)
 {
@@ -1108,14 +1095,14 @@ vtkHyperTreeGridNonOrientedMooreSuperCursor* vtkHyperTreeGrid::NewNonOrientedMoo
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeNonOrientedMooreSuperCursorLight(
   vtkHyperTreeGridNonOrientedMooreSuperCursorLight* cursor, vtkIdType index, bool create)
 {
   cursor->Initialize(this, index, create);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridNonOrientedMooreSuperCursorLight*
 vtkHyperTreeGrid::NewNonOrientedMooreSuperCursorLight(vtkIdType index, bool create)
 {
@@ -1125,7 +1112,7 @@ vtkHyperTreeGrid::NewNonOrientedMooreSuperCursorLight(vtkIdType index, bool crea
   return cursor;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTree* vtkHyperTreeGrid::GetTree(vtkIdType index, bool create)
 {
   // Wrap convenience macro for outside use
@@ -1135,6 +1122,7 @@ vtkHyperTree* vtkHyperTreeGrid::GetTree(vtkIdType index, bool create)
   if (create && !tree)
   {
     tree = vtkHyperTree::CreateInstance(this->BranchFactor, this->Dimension);
+    assert(tree != nullptr);
     tree->SetTreeIndex(index);
     this->HyperTrees[index] = tree;
     tree->Delete();
@@ -1155,7 +1143,7 @@ vtkHyperTree* vtkHyperTreeGrid::GetTree(vtkIdType index, bool create)
   return tree;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::SetTree(vtkIdType index, vtkHyperTree* tree)
 {
   // Assign given tree at given index of hyper tree grid
@@ -1163,7 +1151,7 @@ void vtkHyperTreeGrid::SetTree(vtkIdType index, vtkHyperTree* tree)
   this->HyperTrees[index] = tree;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::ShallowCopy(vtkDataObject* src)
 {
   vtkHyperTreeGrid* htg = vtkHyperTreeGrid::SafeDownCast(src);
@@ -1172,13 +1160,13 @@ void vtkHyperTreeGrid::ShallowCopy(vtkDataObject* src)
   // Copy member variables
   this->CopyStructure(htg);
 
-  this->PointData->ShallowCopy(htg->GetPointData());
+  this->CellData->ShallowCopy(htg->GetCellData());
 
   // Call superclass
   this->Superclass::ShallowCopy(src);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::DeepCopy(vtkDataObject* src)
 {
   assert("pre: src_exists" && src != nullptr);
@@ -1217,7 +1205,7 @@ void vtkHyperTreeGrid::DeepCopy(vtkDataObject* src)
     this->InitPureMask = htg->InitPureMask;
   }
 
-  this->PointData->DeepCopy(htg->GetPointData());
+  this->CellData->DeepCopy(htg->GetCellData());
 
   // Rectilinear part
   memcpy(this->Dimensions, htg->GetDimensions(), 3 * sizeof(unsigned int));
@@ -1258,7 +1246,7 @@ void vtkHyperTreeGrid::DeepCopy(vtkDataObject* src)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkHyperTreeGrid::RecursivelyInitializePureMask(
   vtkHyperTreeGridNonOrientedCursor* cursor, vtkDataArray* normale)
 {
@@ -1299,7 +1287,7 @@ bool vtkHyperTreeGrid::RecursivelyInitializePureMask(
   return mask;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkBitArray* vtkHyperTreeGrid::GetPureMask()
 {
   // Check whether a pure material mask was initialized
@@ -1347,7 +1335,7 @@ vtkBitArray* vtkHyperTreeGrid::GetPureMask()
   return this->PureMask;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned long vtkHyperTreeGrid::GetActualMemorySizeBytes()
 {
   size_t size = 0; // in bytes
@@ -1389,19 +1377,19 @@ unsigned long vtkHyperTreeGrid::GetActualMemorySizeBytes()
 
   // JB Faut il compter le cout des grandeurs dans la representation ???
   // JB Il ne me semble pas que cela soit fait ainsi dans les autres representations
-  size += this->PointData->GetActualMemorySize() << 10;
+  size += this->CellData->GetActualMemorySize() << 10;
 
   return static_cast<unsigned long>(size);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned long vtkHyperTreeGrid::GetActualMemorySize()
 {
   // in kilibytes
   return (this->GetActualMemorySizeBytes() >> 10);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetIndexFromLevelZeroCoordinates(
   vtkIdType& treeindex, unsigned int i, unsigned int j, unsigned int k) const
 {
@@ -1422,7 +1410,7 @@ void vtkHyperTreeGrid::GetIndexFromLevelZeroCoordinates(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkHyperTreeGrid::GetShiftedLevelZeroIndex(
   vtkIdType treeindex, unsigned int i, unsigned int j, unsigned int k) const
 {
@@ -1431,7 +1419,7 @@ vtkIdType vtkHyperTreeGrid::GetShiftedLevelZeroIndex(
   return treeindex + dtreeindex;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetLevelZeroCoordinatesFromIndex(
   vtkIdType treeindex, unsigned int& i, unsigned int& j, unsigned int& k) const
 {
@@ -1459,7 +1447,7 @@ void vtkHyperTreeGrid::GetLevelZeroCoordinatesFromIndex(
   assert(k < this->CellDims[2]);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetLevelZeroOriginAndSizeFromIndex(
   vtkIdType treeindex, double* Origin, double* Size)
 {
@@ -1502,7 +1490,7 @@ void vtkHyperTreeGrid::GetLevelZeroOriginAndSizeFromIndex(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetLevelZeroOriginFromIndex(vtkIdType treeindex, double* Origin)
 {
   assert("pre: exist_coordinates_explict" && this->WithCoordinates);
@@ -1519,7 +1507,7 @@ void vtkHyperTreeGrid::GetLevelZeroOriginFromIndex(vtkIdType treeindex, double* 
   Origin[2] = zCoords->GetTuple1(k);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkHyperTreeGrid::GetGlobalNodeIndexMax()
 {
   // Iterate over all hyper trees
@@ -1534,7 +1522,7 @@ vtkIdType vtkHyperTreeGrid::GetGlobalNodeIndexMax()
   return max;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::InitializeLocalIndexNode()
 {
   // Iterate over all hyper trees
@@ -1552,7 +1540,7 @@ void vtkHyperTreeGrid::InitializeLocalIndexNode()
 //=============================================================================
 // Hyper tree grid iterator
 // Implemented here because it needs access to the internal classes.
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::vtkHyperTreeGridIterator::Initialize(vtkHyperTreeGrid* grid)
 {
   assert(grid != nullptr);
@@ -1560,7 +1548,7 @@ void vtkHyperTreeGrid::vtkHyperTreeGridIterator::Initialize(vtkHyperTreeGrid* gr
   this->Iterator = grid->HyperTrees.begin();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTree* vtkHyperTreeGrid::vtkHyperTreeGridIterator::GetNextTree(vtkIdType& index)
 {
   if (this->Iterator == this->Grid->HyperTrees.end())
@@ -1573,7 +1561,7 @@ vtkHyperTree* vtkHyperTreeGrid::vtkHyperTreeGridIterator::GetNextTree(vtkIdType&
   return t;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTree* vtkHyperTreeGrid::vtkHyperTreeGridIterator::GetNextTree()
 {
   vtkIdType index;
@@ -1605,7 +1593,7 @@ static const unsigned int* HyperTreeGridMask[3][2] = {
   { HyperTreeGridMask_2_2, HyperTreeGridMask_2_3 }, { HyperTreeGridMask_3_2, HyperTreeGridMask_3_3 }
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned int vtkHyperTreeGrid::GetChildMask(unsigned int child)
 {
   int i = this->GetDimension() - 1;
@@ -1613,7 +1601,7 @@ unsigned int vtkHyperTreeGrid::GetChildMask(unsigned int child)
   return HyperTreeGridMask[i][j][child];
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkHyperTreeGrid::GetBounds()
 {
   assert("pre: exist_coordinates_explict" && this->WithCoordinates);
@@ -1647,14 +1635,14 @@ double* vtkHyperTreeGrid::GetBounds()
   return this->Bounds;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetBounds(double* obds)
 {
   double* bds = this->GetBounds();
   memcpy(obds, bds, 6 * sizeof(double));
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkHyperTreeGrid::GetCenter()
 {
   double* bds = this->GetBounds();
@@ -1664,35 +1652,50 @@ double* vtkHyperTreeGrid::GetCenter()
   return this->Center;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGrid::GetCenter(double* octr)
 {
   double* ctr = this->GetCenter();
   memcpy(octr, ctr, 3 * sizeof(double));
 }
 
-//-----------------------------------------------------------------------------
-vtkPointData* vtkHyperTreeGrid::GetPointData()
+//------------------------------------------------------------------------------
+vtkCellData* vtkHyperTreeGrid::GetCellData()
 {
-  return this->PointData.GetPointer();
+  return this->CellData.GetPointer();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+vtkFieldData* vtkHyperTreeGrid::GetAttributesAsFieldData(int type)
+{
+  return type == vtkDataObject::AttributeTypes::CELL
+    ? this->CellData.GetPointer()
+    : this->Superclass::GetAttributesAsFieldData(type);
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkHyperTreeGrid::GetNumberOfElements(int type)
+{
+  return type == vtkDataObject::AttributeTypes::CELL ? this->CellData->GetNumberOfTuples()
+                                                     : this->Superclass::GetNumberOfElements(type);
+}
+
+//------------------------------------------------------------------------------
 vtkUnsignedCharArray* vtkHyperTreeGrid::GetTreeGhostArray()
 {
   if (!this->TreeGhostArrayCached)
   {
     this->TreeGhostArray = vtkArrayDownCast<vtkUnsignedCharArray>(
-      this->GetPointData()->GetArray(vtkDataSetAttributes::GhostArrayName()));
+      this->GetCellData()->GetArray(vtkDataSetAttributes::GhostArrayName()));
     this->TreeGhostArrayCached = true;
   }
   assert(this->TreeGhostArray ==
     vtkArrayDownCast<vtkUnsignedCharArray>(
-      this->GetPointData()->GetArray(vtkDataSetAttributes::GhostArrayName())));
+      this->GetCellData()->GetArray(vtkDataSetAttributes::GhostArrayName())));
   return this->TreeGhostArray;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkUnsignedCharArray* vtkHyperTreeGrid::AllocateTreeGhostArray()
 {
   if (!this->GetTreeGhostArray())
@@ -1702,7 +1705,7 @@ vtkUnsignedCharArray* vtkHyperTreeGrid::AllocateTreeGhostArray()
     ghosts->SetNumberOfComponents(1);
     ghosts->SetNumberOfTuples(this->GetMaxNumberOfTrees());
     ghosts->Fill(0);
-    this->GetPointData()->AddArray(ghosts);
+    this->GetCellData()->AddArray(ghosts);
     ghosts->Delete();
     this->TreeGhostArray = ghosts;
     this->TreeGhostArrayCached = true;
@@ -1710,15 +1713,15 @@ vtkUnsignedCharArray* vtkHyperTreeGrid::AllocateTreeGhostArray()
   return this->TreeGhostArray;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkUnsignedCharArray* vtkHyperTreeGrid::GetGhostCells()
 {
   return vtkUnsignedCharArray::SafeDownCast(
-    this->PointData->GetArray(vtkDataSetAttributes::GhostArrayName()));
+    this->CellData->GetArray(vtkDataSetAttributes::GhostArrayName()));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkHyperTreeGrid::HasAnyGhostCells() const
 {
-  return this->PointData->GetArray(vtkDataSetAttributes::GhostArrayName()) != nullptr;
+  return this->CellData->GetArray(vtkDataSetAttributes::GhostArrayName()) != nullptr;
 }

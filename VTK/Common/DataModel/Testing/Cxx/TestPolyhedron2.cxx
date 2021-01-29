@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPlane.h"
 #include "vtkPolyhedron.h"
 #include "vtkUnstructuredGrid.h"
@@ -26,7 +29,7 @@
 #include "vtkXMLUnstructuredGridWriter.h"
 
 // Test of contour/clip of vtkPolyhedron. uses input from
-// https://gitlab.kitware.com/vtk/vtk/issues/14485
+// https://gitlab.kitware.com/vtk/vtk/-/issues/14485
 int TestPolyhedron2(int argc, char* argv[])
 {
   if (argc < 3)

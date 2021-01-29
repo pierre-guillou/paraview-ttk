@@ -27,10 +27,7 @@ namespace rendering
 {
 // A more useful  bounds check that tells you where it happened
 #ifndef NDEBUG
-#define BOUNDS_CHECK(HANDLE, INDEX)                                                                \
-  {                                                                                                \
-    BoundsCheck((HANDLE), (INDEX), __FILE__, __LINE__);                                            \
-  }
+#define BOUNDS_CHECK(HANDLE, INDEX) BoundsCheck((HANDLE), (INDEX), __FILE__, __LINE__)
 #else
 #define BOUNDS_CHECK(HANDLE, INDEX)
 #endif
@@ -90,6 +87,13 @@ inline std::string GetDeviceString<vtkm::cont::DeviceAdapterTagCuda>(
   vtkm::cont::DeviceAdapterTagCuda)
 {
   return "cuda";
+}
+
+template <>
+inline std::string GetDeviceString<vtkm::cont::DeviceAdapterTagKokkos>(
+  vtkm::cont::DeviceAdapterTagKokkos)
+{
+  return "kokkos";
 }
 
 struct DeviceStringFunctor

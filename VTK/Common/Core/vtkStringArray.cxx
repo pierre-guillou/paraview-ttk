@@ -44,7 +44,7 @@ namespace
 auto DefaultDeleteFunction = [](void* ptr) { delete[] reinterpret_cast<vtkStdString*>(ptr); };
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class vtkStringArrayLookup
 {
 public:
@@ -74,8 +74,9 @@ public:
 };
 
 vtkStandardNewMacro(vtkStringArray);
+vtkStandardExtendedNewMacro(vtkStringArray);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkStringArray::vtkStringArray()
 {
@@ -84,7 +85,7 @@ vtkStringArray::vtkStringArray()
   this->Lookup = nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkStringArray::~vtkStringArray()
 {
@@ -95,7 +96,7 @@ vtkStringArray::~vtkStringArray()
   delete this->Lookup;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkArrayIterator* vtkStringArray::NewIterator()
 {
   vtkArrayIteratorTemplate<vtkStdString>* iter = vtkArrayIteratorTemplate<vtkStdString>::New();
@@ -103,7 +104,7 @@ vtkArrayIterator* vtkStringArray::NewIterator()
   return iter;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This method lets the user specify data to be held by the array.  The
 // array argument is a pointer to the data.  size is the size of
 // the array supplied by the user.  Set save to 1 to keep the class
@@ -152,13 +153,13 @@ void vtkStringArray::SetArray(vtkStdString* array, vtkIdType size, int save, int
   this->DataChanged();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::SetArrayFreeFunction(void (*callback)(void*))
 {
   this->DeleteFunction = callback;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Allocate memory for this array. Delete old storage only if necessary.
 
 vtkTypeBool vtkStringArray::Allocate(vtkIdType sz, vtkIdType)
@@ -185,7 +186,7 @@ vtkTypeBool vtkStringArray::Allocate(vtkIdType sz, vtkIdType)
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Release storage and reset array to initial state.
 
 void vtkStringArray::Initialize()
@@ -201,7 +202,7 @@ void vtkStringArray::Initialize()
   this->DataChanged();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Deep copy of another string array.
 
 void vtkStringArray::DeepCopy(vtkAbstractArray* aa)
@@ -239,7 +240,10 @@ void vtkStringArray::DeepCopy(vtkAbstractArray* aa)
     this->DeleteFunction(this->Array);
   }
 
+  this->Superclass::DeepCopy(aa); // copy information objects.
+
   // Copy the given array into new memory.
+  this->NumberOfComponents = aa->GetNumberOfComponents();
   this->MaxId = fa->GetMaxId();
   this->Size = fa->GetSize();
   this->DeleteFunction = DefaultDeleteFunction;
@@ -252,7 +256,7 @@ void vtkStringArray::DeepCopy(vtkAbstractArray* aa)
   this->DataChanged();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Interpolate array value from other array value given the
 // indices and associated interpolation weights.
 // This method assumes that the two arrays are of the same time.
@@ -288,7 +292,7 @@ void vtkStringArray::InterpolateTuple(
   this->InsertTuple(i, nearest, source);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Interpolate value from the two values, p1 and p2, and an
 // interpolation factor, t. The interpolation factor ranges from (0,1),
 // with t=0 located at p1. This method assumes that the three arrays are of
@@ -315,7 +319,7 @@ void vtkStringArray::InterpolateTuple(vtkIdType i, vtkIdType id1, vtkAbstractArr
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -329,7 +333,7 @@ void vtkStringArray::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Protected function does "reallocate"
 
 vtkStdString* vtkStringArray::ResizeAndExtend(vtkIdType sz)
@@ -395,11 +399,11 @@ vtkStdString* vtkStringArray::ResizeAndExtend(vtkIdType sz)
   return this->Array;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTypeBool vtkStringArray::Resize(vtkIdType sz)
 {
   vtkStdString* newArray;
-  vtkIdType newSize = sz;
+  vtkIdType newSize = sz * this->NumberOfComponents;
 
   if (newSize == this->Size)
   {
@@ -446,7 +450,7 @@ vtkTypeBool vtkStringArray::Resize(vtkIdType sz)
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStdString* vtkStringArray::WritePointer(vtkIdType id, vtkIdType number)
 {
   vtkIdType newSize = id + number;
@@ -462,7 +466,7 @@ vtkStdString* vtkStringArray::WritePointer(vtkIdType id, vtkIdType number)
   return this->Array + id;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::InsertValue(vtkIdType id, vtkStdString f)
 {
   if (id >= this->Size)
@@ -480,7 +484,7 @@ void vtkStringArray::InsertValue(vtkIdType id, vtkStdString f)
   this->DataElementChanged(id);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkStringArray::InsertNextValue(vtkStdString f)
 {
   this->InsertValue(++this->MaxId, f);
@@ -488,13 +492,13 @@ vtkIdType vtkStringArray::InsertNextValue(vtkStdString f)
   return this->MaxId;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkStringArray::GetDataTypeSize() const
 {
   return static_cast<int>(sizeof(vtkStdString));
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned long vtkStringArray::GetActualMemorySize() const
 {
   size_t totalSize = 0;
@@ -509,7 +513,7 @@ unsigned long vtkStringArray::GetActualMemorySize() const
   return static_cast<unsigned long>(ceil(static_cast<double>(totalSize) / 1024.0)); // kibibytes
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkStringArray::GetDataSize() const
 {
   size_t size = 0;
@@ -522,7 +526,7 @@ vtkIdType vtkStringArray::GetDataSize() const
   return static_cast<vtkIdType>(size);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Set the tuple at the ith location using the jth tuple in the source array.
 // This method assumes that the two arrays have the same type
 // and structure. Note that range checking and memory allocation is not
@@ -545,7 +549,7 @@ void vtkStringArray::SetTuple(vtkIdType i, vtkIdType j, vtkAbstractArray* source
   this->DataChanged();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Insert the jth tuple in the source array, at ith location in this array.
 // Note that memory allocation is performed as necessary to hold the data.
 void vtkStringArray::InsertTuple(vtkIdType i, vtkIdType j, vtkAbstractArray* source)
@@ -566,7 +570,7 @@ void vtkStringArray::InsertTuple(vtkIdType i, vtkIdType j, vtkAbstractArray* sou
   this->DataChanged();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source)
 {
   vtkStringArray* sa = vtkArrayDownCast<vtkStringArray>(source);
@@ -603,7 +607,7 @@ void vtkStringArray::InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstr
   this->DataChanged();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::InsertTuples(
   vtkIdType dstStart, vtkIdType n, vtkIdType srcStart, vtkAbstractArray* source)
 {
@@ -642,7 +646,7 @@ void vtkStringArray::InsertTuples(
   this->DataChanged();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Insert the jth tuple in the source array, at the end in this array.
 // Note that memory allocation is performed as necessary to hold the data.
 // Returns the location at which the data was inserted.
@@ -664,13 +668,13 @@ vtkIdType vtkStringArray::InsertNextTuple(vtkIdType j, vtkAbstractArray* source)
   return (this->GetNumberOfTuples() - 1);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStdString& vtkStringArray::GetValue(vtkIdType id)
 {
   return this->Array[id];
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::GetTuples(vtkIdList* indices, vtkAbstractArray* aa)
 {
   if (aa == nullptr)
@@ -695,7 +699,7 @@ void vtkStringArray::GetTuples(vtkIdList* indices, vtkAbstractArray* aa)
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::GetTuples(vtkIdType startIndex, vtkIdType endIndex, vtkAbstractArray* aa)
 {
   if (aa == nullptr)
@@ -720,7 +724,7 @@ void vtkStringArray::GetTuples(vtkIdType startIndex, vtkIdType endIndex, vtkAbst
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::UpdateLookup()
 {
   if (!this->Lookup)
@@ -737,10 +741,10 @@ void vtkStringArray::UpdateLookup()
     this->Lookup->SortedArray->SetNumberOfComponents(numComps);
     this->Lookup->SortedArray->SetNumberOfTuples(numTuples);
     this->Lookup->IndexArray->SetNumberOfIds(numComps * numTuples);
-    std::vector<std::pair<vtkStdString, vtkIdType> > v;
+    std::vector<std::pair<vtkStdString, vtkIdType>> v;
     for (vtkIdType i = 0; i < numComps * numTuples; i++)
     {
-      v.push_back(std::pair<vtkStdString, vtkIdType>(this->Array[i], i));
+      v.emplace_back(this->Array[i], i);
     }
     std::sort(v.begin(), v.end());
     for (vtkIdType i = 0; i < numComps * numTuples; i++)
@@ -753,19 +757,19 @@ void vtkStringArray::UpdateLookup()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkStringArray::LookupValue(vtkVariant var)
 {
   return this->LookupValue(var.ToString());
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::LookupValue(vtkVariant var, vtkIdList* ids)
 {
   this->LookupValue(var.ToString(), ids);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkStringArray::LookupValue(const vtkStdString& value)
 {
   this->UpdateLookup();
@@ -835,7 +839,7 @@ vtkIdType vtkStringArray::LookupValue(const vtkStdString& value)
   return -1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::LookupValue(const vtkStdString& value, vtkIdList* ids)
 {
   this->UpdateLookup();
@@ -884,7 +888,7 @@ void vtkStringArray::LookupValue(const vtkStdString& value, vtkIdList* ids)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::DataChanged()
 {
   if (this->Lookup)
@@ -893,7 +897,7 @@ void vtkStringArray::DataChanged()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::DataElementChanged(vtkIdType id)
 {
   if (this->Lookup)
@@ -918,14 +922,14 @@ void vtkStringArray::DataElementChanged(vtkIdType id)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStringArray::ClearLookup()
 {
   delete this->Lookup;
   this->Lookup = nullptr;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 //
 //
@@ -989,4 +993,4 @@ void vtkStringArray::LookupValue(const char* value, vtkIdList* ids)
   ids->Reset();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------

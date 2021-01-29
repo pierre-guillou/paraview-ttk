@@ -40,6 +40,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMTransferFunctionProxy.h"
 
+#include "vtk_jsoncpp.h"
+
 #include <cassert>
 
 QPointer<pqPresetDialog> pqChooseColorPresetReaction::PresetDialog;
@@ -52,7 +54,7 @@ vtkSMProxy* lutProxy(vtkSMProxy* reprProxy)
   {
     return vtkSMPropertyHelper(reprProxy, "LookupTable", true).GetAsProxy();
   }
-  return NULL;
+  return nullptr;
 }
 }
 
@@ -60,6 +62,7 @@ vtkSMProxy* lutProxy(vtkSMProxy* reprProxy)
 pqChooseColorPresetReaction::pqChooseColorPresetReaction(
   QAction* parentObject, bool track_active_objects)
   : Superclass(parentObject)
+  , AllowsRegexpMatching(false)
 {
   if (track_active_objects)
   {
@@ -99,7 +102,7 @@ void pqChooseColorPresetReaction::setRepresentation(pqDataRepresentation* repr)
 void pqChooseColorPresetReaction::updateTransferFunction()
 {
   this->setTransferFunction(
-    this->Representation ? this->Representation->getLookupTableProxy() : NULL);
+    this->Representation ? this->Representation->getLookupTableProxy() : nullptr);
 }
 
 //-----------------------------------------------------------------------------
@@ -112,7 +115,7 @@ void pqChooseColorPresetReaction::setTransferFunction(vtkSMProxy* lut)
 //-----------------------------------------------------------------------------
 void pqChooseColorPresetReaction::updateEnableState()
 {
-  this->parentAction()->setEnabled(this->TransferFunctionProxy != NULL);
+  this->parentAction()->setEnabled(this->TransferFunctionProxy != nullptr);
 }
 
 //-----------------------------------------------------------------------------
@@ -152,6 +155,7 @@ bool pqChooseColorPresetReaction::choosePreset(const char* presetName)
   PresetDialog->setCustomizableLoadOpacities(!indexedLookup);
   PresetDialog->setCustomizableUsePresetRange(!indexedLookup);
   PresetDialog->setCustomizableLoadAnnotations(indexedLookup);
+  PresetDialog->setCustomizableAnnotationsRegexp(indexedLookup && this->AllowsRegexpMatching);
   this->connect(PresetDialog.data(), &pqPresetDialog::applyPreset, this,
     &pqChooseColorPresetReaction::applyCurrentPreset);
   PresetDialog->show();
@@ -209,11 +213,27 @@ void pqChooseColorPresetReaction::applyCurrentPreset()
       }
     }
   }
-  if (dialog->loadAnnotations())
+
+  // When using Regexp or Annotation, Apply the preset annotation
+  // on the Lookup table
+  if (dialog->loadAnnotations() || dialog->regularExpression().isValid())
   {
-    vtkSMTransferFunctionProxy::ApplyPreset(
-      lut, dialog->currentPreset(), !dialog->loadAnnotations());
+    vtkSMTransferFunctionProxy::ApplyPreset(lut, dialog->currentPreset(), false);
   }
   END_UNDO_SET();
-  emit this->presetApplied();
+
+  Q_EMIT this->presetApplied(
+    QString(dialog->currentPreset().get("Name", "Preset").asString().c_str()));
+}
+
+//-----------------------------------------------------------------------------
+QRegularExpression pqChooseColorPresetReaction::regularExpression()
+{
+  return this->PresetDialog ? this->PresetDialog->regularExpression() : QRegularExpression();
+}
+
+//-----------------------------------------------------------------------------
+bool pqChooseColorPresetReaction::loadAnnotations()
+{
+  return this->PresetDialog ? this->PresetDialog->loadAnnotations() : false;
 }

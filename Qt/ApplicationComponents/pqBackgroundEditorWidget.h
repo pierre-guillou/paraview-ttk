@@ -42,8 +42,8 @@ class vtkSMPropertyGroup;
 class PQAPPLICATIONCOMPONENTS_EXPORT pqBackgroundEditorWidget : public pqPropertyGroupWidget
 {
 public:
-  pqBackgroundEditorWidget(
-    vtkSMProxy* smproxy, vtkSMPropertyGroup* smgroup, QWidget* parentObject = 0);
+  pqBackgroundEditorWidget(vtkSMProxy* smproxy, vtkSMPropertyGroup* smgroup,
+    QWidget* parentObject = 0, bool forEnvironment = false);
   ~pqBackgroundEditorWidget() override;
 
   bool gradientBackground() const;
@@ -55,13 +55,13 @@ public:
   bool environmentLighting() const;
   void setEnvironmentLighting(bool envLighting);
 
-signals:
+Q_SIGNALS:
   void gradientBackgroundChanged();
   void imageBackgroundChanged();
   void skyboxBackgroundChanged();
   void environmentLightingChanged();
 
-protected slots:
+protected Q_SLOTS:
   void currentIndexChangedBackgroundType(int type);
   void clickedRestoreDefaultColor();
   void clickedRestoreDefaultColor2();

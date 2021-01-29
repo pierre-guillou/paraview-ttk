@@ -61,8 +61,8 @@
 /// given, a generic message is given. In any case, the condition that failed
 /// is written out.
 
-#define VTKM_TEST_ASSERT(...)                                                                      \
-  ::vtkm::testing::Testing::Assert(                                                                \
+#define VTKM_TEST_ASSERT(...)       \
+  ::vtkm::testing::Testing::Assert( \
     VTKM_STRINGIFY_FIRST(__VA_ARGS__), __FILE__, __LINE__, __VA_ARGS__)
 
 /// \def VTKM_TEST_FAIL(messages..)
@@ -83,11 +83,11 @@ namespace testing
 template <typename T>
 struct TypeName;
 
-#define VTK_M_BASIC_TYPE(type, name)                                                               \
-  template <>                                                                                      \
-  struct TypeName<type>                                                                            \
-  {                                                                                                \
-    static std::string Name() { return #name; }                                                    \
+#define VTK_M_BASIC_TYPE(type, name)            \
+  template <>                                   \
+  struct TypeName<type>                         \
+  {                                             \
+    static std::string Name() { return #name; } \
   }
 
 VTK_M_BASIC_TYPE(vtkm::Float32, F32);
@@ -279,6 +279,7 @@ public:
     VTKM_CONT const std::string& GetFile() const { return this->File; }
     VTKM_CONT vtkm::Id GetLine() const { return this->Line; }
     VTKM_CONT const std::string& GetMessage() const { return this->Message; }
+
   private:
     template <typename T1>
     VTKM_CONT void AppendMessages(std::stringstream& messageStream, T1&& m1)
@@ -405,6 +406,7 @@ public:
     catch (std::exception& error)
     {
       std::cout << "***** STL exception throw." << std::endl << error.what() << std::endl;
+      return 1;
     }
     catch (...)
     {
@@ -548,20 +550,22 @@ struct TestEqualImpl
     return this->DoIt(matrix1, matrix2, tolerance, vtkm::TypeTraitsVectorTag());
   }
 
-  VTKM_EXEC_CONT bool DoIt(T1 scalar1,
-                           T2 scalar2,
-                           vtkm::Float64 tolerance,
-                           vtkm::TypeTraitsScalarTag) const
+  VTKM_EXEC_CONT bool DoIt(vtkm::Float64 value1,
+                           vtkm::Float64 value2,
+                           vtkm::Float64 tolerance) const
   {
-    // If you get a compiler error here, it means you are comparing a scalar to
-    // a vector, in which case the types are non-comparable.
-    VTKM_STATIC_ASSERT_MSG((std::is_same<typename vtkm::TypeTraits<T2>::DimensionalityTag,
-                                         vtkm::TypeTraitsScalarTag>::type::value),
-                           "Trying to compare a scalar with a vector.");
-
-    // Do all comparisons using 64-bit floats.
-    vtkm::Float64 value1 = vtkm::Float64(scalar1);
-    vtkm::Float64 value2 = vtkm::Float64(scalar2);
+    // Handle non-finites. Normally, non-finites are never "equal" to each other (for valid
+    // mathematical reasons), but for testing purposes if the two values are the same type of
+    // non-finite, then they are the same in the sense that they gave the same result.
+    if (vtkm::IsNan(value1) && vtkm::IsNan(value2))
+    {
+      return true;
+    }
+    if (vtkm::IsInf(value1) && vtkm::IsInf(value2) &&
+        (vtkm::IsNegative(value1) == vtkm::IsNegative(value2)))
+    {
+      return true;
+    }
 
     if (vtkm::Abs(value1 - value2) <= tolerance)
     {
@@ -594,6 +598,22 @@ struct TestEqualImpl
     {
       return false;
     }
+  }
+
+  VTKM_EXEC_CONT bool DoIt(T1 scalar1,
+                           T2 scalar2,
+                           vtkm::Float64 tolerance,
+                           vtkm::TypeTraitsScalarTag) const
+  {
+    // If you get a compiler error here, it means you are comparing a scalar to
+    // a vector, in which case the types are non-comparable.
+    VTKM_STATIC_ASSERT_MSG((std::is_same<typename vtkm::TypeTraits<T2>::DimensionalityTag,
+                                         vtkm::TypeTraitsScalarTag>::type::value),
+                           "Trying to compare a scalar with a vector.");
+
+    // Do all comparisons using 64-bit floats.
+    return DoIt(
+      static_cast<vtkm::Float64>(scalar1), static_cast<vtkm::Float64>(scalar2), tolerance);
   }
 
   VTKM_EXEC_CONT bool operator()(T1 value1, T2 value2, vtkm::Float64 tolerance) const

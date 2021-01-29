@@ -27,13 +27,13 @@
 //============================================================================
 vtkStandardNewMacro(vtkVolumeMapperNode);
 
-//----------------------------------------------------------------------------
-vtkVolumeMapperNode::vtkVolumeMapperNode() {}
+//------------------------------------------------------------------------------
+vtkVolumeMapperNode::vtkVolumeMapperNode() = default;
 
-//----------------------------------------------------------------------------
-vtkVolumeMapperNode::~vtkVolumeMapperNode() {}
+//------------------------------------------------------------------------------
+vtkVolumeMapperNode::~vtkVolumeMapperNode() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeMapperNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

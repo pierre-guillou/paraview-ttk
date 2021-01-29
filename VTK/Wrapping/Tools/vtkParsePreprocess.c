@@ -390,7 +390,7 @@ static int preproc_evaluate_char(const char* cp, preproc_int_t* val, int* is_uns
     {
       code = vtkParse_DecodeUtf8(&cp, NULL);
     }
-    else if (*cp != '\'' && *cp != '\n' && *cp != '\0')
+    else
     {
       cp++;
       if (*cp == 'a')
@@ -2475,6 +2475,31 @@ void vtkParsePreprocess_AddStandardMacros(PreprocessInfo* info, preproc_platform
   int save_external = info->IsExternal;
   info->IsExternal = 1;
 
+  /* define common extension operators as macros that return "false" */
+  const char** operatorMacro;
+  static const char* operatorMacros[] = {
+#if defined(__GNUC__) || defined(__clang__)
+    "#define __has_attribute(x) 0",
+    "#define __has_builtin(x) 0",
+#endif
+#if defined(__clang__)
+    "#define __has_feature(x) 0",
+    "#define __has_extension(x) 0",
+    "#define __has_warning(x) 0",
+#endif
+    NULL
+  };
+
+  /* these operators aren't true macros, but it's expedient to define them as such
+   * rather than add dedicated code to the preprocessor for handling them */
+  for (operatorMacro = operatorMacros; *operatorMacro != NULL; ++operatorMacro)
+  {
+    StringTokenizer directive;
+    vtkParse_InitTokenizer(&directive, *operatorMacro, WS_PREPROC);
+    vtkParse_NextToken(&directive); /* skip the '#' */
+    preproc_evaluate_define(info, &directive);
+  }
+
   /*------------------------------
    * a special macro to indicate that this is the wrapper
    */
@@ -4067,7 +4092,7 @@ const char* vtkParsePreprocess_ExpandMacro(
             break;
           }
         }
-        else if (*cp != '\0')
+        else
         {
           cp++;
         }

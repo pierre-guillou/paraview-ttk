@@ -35,6 +35,7 @@ set(classes
   pqAnimationShortcutDecorator
   pqAnimationShortcutWidget
   pqAnimationTimeToolbar
+  pqAnnotationsModel
   pqApplicationComponentsInit
   pqApplicationSettingsReaction
   pqApplyBehavior
@@ -62,6 +63,7 @@ set(classes
   pqChooseColorPresetReaction
   pqCollaborationBehavior
   pqColorAnnotationsPropertyWidget
+  pqColorAnnotationsWidget
   pqColorEditorPropertyWidget
   pqColorMapEditor
   pqColorOpacityEditorWidget
@@ -77,8 +79,10 @@ set(classes
   pqCustomShortcutBehavior
   pqCustomizeShortcutsReaction
   pqCustomizeShortcutsDialog
+  pqCheckableProperty
   pqCustomViewpointsToolbar
   pqCylinderPropertyWidget
+  pqDataAssemblyPropertyWidget
   pqDataQueryReaction
   pqDataTimeStepBehavior
   pqDefaultMainWindow
@@ -93,6 +97,7 @@ set(classes
   pqExampleVisualizationsDialog
   pqExampleVisualizationsDialogReaction
   pqExportReaction
+  pqExtractorsMenuReaction
   pqFileNamePropertyWidget
   pqFiltersMenuReaction
   pqFontPropertyWidget
@@ -101,9 +106,7 @@ set(classes
   pqHandlePropertyWidget
   pqIgnoreSourceTimeReaction
   pqImageCompressorWidget
-  pqImmediateExportReaction
   pqImplicitPlanePropertyWidget
-  pqImportCinemaReaction
   pqInputDataTypeDecorator
   pqInteractivePropertyWidget
   pqLightPropertyWidget
@@ -118,6 +121,7 @@ set(classes
   pqLoadStateReaction
   pqLockPanelsBehavior
   pqLockPanelsReaction
+  pqLogViewerReaction
   pqMainControlsToolbar
   pqMainWindowEventBehavior
   pqManageCustomFiltersReaction
@@ -125,6 +129,7 @@ set(classes
   pqManageLinksReaction
   pqManagePluginsReaction
   pqMasterOnlyReaction
+  pqMenuReactionUtils
   pqModelTransformSupportBehavior
   pqMoleculePropertyWidget
   pqMultiComponentsDecorator
@@ -145,7 +150,7 @@ set(classes
   pqPluginToolBarBehavior
   pqPointPickingHelper
   pqPreviewMenuManager
-  pqPropertyGroupButton
+  pqPropertyCollectionWidget
   pqProxyGroupMenuManager
   pqReaction
   pqReloadFilesReaction
@@ -157,9 +162,11 @@ set(classes
   pqSaveAnimationGeometryReaction
   pqSaveAnimationReaction
   pqSaveDataReaction
+  pqSaveExtractsReaction
   pqSaveScreenshotReaction
   pqSaveStateReaction
   pqScalarBarVisibilityReaction
+  pqSearchItemReaction
   pqSelectionReaction
   pqSeriesEditorPropertyWidget
   pqServerConnectReaction
@@ -187,6 +194,7 @@ set(classes
   pqTransferFunctionWidgetPropertyWidget
   pqUndoRedoBehavior
   pqUndoRedoReaction
+  pqUsageLoggingBehavior
   pqUseSeparateColorMapReaction
   pqVCRToolbar
   pqVerifyRequiredPluginBehavior
@@ -210,7 +218,6 @@ set(headers
 
 if (TARGET ParaView::pqPython)
   list(APPEND classes
-    pqExportInspector
     pqMacroReaction
     pqTraceReaction)
 endif ()
@@ -221,8 +228,7 @@ set(ui_files
   Resources/UI/pqBoxPropertyWidget.ui
   Resources/UI/pqCameraManipulatorWidget.ui
   Resources/UI/pqCameraToolbar.ui
-  Resources/UI/pqExportInspector.ui
-  Resources/UI/pqColorAnnotationsPropertyWidget.ui
+  Resources/UI/pqColorAnnotationsWidget.ui
   Resources/UI/pqColorEditorPropertyWidget.ui
   Resources/UI/pqColorMapEditor.ui
   Resources/UI/pqColorOpacityEditorWidget.ui
@@ -230,6 +236,7 @@ set(ui_files
   Resources/UI/pqCustomResolutionDialog.ui
   Resources/UI/pqCylinderPropertyWidget.ui
   Resources/UI/pqCustomizeShortcutsDialog.ui
+  Resources/UI/pqDataAssemblyPropertyWidget.ui
   Resources/UI/pqDefaultMainWindow.ui
   Resources/UI/pqDoubleRangeSliderPropertyWidget.ui
   Resources/UI/pqEditMenuBuilder.ui
@@ -246,6 +253,7 @@ set(ui_files
   Resources/UI/pqMoleculePropertyWidget.ui
   Resources/UI/pqOMETransferFunctionsPropertyWidget.ui
   Resources/UI/pqOMETransferFunctionsPropertyWidgetPage.ui
+  Resources/UI/pqPropertyCollectionWidget.ui
   Resources/UI/pqResetScalarRangeToDataOverTime.ui
   Resources/UI/pqSavePresetOptions.ui
   Resources/UI/pqSeriesEditorPropertyWidget.ui
@@ -264,6 +272,7 @@ set(resource_files
   Resources/pqApplicationComponents.qrc)
 
 set(qt_components
+  Network
   Widgets
   Svg)
 
@@ -299,7 +308,8 @@ vtk_module_add_module(ParaView::pqApplicationComponents
 vtk_module_link(ParaView::pqApplicationComponents
   PRIVATE
     Qt5::Widgets
-    Qt5::Svg)
+    Qt5::Svg
+    Qt5::Network)
 if (PARAVIEW_USE_QTHELP)
   vtk_module_link(ParaView::pqApplicationComponents
     PRIVATE

@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
+#include "pqExtractor.h"
 #include "pqLiveInsituManager.h"
 #include "pqLiveInsituVisualizationManager.h"
 #include "pqOutputPort.h"
@@ -49,6 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMPropertyHelper.h"
+#include "vtkSMScalarBarWidgetRepresentationProxy.h"
 #include "vtkSMTransferFunctionManager.h"
 #include "vtkSMViewProxy.h"
 
@@ -117,6 +119,16 @@ void pqPipelineBrowserWidget::configureModel()
   QObject::connect(smModel, SIGNAL(connectionRemoved(pqPipelineSource*, pqPipelineSource*, int)),
     this->PipelineModel, SLOT(removeConnection(pqPipelineSource*, pqPipelineSource*, int)));
 
+  // monitor extractor related signals.
+  QObject::connect(smModel, SIGNAL(extractorAdded(pqExtractor*)), this->PipelineModel,
+    SLOT(addExtractor(pqExtractor*)));
+  QObject::connect(smModel, SIGNAL(extractorRemoved(pqExtractor*)), this->PipelineModel,
+    SLOT(removeExtractor(pqExtractor*)));
+  QObject::connect(smModel, SIGNAL(connectionAdded(pqServerManagerModelItem*, pqExtractor*)),
+    this->PipelineModel, SLOT(addConnection(pqServerManagerModelItem*, pqExtractor*)));
+  QObject::connect(smModel, SIGNAL(connectionRemoved(pqServerManagerModelItem*, pqExtractor*)),
+    this->PipelineModel, SLOT(removeConnection(pqServerManagerModelItem*, pqExtractor*)));
+
   // Use the tree view's font as the base for the model's modified
   // font.
   QFont modifiedFont = this->font();
@@ -143,7 +155,7 @@ bool pqPipelineBrowserWidget::eventFilter(QObject* object, QEvent* eventArg)
     QKeyEvent* keyEvent = static_cast<QKeyEvent*>(eventArg);
     if (keyEvent->key() == Qt::Key_Delete || keyEvent->key() == Qt::Key_Backspace)
     {
-      emit this->deleteKey();
+      Q_EMIT this->deleteKey();
     }
   }
 
@@ -223,6 +235,12 @@ void pqPipelineBrowserWidget::handleIndexClicked(const QModelIndex& index_)
             itemIndex, QItemSelectionModel::ClearAndSelect);
         }
       }
+    }
+    else if (auto extractor = qobject_cast<pqExtractor*>(smModelItem))
+    {
+      // toggle enabled state for the extractor.
+      auto activeView = pqActiveObjects::instance().activeView();
+      extractor->toggleEnabledState(activeView);
     }
   }
 }
@@ -342,11 +360,33 @@ void pqPipelineBrowserWidget::setVisibility(bool visible, pqOutputPort* port)
       // update scalar bars: show new ones if needed. Hiding of scalar bars is
       // taken care of by vtkSMParaViewPipelineControllerWithRendering (I still
       // wonder if that's the best thing to do).
-      if (repr && visible &&
-        scalarBarMode == vtkPVGeneralSettings::AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS &&
-        vtkSMPVRepresentationProxy::GetUsingScalarColoring(repr))
+      if (scalarBarMode != vtkPVGeneralSettings::MANUAL_SCALAR_BARS)
       {
-        vtkSMPVRepresentationProxy::SetScalarBarVisibility(repr, viewProxy, true);
+        // This gets executed if scalar bar mode is
+        // AUTOMATICALLY_HIDE_SCALAR_BARS or AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS
+        vtkSMPVRepresentationProxy* PVRepr = vtkSMPVRepresentationProxy::SafeDownCast(repr);
+        if (visible && PVRepr && vtkSMPVRepresentationProxy::GetUsingScalarColoring(repr))
+        {
+          int stickyVisible = PVRepr->IsScalarBarStickyVisible(viewProxy);
+          if (stickyVisible != -1)
+          {
+            PVRepr->SetScalarBarVisibility(viewProxy, stickyVisible);
+          }
+          else if (scalarBarMode == vtkPVGeneralSettings::AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS)
+          {
+            PVRepr->SetScalarBarVisibility(viewProxy, true);
+          }
+          else if (scalarBarMode == vtkPVGeneralSettings::AUTOMATICALLY_HIDE_SCALAR_BARS)
+          {
+            PVRepr->SetScalarBarVisibility(viewProxy, false);
+          }
+          else
+          {
+            std::cerr << "You might have added a new scalar bar mode, you need to do something "
+                         "here, skipping"
+                      << std::endl;
+          }
+        }
       }
     }
   }

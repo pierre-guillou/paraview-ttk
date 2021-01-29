@@ -6,3 +6,5 @@ Comment=Parallel visualization application
 Exec=paraview %f
 TryExec=paraview
 Icon=paraview
+StartupWMClass=paraview
+Categories=Qt;Science;DataVisualization;

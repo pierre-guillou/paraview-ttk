@@ -5,7 +5,8 @@
 #include <vtkCPDataDescription.h>
 #include <vtkCPInputDataDescription.h>
 #include <vtkCPProcessor.h>
-#include <vtkCPPythonScriptPipeline.h>
+#include <vtkCPPythonPipeline.h>
+#include <vtkLogger.h>
 #include <vtkNew.h>
 
 // Sample C++ simulation code that provides different levels of ghost cells
@@ -96,11 +97,16 @@ int main(int argc, char* argv[])
 
   vtkCPProcessor* processor = vtkCPProcessor::New();
   processor->Initialize();
-  for (auto& script : scripts)
+  for (const auto& script : scripts)
   {
-    vtkNew<vtkCPPythonScriptPipeline> pipeline;
-    pipeline->Initialize(script.c_str());
-    processor->AddPipeline(pipeline);
+    if (auto pipeline = vtkCPPythonPipeline::CreateAndInitializePipeline(script.c_str()))
+    {
+      processor->AddPipeline(pipeline);
+    }
+    else
+    {
+      vtkLogF(ERROR, "failed to setup pipeline for '%s'", script.c_str());
+    }
   }
   vtkIdType numberOfTimeSteps = 20;
   for (vtkIdType timeStep = 0; timeStep < numberOfTimeSteps; timeStep++)

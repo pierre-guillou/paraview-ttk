@@ -70,7 +70,7 @@ public:
    * a Set method since Initialize() was called, you must call this method
    * to update the interpolator before you can use it.
    */
-  void Update();
+  virtual void Update();
 
   /**
    * Get the result of interpolating the specified component of the input
@@ -254,15 +254,6 @@ public:
    * Get the extent of the data being interpolated.
    */
   vtkGetVector6Macro(Extent, int);
-  //@}
-
-  //@{
-  /**
-   * Get the whole extent of the data being interpolated, including
-   * parts of the data that are not currently in memory.
-   */
-  VTK_LEGACY(int* GetWholeExtent());
-  VTK_LEGACY(void GetWholeExtent(int extent[6]));
   //@}
 
 protected:

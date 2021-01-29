@@ -24,44 +24,44 @@
 #include "vtkMultiPieceDataSet.h"
 #include "vtkObjectFactory.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObjectTree::vtkDataObjectTree()
 {
   this->Internals = new vtkDataObjectTreeInternals;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObjectTree::~vtkDataObjectTree()
 {
   delete this->Internals;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObjectTree* vtkDataObjectTree::GetData(vtkInformation* info)
 {
   return info ? vtkDataObjectTree::SafeDownCast(info->Get(DATA_OBJECT())) : nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObjectTree* vtkDataObjectTree::GetData(vtkInformationVector* v, int i)
 {
   return vtkDataObjectTree::GetData(v->GetInformationObject(i));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::SetNumberOfChildren(unsigned int num)
 {
   this->Internals->Children.resize(num);
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned int vtkDataObjectTree::GetNumberOfChildren()
 {
   return static_cast<unsigned int>(this->Internals->Children.size());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::SetChild(unsigned int index, vtkDataObject* dobj)
 {
   if (this->Internals->Children.size() <= index)
@@ -77,7 +77,7 @@ void vtkDataObjectTree::SetChild(unsigned int index, vtkDataObject* dobj)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::RemoveChild(unsigned int index)
 {
   if (this->Internals->Children.size() <= index)
@@ -92,7 +92,7 @@ void vtkDataObjectTree::RemoveChild(unsigned int index)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObject* vtkDataObjectTree::GetChild(unsigned int index)
 {
   if (index < this->Internals->Children.size())
@@ -103,7 +103,7 @@ vtkDataObject* vtkDataObjectTree::GetChild(unsigned int index)
   return nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkInformation* vtkDataObjectTree::GetChildMetaData(unsigned int index)
 {
   if (index < this->Internals->Children.size())
@@ -119,7 +119,7 @@ vtkInformation* vtkDataObjectTree::GetChildMetaData(unsigned int index)
   return nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::SetChildMetaData(unsigned int index, vtkInformation* info)
 {
   if (this->Internals->Children.size() <= index)
@@ -131,7 +131,7 @@ void vtkDataObjectTree::SetChildMetaData(unsigned int index, vtkInformation* inf
   item.MetaData = info;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkDataObjectTree::HasChildMetaData(unsigned int index)
 {
   if (index < this->Internals->Children.size())
@@ -143,7 +143,7 @@ int vtkDataObjectTree::HasChildMetaData(unsigned int index)
   return 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::CopyStructure(vtkCompositeDataSet* compositeSource)
 {
   if (!compositeSource)
@@ -156,6 +156,7 @@ void vtkDataObjectTree::CopyStructure(vtkCompositeDataSet* compositeSource)
     return;
   }
 
+  this->Superclass::CopyStructure(compositeSource);
   this->Internals->Children.clear();
   if (!source)
   {
@@ -212,7 +213,7 @@ void vtkDataObjectTree::CopyStructure(vtkCompositeDataSet* compositeSource)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObjectTreeIterator* vtkDataObjectTree::NewTreeIterator()
 {
   vtkDataObjectTreeIterator* iter = vtkDataObjectTreeIterator::New();
@@ -220,13 +221,13 @@ vtkDataObjectTreeIterator* vtkDataObjectTree::NewTreeIterator()
   return iter;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeDataIterator* vtkDataObjectTree::NewIterator()
 {
   return this->NewTreeIterator();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::SetDataSet(vtkCompositeDataIterator* iter, vtkDataObject* dataObj)
 {
   vtkDataObjectTreeIterator* treeIter = vtkDataObjectTreeIterator::SafeDownCast(iter);
@@ -260,7 +261,7 @@ void vtkDataObjectTree::SetDataSet(vtkCompositeDataIterator* iter, vtkDataObject
   parent->SetChild(index, dataObj);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::SetDataSetFrom(vtkDataObjectTreeIterator* iter, vtkDataObject* dataObj)
 {
   if (!iter || iter->IsDoneWithTraversal())
@@ -301,7 +302,7 @@ void vtkDataObjectTree::SetDataSetFrom(vtkDataObjectTreeIterator* iter, vtkDataO
   parent->SetChild(index.back(), dataObj);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObject* vtkDataObjectTree::GetDataSet(vtkCompositeDataIterator* compositeIter)
 {
   if (!compositeIter || compositeIter->IsDoneWithTraversal())
@@ -372,7 +373,7 @@ vtkDataObject* vtkDataObjectTree::GetDataSet(vtkCompositeDataIterator* composite
   return parent->GetChild(index.back());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkInformation* vtkDataObjectTree::GetMetaData(vtkCompositeDataIterator* compositeIter)
 {
   vtkDataObjectTreeIterator* iter = vtkDataObjectTreeIterator::SafeDownCast(compositeIter);
@@ -414,7 +415,7 @@ vtkInformation* vtkDataObjectTree::GetMetaData(vtkCompositeDataIterator* composi
   return parent->GetChildMetaData(index.back());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkDataObjectTree::HasMetaData(vtkCompositeDataIterator* compositeIter)
 {
   vtkDataObjectTreeIterator* iter = vtkDataObjectTreeIterator::SafeDownCast(compositeIter);
@@ -456,7 +457,7 @@ int vtkDataObjectTree::HasMetaData(vtkCompositeDataIterator* compositeIter)
   return parent->HasChildMetaData(index.back());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::ShallowCopy(vtkDataObject* src)
 {
   if (src == this)
@@ -499,7 +500,7 @@ void vtkDataObjectTree::ShallowCopy(vtkDataObject* src)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::DeepCopy(vtkDataObject* src)
 {
   if (src == this)
@@ -535,14 +536,14 @@ void vtkDataObjectTree::DeepCopy(vtkDataObject* src)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::Initialize()
 {
   this->Internals->Children.clear();
   this->Superclass::Initialize();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkDataObjectTree::GetNumberOfPoints()
 {
   vtkIdType numPts = 0;
@@ -559,7 +560,7 @@ vtkIdType vtkDataObjectTree::GetNumberOfPoints()
   return numPts;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkDataObjectTree::GetNumberOfCells()
 {
   vtkIdType numCells = 0;
@@ -576,7 +577,7 @@ vtkIdType vtkDataObjectTree::GetNumberOfCells()
   return numCells;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned long vtkDataObjectTree::GetActualMemorySize()
 {
   unsigned long memSize = 0;
@@ -590,7 +591,7 @@ unsigned long vtkDataObjectTree::GetActualMemorySize()
   return memSize;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectTree::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

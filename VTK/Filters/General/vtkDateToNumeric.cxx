@@ -36,16 +36,16 @@
 #endif
 
 vtkStandardNewMacro(vtkDateToNumeric);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDateToNumeric::vtkDateToNumeric()
   : DateFormat(nullptr)
 {
 }
 
-//----------------------------------------------------------------------------
-vtkDateToNumeric::~vtkDateToNumeric() {}
+//------------------------------------------------------------------------------
+vtkDateToNumeric::~vtkDateToNumeric() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkDateToNumeric::FillInputPortInformation(int, vtkInformation* info)
 {
   // Skip composite data sets so that executives will treat this as a simple filter
@@ -58,7 +58,7 @@ int vtkDateToNumeric::FillInputPortInformation(int, vtkInformation* info)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkDateToNumeric::RequestData(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -69,11 +69,11 @@ int vtkDateToNumeric::RequestData(
   std::vector<std::string> formats;
   if (this->DateFormat)
   {
-    formats.push_back(this->DateFormat);
+    formats.emplace_back(this->DateFormat);
   }
   // default formats
-  formats.push_back("%Y-%m-%d %H:%M:%S");
-  formats.push_back("%d/%m/%Y %H:%M:%S");
+  formats.emplace_back("%Y-%m-%d %H:%M:%S");
+  formats.emplace_back("%d/%m/%Y %H:%M:%S");
 
   // now filter arrays for each of the associations.
   for (int association = 0; association < vtkDataObject::NUMBER_OF_ASSOCIATIONS; ++association)
@@ -122,7 +122,7 @@ int vtkDateToNumeric::RequestData(
           }
 #endif
         }
-        if (useFormat.size())
+        if (!useFormat.empty())
         {
           vtkNew<vtkDoubleArray> newArray;
           std::string newName = inarray->GetName();
@@ -174,7 +174,7 @@ int vtkDateToNumeric::RequestData(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDateToNumeric::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

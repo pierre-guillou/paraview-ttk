@@ -136,6 +136,8 @@ public:
     ui.setupUi(this->PopoutPlaceholder.data());
     QObject::connect(
       ui.restoreButton, &QPushButton::clicked, [self](bool) { self->togglePopout(); });
+
+    this->CustomDevicePixelRatio = 0.0;
   }
 
   ~pqInternals()
@@ -206,6 +208,7 @@ public:
       this->setCustomDevicePixelRatio(0.0); // set to 0 to not use custom value.
       this->Container->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
       this->Container->layout()->setSpacing(PARAVIEW_DEFAULT_LAYOUT_SPACING);
+
       auto palette = this->Container->parentWidget()->palette();
       this->Container->setPalette(palette);
     }
@@ -551,7 +554,7 @@ void pqMultiViewWidget::markActive(pqViewFrame* frame)
     frame->setBorderVisibility(true);
     // indicate to the world that a frame on this widget has been activated.
     // pqTabbedMultiViewWidget listens to this signal to raise that tab.
-    emit this->frameActivated();
+    Q_EMIT this->frameActivated();
     // NOTE: this signal will result in call to makeFrameActive().
   }
 }
@@ -834,7 +837,7 @@ void pqMultiViewWidget::setDecorationsVisibility(bool val)
 {
   auto& internals = (*this->Internals);
   internals.setDecorationsVisibility(val);
-  emit this->decorationsVisibilityChanged(val);
+  Q_EMIT this->decorationsVisibilityChanged(val);
 }
 
 //-----------------------------------------------------------------------------

@@ -13,8 +13,7 @@
 =========================================================================*/
 /**
  * @class   vtkLICNoiseHelper
- *
- * A small collection of noise routines for LIC
+ * @brief   A small collection of noise routines for LIC
  */
 
 #ifndef vtkLICNoiseHelper_h
@@ -72,7 +71,7 @@ desired frequency (f < 1 is impulse noise).
 class vtkLICRandomNoise2D
 {
 public:
-  vtkLICRandomNoise2D() {}
+  vtkLICRandomNoise2D() = default;
 
   //@{
   /**

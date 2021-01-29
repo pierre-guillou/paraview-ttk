@@ -15,9 +15,6 @@
 #include <vtkm/StaticAssert.h>
 
 #include <vtkm/cont/ArrayHandle.h>
-#include <vtkm/cont/DeviceAdapterAlgorithm.h>
-#include <vtkm/cont/Field.h>
-#include <vtkm/cont/VariantArrayHandle.h>
 
 namespace vtkm
 {
@@ -28,11 +25,11 @@ class VTKM_CONT_EXPORT CellSet
 {
 public:
   CellSet() = default;
-  CellSet(const CellSet& src) = default;
-  CellSet(CellSet&& src) noexcept = default;
+  CellSet(const CellSet&) = default;
+  CellSet(CellSet&&) noexcept = default;
 
-  CellSet& operator=(const CellSet& src) = default;
-  CellSet& operator=(CellSet&& src) noexcept = default;
+  CellSet& operator=(const CellSet&) = default;
+  CellSet& operator=(CellSet&&) noexcept = default;
 
   virtual ~CellSet();
 

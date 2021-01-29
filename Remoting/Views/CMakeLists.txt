@@ -37,6 +37,7 @@ set(classes
   vtkCaveSynchronizedRenderers
   vtkChartRepresentation
   vtkChartSelectionRepresentation
+  vtkChartTextRepresentation
   vtkChartWarning
   vtkCompositeRepresentation
   vtkContext2DScalarBarActor
@@ -55,6 +56,7 @@ set(classes
   vtkLogoSourceRepresentation
   vtkMoleculeRepresentation
   vtkMultiSliceContextItem
+  vtkOrderedCompositingHelper
   vtkOutlineRepresentation
   vtkPointGaussianRepresentation
   vtkPolarAxesRepresentation
@@ -130,11 +132,13 @@ set(classes
   vtkSMChartSeriesListDomain
   vtkSMChartSeriesSelectionDomain
   vtkSMChartUseIndexForAxisDomain
+  vtkSMCinemaVolumetricImageExtractWriterProxy
   vtkSMComparativeAnimationCueProxy
   vtkSMComparativeAnimationCueUndoElement
   vtkSMComparativeViewProxy
   vtkSMContextViewProxy
   vtkSMDataDeliveryManagerProxy
+  vtkSMImageExtractWriterProxy
   vtkSMImplicitPlaneRepresentationProxy
   vtkSMLightProxy
   vtkSMMaterialDomain
@@ -178,6 +182,7 @@ set(classes
   vtkTilesHelper
   vtkUnstructuredGridVolumeRepresentation
   vtkViewLayout
+  vtkVolumeRepresentation
   vtkXYChartRepresentation)
 
 set(private_headers
@@ -237,6 +242,7 @@ vtk_module_add_module(ParaView::RemotingViews
 
 paraview_add_server_manager_xmls(
   XMLS Resources/3dwidgets_remotingviews.xml
+       Resources/extractors_remotingviews.xml
        Resources/rendering.xml
        Resources/sources_remotingviews.xml
        Resources/utilities_remotingviews.xml

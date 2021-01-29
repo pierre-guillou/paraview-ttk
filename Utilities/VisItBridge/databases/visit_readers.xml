@@ -564,6 +564,19 @@
      </Hints>
     </Proxy>
 
+    <Proxy name="VisItSAMRAIReaderCore" class="vtkVisItSAMRAIReader"
+      base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
+      <Documentation
+        long_help="Reads Structured AMR data stored in HDF5 file formats.">
+        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
+        The default file extension is .samrai
+      </Documentation>
+     <Hints>
+       <ReaderFactory extensions="samrai"
+                      file_description="SAMRAI Files" />
+     </Hints>
+    </Proxy>
+
     <Proxy name="VisItSARReaderCore" class="vtkVisItSARReader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
@@ -2113,6 +2126,40 @@
 
       <SubProxy>
         <Proxy proxyname="VisItRAWReaderCore" name="Reader" proxygroup="internal_readers"/>
+        <ExposedProperties>
+          <Property name="MeshInfo" />
+          <Property name="MeshStatus" />
+          <Property name="MaterialInfo" />
+          <Property name="MaterialStatus" />
+          <Property name="CellArrayInfo" />
+          <Property name="CellArrayStatus" />
+          <Property name="PointArrayInfo" />
+          <Property name="PointArrayStatus" />
+        </ExposedProperties>
+      </SubProxy>
+    </SourceProxy>
+
+    <!-- ================================================================= -->
+
+    <SourceProxy name="VisItSAMRAIReader"
+                 base_proxygroup="internal_readers"
+                 base_proxyname="VisItSeriesReaderBase"
+                 class="vtkFileSeriesReader"
+                 file_name_method="SetFileName"
+                 si_class="vtkSIMetaReaderProxy">
+
+      <Documentation
+        long_help="Reads Specific Absorption Rate image volume files.">
+        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
+        The default file extension is .samrai.series
+      </Documentation>
+      <Hints>
+        <ReaderFactory extensions="samrai"
+                       file_description="SAMRAI series Files" />
+      </Hints>
+
+      <SubProxy>
+        <Proxy proxyname="VisItSAMRAIReaderCore" name="Reader" proxygroup="internal_readers"/>
         <ExposedProperties>
           <Property name="MeshInfo" />
           <Property name="MeshStatus" />

@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkBezierTetra.h"
 #include "vtkBezierInterpolation.h"
 
@@ -27,13 +31,13 @@
 #include "vtkTetra.h"
 
 vtkStandardNewMacro(vtkBezierTetra);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkBezierTetra::vtkBezierTetra()
   : vtkHigherOrderTetra()
 {
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkBezierTetra::~vtkBezierTetra() = default;
 
 void vtkBezierTetra::PrintSelf(ostream& os, vtkIndent indent)
@@ -140,7 +144,7 @@ void vtkBezierTetra::SetRationalWeightsFromPointData(
     this->GetRationalWeights()->Reset();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBezierTetra::InterpolateFunctions(const double pcoords[3], double* weights)
 {
   const int dim = 3;
@@ -172,7 +176,7 @@ void vtkBezierTetra::InterpolateFunctions(const double pcoords[3], double* weigh
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBezierTetra::InterpolateDerivs(const double pcoords[3], double* derivs)
 {
   const int dim = 3;

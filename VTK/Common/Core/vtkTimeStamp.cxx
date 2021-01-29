@@ -19,14 +19,14 @@
 
 #include <atomic>
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTimeStamp* vtkTimeStamp::New()
 {
   // If the factory was unable to create the object, then create it here.
   return new vtkTimeStamp;
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTimeStamp::Modified()
 {
   // Here because of a static destruction error? You're not the first. After
@@ -37,7 +37,7 @@ void vtkTimeStamp::Modified()
   // Solutions and their tradeoffs:
   //
   //  - Schwarz counter: each VTK class now has a static initializer function
-  //    that increments and integer. This cannot be inlined or optimized away.
+  //    that increments an integer. This cannot be inlined or optimized away.
   //    Adds latency to ParaView startup.
   //  - Separate library for this static. This adds another library to VTK
   //    which are already legion. It could not be folded into a kit because
@@ -47,10 +47,8 @@ void vtkTimeStamp::Modified()
   //
   // The last solution has been decided to have the smallest downside of these.
   //
-  //  static const vtkAtomicUIntXX* GlobalTimeStamp = new vtkAtomicUIntXX(0);
-  //
   // Good luck!
-#if defined(VTK_USE_64BIT_TIMESTAMPS) || VTK_SIZEOF_VOID_P == 8
+#if defined(VTK_USE_64BIT_TIMESTAMPS) || (VTK_SIZEOF_VOID_P == 8)
   static std::atomic<uint64_t> GlobalTimeStamp(0U);
 #else
   static std::atomic<uint32_t> GlobalTimeStamp(0U);

@@ -130,11 +130,10 @@ vtk_module_graphviz(
     a cluster or not.
 #]==]
 function (vtk_module_graphviz)
-  cmake_parse_arguments(_vtk_graphviz
+  cmake_parse_arguments(PARSE_ARGV 0 _vtk_graphviz
     ""
     "PRIVATE_DEPENDENCIES;KIT_CLUSTERS;OUTPUT"
-    "MODULES"
-    ${ARGN})
+    "MODULES")
 
   if (_vtk_graphviz_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR
@@ -160,7 +159,7 @@ function (vtk_module_graphviz)
   endif ()
 
   if (NOT IS_ABSOLUTE "${_vtk_graphviz_OUTPUT}")
-    set(_vtk_graphviz_OUTPUT "${CMAKE_BINARY_DIR}/${_vtk_graphviz_OUTPUT}")
+    string(PREPEND _vtk_graphviz_OUTPUT "${CMAKE_BINARY_DIR}/")
   endif ()
 
   set(_vtk_graphviz_kits)

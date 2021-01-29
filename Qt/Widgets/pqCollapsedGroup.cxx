@@ -100,11 +100,7 @@ void pqCollapsedGroup::paintEvent(QPaintEvent*)
   // Draw frame
   if (option.subControls & QStyle::SC_GroupBoxFrame)
   {
-#if QT_VERSION >= 0x050000
     QStyleOptionFrame frame;
-#else
-    QStyleOptionFrameV2 frame;
-#endif
     frame.QStyleOption::operator=(option);
     frame.features = option.features;
     frame.lineWidth = option.lineWidth;
@@ -164,7 +160,7 @@ QSize pqCollapsedGroup::minimumSizeHint() const
 {
   QStyleOptionGroupBox option = pqCollapseGroupGetStyleOption(this);
 
-  int baseWidth = fontMetrics().width(this->title() + QLatin1Char(' '));
+  int baseWidth = fontMetrics().horizontalAdvance(this->title() + QLatin1Char(' '));
   int baseHeight = fontMetrics().height();
 
   baseWidth += this->style()->pixelMetric(QStyle::PM_IndicatorWidth);

@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPlotBox.h"
 
 #include "vtkAbstractArray.h"
@@ -42,16 +45,16 @@
 #include <algorithm>
 #include <vector>
 
-class vtkPlotBox::Private : public std::vector<std::vector<double> >
+class vtkPlotBox::Private : public std::vector<std::vector<double>>
 {
 public:
   Private() = default;
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPlotBox);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotBox::vtkPlotBox()
 {
   this->Storage = new vtkPlotBox::Private();
@@ -68,7 +71,7 @@ vtkPlotBox::vtkPlotBox()
   this->TitleProperties->SetJustificationToCentered();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotBox::~vtkPlotBox()
 {
   delete this->Storage;
@@ -81,7 +84,7 @@ vtkPlotBox::~vtkPlotBox()
   this->TitleProperties->Delete();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBox::Update()
 {
   if (!this->Visible)
@@ -99,7 +102,7 @@ void vtkPlotBox::Update()
   this->UpdateTableCache(table);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotBox::Paint(vtkContext2D* painter)
 {
   // This is where everything should be drawn, or dispatched to other methods.
@@ -143,7 +146,7 @@ bool vtkPlotBox::Paint(vtkContext2D* painter)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBox::DrawBoxPlot(int i, unsigned char* rgba, double x, vtkContext2D* painter)
 {
   std::vector<double>& colQuartiles = this->Storage->at(i);
@@ -191,7 +194,7 @@ void vtkPlotBox::DrawBoxPlot(int i, unsigned char* rgba, double x, vtkContext2D*
   painter->DrawLine(xneg, q[2], xpos, q[2]);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStringArray* vtkPlotBox::GetLabels()
 {
   if (this->Labels)
@@ -201,7 +204,7 @@ vtkStringArray* vtkPlotBox::GetLabels()
   return nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotBox::PaintLegend(vtkContext2D* painter, const vtkRectf& rec, int)
 {
   if (this->Storage->empty() || this->Storage->at(0).size() < 5)
@@ -226,7 +229,7 @@ bool vtkPlotBox::PaintLegend(vtkContext2D* painter, const vtkRectf& rec, int)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBox::SetInputData(vtkTable* table)
 {
   if (table == this->Data->GetInput() && (!table || table->GetMTime() < this->BuildTime))
@@ -260,7 +263,7 @@ void vtkPlotBox::SetInputData(vtkTable* table)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 namespace
 {
 // See if the point is within tolerance.
@@ -271,11 +274,10 @@ bool inRange(const vtkVector2f& point, const vtkVector2f& tol, const vtkVector2f
 }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkPlotBox::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
   vtkVector2f* location, vtkIdType* vtkNotUsed(segmentId))
 {
-#ifndef VTK_LEGACY_REMOVE
   if (!this->LegacyRecursionFlag)
   {
     this->LegacyRecursionFlag = true;
@@ -285,13 +287,12 @@ vtkIdType vtkPlotBox::GetNearestPoint(const vtkVector2f& point, const vtkVector2
     {
       VTK_LEGACY_REPLACED_BODY(vtkPlotBox::GetNearestPoint(const vtkVector2f& point,
                                  const vtkVector2f& tol, vtkVector2f* location),
-        "VTK 8.3",
+        "VTK 9.0",
         vtkPlotBox::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
           vtkVector2f* location, vtkIdType* segmentId));
       return ret;
     }
   }
-#endif // VTK_LEGACY_REMOVE
 
   vtkChartBox* parent = vtkChartBox::SafeDownCast(this->Parent);
 
@@ -318,7 +319,7 @@ vtkIdType vtkPlotBox::GetNearestPoint(const vtkVector2f& point, const vtkVector2
   }
   return -1;
 }
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotBox::UpdateTableCache(vtkTable* table)
 {
   // Each boxplot is a column in our storage array,
@@ -363,7 +364,7 @@ bool vtkPlotBox::UpdateTableCache(vtkTable* table)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBox::SetLookupTable(vtkScalarsToColors* lut)
 {
   if (this->LookupTable != lut)
@@ -381,7 +382,7 @@ void vtkPlotBox::SetLookupTable(vtkScalarsToColors* lut)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkScalarsToColors* vtkPlotBox::GetLookupTable()
 {
   if (this->LookupTable == nullptr)
@@ -391,7 +392,7 @@ vtkScalarsToColors* vtkPlotBox::GetLookupTable()
   return this->LookupTable;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBox::SetColumnColor(const vtkStdString& colName, double* rgb)
 {
   if (this->LookupTable == nullptr)
@@ -408,7 +409,7 @@ void vtkPlotBox::SetColumnColor(const vtkStdString& colName, double* rgb)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBox::CreateDefaultLookupTable()
 {
   // There must be an input to create a lookup table
@@ -429,7 +430,7 @@ void vtkPlotBox::CreateDefaultLookupTable()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBox::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

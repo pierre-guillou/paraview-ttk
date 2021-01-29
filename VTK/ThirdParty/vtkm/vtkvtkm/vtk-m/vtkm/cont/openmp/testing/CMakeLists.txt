@@ -9,11 +9,9 @@
 ##============================================================================
 
 set(unit_tests
-  UnitTestOpenMPAlgorithms.cxx
   UnitTestOpenMPArrayHandle.cxx
   UnitTestOpenMPArrayHandleFancy.cxx
   UnitTestOpenMPArrayHandleMultiplexer.cxx
-  UnitTestOpenMPArrayHandleVirtualCoordinates.cxx
   UnitTestOpenMPBitField.cxx
   UnitTestOpenMPCellLocatorRectilinearGrid.cxx
   UnitTestOpenMPCellLocatorUniformBins.cxx

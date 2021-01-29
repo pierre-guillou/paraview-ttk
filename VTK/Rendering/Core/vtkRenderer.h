@@ -288,7 +288,7 @@ public:
   /**
    * Create an image. Subclasses of vtkRenderer must implement this method.
    */
-  virtual void DeviceRender() = 0;
+  virtual void DeviceRender(){};
 
   /**
    * Render opaque polygonal geometry. Default implementation just calls
@@ -350,11 +350,8 @@ public:
   //@{
   /**
    * Reset the camera clipping range based on a bounding box.
-   * This method is called from ResetCameraClippingRange()
-   * If Deering frustrum is used then the bounds get expanded
-   * by the camera's modelview matrix.
    */
-  virtual void ResetCameraClippingRange(double bounds[6]);
+  virtual void ResetCameraClippingRange(const double bounds[6]);
   virtual void ResetCameraClippingRange(
     double xmin, double xmax, double ymin, double ymax, double zmin, double zmax);
   //@}
@@ -392,11 +389,11 @@ public:
    * (xmin,xmax, ymin,ymax, zmin,zmax). Camera will reposition itself so
    * that its focal point is the center of the bounding box, and adjust its
    * distance and position to preserve its initial view plane normal
-   * (i.e., vector defined from camera position to focal point). Note: is
+   * (i.e., vector defined from camera position to focal point). Note: if
    * the view plane is parallel to the view up axis, the view up axis will
    * be reset to one of the three coordinate axes.
    */
-  virtual void ResetCamera(double bounds[6]);
+  virtual void ResetCamera(const double bounds[6]);
 
   /**
    * Alternative version of ResetCamera(bounds[6]);
@@ -640,6 +637,54 @@ public:
 
   //@{
   /**
+   * Enable or disable Screen Space Ambient Occlusion.
+   * SSAO darkens some pixels to improve depth perception.
+   */
+  vtkSetMacro(UseSSAO, bool);
+  vtkGetMacro(UseSSAO, bool);
+  vtkBooleanMacro(UseSSAO, bool);
+  //@}
+
+  //@{
+  /**
+   * When using SSAO, define the SSAO hemisphere radius.
+   * Default is 0.5
+   */
+  vtkSetMacro(SSAORadius, double);
+  vtkGetMacro(SSAORadius, double);
+  //@}
+
+  //@{
+  /**
+   * When using SSAO, define the bias when comparing samples.
+   * Default is 0.01
+   */
+  vtkSetMacro(SSAOBias, double);
+  vtkGetMacro(SSAOBias, double);
+  //@}
+
+  //@{
+  /**
+   * When using SSAO, define the number of samples.
+   * Default is 32
+   */
+  vtkSetMacro(SSAOKernelSize, unsigned int);
+  vtkGetMacro(SSAOKernelSize, unsigned int);
+  //@}
+
+  //@{
+  /**
+   * When using SSAO, define blurring of the ambient occlusion.
+   * Blurring can help to improve the result if samples number is low.
+   * Default is false
+   */
+  vtkSetMacro(SSAOBlur, bool);
+  vtkGetMacro(SSAOBlur, bool);
+  vtkBooleanMacro(SSAOBlur, bool);
+  //@}
+
+  //@{
+  /**
    * Set/Get a custom Render call. Allows to hook a Render call from an
    * external project.It will be used in place of vtkRenderer::Render() if it
    * is not NULL and its Used ivar is set to true.
@@ -756,14 +801,34 @@ public:
 
   //@{
   /**
-   * Set/Get the environment cubemap used for image based lighting.
-   * Warning, this cubemap must be expressed in linear color space.
-   * If the cubemap is in sRGB color space, set the color flag on the texture or
+   * Set/Get the environment texture used for image based lighting.
+   * This texture is supposed to represent the scene background.
+   * If it is not a cubemap, the texture is supposed to represent an equirectangular projection.
+   * If used with raytracing backends, the texture must be an equirectangular projection and must be
+   * constructed with a valid vtkImageData.
+   * Warning, this texture must be expressed in linear color space.
+   * If the texture is in sRGB color space, set the color flag on the texture or
    * set the argument isSRGB to true.
    * @sa vtkTexture::UseSRGBColorSpaceOn
    */
-  vtkGetObjectMacro(EnvironmentCubeMap, vtkTexture);
-  virtual void SetEnvironmentCubeMap(vtkTexture* cubemap, bool isSRGB = false);
+  vtkGetObjectMacro(EnvironmentTexture, vtkTexture);
+  virtual void SetEnvironmentTexture(vtkTexture* texture, bool isSRGB = false);
+  //@}
+
+  //@{
+  /**
+   * Set/Get the environment up vector.
+   */
+  vtkGetVector3Macro(EnvironmentUp, double);
+  vtkSetVector3Macro(EnvironmentUp, double);
+  //@}
+
+  //@{
+  /**
+   * Set/Get the environment right vector.
+   */
+  vtkGetVector3Macro(EnvironmentRight, double);
+  vtkSetVector3Macro(EnvironmentRight, double);
   //@}
 
 protected:
@@ -772,7 +837,7 @@ protected:
 
   // internal method to expand bounding box to consider model transform
   // matrix or model view transform matrix based on whether or not deering
-  // frustum is used.
+  // frustum is used. 'bounds' buffer is mutated to the expanded box.
   virtual void ExpandBounds(double bounds[6], vtkMatrix4x4* matrix);
 
   vtkCamera* ActiveCamera;
@@ -964,6 +1029,12 @@ protected:
    */
   int MaximumNumberOfPeels;
 
+  bool UseSSAO = false;
+  double SSAORadius = 0.5;
+  double SSAOBias = 0.01;
+  unsigned int SSAOKernelSize = 32;
+  bool SSAOBlur = false;
+
   /**
    * Tells if the last call to DeviceRenderTranslucentPolygonalGeometry()
    * actually used depth peeling.
@@ -1001,7 +1072,10 @@ protected:
   vtkInformation* Information;
 
   bool UseImageBasedLighting;
-  vtkTexture* EnvironmentCubeMap;
+  vtkTexture* EnvironmentTexture;
+
+  double EnvironmentUp[3];
+  double EnvironmentRight[3];
 
 private:
   vtkRenderer(const vtkRenderer&) = delete;

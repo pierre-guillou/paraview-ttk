@@ -19,7 +19,7 @@
 
 vtkStandardNewMacro(vtkWindowLevelLookupTable);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkWindowLevelLookupTable::vtkWindowLevelLookupTable(int sze, int ext)
   : vtkLookupTable(sze, ext)
 {
@@ -39,53 +39,50 @@ vtkWindowLevelLookupTable::vtkWindowLevelLookupTable(int sze, int ext)
   this->MaximumTableValue[3] = 1.0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Table is built as a linear ramp between MinimumTableValue and
 // MaximumTableValue.
-void vtkWindowLevelLookupTable::Build()
+void vtkWindowLevelLookupTable::ForceBuild()
 {
-  if (this->Table->GetNumberOfTuples() < 1 ||
-    (this->GetMTime() > this->BuildTime && this->InsertTime < this->BuildTime))
+  double start[4], incr[4];
+
+  for (int j = 0; j < 4; j++)
   {
-    int i, j;
-    unsigned char* rgba;
-    double start[4], incr[4];
+    start[j] = this->MinimumTableValue[j] * 255;
+    incr[j] = ((this->MaximumTableValue[j] - this->MinimumTableValue[j]) /
+      (this->NumberOfColors - 1) * 255);
+  }
 
-    for (j = 0; j < 4; j++)
+  if (this->InverseVideo)
+  {
+    for (vtkIdType i = 0; i < this->NumberOfColors; i++)
     {
-      start[j] = this->MinimumTableValue[j] * 255;
-      incr[j] = ((this->MaximumTableValue[j] - this->MinimumTableValue[j]) /
-        (this->NumberOfColors - 1) * 255);
-    }
-
-    if (this->InverseVideo)
-    {
-      for (i = 0; i < this->NumberOfColors; i++)
+      unsigned char* rgba = this->Table->WritePointer(4 * i, 4);
+      for (int j = 0; j < 4; j++)
       {
-        rgba = this->Table->WritePointer(4 * i, 4);
-        for (j = 0; j < 4; j++)
-        {
-          rgba[j] =
-            static_cast<unsigned char>(start[j] + (this->NumberOfColors - i - 1) * incr[j] + 0.5);
-        }
-      }
-    }
-    else
-    {
-      for (i = 0; i < this->NumberOfColors; i++)
-      {
-        rgba = this->Table->WritePointer(4 * i, 4);
-        for (j = 0; j < 4; j++)
-        {
-          rgba[j] = static_cast<unsigned char>(start[j] + i * incr[j] + 0.5);
-        }
+        rgba[j] =
+          static_cast<unsigned char>(start[j] + (this->NumberOfColors - i - 1) * incr[j] + 0.5);
       }
     }
   }
+  else
+  {
+    for (vtkIdType i = 0; i < this->NumberOfColors; i++)
+    {
+      unsigned char* rgba = this->Table->WritePointer(4 * i, 4);
+      for (int j = 0; j < 4; j++)
+      {
+        rgba[j] = static_cast<unsigned char>(start[j] + i * incr[j] + 0.5);
+      }
+    }
+  }
+
+  this->BuildSpecialColors();
+
   this->BuildTime.Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Reverse the color table (don't rebuild in case someone has
 // been adjusting the table values by hand)
 // This is a little ugly ... it might be best to remove
@@ -129,7 +126,7 @@ void vtkWindowLevelLookupTable::SetInverseVideo(vtkTypeBool iv)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWindowLevelLookupTable::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

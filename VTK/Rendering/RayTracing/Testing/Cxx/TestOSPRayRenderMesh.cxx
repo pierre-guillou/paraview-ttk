@@ -247,6 +247,7 @@ int TestOSPRayRenderMesh(int argc, char* argv[])
   renWin->AddRenderer(renderer);
   renderer->AutomaticLightCreationOn();
   renderer->SetBackground(0.75, 0.75, 0.75);
+  renderer->SetEnvironmentalBG(0.75, 0.75, 0.75);
   renWin->SetSize(600, 550);
   vtkSmartPointer<vtkCamera> camera = vtkSmartPointer<vtkCamera>::New();
   camera->SetPosition(2.5, 11, -3);
@@ -262,6 +263,11 @@ int TestOSPRayRenderMesh(int argc, char* argv[])
 
     for (int i = 0; i < argc; ++i)
     {
+      if (!strcmp(argv[i], "--OSPRayPT"))
+      {
+        vtkOSPRayRendererNode::SetRendererType("OSPRay pathtracer", renderer);
+        break;
+      }
       if (!strcmp(argv[i], "--OptiX"))
       {
         vtkOSPRayRendererNode::SetRendererType("optix pathtracer", renderer);
@@ -270,9 +276,10 @@ int TestOSPRayRenderMesh(int argc, char* argv[])
     }
   }
   // Now, vary most of the many parameters that rendering can vary by.
+  renderable* ren;
 
   // representations points, wireframe, surface
-  renderable* ren = MakeSphereAt(5, 0, -5, 10, type, rep, "points");
+  ren = MakeSphereAt(5, 0, -5, 10, type, rep, "points");
   ren->a->GetProperty()->SetRepresentationToPoints();
   renderer->AddActor(ren->a);
   delete (ren);

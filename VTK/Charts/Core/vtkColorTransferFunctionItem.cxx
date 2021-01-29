@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkColorTransferFunctionItem.h"
 
 #include "vtkAxis.h"
@@ -29,16 +33,16 @@
 #include <cassert>
 #include <cmath>
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkColorTransferFunctionItem);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkColorTransferFunctionItem::vtkColorTransferFunctionItem()
 {
   this->ColorTransferFunction = nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkColorTransferFunctionItem::~vtkColorTransferFunctionItem()
 {
   if (this->ColorTransferFunction)
@@ -49,7 +53,7 @@ vtkColorTransferFunctionItem::~vtkColorTransferFunctionItem()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkColorTransferFunctionItem::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -65,7 +69,7 @@ void vtkColorTransferFunctionItem::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkColorTransferFunctionItem::ComputeBounds(double* bounds)
 {
   this->Superclass::ComputeBounds(bounds);
@@ -78,7 +82,7 @@ void vtkColorTransferFunctionItem::ComputeBounds(double* bounds)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkColorTransferFunctionItem::SetColorTransferFunction(vtkColorTransferFunction* t)
 {
   if (t == this->ColorTransferFunction)
@@ -97,7 +101,7 @@ void vtkColorTransferFunctionItem::SetColorTransferFunction(vtkColorTransferFunc
   this->ScalarsToColorsModified(t, vtkCommand::ModifiedEvent, nullptr);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkColorTransferFunctionItem::ComputeTexture()
 {
   double screenBounds[4];
@@ -139,7 +143,7 @@ void vtkColorTransferFunctionItem::ComputeTexture()
   delete[] values;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkColorTransferFunctionItem::ConfigurePlotBar()
 {
   bool ret = this->Superclass::ConfigurePlotBar();

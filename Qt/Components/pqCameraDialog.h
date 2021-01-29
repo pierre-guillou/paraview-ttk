@@ -43,7 +43,7 @@ class PQCOMPONENTS_EXPORT pqCameraDialog : public pqDialog
 {
   Q_OBJECT
 public:
-  pqCameraDialog(QWidget* parent = NULL, Qt::WindowFlags f = 0);
+  pqCameraDialog(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags{});
   ~pqCameraDialog() override;
 
   void SetCameraGroupsEnabled(bool enabled);
@@ -83,10 +83,10 @@ public:
    */
   static QStringList CustomViewpointConfigurations();
 
-public slots:
+public Q_SLOTS:
   void setRenderModule(pqView*);
 
-private slots:
+private Q_SLOTS:
   // Description:
   // Choose a file and load/save camera properties.
   void saveCameraConfiguration();

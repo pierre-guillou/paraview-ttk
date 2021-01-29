@@ -16,12 +16,11 @@
 // This test was written by Philippe Pebay,  NexGen Analytics 2017
 // This work was supported by Commissariat a l'Energie Atomique (CEA/DIF)
 
+#include "vtkCamera.h"
+#include "vtkCellData.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkHyperTreeGridGeometry.h"
 #include "vtkHyperTreeGridSource.h"
-
-#include "vtkCamera.h"
-#include "vtkCellData.h"
 #include "vtkNew.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
@@ -49,8 +48,10 @@ int TestHyperTreeGridBinary2DInterfaceMaterial(int argc, char* argv[])
                   "1111 1111 1111 1111|1111 1111 1111 1111|1111");
   htGrid->GenerateInterfaceFieldsOn();
   htGrid->Update();
-  vtkHyperTreeGrid* H = vtkHyperTreeGrid::SafeDownCast(htGrid->GetOutput());
-  H->SetHasInterface(1);
+  vtkHyperTreeGrid* htg = vtkHyperTreeGrid::SafeDownCast(htGrid->GetOutput());
+  htg->GetCellData()->SetScalars(htg->GetCellData()->GetArray("Depth"));
+  vtkHyperTreeGrid* H = htg;
+  H->SetHasInterface(true);
   char normalsName[] = "Normals";
   H->SetInterfaceNormalsName(normalsName);
   char interceptsName[] = "Intercepts";
@@ -58,7 +59,7 @@ int TestHyperTreeGridBinary2DInterfaceMaterial(int argc, char* argv[])
 
   // Modify intercepts array
   vtkDataArray* interArray =
-    vtkHyperTreeGrid::SafeDownCast(htGrid->GetOutput())->GetPointData()->GetArray("Intercepts");
+    vtkHyperTreeGrid::SafeDownCast(htg)->GetCellData()->GetArray("Intercepts");
   for (vtkIdType i = 0; i < interArray->GetNumberOfTuples(); ++i)
   {
     interArray->SetTuple3(i, -.25, -.5, -1.);
@@ -79,7 +80,7 @@ int TestHyperTreeGridBinary2DInterfaceMaterial(int argc, char* argv[])
   mapper1->ScalarVisibilityOff();
   vtkNew<vtkPolyDataMapper> mapper2;
   mapper2->SetInputConnection(geometry2->GetOutputPort());
-  mapper2->SetScalarRange(pd->GetCellData()->GetScalars()->GetRange());
+  mapper2->SetScalarRange(pd->GetCellData()->GetArray("Depth")->GetRange());
 
   // Actors
   vtkNew<vtkActor> actor1;

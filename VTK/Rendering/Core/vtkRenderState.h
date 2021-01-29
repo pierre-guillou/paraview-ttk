@@ -52,7 +52,7 @@ public:
    * Destructor. As a vtkRenderState does not own any of its variables,
    * the destructor does nothing.
    */
-  ~vtkRenderState();
+  ~vtkRenderState() = default;
 
   /**
    * Tells if the RenderState is a valid one (Renderer is not null).
@@ -155,7 +155,7 @@ protected:
   vtkInformation* RequiredKeys;
 
 private:
-  vtkRenderState(); // no default constructor.
+  vtkRenderState() = delete; // no default constructor.
   vtkRenderState(const vtkRenderState&) = delete;
   void operator=(const vtkRenderState&) = delete;
 };

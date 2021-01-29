@@ -13,14 +13,19 @@ DEPENDS
   VTK::PythonInterpreter
 PRIVATE_DEPENDS
   ParaView::PythonInitializer
+  ParaView::RemotingServerManager
+  ParaView::VTKExtensionsCore
   VTK::ParallelCore
+  VTK::WrappingPythonCore
+OPTIONAL_DEPENDS
+  ParaView::RemotingLive
 TEST_DEPENDS
   ParaView::CatalystTestDriver
   VTK::IOImage
   VTK::ParallelCore
+  VTK::TestingRendering
 TEST_OPTIONAL_DEPENDS
   VTK::ParallelMPI
-  VTK::TestingRendering
 TEST_LABELS
   Catalyst
   ParaView

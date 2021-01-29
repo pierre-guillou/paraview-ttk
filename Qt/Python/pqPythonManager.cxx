@@ -109,7 +109,7 @@ class pqPythonManagerRawInputHelper
 public:
   void rawInput(vtkObject*, unsigned long, void* calldata)
   {
-    vtkStdString* strData = reinterpret_cast<vtkStdString*>(calldata);
+    std::string* strData = reinterpret_cast<std::string*>(calldata);
     bool ok;
     QString inputText = QInputDialog::getText(pqCoreUtilities::mainWidget(),
       QCoreApplication::translate("pqPythonManager", "Enter Input requested by Python"),
@@ -194,7 +194,9 @@ void pqPythonManager::executeScript(const QString& filename)
     vtkNew<vtkPythonInteractiveInterpreter> interp;
     interp->AddObserver(vtkCommand::UpdateEvent, &helper, &pqPythonManagerRawInputHelper::rawInput);
     interp->Push("import sys");
+    interp->Push(QString("__file__ = r'%1'").arg(filename).toLocal8Bit().data());
     interp->RunStringWithConsoleLocals(code.data());
+    interp->Push("del __file__");
     vtkPythonInterpreter::SetCaptureStdin(prevCapture);
     vtkOutputWindow::SetInstance(old);
     interp->RemoveObservers(vtkCommand::UpdateEvent);

@@ -48,6 +48,11 @@
 #include "vtkIOImportModule.h" // For export macro
 #include "vtkObject.h"
 
+#include <string>
+
+class vtkAbstractArray;
+class vtkDataSet;
+class vtkDoubleArray;
 class vtkRenderWindow;
 class vtkRenderer;
 
@@ -86,6 +91,47 @@ public:
   void Update() { this->Read(); }
   //@}
 
+  /**
+   * Recover a printable string that let importer implementation
+   * Describe their outputs.
+   */
+  virtual std::string GetOutputsDescription() { return ""; };
+
+  /**
+   * Get the number of available animations.
+   * Return -1 if not provided by implementation.
+   */
+  virtual vtkIdType GetNumberOfAnimations();
+
+  /**
+   * Get the name of an animation.
+   * Return an empty if not provided by implementation.
+   */
+  virtual std::string GetAnimationName(vtkIdType vtkNotUsed(animationIndex)) { return ""; };
+
+  //@{
+  /**
+   * Enable/Disable/Get the status of specific animations
+   */
+  virtual void EnableAnimation(vtkIdType vtkNotUsed(animationIndex)){};
+  virtual void DisableAnimation(vtkIdType vtkNotUsed(animationIndex)){};
+  virtual bool IsAnimationEnabled(vtkIdType vtkNotUsed(animationIndex)) { return false; };
+  //@}
+
+  /**
+   * Get temporal informations for the currently enabled animations.
+   * the three return arguments can be defined or not.
+   * Return true in case of success, false otherwise.
+   */
+  virtual bool GetTemporalInformation(vtkIdType animationIndex, double frameRate, int& nbTimeSteps,
+    double timeRange[2], vtkDoubleArray* timeSteps);
+
+  /**
+   * Import the actors, camera, lights and properties at a specific timestep.
+   * If not reimplemented, only call Update().
+   */
+  virtual void UpdateTimeStep(double timeStep);
+
 protected:
   vtkImporter();
   ~vtkImporter() override;
@@ -96,6 +142,9 @@ protected:
   virtual void ImportCameras(vtkRenderer*) {}
   virtual void ImportLights(vtkRenderer*) {}
   virtual void ImportProperties(vtkRenderer*) {}
+
+  static std::string GetDataSetDescription(vtkDataSet* ds, vtkIndent indent);
+  static std::string GetArrayDescription(vtkAbstractArray* array, vtkIndent indent);
 
   vtkRenderer* Renderer;
   vtkRenderWindow* RenderWindow;

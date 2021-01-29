@@ -77,15 +77,6 @@ void vtkCompositeDataDisplayAttributes::RemoveBlockVisibilities()
   this->BlockVisibilities.clear();
 }
 
-#ifndef VTK_LEGACY_REMOVE
-void vtkCompositeDataDisplayAttributes::RemoveBlockVisibilites()
-{
-  VTK_LEGACY_REPLACED_BODY(vtkCompositeDataDisplayAttributes::RemoveBlockVisibilites, "VTK 8.1",
-    vtkCompositeDataDisplayAttributes::RemoveBlockVisibilities());
-  this->RemoveBlockVisibilities();
-}
-#endif
-
 void vtkCompositeDataDisplayAttributes::SetBlockPickability(
   vtkDataObject* data_object, bool visible)
 {
@@ -344,13 +335,12 @@ void vtkCompositeDataDisplayAttributes::ComputeVisibleBoundsInternal(
 }
 
 vtkDataObject* vtkCompositeDataDisplayAttributes::DataObjectFromIndex(
-  const unsigned int flat_index, vtkDataObject* parent_obj, unsigned int& current_flat_index)
+  const unsigned int flat_index, vtkDataObject* parent_obj, unsigned int current_flat_index)
 {
   if (current_flat_index == flat_index)
   {
     return parent_obj;
   }
-  current_flat_index++;
 
   // for leaf types quick continue, otherwise it recurses which
   // calls two more SafeDownCast which are expensive
@@ -364,23 +354,14 @@ vtkDataObject* vtkCompositeDataDisplayAttributes::DataObjectFromIndex(
   if (dObjTree)
   {
     using Opts = vtk::DataObjectTreeOptions;
-    for (vtkDataObject* child : vtk::Range(dObjTree, Opts::None))
+    for (vtkDataObject* child : vtk::Range(dObjTree, Opts::TraverseSubTree))
     {
-      if (child)
+      ++current_flat_index;
+      if (current_flat_index == flat_index)
       {
-        const auto data = vtkCompositeDataDisplayAttributes::DataObjectFromIndex(
-          flat_index, child, current_flat_index);
-        if (data)
-        {
-          return data;
-        }
-      }
-      else
-      {
-        ++current_flat_index;
+        return child;
       }
     }
   }
-
   return nullptr;
 }

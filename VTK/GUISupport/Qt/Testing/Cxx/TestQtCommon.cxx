@@ -1,3 +1,6 @@
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "TestQtCommon.h"
 
 namespace detail
@@ -10,6 +13,10 @@ Type select_widget(int argc, char* argv[])
     if (argv[cc] && strcmp(argv[cc], "-w") == 0 && (cc + 1) < argc)
     {
       auto typestr = argv[cc + 1];
+      if (strcmp(typestr, "QVTKRenderWidget") == 0)
+      {
+        return Type::USE_QVTKRENDERWIDGET;
+      }
       if (strcmp(typestr, "QVTKOpenGLNativeWidget") == 0)
       {
         return Type::USE_QVTKOPENGLNATIVEWIDGET;
@@ -17,6 +24,10 @@ Type select_widget(int argc, char* argv[])
       else if (strcmp(typestr, "QVTKOpenGLWindow") == 0)
       {
         return Type::USE_QVTKOPENGLWINDOW;
+      }
+      else if (strcmp(typestr, "QVTKOpenGLStereoWidget") == 0)
+      {
+        return Type::USE_QVTKOPENGLSTEREOWIDGET;
       }
       else if (strcmp(typestr, "QVTKOpenGLWidget") == 0)
       {
@@ -33,6 +44,8 @@ void set_default_format(Type type)
   switch (type)
   {
     case Type::USE_QVTKOPENGLNATIVEWIDGET:
+    case Type::USE_QVTKRENDERWIDGET: // TODO this may be a problem in the future in order to have a
+                                     // generic widget
       vtkLogF(INFO, "setting default QSurfaceFormat.");
       QSurfaceFormat::setDefaultFormat(QVTKOpenGLNativeWidget::defaultFormat());
       break;
@@ -47,6 +60,16 @@ std::shared_ptr<QObject> create_widget_or_window(Type type, vtkGenericOpenGLRend
 {
   switch (type)
   {
+    case Type::USE_QVTKRENDERWIDGET:
+    {
+      vtkLogF(INFO, "creating QVTKRenderWidget.");
+      auto widget = std::make_shared<QVTKRenderWidget>();
+      if (renWin)
+      {
+        widget->setRenderWindow(renWin);
+      }
+      return std::static_pointer_cast<QObject>(widget);
+    }
     case Type::USE_QVTKOPENGLNATIVEWIDGET:
     {
       vtkLogF(INFO, "creating QVTKOpenGLNativeWidget.");
@@ -69,10 +92,11 @@ std::shared_ptr<QObject> create_widget_or_window(Type type, vtkGenericOpenGLRend
       }
       return std::static_pointer_cast<QObject>(widget);
     }
+    case Type::USE_QVTKOPENGLSTEREOWIDGET:
     case Type::USE_QVTKOPENGLWIDGET:
     {
-      vtkLogF(INFO, "creating QVTKOpenGLWidget.");
-      auto widget = std::make_shared<QVTKOpenGLWidget>();
+      vtkLogF(INFO, "creating QVTKOpenGLStereoWidget.");
+      auto widget = std::make_shared<QVTKOpenGLStereoWidget>();
       vtkLogF(INFO, "set format on Qt widget explicitly");
       widget->setFormat(QVTKOpenGLWindow::defaultFormat());
       if (renWin)
@@ -98,7 +122,12 @@ std::shared_ptr<QWidget> create_widget(
 
 vtkRenderWindow* get_render_window(std::shared_ptr<QObject> widgetOrWindow)
 {
-  if (auto w1 = qobject_cast<QVTKOpenGLWidget*>(widgetOrWindow.get()))
+  if (auto w1 = qobject_cast<QVTKRenderWidget*>(widgetOrWindow.get()))
+  {
+    return w1->renderWindow();
+  }
+
+  if (auto w1 = qobject_cast<QVTKOpenGLStereoWidget*>(widgetOrWindow.get()))
   {
     return w1->renderWindow();
   }
@@ -112,12 +141,23 @@ vtkRenderWindow* get_render_window(std::shared_ptr<QObject> widgetOrWindow)
   {
     return w1->renderWindow();
   }
+
+  if (auto w1 = qobject_cast<QVTKOpenGLWidget*>(widgetOrWindow.get()))
+  {
+    return w1->renderWindow();
+  }
+
   return nullptr;
 }
 
 void set_render_window(std::shared_ptr<QObject> widgetOrWindow, vtkRenderWindow* renWin)
 {
-  if (auto w1 = qobject_cast<QVTKOpenGLWidget*>(widgetOrWindow.get()))
+  if (auto w1 = qobject_cast<QVTKRenderWidget*>(widgetOrWindow.get()))
+  {
+    w1->setRenderWindow(renWin);
+  }
+
+  if (auto w1 = qobject_cast<QVTKOpenGLStereoWidget*>(widgetOrWindow.get()))
   {
     w1->setRenderWindow(renWin);
   }
@@ -128,6 +168,11 @@ void set_render_window(std::shared_ptr<QObject> widgetOrWindow, vtkRenderWindow*
   }
 
   if (auto w1 = qobject_cast<QVTKOpenGLWindow*>(widgetOrWindow.get()))
+  {
+    w1->setRenderWindow(renWin);
+  }
+
+  if (auto w1 = qobject_cast<QVTKOpenGLWidget*>(widgetOrWindow.get()))
   {
     w1->setRenderWindow(renWin);
   }
@@ -177,7 +222,12 @@ void show(std::shared_ptr<QObject> widgetOrWindow, const QSize& size)
 
 QImage grab_framebuffer(std::shared_ptr<QObject> widgetOrWindow)
 {
-  if (auto w1 = qobject_cast<QVTKOpenGLWidget*>(widgetOrWindow.get()))
+  if (auto w1 = qobject_cast<QVTKRenderWidget*>(widgetOrWindow.get()))
+  {
+    return w1->grabFramebuffer();
+  }
+
+  if (auto w1 = qobject_cast<QVTKOpenGLStereoWidget*>(widgetOrWindow.get()))
   {
     return w1->grabFramebuffer();
   }
@@ -188,6 +238,11 @@ QImage grab_framebuffer(std::shared_ptr<QObject> widgetOrWindow)
   }
 
   if (auto w1 = qobject_cast<QVTKOpenGLWindow*>(widgetOrWindow.get()))
+  {
+    return w1->grabFramebuffer();
+  }
+
+  if (auto w1 = qobject_cast<QVTKOpenGLWidget*>(widgetOrWindow.get()))
   {
     return w1->grabFramebuffer();
   }

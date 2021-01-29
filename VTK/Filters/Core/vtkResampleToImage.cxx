@@ -14,6 +14,7 @@
 =========================================================================*/
 #include "vtkResampleToImage.h"
 
+#include "vtkBoundingBox.h"
 #include "vtkCharArray.h"
 #include "vtkCompositeDataProbeFilter.h"
 #include "vtkCompositeDataSet.h"
@@ -33,7 +34,7 @@
 
 vtkObjectFactoryNewMacro(vtkResampleToImage);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkResampleToImage::vtkResampleToImage()
   : UseInputBounds(true)
 {
@@ -45,10 +46,10 @@ vtkResampleToImage::vtkResampleToImage()
   this->SamplingDimensions[0] = this->SamplingDimensions[1] = this->SamplingDimensions[2] = 10;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkResampleToImage::~vtkResampleToImage() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkResampleToImage::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -60,13 +61,13 @@ void vtkResampleToImage::PrintSelf(ostream& os, vtkIndent indent)
      << this->SamplingDimensions[1] << " x " << this->SamplingDimensions[2] << endl;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkImageData* vtkResampleToImage::GetOutput()
 {
   return vtkImageData::SafeDownCast(this->GetOutputDataObject(0));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTypeBool vtkResampleToImage::ProcessRequest(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -91,7 +92,7 @@ vtkTypeBool vtkResampleToImage::ProcessRequest(
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkResampleToImage::RequestInformation(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -104,7 +105,7 @@ int vtkResampleToImage::RequestInformation(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkResampleToImage::RequestUpdateExtent(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector*)
 {
@@ -121,7 +122,7 @@ int vtkResampleToImage::RequestUpdateExtent(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkResampleToImage::FillInputPortInformation(int vtkNotUsed(port), vtkInformation* info)
 {
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
@@ -129,20 +130,20 @@ int vtkResampleToImage::FillInputPortInformation(int vtkNotUsed(port), vtkInform
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkResampleToImage::FillOutputPortInformation(int vtkNotUsed(port), vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkImageData");
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const char* vtkResampleToImage::GetMaskArrayName() const
 {
   return "vtkValidPointMask";
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 namespace
 {
 
@@ -223,7 +224,7 @@ void vtkResampleToImage::PerformResampling(vtkDataObject* input, const double sa
   output->GetFieldData()->PassData(input->GetFieldData());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 namespace
 {
 
@@ -268,6 +269,9 @@ public:
     this->CellDim[1] = vtkMath::Max(1, this->PointDim[1] - 1);
     this->CellDim[2] = vtkMath::Max(1, this->PointDim[2] - 1);
     this->CellSliceSize = this->CellDim[0] * this->CellDim[1];
+    this->Dim[0] = (this->PointDim[0] > 1) ? 1 : 0;
+    this->Dim[1] = (this->PointDim[1] > 1) ? 1 : 0;
+    this->Dim[2] = (this->PointDim[2] > 1) ? 1 : 0;
   }
 
   void operator()(vtkIdType begin, vtkIdType end)
@@ -281,17 +285,12 @@ public:
 
       vtkIdType ptid = ptijk[0] + this->PointDim[0] * ptijk[1] + this->PointSliceSize * ptijk[2];
 
-      int dim[3];
-      dim[0] = (this->PointDim[0] > 1) ? 1 : 0;
-      dim[1] = (this->PointDim[1] > 1) ? 1 : 0;
-      dim[2] = (this->PointDim[2] > 1) ? 1 : 0;
-
       bool validCell = true;
-      for (int k = 0; k <= dim[2]; ++k)
+      for (int k = 0; k <= this->Dim[2]; ++k)
       {
-        for (int j = 0; j <= dim[1]; ++j)
+        for (int j = 0; j <= this->Dim[1]; ++j)
         {
-          for (int i = 0; i <= dim[0]; ++i)
+          for (int i = 0; i <= this->Dim[0]; ++i)
           {
             validCell &= (0 !=
               this->MaskArray[ptid + i + (j * this->PointDim[0]) + (k * this->PointSliceSize)]);
@@ -302,7 +301,7 @@ public:
       if (!validCell)
       {
         this->CellGhostArray->SetValue(
-          cellId, this->CellGhostArray->GetValue(cellId) | vtkDataSetAttributes::HIDDENPOINT);
+          cellId, this->CellGhostArray->GetValue(cellId) | vtkDataSetAttributes::HIDDENCELL);
       }
     }
   }
@@ -316,6 +315,7 @@ private:
   vtkIdType PointSliceSize;
   int CellDim[3];
   vtkIdType CellSliceSize;
+  int Dim[3];
 };
 
 } // anonymous namespace
@@ -346,7 +346,7 @@ void vtkResampleToImage::SetBlankPointsAndCells(vtkImageData* data)
   vtkSMPTools::For(0, numCells, cellWorklet);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkResampleToImage::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -362,6 +362,13 @@ int vtkResampleToImage::RequestData(vtkInformation* vtkNotUsed(request),
   if (this->UseInputBounds)
   {
     ComputeDataBounds(input, samplingBounds);
+
+    // To avoid accidentally sampling outside the dataset due to floating point roundoff,
+    // nudge the bounds inward by epsilon.
+    vtkBoundingBox bbox(samplingBounds);
+    const double epsilon = 1.0e-6;
+    bbox.ScaleAboutCenter(1.0 - epsilon);
+    bbox.GetBounds(samplingBounds);
   }
   else
   {
@@ -374,7 +381,7 @@ int vtkResampleToImage::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkResampleToImage::ComputeDataBounds(vtkDataObject* data, double bounds[6])
 {
   if (vtkDataSet::SafeDownCast(data))

@@ -58,7 +58,7 @@ pqTextureComboBox::pqTextureComboBox(vtkSMProxyGroupDomain* domain, QWidget* par
   QObject::connect(this, SIGNAL(currentIndexChanged(int)), this, SLOT(onCurrentIndexChanged(int)));
 
   // DomainModifiedEvent is never invoked by ProxyGroupDomain
-  // https://gitlab.kitware.com/paraview/paraview/issues/19062
+  // https://gitlab.kitware.com/paraview/paraview/-/issues/19062
   // We have to monitor proxy creation
   pqServerManagerObserver* observer = pqApplicationCore::instance()->getServerManagerObserver();
   QObject::connect(observer, SIGNAL(proxyRegistered(const QString&, const QString&, vtkSMProxy*)),
@@ -125,14 +125,14 @@ void pqTextureComboBox::onCurrentIndexChanged(int index)
   switch (index)
   {
     case 0:
-      emit textureChanged(nullptr);
+      Q_EMIT textureChanged(nullptr);
       break;
     case 1:
       this->loadTexture();
       break;
     default:
       vtkSMProxy* texture = reinterpret_cast<vtkSMProxy*>(this->currentData().value<void*>());
-      emit textureChanged(texture);
+      Q_EMIT textureChanged(texture);
       break;
   }
 }
@@ -140,7 +140,7 @@ void pqTextureComboBox::onCurrentIndexChanged(int index)
 //-----------------------------------------------------------------------------
 void pqTextureComboBox::loadTexture()
 {
-  QString filters = "Image files (*.png *.jpg *.bmp *.ppm *.tiff);;All files (*)";
+  QString filters = "Image files (*.png *.jpg *.bmp *.ppm *.tiff *.hdr);;All files (*)";
   pqFileDialog dialog(0, this, tr("Open Texture:"), QString(), filters);
   dialog.setObjectName("LoadTextureDialog");
   dialog.setFileMode(pqFileDialog::ExistingFile);

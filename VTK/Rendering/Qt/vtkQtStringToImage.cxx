@@ -30,6 +30,7 @@
 #include <QFontMetrics>
 #include <QImage>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
 #include <QString>
 #include <QTextDocument>
@@ -65,23 +66,23 @@ public:
   }
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkQtStringToImage);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkQtStringToImage::vtkQtStringToImage()
 {
   this->Implementation = new Internals;
   this->QImageToImage = vtkSmartPointer<vtkQImageToImageSource>::New();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkQtStringToImage::~vtkQtStringToImage()
 {
   delete this->Implementation;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkVector2i vtkQtStringToImage::GetBounds(
   vtkTextProperty* property, const vtkUnicodeString& string, int dpi)
 {
@@ -112,7 +113,7 @@ vtkVector2i vtkQtStringToImage::GetBounds(
   return recti;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkVector2i vtkQtStringToImage::GetBounds(
   vtkTextProperty* property, const vtkStdString& string, int dpi)
 {
@@ -224,10 +225,10 @@ int vtkQtStringToImage::RenderString(vtkTextProperty* property, const vtkStdStri
   return this->RenderString(property, vtkUnicodeString::from_utf8(string), dpi, data, textDims);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQtStringToImage::DeepCopy(vtkQtStringToImage*) {}
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQtStringToImage::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

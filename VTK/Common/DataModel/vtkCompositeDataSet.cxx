@@ -27,25 +27,36 @@
 vtkInformationKeyMacro(vtkCompositeDataSet, NAME, String);
 vtkInformationKeyMacro(vtkCompositeDataSet, CURRENT_PROCESS_CAN_LOAD_BLOCK, Integer);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeDataSet::vtkCompositeDataSet() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeDataSet::~vtkCompositeDataSet() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeDataSet* vtkCompositeDataSet::GetData(vtkInformation* info)
 {
   return info ? vtkCompositeDataSet::SafeDownCast(info->Get(DATA_OBJECT())) : nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeDataSet* vtkCompositeDataSet::GetData(vtkInformationVector* v, int i)
 {
   return vtkCompositeDataSet::GetData(v->GetInformationObject(i));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void vtkCompositeDataSet::CopyStructure(vtkCompositeDataSet* input)
+{
+  if (input != this)
+  {
+    // copy data-information and other common stuff by calling
+    // superclass' ShallowCopy.
+    this->Superclass::ShallowCopy(input);
+  }
+}
+
+//------------------------------------------------------------------------------
 void vtkCompositeDataSet::ShallowCopy(vtkDataObject* src)
 {
   if (src == this)
@@ -57,7 +68,7 @@ void vtkCompositeDataSet::ShallowCopy(vtkDataObject* src)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeDataSet::DeepCopy(vtkDataObject* src)
 {
   if (src == this)
@@ -69,13 +80,13 @@ void vtkCompositeDataSet::DeepCopy(vtkDataObject* src)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeDataSet::Initialize()
 {
   this->Superclass::Initialize();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned long vtkCompositeDataSet::GetActualMemorySize()
 {
   unsigned long memSize = 0;
@@ -89,19 +100,19 @@ unsigned long vtkCompositeDataSet::GetActualMemorySize()
   return memSize;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkCompositeDataSet::GetNumberOfPoints()
 {
   return this->GetNumberOfElements(vtkDataSet::POINT);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkCompositeDataSet::GetNumberOfCells()
 {
   return this->GetNumberOfElements(vtkDataSet::CELL);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkCompositeDataSet::GetNumberOfElements(int type)
 {
   vtkSmartPointer<vtkCompositeDataIterator> iter;
@@ -116,7 +127,7 @@ vtkIdType vtkCompositeDataSet::GetNumberOfElements(int type)
   return numElements;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeDataSet::GetBounds(double bounds[6])
 {
   double bds[6];
@@ -137,7 +148,7 @@ void vtkCompositeDataSet::GetBounds(double bounds[6])
   iter->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeDataSet::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

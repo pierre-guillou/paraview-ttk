@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkChartLegend.h"
 #include "vtkChartXY.h"
 #include "vtkContextScene.h"
@@ -29,7 +32,7 @@
 #include "vtkTable.h"
 #include <sstream>
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestFunctionalBagPlot(int, char*[])
 {
   // Creates an input table

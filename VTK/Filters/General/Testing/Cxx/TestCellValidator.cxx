@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 // This tests vtkCellValidator
 
 #include <vtkCellValidator.h>
@@ -139,7 +143,7 @@ static vtkSmartPointer<vtkBezierQuadrilateral> MakeBezierQuadrilateral();
 static vtkSmartPointer<vtkBezierTetra> MakeBezierTetra();
 static vtkSmartPointer<vtkBezierHexahedron> MakeBezierHexahedron();
 static vtkSmartPointer<vtkBezierWedge> MakeBezierWedge();
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 int TestCellValidator(int, char*[])
 {

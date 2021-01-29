@@ -54,7 +54,7 @@ vtkStandardNewMacro(vtkCompositeRGBAPass);
 vtkCxxSetObjectMacro(vtkCompositeRGBAPass, Controller, vtkMultiProcessController);
 vtkCxxSetObjectMacro(vtkCompositeRGBAPass, Kdtree, vtkPKdTree);
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeRGBAPass::vtkCompositeRGBAPass()
 {
   this->Controller = nullptr;
@@ -66,7 +66,7 @@ vtkCompositeRGBAPass::vtkCompositeRGBAPass()
   this->RawRGBABufferSize = 0;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeRGBAPass::~vtkCompositeRGBAPass()
 {
   if (this->Controller != nullptr)
@@ -92,7 +92,7 @@ vtkCompositeRGBAPass::~vtkCompositeRGBAPass()
   delete[] this->RawRGBABuffer;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeRGBAPass::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -117,13 +117,13 @@ void vtkCompositeRGBAPass::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkCompositeRGBAPass::IsSupported(vtkOpenGLRenderWindow* context)
 {
   return (context != nullptr);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Perform rendering according to a render state \p s.
 // \pre s_exists: s!=0
@@ -335,7 +335,7 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
       ostate->vtkglBlendFuncSeparate(
         GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-      glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // client to server
+      ostate->vtkglPixelStorei(GL_UNPACK_ALIGNMENT, 1); // client to server
 
       // 2. if root is not farest, save it in a TO
       bool rootIsFarest = frontToBackList->GetValue(numProcs - 1) == 0;
@@ -465,7 +465,7 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
     glReadPixels(0, 0, w, h, GL_RGBA, GL_FLOAT, static_cast<GLfloat*>(nullptr));
 
     // PBO to client
-    glPixelStorei(GL_PACK_ALIGNMENT, 1); // server to client
+    ostate->vtkglPixelStorei(GL_PACK_ALIGNMENT, 1); // server to client
     this->PBO->Download2D(VTK_FLOAT, this->RawRGBABuffer, dims, 4, continuousInc);
     this->PBO->UnBind();
 
@@ -522,7 +522,7 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
 #endif
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Release graphics resources and ask components to release their own
 // resources.

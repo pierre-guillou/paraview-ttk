@@ -64,14 +64,14 @@ void BenchRayTracing(::benchmark::State& state)
 
   vtkm::rendering::CanvasRayTracer canvas(1920, 1080);
   vtkm::rendering::raytracing::Camera rayCamera;
-  rayCamera.SetParameters(camera, canvas);
+  rayCamera.SetParameters(camera, vtkm::Int32(canvas.GetWidth()), vtkm::Int32(canvas.GetHeight()));
   vtkm::rendering::raytracing::Ray<vtkm::Float32> rays;
   rayCamera.CreateRays(rays, coords.GetBounds());
 
   rays.Buffers.at(0).InitConst(0.f);
 
   vtkm::cont::Field field = dataset.GetField("pointvar");
-  vtkm::Range range = field.GetRange().GetPortalConstControl().Get(0);
+  vtkm::Range range = field.GetRange().ReadPortal().Get(0);
 
   tracer.SetField(field, range);
 
@@ -81,8 +81,8 @@ void BenchRayTracing(::benchmark::State& state)
 
   vtkm::cont::ArrayHandle<vtkm::Vec4f_32> colors;
   colors.Allocate(100);
-  auto portal = colors.GetPortalControl();
-  auto colorPortal = temp.GetPortalConstControl();
+  auto portal = colors.WritePortal();
+  auto colorPortal = temp.ReadPortal();
   constexpr vtkm::Float32 conversionToFloatSpace = (1.0f / 255.0f);
   for (vtkm::Id i = 0; i < 100; ++i)
   {
@@ -116,13 +116,24 @@ VTKM_BENCHMARK(BenchRayTracing);
 
 int main(int argc, char* argv[])
 {
-  // Parse VTK-m options:
-  auto opts = vtkm::cont::InitializeOptions::RequireDevice | vtkm::cont::InitializeOptions::AddHelp;
-  Config = vtkm::cont::Initialize(argc, argv, opts);
+  auto opts = vtkm::cont::InitializeOptions::RequireDevice;
 
-  // Setup device:
-  vtkm::cont::GetRuntimeDeviceTracker().ForceDevice(Config.Device);
+  std::vector<char*> args(argv, argv + argc);
+  vtkm::bench::detail::InitializeArgs(&argc, args, opts);
+
+  // Parse VTK-m options:
+  Config = vtkm::cont::Initialize(argc, args.data(), opts);
+
+  // This occurs when it is help
+  if (opts == vtkm::cont::InitializeOptions::None)
+  {
+    std::cout << Config.Usage << std::endl;
+  }
+  else
+  {
+    vtkm::cont::GetRuntimeDeviceTracker().ForceDevice(Config.Device);
+  }
 
   // handle benchmarking related args and run benchmarks:
-  VTKM_EXECUTE_BENCHMARKS(argc, argv);
+  VTKM_EXECUTE_BENCHMARKS(argc, args.data());
 }

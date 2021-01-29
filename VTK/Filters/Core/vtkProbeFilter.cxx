@@ -44,11 +44,21 @@ vtkCxxSetObjectMacro(vtkProbeFilter, FindCellStrategy, vtkFindCellStrategy);
 
 #define CELL_TOLERANCE_FACTOR_SQR 1e-6
 
+static inline bool IsBlankedCell(vtkUnsignedCharArray* gcells, vtkIdType cellId)
+{
+  if (gcells)
+  {
+    const auto flag = gcells->GetTypedComponent(cellId, 0);
+    return (flag & (vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::DUPLICATECELL)) != 0;
+  }
+  return false;
+}
+
 class vtkProbeFilter::vtkVectorOfArrays : public std::vector<vtkDataArray*>
 {
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkProbeFilter::vtkProbeFilter()
 {
   this->CategoricalData = 0;
@@ -70,10 +80,10 @@ vtkProbeFilter::vtkProbeFilter()
   this->PassPointArrays = 0;
   this->PassFieldArrays = 1;
   this->Tolerance = 1.0;
-  this->ComputeTolerance = 1;
+  this->ComputeTolerance = true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkProbeFilter::~vtkProbeFilter()
 {
   if (this->MaskPoints)
@@ -91,19 +101,19 @@ vtkProbeFilter::~vtkProbeFilter()
   delete this->CellList;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::SetSourceConnection(vtkAlgorithmOutput* algOutput)
 {
   this->SetInputConnection(1, algOutput);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::SetSourceData(vtkDataObject* input)
 {
   this->SetInputData(1, input);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObject* vtkProbeFilter::GetSource()
 {
   if (this->GetNumberOfInputConnections(1) < 1)
@@ -114,7 +124,7 @@ vtkDataObject* vtkProbeFilter::GetSource()
   return this->GetExecutive()->GetInputData(1, 0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdTypeArray* vtkProbeFilter::GetValidPoints()
 {
   if (this->MaskPoints && this->MaskPoints->GetMTime() > this->ValidPoints->GetMTime())
@@ -136,7 +146,7 @@ vtkIdTypeArray* vtkProbeFilter::GetValidPoints()
   return this->ValidPoints;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkProbeFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -184,7 +194,7 @@ int vtkProbeFilter::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::PassAttributeData(
   vtkDataSet* input, vtkDataObject* vtkNotUsed(source), vtkDataSet* output)
 {
@@ -246,7 +256,7 @@ void vtkProbeFilter::PassAttributeData(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::BuildFieldList(vtkDataSet* source)
 {
   delete this->PointList;
@@ -259,7 +269,7 @@ void vtkProbeFilter::BuildFieldList(vtkDataSet* source)
   this->CellList->InitializeFieldList(source->GetCellData());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // * input -- dataset probed with
 // * source -- dataset probed into
 // * output - output.
@@ -316,7 +326,7 @@ void vtkProbeFilter::InitializeForProbing(vtkDataSet* input, vtkDataSet* output)
   outPD->AddArray(this->MaskPoints);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::InitializeOutputArrays(vtkPointData* outPD, vtkIdType numPts)
 {
   for (int i = 0; i < outPD->GetNumberOfArrays(); ++i)
@@ -330,7 +340,7 @@ void vtkProbeFilter::InitializeOutputArrays(vtkPointData* outPD, vtkIdType numPt
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::DoProbing(
   vtkDataSet* input, int srcIdx, vtkDataSet* source, vtkDataSet* output)
 {
@@ -341,7 +351,12 @@ void vtkProbeFilter::DoProbing(
     return;
   }
 
-  if (vtkImageData::SafeDownCast(input))
+  if (vtkImageData::SafeDownCast(source))
+  {
+    vtkImageData* sourceImage = vtkImageData::SafeDownCast(source);
+    this->ProbeImageDataPoints(input, srcIdx, sourceImage, output);
+  }
+  else if (vtkImageData::SafeDownCast(input))
   {
     vtkImageData* inImage = vtkImageData::SafeDownCast(input);
     vtkImageData* outImage = vtkImageData::SafeDownCast(output);
@@ -353,7 +368,7 @@ void vtkProbeFilter::DoProbing(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataSet* output)
 {
   this->BuildFieldList(source);
@@ -361,7 +376,7 @@ void vtkProbeFilter::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataSet* ou
   this->DoProbing(input, 0, source, output);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::ProbeEmptyPoints(
   vtkDataSet* input, int srcIdx, vtkDataSet* source, vtkDataSet* output)
 {
@@ -377,6 +392,9 @@ void vtkProbeFilter::ProbeEmptyPoints(
 
   pd = source->GetPointData();
   cd = source->GetCellData();
+
+  auto sourceGhostFlags =
+    vtkUnsignedCharArray::SafeDownCast(cd->GetArray(vtkDataSetAttributes::GhostArrayName()));
 
   // lets use a stack allocated array if possible for performance reasons
   int mcs = source->GetMaxCellSize();
@@ -484,7 +502,7 @@ void vtkProbeFilter::ProbeEmptyPoints(
       : source->FindCell(x, nullptr, -1, tol2, subId, pcoords, weights);
 
     vtkCell* cell = nullptr;
-    if (cellId >= 0)
+    if (cellId >= 0 && !::IsBlankedCell(sourceGhostFlags, cellId))
     {
       cell = source->GetCell(cellId);
       if (this->ComputeTolerance)
@@ -525,7 +543,7 @@ void vtkProbeFilter::ProbeEmptyPoints(
   }
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 static void GetPointIdsInRange(double rangeMin, double rangeMax, double start, double stepsize,
   int numSteps, int& minid, int& maxid)
 {
@@ -548,7 +566,7 @@ static void GetPointIdsInRange(double rangeMin, double rangeMax, double start, d
   }
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::ProbeImagePointsInCell(vtkCell* cell, vtkIdType cellId, vtkDataSet* source,
   int srcBlockId, const double start[3], const double spacing[3], const int dim[3],
   vtkPointData* outPD, char* maskArray, double* wtsBuff)
@@ -631,7 +649,7 @@ void vtkProbeFilter::ProbeImagePointsInCell(vtkCell* cell, vtkIdType cellId, vtk
   }
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 namespace
 {
 
@@ -646,8 +664,13 @@ public:
   // these functions to compile. Just initialize the object.
   CellStorage(const CellStorage&) { this->Initialize(); }
 
-  CellStorage& operator=(const CellStorage&)
+  CellStorage& operator=(const CellStorage& other)
   {
+    if (this == &other)
+    {
+      return *this;
+    }
+
     this->Clear();
     this->Initialize();
     return *this;
@@ -721,9 +744,17 @@ public:
       weights = &dynamicweights[0];
     }
 
+    auto sourceGhostFlags = vtkUnsignedCharArray::SafeDownCast(
+      this->Source->GetCellData()->GetArray(vtkDataSetAttributes::GhostArrayName()));
+
     CellStorage& cs = this->Cells.Local();
     for (vtkIdType cellId = cellBegin; cellId < cellEnd; ++cellId)
     {
+      if (IsBlankedCell(sourceGhostFlags, cellId))
+      {
+        continue;
+      }
+
       vtkCell* cell = cs.GetCell(this->Source, cellId);
       this->ProbeFilter->ProbeImagePointsInCell(cell, cellId, this->Source, this->SrcBlockId,
         this->Start, this->Spacing, this->Dim, this->OutPointData, this->MaskArray, weights);
@@ -741,11 +772,11 @@ private:
   char* MaskArray;
   int MaxCellSize;
 
-  vtkSMPThreadLocal<std::vector<double> > WeightsBuffer;
+  vtkSMPThreadLocal<std::vector<double>> WeightsBuffer;
   vtkSMPThreadLocal<CellStorage> Cells;
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::ProbePointsImageData(
   vtkImageData* input, int srcIdx, vtkDataSet* source, vtkImageData* output)
 {
@@ -776,7 +807,165 @@ void vtkProbeFilter::ProbePointsImageData(
   this->MaskPoints->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+namespace
+{
+
+// Thread local storage
+struct ProbeImageDataPointsThreadLocal
+{
+  ProbeImageDataPointsThreadLocal()
+  {
+    // BaseThread will be set 'true' for the thread that gets the first piece
+    this->BaseThread = false;
+    this->PointIds = vtkSmartPointer<vtkIdList>::New();
+    this->PointIds->SetNumberOfIds(8);
+  }
+
+  bool BaseThread;
+  vtkSmartPointer<vtkIdList> PointIds;
+};
+
+} // anonymous namespace
+
+//------------------------------------------------------------------------------
+class vtkProbeFilter::ProbeImageDataPointsWorklet
+{
+public:
+  ProbeImageDataPointsWorklet(vtkProbeFilter* probeFilter, vtkDataSet* input, vtkImageData* source,
+    int srcIdx, vtkPointData* outPD, char* maskArray)
+    : ProbeFilter(probeFilter)
+    , Input(input)
+    , Source(source)
+    , BlockId(srcIdx)
+    , OutPointData(outPD)
+    , MaskArray(maskArray)
+  {
+  }
+
+  void operator()(vtkIdType startId, vtkIdType endId)
+  {
+    if (startId == 0)
+    {
+      this->Thread.Local().BaseThread = true;
+    }
+    this->ProbeFilter->ProbeImageDataPointsSMP(this->Input, this->Source, this->BlockId,
+      this->OutPointData, this->MaskArray, this->Thread.Local().PointIds.GetPointer(), startId,
+      endId, this->Thread.Local().BaseThread);
+  }
+
+private:
+  vtkProbeFilter* ProbeFilter;
+  vtkDataSet* Input;
+  vtkImageData* Source;
+  int BlockId;
+  vtkPointData* OutPointData;
+  char* MaskArray;
+  vtkSMPThreadLocal<ProbeImageDataPointsThreadLocal> Thread;
+};
+
+//------------------------------------------------------------------------------
+void vtkProbeFilter::ProbeImageDataPoints(
+  vtkDataSet* input, int srcIdx, vtkImageData* sourceImage, vtkDataSet* output)
+{
+  vtkPointData* outPD = output->GetPointData();
+  char* maskArray = this->MaskPoints->GetPointer(0);
+
+  // Estimate the granularity for multithreading
+  int threads = vtkSMPTools::GetEstimatedNumberOfThreads();
+  vtkIdType numPts = input->GetNumberOfPoints();
+  vtkIdType grain = numPts / threads;
+  vtkIdType minGrain = 100;
+  vtkIdType maxGrain = 1000;
+  grain = vtkMath::ClampValue(grain, minGrain, maxGrain);
+
+  // Multithread the execution
+  ProbeImageDataPointsWorklet worklet(this, input, sourceImage, srcIdx, outPD, maskArray);
+  vtkSMPTools::For(0, numPts, grain, worklet);
+
+  this->MaskPoints->Modified();
+}
+
+//------------------------------------------------------------------------------
+void vtkProbeFilter::ProbeImageDataPointsSMP(vtkDataSet* input, vtkImageData* source, int srcIdx,
+  vtkPointData* outPD, char* maskArray, vtkIdList* pointIds, vtkIdType startId, vtkIdType endId,
+  bool baseThread)
+{
+  vtkPointData* pd = source->GetPointData();
+  vtkCellData* cd = source->GetCellData();
+
+  // Get image information
+  double spacing[3];
+  source->GetSpacing(spacing);
+  int extent[6];
+  source->GetExtent(extent);
+
+  // Compute the tolerance
+  double tol2 = (this->Tolerance * this->Tolerance);
+  if (this->ComputeTolerance)
+  {
+    // Use the diagonal of the cell as the tolerance
+    double sLength2 = 0.0;
+    for (int i = 0; i < 3; i++)
+    {
+      if (extent[2 * i] < extent[2 * i + 1])
+      {
+        sLength2 += spacing[i] * spacing[i];
+      }
+    }
+    tol2 = sLength2 * CELL_TOLERANCE_FACTOR_SQR;
+  }
+
+  auto sourceGhostFlags =
+    vtkUnsignedCharArray::SafeDownCast(cd->GetArray(vtkDataSetAttributes::GhostArrayName()));
+
+  // Loop over all input points, interpolating source data
+  vtkIdType progressInterval = endId / 20 + 1;
+  for (vtkIdType ptId = startId; ptId < endId && !GetAbortExecute(); ptId++)
+  {
+    if (baseThread && !(ptId % progressInterval))
+    {
+      // This is not ideal, because if the base thread executes more than one piece,
+      // then the progress will repeat its 0.0 to 1.0 progression for each piece.
+      this->UpdateProgress(static_cast<double>(ptId) / endId);
+    }
+
+    if (maskArray[ptId] == static_cast<char>(1))
+    {
+      // skip points which have already been probed with success.
+      // This is helpful for multiblock dataset probing.
+      continue;
+    }
+
+    // Get the xyz coordinate of the point in the input dataset
+    double x[3];
+    input->GetPoint(ptId, x);
+
+    // Find the cell and compute interpolation weights
+    int subId;
+    double pcoords[3], weights[8];
+    vtkIdType cellId = source->FindCell(x, nullptr, -1, tol2, subId, pcoords, weights);
+    if (cellId >= 0 && !::IsBlankedCell(sourceGhostFlags, cellId))
+    {
+      source->GetCellPoints(cellId, pointIds);
+
+      // Interpolate the point data
+      outPD->InterpolatePoint((*this->PointList), pd, srcIdx, ptId, pointIds, weights);
+      vtkVectorOfArrays::iterator iter;
+      for (iter = this->CellArrays->begin(); iter != this->CellArrays->end(); ++iter)
+      {
+        vtkDataArray* inArray = cd->GetArray((*iter)->GetName());
+        if (inArray)
+        {
+          outPD->CopyTuple(inArray, *iter, cellId, ptId);
+        }
+      }
+      maskArray[ptId] = static_cast<char>(1);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 int vtkProbeFilter::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -807,7 +996,7 @@ int vtkProbeFilter::RequestInformation(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkProbeFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -897,7 +1086,7 @@ int vtkProbeFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkProbeFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkDataObject* source = this->GetSource();

@@ -23,7 +23,6 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVPostFilter.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkVariant.h"
 #include "vtkVariantArray.h"
@@ -36,12 +35,14 @@
 
 namespace
 {
-typedef std::vector<vtkStdString*> vtkInternalComponentNameBase;
+static constexpr size_t MAX_STRING_VALUES = 6;
+
+typedef std::vector<std::string*> vtkInternalComponentNameBase;
 
 struct vtkPVArrayInformationInformationKey
 {
-  vtkStdString Location;
-  vtkStdString Name;
+  std::string Location;
+  std::string Name;
 };
 
 typedef std::vector<vtkPVArrayInformationInformationKey> vtkInternalInformationKeysBase;
@@ -83,7 +84,7 @@ void vtkPVArrayInformation::Initialize()
   this->DataType = VTK_VOID;
   this->NumberOfComponents = 0;
   this->NumberOfTuples = 0;
-
+  this->StringValues.clear();
   if (this->ComponentNames)
   {
     for (unsigned int i = 0; i < this->ComponentNames->size(); ++i)
@@ -174,6 +175,15 @@ void vtkPVArrayInformation::PrintSelf(ostream& os, vtkIndent indent)
   {
     os << i2 << "None" << endl;
   }
+
+  if (this->DataType == VTK_STRING)
+  {
+    os << indent << "StringValues (count=" << this->StringValues.size() << ")" << endl;
+    for (const auto& val : this->StringValues)
+    {
+      os << i2 << val.c_str() << endl;
+    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -233,7 +243,7 @@ void vtkPVArrayInformation::SetComponentName(vtkIdType component, const char* na
   if (index == this->ComponentNames->size())
   {
     // the array isn't large enough, so we will resize
-    this->ComponentNames->push_back(new vtkStdString(name));
+    this->ComponentNames->push_back(new std::string(name));
     return;
   }
   else if (index > this->ComponentNames->size())
@@ -242,10 +252,10 @@ void vtkPVArrayInformation::SetComponentName(vtkIdType component, const char* na
   }
 
   // replace an existing element
-  vtkStdString* compName = this->ComponentNames->at(index);
+  std::string* compName = this->ComponentNames->at(index);
   if (!compName)
   {
-    compName = new vtkStdString(name);
+    compName = new std::string(name);
     this->ComponentNames->at(index) = compName;
   }
   else
@@ -261,7 +271,7 @@ const char* vtkPVArrayInformation::GetComponentName(vtkIdType component)
   // check signed component for less than zero
   if (this->ComponentNames && component >= 0 && index < this->ComponentNames->size())
   {
-    vtkStdString* compName = this->ComponentNames->at(index);
+    std::string* compName = this->ComponentNames->at(index);
     if (compName)
     {
       return compName->c_str();
@@ -272,7 +282,7 @@ const char* vtkPVArrayInformation::GetComponentName(vtkIdType component)
     // the array is a scalar i.e. single component. In that case, when one asks
     // for the magnitude (i.e. component == -1) it's same as asking for the
     // scalar. So return the scalar's component name.
-    vtkStdString* compName = this->ComponentNames->at(0);
+    std::string* compName = this->ComponentNames->at(0);
     if (compName)
     {
       return compName->c_str();
@@ -477,6 +487,10 @@ void vtkPVArrayInformation::AddRanges(vtkPVArrayInformation* info)
     ptr[1] = std::max(ptr[1], range[1]);
     ptr += 2;
   }
+
+  if (this->DataType == VTK_STRING && info->DataType == VTK_STRING)
+  {
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -509,6 +523,23 @@ void vtkPVArrayInformation::AddFiniteRanges(vtkPVArrayInformation* info)
 }
 
 //----------------------------------------------------------------------------
+void vtkPVArrayInformation::AddValues(vtkPVArrayInformation* info)
+{
+  if (this->DataType != VTK_STRING || info->DataType != VTK_STRING)
+  {
+    // currently, we only do this for string arrays
+    return;
+  }
+
+  this->StringValues.insert(
+    this->StringValues.end(), info->StringValues.begin(), info->StringValues.end());
+  if (this->StringValues.size() > MAX_STRING_VALUES)
+  {
+    this->StringValues.resize(MAX_STRING_VALUES);
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkPVArrayInformation::DeepCopy(vtkPVArrayInformation* info)
 {
   int num, idx;
@@ -518,6 +549,7 @@ void vtkPVArrayInformation::DeepCopy(vtkPVArrayInformation* info)
   this->SetNumberOfComponents(info->GetNumberOfComponents());
   this->SetNumberOfTuples(info->GetNumberOfTuples());
   this->IsPartial = info->IsPartial;
+  this->StringValues = info->StringValues;
 
   num = 2 * this->NumberOfComponents;
   if (this->NumberOfComponents > 1)
@@ -668,6 +700,18 @@ void vtkPVArrayInformation::CopyFromObject(vtkObject* obj)
       *ptr++ = range[1];
     }
   }
+  else if (auto sarray = vtkStringArray::SafeDownCast(obj))
+  {
+    for (vtkIdType cc = 0;
+         this->StringValues.size() < MAX_STRING_VALUES && cc < sarray->GetNumberOfValues(); ++cc)
+    {
+      auto value = sarray->GetValue(cc);
+      if (!value.empty())
+      {
+        this->StringValues.push_back(value);
+      }
+    }
+  }
 
   if (this->InformationKeys)
   {
@@ -717,6 +761,7 @@ void vtkPVArrayInformation::AddInformation(vtkPVInformation* info)
       // Leave everything but ranges and unique values as original, add ranges and unique values.
       this->AddRanges(aInfo);
       this->AddFiniteRanges(aInfo);
+      this->AddValues(aInfo);
       this->AddInformationKeys(aInfo);
     }
   }
@@ -753,7 +798,7 @@ void vtkPVArrayInformation::CopyToStream(vtkClientServerStream* css)
   // add in the component names
   num = static_cast<int>(this->ComponentNames ? this->ComponentNames->size() : 0);
   *css << num;
-  vtkStdString* compName;
+  std::string* compName;
   for (int i = 0; i < num; ++i)
   {
     compName = this->ComponentNames->at(i);
@@ -767,6 +812,12 @@ void vtkPVArrayInformation::CopyToStream(vtkClientServerStream* css)
     const char* location = this->GetInformationKeyLocation(key);
     const char* name = this->GetInformationKeyName(key);
     *css << location << name;
+  }
+
+  *css << this->GetNumberOfStringValues();
+  for (const auto& val : this->StringValues)
+  {
+    *css << val.c_str();
   }
 
   *css << vtkClientServerStream::End;
@@ -900,15 +951,33 @@ void vtkPVArrayInformation::CopyFromStream(const vtkClientServerStream* css)
       vtkErrorMacro("Error parsing information key location from message.");
       return;
     }
-    vtkStdString key_location = name;
+    std::string key_location = name;
 
     if (!css->GetArgument(0, pos++, &name))
     {
       vtkErrorMacro("Error parsing information key name from message.");
       return;
     }
-    vtkStdString key_name = name;
-    this->AddInformationKey(key_location, key_name);
+    std::string key_name = name;
+    this->AddInformationKey(key_location.c_str(), key_name.c_str());
+  }
+
+  int nvalues;
+  this->StringValues.clear();
+  if (!css->GetArgument(0, pos++, &nvalues))
+  {
+    return;
+  }
+
+  this->StringValues.reserve(nvalues);
+  for (int cc = 0; cc < nvalues; ++cc)
+  {
+    if (!css->GetArgument(0, pos++, &name))
+    {
+      vtkErrorMacro("Error passed string value from message.");
+      return;
+    }
+    this->StringValues.push_back(name);
   }
 }
 
@@ -918,7 +987,7 @@ void vtkPVArrayInformation::DetermineDefaultComponentName(
 {
   if (!this->DefaultComponentName)
   {
-    this->DefaultComponentName = new vtkStdString();
+    this->DefaultComponentName = new std::string();
   }
 
   this->DefaultComponentName->assign(
@@ -969,7 +1038,7 @@ const char* vtkPVArrayInformation::GetInformationKeyLocation(int index)
   if (index < 0 || index >= this->GetNumberOfInformationKeys())
     return NULL;
 
-  return this->InformationKeys->at(index).Location;
+  return this->InformationKeys->at(index).Location.c_str();
 }
 
 //----------------------------------------------------------------------------
@@ -978,7 +1047,7 @@ const char* vtkPVArrayInformation::GetInformationKeyName(int index)
   if (index < 0 || index >= this->GetNumberOfInformationKeys())
     return NULL;
 
-  return this->InformationKeys->at(index).Name;
+  return this->InformationKeys->at(index).Name.c_str();
 }
 
 //----------------------------------------------------------------------------
@@ -994,4 +1063,17 @@ int vtkPVArrayInformation::HasInformationKey(const char* location, const char* n
     }
   }
   return 0;
+}
+
+//----------------------------------------------------------------------------
+int vtkPVArrayInformation::GetNumberOfStringValues()
+{
+  return this->DataType == VTK_STRING ? static_cast<int>(this->StringValues.size()) : 0;
+}
+
+//----------------------------------------------------------------------------
+const char* vtkPVArrayInformation::GetStringValue(int index)
+{
+  return (index >= 0 && index < this->GetNumberOfStringValues()) ? this->StringValues[index].c_str()
+                                                                 : nullptr;
 }

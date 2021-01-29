@@ -39,7 +39,7 @@
 
 namespace
 {
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Replacement for std::to_string as it is not supported by certain compilers
 template <typename T>
 std::string value_to_string(const T& val)
@@ -49,7 +49,7 @@ std::string value_to_string(const T& val)
   return ss.str();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::string MakeUniqueNonEmptyName(
   const std::string& name, std::map<std::string, unsigned int>& duplicateCounters)
 {
@@ -71,7 +71,7 @@ std::string MakeUniqueNonEmptyName(
   return newName;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void AddIntegerToFieldData(
   std::string arrayName, int value, vtkSmartPointer<vtkFieldData> fieldData)
 {
@@ -83,7 +83,7 @@ void AddIntegerToFieldData(
   fieldData->AddArray(array);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void AddFloatToFieldData(
   std::string arrayName, float value, vtkSmartPointer<vtkFieldData> fieldData)
 {
@@ -95,7 +95,7 @@ void AddFloatToFieldData(
   fieldData->AddArray(array);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void AddVecNfToFieldData(const std::string& arrayName, const std::vector<float>& multiplier,
   vtkSmartPointer<vtkFieldData> fieldData)
 {
@@ -107,7 +107,7 @@ void AddVecNfToFieldData(const std::string& arrayName, const std::vector<float>&
   fieldData->AddArray(array);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void AddTextureInfoToFieldData(const std::string& prefix, int textureIndex, int textureCoordIndex,
   vtkSmartPointer<vtkFieldData> fieldData, std::vector<float> multiplier = std::vector<float>())
 {
@@ -119,7 +119,7 @@ void AddTextureInfoToFieldData(const std::string& prefix, int textureIndex, int 
   AddIntegerToFieldData(prefix + "TexCoordIndex", textureCoordIndex, fieldData);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void AddMaterialToFieldData(int materialId, vtkSmartPointer<vtkFieldData> fieldData,
   const vtkGLTFDocumentLoader::Model& model)
 {
@@ -186,9 +186,9 @@ void AddMaterialToFieldData(int materialId, vtkSmartPointer<vtkFieldData> fieldD
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPointer<vtkDataArray> ApplyMorphingToDataArray(vtkSmartPointer<vtkDataArray> origin,
-  const std::vector<float>& weights, const std::vector<vtkSmartPointer<vtkFloatArray> >& targets)
+  const std::vector<float>& weights, const std::vector<vtkSmartPointer<vtkFloatArray>>& targets)
 {
   if (origin == nullptr)
   {
@@ -221,9 +221,9 @@ vtkSmartPointer<vtkDataArray> ApplyMorphingToDataArray(vtkSmartPointer<vtkDataAr
   return result;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void SetupWeightedTransformFilterForGLTFSkinning(vtkSmartPointer<vtkWeightedTransformFilter> filter,
-  const std::vector<vtkSmartPointer<vtkTransform> >& jointMats,
+  const std::vector<vtkSmartPointer<vtkMatrix4x4>>& jointMats,
   const vtkSmartPointer<vtkPolyData> poly)
 {
   filter->SetInputData(poly);
@@ -234,14 +234,15 @@ void SetupWeightedTransformFilterForGLTFSkinning(vtkSmartPointer<vtkWeightedTran
   filter->SetNumberOfTransforms(static_cast<int>(nbTransforms));
   for (unsigned int i = 0; i < nbTransforms; i++)
   {
+    vtkNew<vtkTransform> transform;
     if (i >= jointMats.size())
     {
-      vtkNew<vtkTransform> transform;
       filter->SetTransform(transform, i);
     }
     else
     {
-      filter->SetTransform(jointMats[i], i);
+      transform->SetMatrix(jointMats[i]);
+      filter->SetTransform(transform, i);
     }
   }
 
@@ -250,8 +251,8 @@ void SetupWeightedTransformFilterForGLTFSkinning(vtkSmartPointer<vtkWeightedTran
   filter->SetWeightArray("WEIGHTS_0");
 }
 
-//----------------------------------------------------------------------------
-void AddTransformToFieldData(const vtkSmartPointer<vtkTransform> transform,
+//------------------------------------------------------------------------------
+void AddTransformToFieldData(const vtkSmartPointer<vtkMatrix4x4> transform,
   vtkSmartPointer<vtkFieldData> fieldData, const std::string& name)
 {
   vtkSmartPointer<vtkDoubleArray> matrixArray;
@@ -269,12 +270,12 @@ void AddTransformToFieldData(const vtkSmartPointer<vtkTransform> transform,
   // Create array to store the matrix's values
   for (int i = 0; i < 16; i++)
   {
-    matrixArray->InsertNextValue(transform->GetMatrix()->GetElement(i / 4, i % 4));
+    matrixArray->InsertNextValue(transform->GetElement(i / 4, i % 4));
   }
 }
 
-//----------------------------------------------------------------------------
-void AddJointMatricesToFieldData(const std::vector<vtkSmartPointer<vtkTransform> >& jointMats,
+//------------------------------------------------------------------------------
+void AddJointMatricesToFieldData(const std::vector<vtkSmartPointer<vtkMatrix4x4>>& jointMats,
   vtkSmartPointer<vtkFieldData> fieldData)
 {
   for (unsigned int matId = 0; matId < jointMats.size(); matId++)
@@ -283,15 +284,15 @@ void AddJointMatricesToFieldData(const std::vector<vtkSmartPointer<vtkTransform>
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void AddGlobalTransformToFieldData(
-  const vtkSmartPointer<vtkTransform> globalTransform, vtkSmartPointer<vtkFieldData> fieldData)
+  const vtkSmartPointer<vtkMatrix4x4> globalTransform, vtkSmartPointer<vtkFieldData> fieldData)
 {
   // Create array to store the matrix's values
   AddTransformToFieldData(globalTransform, fieldData, "globalTransform");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void AddMorphingWeightsToFieldData(
   const std::vector<float>& weights, vtkSmartPointer<vtkFieldData> fieldData)
 {
@@ -305,10 +306,10 @@ void AddMorphingWeightsToFieldData(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void AddInfoToFieldData(const std::vector<float>* morphingWeights,
-  const std::vector<vtkSmartPointer<vtkTransform> >& jointMats,
-  vtkSmartPointer<vtkTransform> globalTransform, vtkSmartPointer<vtkFieldData> fieldData)
+  const std::vector<vtkSmartPointer<vtkMatrix4x4>>& jointMats,
+  vtkSmartPointer<vtkMatrix4x4> globalTransform, vtkSmartPointer<vtkFieldData> fieldData)
 {
   if (morphingWeights != nullptr && !morphingWeights->empty())
   {
@@ -323,10 +324,10 @@ void AddInfoToFieldData(const std::vector<float>* morphingWeights,
   AddGlobalTransformToFieldData(globalTransform, fieldData);
 }
 
-//----------------------------------------------------------------------------
-void PrepareMorphingTargetArrays(std::vector<vtkSmartPointer<vtkFloatArray> >& positionArrays,
-  std::vector<vtkSmartPointer<vtkFloatArray> >& normalArrays,
-  std::vector<vtkSmartPointer<vtkFloatArray> >& tangentArrays,
+//------------------------------------------------------------------------------
+void PrepareMorphingTargetArrays(std::vector<vtkSmartPointer<vtkFloatArray>>& positionArrays,
+  std::vector<vtkSmartPointer<vtkFloatArray>>& normalArrays,
+  std::vector<vtkSmartPointer<vtkFloatArray>>& tangentArrays,
   std::vector<vtkGLTFDocumentLoader::MorphTarget>& targets)
 {
   for (auto& target : targets)
@@ -346,15 +347,15 @@ void PrepareMorphingTargetArrays(std::vector<vtkSmartPointer<vtkFloatArray> >& p
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void ApplyMorphingToPolyData(std::vector<vtkGLTFDocumentLoader::MorphTarget>& targets,
   std::vector<float>* morphingWeights, vtkSmartPointer<vtkPolyData> inputPolyData,
   vtkSmartPointer<vtkPolyData> outputPolyData)
 {
   // Prepare target arrays
-  std::vector<vtkSmartPointer<vtkFloatArray> > positionArrays;
-  std::vector<vtkSmartPointer<vtkFloatArray> > normalArrays;
-  std::vector<vtkSmartPointer<vtkFloatArray> > tangentArrays;
+  std::vector<vtkSmartPointer<vtkFloatArray>> positionArrays;
+  std::vector<vtkSmartPointer<vtkFloatArray>> normalArrays;
+  std::vector<vtkSmartPointer<vtkFloatArray>> tangentArrays;
   PrepareMorphingTargetArrays(positionArrays, normalArrays, tangentArrays, targets);
 
   // Apply morphing with all targets
@@ -381,12 +382,12 @@ void ApplyMorphingToPolyData(std::vector<vtkGLTFDocumentLoader::MorphTarget>& ta
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool BuildMultiBlockDatasetFromMesh(vtkGLTFDocumentLoader::Model& m, unsigned int meshId,
   vtkSmartPointer<vtkMultiBlockDataSet> parentDataSet,
   vtkSmartPointer<vtkMultiBlockDataSet> meshDataSet, std::string& dataSetName,
-  vtkSmartPointer<vtkTransform> globalTransform,
-  const std::vector<vtkSmartPointer<vtkTransform> >& jointMats, bool applyDeformations,
+  vtkSmartPointer<vtkMatrix4x4> globalTransform,
+  const std::vector<vtkSmartPointer<vtkMatrix4x4>>& jointMats, bool applyDeformations,
   std::vector<float>* morphingWeights)
 {
   if (meshId >= m.Meshes.size())
@@ -456,7 +457,9 @@ bool BuildMultiBlockDatasetFromMesh(vtkGLTFDocumentLoader::Model& m, unsigned in
       }
 
       // Node transform
-      filter->SetTransform(globalTransform);
+      vtkNew<vtkTransform> transform;
+      transform->SetMatrix(globalTransform);
+      filter->SetTransform(transform);
       if (createNewPolyData)
       {
         meshDataSet->SetBlock(meshDataSet->GetNumberOfBlocks(), (filter->GetOutputDataObject(0)));
@@ -488,50 +491,7 @@ bool BuildMultiBlockDatasetFromMesh(vtkGLTFDocumentLoader::Model& m, unsigned in
   return true;
 }
 
-//----------------------------------------------------------------------------
-void ComputeJointMatrices(const vtkGLTFDocumentLoader::Model& m,
-  const vtkGLTFDocumentLoader::Skin& skin, vtkGLTFDocumentLoader::Node& node,
-  std::vector<vtkSmartPointer<vtkTransform> >& jointMats)
-{
-  jointMats.clear();
-  jointMats.reserve(skin.Joints.size());
-
-  for (unsigned int jointId = 0; jointId < skin.Joints.size(); jointId++)
-  {
-    const vtkGLTFDocumentLoader::Node& jointNode = m.Nodes[skin.Joints[jointId]];
-
-    vtkNew<vtkTransform> jointGlobalTransform;
-    vtkNew<vtkTransform> inverseMeshGlobalTransform;
-    vtkNew<vtkTransform> inverseBindTransform;
-    vtkNew<vtkTransform> jointTransform;
-
-    /**
-     * Joint matrices:
-     * jointMatrix(j) =
-     * globalTransformOfNodeThatTheMeshIsAttachedTo^-1 *
-     * globalTransformOfJointNode(j) *
-     * inverseBindMatrixForJoint(j);
-     * The mesh will be transformed (using vtkWeightedTransformFilter) using this matrix:
-     * mat4 skinMat =
-     * weight.x * jointMatrix[joint.x] +
-     * weight.y * jointMatrix[joint.y] +
-     * weight.z * jointMatrix[joint.z] +
-     * weight.w * jointMatrix[joint.w];
-     */
-    inverseMeshGlobalTransform->SetInput(node.GlobalTransform);
-    inverseMeshGlobalTransform->Inverse();
-    inverseBindTransform->SetMatrix(skin.InverseBindMatrices[jointId]);
-    jointGlobalTransform->SetInput(jointNode.GlobalTransform);
-    jointTransform->PostMultiply();
-    jointTransform->Concatenate(inverseBindTransform);
-    jointTransform->Concatenate(jointGlobalTransform);
-    jointTransform->Concatenate(inverseMeshGlobalTransform);
-
-    jointMats.push_back(jointTransform);
-  }
-}
-
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool BuildMultiBlockDataSetFromNode(vtkGLTFDocumentLoader::Model& m, unsigned int nodeId,
   vtkSmartPointer<vtkMultiBlockDataSet> parentDataSet,
   vtkSmartPointer<vtkMultiBlockDataSet> nodeDataset, std::string nodeName, bool applyDeformations)
@@ -556,13 +516,13 @@ bool BuildMultiBlockDataSetFromNode(vtkGLTFDocumentLoader::Model& m, unsigned in
   int blockId = 0;
   if (node.Mesh >= 0)
   {
-    std::vector<vtkSmartPointer<vtkTransform> > jointMats;
+    std::vector<vtkSmartPointer<vtkMatrix4x4>> jointMats;
 
     if (node.Skin >= 0)
     {
       // Compute skinning matrices
       const vtkGLTFDocumentLoader::Skin& skin = m.Skins[node.Skin];
-      ComputeJointMatrices(m, skin, node, jointMats);
+      vtkGLTFDocumentLoader::ComputeJointMatrices(m, skin, node, jointMats);
     }
 
     std::vector<float>* morphingWeights = nullptr;
@@ -612,7 +572,7 @@ bool BuildMultiBlockDataSetFromNode(vtkGLTFDocumentLoader::Model& m, unsigned in
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool BuildMultiBlockDataSetFromScene(vtkGLTFDocumentLoader::Model& m, vtkIdType sceneId,
   vtkSmartPointer<vtkMultiBlockDataSet> dataSet, bool applyDeformations)
 {
@@ -648,22 +608,22 @@ bool BuildMultiBlockDataSetFromScene(vtkGLTFDocumentLoader::Model& m, vtkIdType 
 }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkGLTFReader);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGLTFReader::vtkGLTFReader()
 {
   this->SetNumberOfInputPorts(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGLTFReader::~vtkGLTFReader()
 {
   this->SetFileName(nullptr);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -675,7 +635,7 @@ void vtkGLTFReader::PrintSelf(ostream& os, vtkIndent indent)
      << "\n";
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFReader::StoreTextureData()
 {
   if (!this->Textures.empty())
@@ -691,7 +651,7 @@ void vtkGLTFReader::StoreTextureData()
   int nbSamplers = static_cast<int>(model->Samplers.size());
 
   this->Textures.reserve(this->Loader->GetInternalModel()->Textures.size());
-  for (auto loaderTexture : this->Loader->GetInternalModel()->Textures)
+  for (const auto& loaderTexture : this->Loader->GetInternalModel()->Textures)
   {
     vtkGLTFReader::GLTFTexture readerTexture;
     if (loaderTexture.Source >= 0 && loaderTexture.Source < nbTextures)
@@ -715,7 +675,7 @@ void vtkGLTFReader::StoreTextureData()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGLTFReader::RequestInformation(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -834,7 +794,7 @@ int vtkGLTFReader::RequestInformation(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGLTFReader::RequestData(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -902,6 +862,7 @@ int vtkGLTFReader::RequestData(
         this->Loader->ResetAnimation(i);
       }
     }
+    this->Loader->BuildGlobalTransforms();
   }
 
   vtkIdType selectedScene = this->CurrentScene;
@@ -924,7 +885,7 @@ int vtkGLTFReader::RequestData(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFReader::EnableAnimation(vtkIdType animationIndex)
 {
   if (this->AnimationSelection == nullptr)
@@ -942,7 +903,7 @@ void vtkGLTFReader::EnableAnimation(vtkIdType animationIndex)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFReader::DisableAnimation(vtkIdType animationIndex)
 {
   if (this->AnimationSelection == nullptr)
@@ -960,7 +921,7 @@ void vtkGLTFReader::DisableAnimation(vtkIdType animationIndex)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFReader::IsAnimationEnabled(vtkIdType animationIndex)
 {
   if (this->AnimationSelection == nullptr)
@@ -977,7 +938,7 @@ bool vtkGLTFReader::IsAnimationEnabled(vtkIdType animationIndex)
   return this->AnimationSelection->ArrayIsEnabled(name) != 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::string vtkGLTFReader::GetAnimationName(vtkIdType animationIndex)
 {
   if (this->Loader == nullptr || this->Loader->GetInternalModel() == nullptr)
@@ -994,7 +955,7 @@ std::string vtkGLTFReader::GetAnimationName(vtkIdType animationIndex)
   return this->Loader->GetInternalModel()->Animations[animationIndex].Name;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 float vtkGLTFReader::GetAnimationDuration(vtkIdType animationIndex)
 {
   if (this->Loader == nullptr || this->Loader->GetInternalModel() == nullptr)
@@ -1011,7 +972,7 @@ float vtkGLTFReader::GetAnimationDuration(vtkIdType animationIndex)
   return this->Loader->GetInternalModel()->Animations[animationIndex].Duration;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::string vtkGLTFReader::GetSceneName(vtkIdType sceneIndex)
 {
   if (this->Loader == nullptr || this->Loader->GetInternalModel() == nullptr)
@@ -1028,13 +989,13 @@ std::string vtkGLTFReader::GetSceneName(vtkIdType sceneIndex)
   return this->Loader->GetInternalModel()->Scenes[sceneIndex].Name;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkGLTFReader::GetNumberOfTextures()
 {
   return static_cast<vtkIdType>(this->Textures.size());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGLTFReader::GLTFTexture vtkGLTFReader::GetGLTFTexture(vtkIdType textureIndex)
 {
   if (textureIndex < 0 || textureIndex >= static_cast<vtkIdType>(this->Textures.size()))
@@ -1045,7 +1006,7 @@ vtkGLTFReader::GLTFTexture vtkGLTFReader::GetGLTFTexture(vtkIdType textureIndex)
   return this->Textures[textureIndex];
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFReader::SetScene(const std::string& scene)
 {
   if (this->SceneNames == nullptr)
@@ -1065,7 +1026,7 @@ void vtkGLTFReader::SetScene(const std::string& scene)
   vtkWarningMacro("Scene '" << scene << "' does not exist.");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFReader::CreateSceneNamesArray()
 {
   if (this->Loader == nullptr || this->Loader->GetInternalModel() == nullptr)
@@ -1084,7 +1045,7 @@ void vtkGLTFReader::CreateSceneNamesArray()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStringArray* vtkGLTFReader::GetAllSceneNames()
 {
   if (this->Loader == nullptr || this->Loader->GetInternalModel() == nullptr)
@@ -1095,13 +1056,13 @@ vtkStringArray* vtkGLTFReader::GetAllSceneNames()
   return this->SceneNames;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataArraySelection* vtkGLTFReader::GetAnimationSelection()
 {
   return this->AnimationSelection;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFReader::CreateAnimationSelection()
 {
   if (this->Loader == nullptr || this->Loader->GetInternalModel() == nullptr)
@@ -1121,7 +1082,7 @@ void vtkGLTFReader::CreateAnimationSelection()
   this->AnimationSelection->AddObserver(vtkCommand::ModifiedEvent, this, &vtkGLTFReader::Modified);
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFReader::SetApplyDeformationsToGeometry(bool flag)
 {
   if (this->ApplyDeformationsToGeometry != flag)

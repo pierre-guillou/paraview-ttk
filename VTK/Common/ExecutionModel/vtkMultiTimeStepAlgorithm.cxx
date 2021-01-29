@@ -30,7 +30,7 @@ vtkStandardNewMacro(vtkMultiTimeStepAlgorithm);
 
 vtkInformationKeyMacro(vtkMultiTimeStepAlgorithm, UPDATE_TIME_STEPS, DoubleVector);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Instantiate object so that cell data is not passed to output.
 vtkMultiTimeStepAlgorithm::vtkMultiTimeStepAlgorithm()
 {
@@ -40,7 +40,7 @@ vtkMultiTimeStepAlgorithm::vtkMultiTimeStepAlgorithm()
   this->NumberOfCacheEntries = 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkMultiTimeStepAlgorithm::IsInCache(double time, size_t& idx)
 {
   std::vector<TimeCache>::iterator it = this->Cache.begin();
@@ -54,7 +54,7 @@ bool vtkMultiTimeStepAlgorithm::IsInCache(double time, size_t& idx)
   return false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTypeBool vtkMultiTimeStepAlgorithm::ProcessRequest(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -136,7 +136,7 @@ vtkTypeBool vtkMultiTimeStepAlgorithm::ProcessRequest(
     size_t idx;
     if (!this->IsInCache(this->UpdateTimeSteps[this->RequestUpdateIndex], idx))
     {
-      this->Cache.push_back(TimeCache(this->UpdateTimeSteps[this->RequestUpdateIndex], inDataCopy));
+      this->Cache.emplace_back(this->UpdateTimeSteps[this->RequestUpdateIndex], inDataCopy);
     }
 
     this->RequestUpdateIndex++;
@@ -205,7 +205,7 @@ vtkTypeBool vtkMultiTimeStepAlgorithm::ProcessRequest(
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkMultiTimeStepAlgorithm::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

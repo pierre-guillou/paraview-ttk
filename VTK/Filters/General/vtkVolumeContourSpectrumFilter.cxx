@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkVolumeContourSpectrumFilter.h"
 
 #include "vtkDataArray.h"
@@ -30,7 +34,7 @@
 
 vtkStandardNewMacro(vtkVolumeContourSpectrumFilter);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkVolumeContourSpectrumFilter::vtkVolumeContourSpectrumFilter()
 {
   this->SetNumberOfInputPorts(2);
@@ -39,10 +43,10 @@ vtkVolumeContourSpectrumFilter::vtkVolumeContourSpectrumFilter()
   this->NumberOfSamples = 100;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkVolumeContourSpectrumFilter::~vtkVolumeContourSpectrumFilter() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkVolumeContourSpectrumFilter::FillInputPortInformation(int portNumber, vtkInformation* info)
 {
   switch (portNumber)
@@ -59,7 +63,7 @@ int vtkVolumeContourSpectrumFilter::FillInputPortInformation(int portNumber, vtk
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkVolumeContourSpectrumFilter::FillOutputPortInformation(
   int vtkNotUsed(portNumber), vtkInformation* info)
 {
@@ -69,7 +73,7 @@ int vtkVolumeContourSpectrumFilter::FillOutputPortInformation(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeContourSpectrumFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -78,13 +82,13 @@ void vtkVolumeContourSpectrumFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Field Id: " << this->FieldId << "\n";
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTable* vtkVolumeContourSpectrumFilter::GetOutput()
 {
   return vtkTable::SafeDownCast(this->GetOutputDataObject(0));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkVolumeContourSpectrumFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -229,7 +233,7 @@ int vtkVolumeContourSpectrumFilter::RequestData(vtkInformation* vtkNotUsed(reque
       }
 
       // now adjust to the desired sampling
-      std::vector<std::pair<int, double> > samples(NumberOfSamples);
+      std::vector<std::pair<int, double>> samples(NumberOfSamples);
       unsigned int pos = 0;
       for (int i = 0; i < NumberOfSamples; i++)
       {

@@ -50,6 +50,18 @@
 
 namespace
 {
+template <typename ValueType>
+struct threadedCopyFunctor
+{
+  ValueType* src;
+  ValueType* dst;
+  int nComp;
+  void operator()(vtkIdType begin, vtkIdType end) const
+  {
+    // std::copy(src+begin, src+end, dst+begin); //slower
+    memcpy(dst + begin * nComp, src + begin * nComp, (end - begin) * nComp * sizeof(ValueType));
+  }
+};
 
 //--------Copy tuples from src to dest------------------------------------------
 struct DeepCopyWorker
@@ -59,7 +71,22 @@ struct DeepCopyWorker
   void operator()(
     vtkAOSDataArrayTemplate<ValueType>* src, vtkAOSDataArrayTemplate<ValueType>* dst) const
   {
-    std::copy(src->Begin(), src->End(), dst->Begin());
+    vtkIdType len = src->GetNumberOfTuples();
+    if (len < 1024 * 1024)
+    {
+      // With less than a megabyte or so threading is likely to hurt performance. so don't
+      std::copy(src->Begin(), src->End(), dst->Begin());
+    }
+    else
+    {
+      threadedCopyFunctor<ValueType> worker;
+      worker.src = src->GetPointer(0);
+      worker.dst = dst->GetPointer(0);
+      worker.nComp = src->GetNumberOfComponents();
+      // High granularity is likely to hurt performance too, so limit calls. 16 is about maximal.
+      int numThreads = std::min(vtkSMPTools::GetEstimatedNumberOfThreads(), 16);
+      vtkSMPTools::For(0, len, len / numThreads, worker);
+    }
   }
 
 #if defined(__clang__) && defined(__has_warning)
@@ -390,7 +417,7 @@ vtkInformationKeyRestrictedMacro(vtkDataArray, L2_NORM_RANGE, DoubleVector, 2);
 vtkInformationKeyRestrictedMacro(vtkDataArray, L2_NORM_FINITE_RANGE, DoubleVector, 2);
 vtkInformationKeyMacro(vtkDataArray, UNITS_LABEL, String);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Construct object with default tuple dimension (number of components) of 1.
 vtkDataArray::vtkDataArray()
 {
@@ -401,7 +428,7 @@ vtkDataArray::vtkDataArray()
   this->FiniteRange[1] = 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataArray::~vtkDataArray()
 {
   if (this->LookupTable)
@@ -411,7 +438,7 @@ vtkDataArray::~vtkDataArray()
   this->SetName(nullptr);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::DeepCopy(vtkAbstractArray* aa)
 {
   if (aa == nullptr)
@@ -429,7 +456,7 @@ void vtkDataArray::DeepCopy(vtkAbstractArray* aa)
   this->DeepCopy(da);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Normally subclasses will do this when the input and output type of the
 // DeepCopy are the same. When they are not the same, then we use the
 // templated code below.
@@ -511,7 +538,7 @@ void vtkDataArray::SetTuple(vtkIdType dstTupleIdx, vtkIdType srcTupleIdx, vtkAbs
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetTuple(vtkIdType i, const float* source)
 {
   for (int c = 0; c < this->NumberOfComponents; ++c)
@@ -520,7 +547,7 @@ void vtkDataArray::SetTuple(vtkIdType i, const float* source)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetTuple(vtkIdType i, const double* source)
 {
   for (int c = 0; c < this->NumberOfComponents; ++c)
@@ -529,7 +556,7 @@ void vtkDataArray::SetTuple(vtkIdType i, const double* source)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuple(
   vtkIdType dstTupleIdx, vtkIdType srcTupleIdx, vtkAbstractArray* source)
 {
@@ -548,7 +575,7 @@ void vtkDataArray::InsertTuple(
   this->SetTuple(dstTupleIdx, srcTupleIdx, source);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkDataArray::InsertNextTuple(vtkIdType srcTupleIdx, vtkAbstractArray* source)
 {
   vtkIdType tupleIdx = this->GetNumberOfTuples();
@@ -556,7 +583,7 @@ vtkIdType vtkDataArray::InsertNextTuple(vtkIdType srcTupleIdx, vtkAbstractArray*
   return tupleIdx;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* src)
 {
   if (dstIds->GetNumberOfIds() == 0)
@@ -623,7 +650,7 @@ void vtkDataArray::InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstrac
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuples(
   vtkIdType dstStart, vtkIdType n, vtkIdType srcStart, vtkAbstractArray* src)
 {
@@ -680,7 +707,7 @@ void vtkDataArray::InsertTuples(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // These can be overridden for more efficiency
 double vtkDataArray::GetComponent(vtkIdType tupleIdx, int compIdx)
 {
@@ -693,7 +720,7 @@ double vtkDataArray::GetComponent(vtkIdType tupleIdx, int compIdx)
   return c;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetComponent(vtkIdType tupleIdx, int compIdx, double value)
 {
   double* tuple = new double[this->NumberOfComponents];
@@ -716,7 +743,7 @@ void vtkDataArray::SetComponent(vtkIdType tupleIdx, int compIdx, double value)
   delete[] tuple;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertComponent(vtkIdType tupleIdx, int compIdx, double value)
 {
   double* tuple = new double[this->NumberOfComponents];
@@ -739,7 +766,7 @@ void vtkDataArray::InsertComponent(vtkIdType tupleIdx, int compIdx, double value
   delete[] tuple;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::GetData(
   vtkIdType tupleMin, vtkIdType tupleMax, int compMin, int compMax, vtkDoubleArray* data)
 {
@@ -760,7 +787,7 @@ void vtkDataArray::GetData(
   delete[] tuple;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Interpolate array value from other array value given the
 // indices and associated interpolation weights.
 // This method assumes that the two arrays are of the same time.
@@ -832,7 +859,7 @@ void vtkDataArray::InterpolateTuple(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Interpolate value from the two values, p1 and p2, and an
 // interpolation factor, t. The interpolation factor ranges from (0,1),
 // with t=0 located at p1. This method assumes that the three arrays are of
@@ -919,7 +946,7 @@ void vtkDataArray::InterpolateTuple(vtkIdType dstTuple, vtkIdType srcTuple1,
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::CreateDefaultLookupTable()
 {
   if (this->LookupTable)
@@ -933,7 +960,7 @@ void vtkDataArray::CreateDefaultLookupTable()
   this->LookupTable->Build();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetLookupTable(vtkLookupTable* lut)
 {
   if (this->LookupTable != lut)
@@ -951,7 +978,7 @@ void vtkDataArray::SetLookupTable(vtkLookupTable* lut)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkDataArray::GetTupleN(vtkIdType i, int n)
 {
   int numComp = this->GetNumberOfComponents();
@@ -963,7 +990,7 @@ double* vtkDataArray::GetTupleN(vtkIdType i, int n)
   return this->GetTuple(i);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkDataArray::GetTuple1(vtkIdType i)
 {
   int numComp = this->GetNumberOfComponents();
@@ -975,33 +1002,33 @@ double vtkDataArray::GetTuple1(vtkIdType i)
   return *(this->GetTuple(i));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkDataArray::GetTuple2(vtkIdType i)
 {
   return this->GetTupleN(i, 2);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkDataArray::GetTuple3(vtkIdType i)
 {
   return this->GetTupleN(i, 3);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkDataArray::GetTuple4(vtkIdType i)
 {
   return this->GetTupleN(i, 4);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkDataArray::GetTuple6(vtkIdType i)
 {
   return this->GetTupleN(i, 6);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkDataArray::GetTuple9(vtkIdType i)
 {
   return this->GetTupleN(i, 9);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetTuple1(vtkIdType i, double value)
 {
   int numComp = this->GetNumberOfComponents();
@@ -1012,7 +1039,7 @@ void vtkDataArray::SetTuple1(vtkIdType i, double value)
   }
   this->SetTuple(i, &value);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetTuple2(vtkIdType i, double val0, double val1)
 {
   double tuple[2];
@@ -1026,7 +1053,7 @@ void vtkDataArray::SetTuple2(vtkIdType i, double val0, double val1)
   tuple[1] = val1;
   this->SetTuple(i, tuple);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetTuple3(vtkIdType i, double val0, double val1, double val2)
 {
   double tuple[3];
@@ -1041,7 +1068,7 @@ void vtkDataArray::SetTuple3(vtkIdType i, double val0, double val1, double val2)
   tuple[2] = val2;
   this->SetTuple(i, tuple);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetTuple4(vtkIdType i, double val0, double val1, double val2, double val3)
 {
   double tuple[4];
@@ -1057,7 +1084,7 @@ void vtkDataArray::SetTuple4(vtkIdType i, double val0, double val1, double val2,
   tuple[3] = val3;
   this->SetTuple(i, tuple);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetTuple6(
   vtkIdType i, double val0, double val1, double val2, double val3, double val4, double val5)
 {
@@ -1076,7 +1103,7 @@ void vtkDataArray::SetTuple6(
   tuple[5] = val5;
   this->SetTuple(i, tuple);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::SetTuple9(vtkIdType i, double val0, double val1, double val2, double val3,
   double val4, double val5, double val6, double val7, double val8)
 {
@@ -1099,7 +1126,7 @@ void vtkDataArray::SetTuple9(vtkIdType i, double val0, double val1, double val2,
   this->SetTuple(i, tuple);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuple1(vtkIdType i, double value)
 {
   int numComp = this->GetNumberOfComponents();
@@ -1110,7 +1137,7 @@ void vtkDataArray::InsertTuple1(vtkIdType i, double value)
   }
   this->InsertTuple(i, &value);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuple2(vtkIdType i, double val0, double val1)
 {
   double tuple[2];
@@ -1124,7 +1151,7 @@ void vtkDataArray::InsertTuple2(vtkIdType i, double val0, double val1)
   tuple[1] = val1;
   this->InsertTuple(i, tuple);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuple3(vtkIdType i, double val0, double val1, double val2)
 {
   double tuple[3];
@@ -1139,7 +1166,7 @@ void vtkDataArray::InsertTuple3(vtkIdType i, double val0, double val1, double va
   tuple[2] = val2;
   this->InsertTuple(i, tuple);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuple4(vtkIdType i, double val0, double val1, double val2, double val3)
 {
   double tuple[4];
@@ -1156,7 +1183,7 @@ void vtkDataArray::InsertTuple4(vtkIdType i, double val0, double val1, double va
   this->InsertTuple(i, tuple);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuple6(
   vtkIdType i, double val0, double val1, double val2, double val3, double val4, double val5)
 {
@@ -1169,7 +1196,7 @@ void vtkDataArray::InsertTuple6(
   this->InsertTuple(i, tuple);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertTuple9(vtkIdType i, double val0, double val1, double val2, double val3,
   double val4, double val5, double val6, double val7, double val8)
 {
@@ -1192,7 +1219,7 @@ void vtkDataArray::InsertTuple9(vtkIdType i, double val0, double val1, double va
   this->InsertTuple(i, tuple);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertNextTuple1(double value)
 {
   int numComp = this->GetNumberOfComponents();
@@ -1203,7 +1230,7 @@ void vtkDataArray::InsertNextTuple1(double value)
   }
   this->InsertNextTuple(&value);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertNextTuple2(double val0, double val1)
 {
   double tuple[2];
@@ -1217,7 +1244,7 @@ void vtkDataArray::InsertNextTuple2(double val0, double val1)
   tuple[1] = val1;
   this->InsertNextTuple(tuple);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertNextTuple3(double val0, double val1, double val2)
 {
   double tuple[3];
@@ -1232,7 +1259,7 @@ void vtkDataArray::InsertNextTuple3(double val0, double val1, double val2)
   tuple[2] = val2;
   this->InsertNextTuple(tuple);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertNextTuple4(double val0, double val1, double val2, double val3)
 {
   double tuple[4];
@@ -1249,7 +1276,7 @@ void vtkDataArray::InsertNextTuple4(double val0, double val1, double val2, doubl
   this->InsertNextTuple(tuple);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertNextTuple6(
   double val0, double val1, double val2, double val3, double val4, double val5)
 {
@@ -1263,7 +1290,7 @@ void vtkDataArray::InsertNextTuple6(
   this->InsertNextTuple(tuple);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::InsertNextTuple9(double val0, double val1, double val2, double val3, double val4,
   double val5, double val6, double val7, double val8)
 {
@@ -1286,7 +1313,7 @@ void vtkDataArray::InsertNextTuple9(double val0, double val1, double val2, doubl
   this->InsertNextTuple(tuple);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned long vtkDataArray::GetActualMemorySize() const
 {
   vtkIdType numPrims;
@@ -1301,7 +1328,7 @@ unsigned long vtkDataArray::GetActualMemorySize() const
   return static_cast<unsigned long>(ceil((size * static_cast<double>(numPrims)) / 1024.0));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataArray* vtkDataArray::CreateDataArray(int dataType)
 {
   vtkAbstractArray* aa = vtkAbstractArray::CreateArray(dataType);
@@ -1314,7 +1341,7 @@ vtkDataArray* vtkDataArray::CreateDataArray(int dataType)
   return da;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::GetTuples(vtkIdList* tupleIds, vtkAbstractArray* aa)
 {
   vtkDataArray* da = vtkDataArray::FastDownCast(aa);
@@ -1343,7 +1370,7 @@ void vtkDataArray::GetTuples(vtkIdList* tupleIds, vtkAbstractArray* aa)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::GetTuples(vtkIdType p1, vtkIdType p2, vtkAbstractArray* aa)
 {
   vtkDataArray* da = vtkDataArray::FastDownCast(aa);
@@ -1372,7 +1399,7 @@ void vtkDataArray::GetTuples(vtkIdType p1, vtkIdType p2, vtkAbstractArray* aa)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::FillComponent(int compIdx, double value)
 {
   if (compIdx < 0 || compIdx >= this->GetNumberOfComponents())
@@ -1391,7 +1418,7 @@ void vtkDataArray::FillComponent(int compIdx, double value)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::Fill(double value)
 {
   for (int i = 0; i < this->GetNumberOfComponents(); ++i)
@@ -1400,7 +1427,38 @@ void vtkDataArray::Fill(double value)
   }
 }
 
-//----------------------------------------------------------------------------
+namespace
+{
+struct CopyComponentWorker
+{
+  CopyComponentWorker(int srcComponent, int dstComponent)
+    : SourceComponent(srcComponent)
+    , DestinationComponent(dstComponent)
+  {
+  }
+
+  template <typename ArraySrc, typename ArrayDst>
+  void operator()(ArraySrc* dst, ArrayDst* src) const
+  {
+    const auto srcRange = vtk::DataArrayTupleRange(src);
+    auto dstRange = vtk::DataArrayTupleRange(dst);
+
+    using DstType = vtk::GetAPIType<ArrayDst>;
+    auto dstIter = dstRange.begin();
+
+    for (auto v : srcRange)
+    {
+      (*dstIter)[DestinationComponent] = static_cast<DstType>(v[SourceComponent]);
+      ++dstIter;
+    }
+  }
+
+  int SourceComponent = 0;
+  int DestinationComponent = 0;
+};
+}
+
+//------------------------------------------------------------------------------
 void vtkDataArray::CopyComponent(int dstComponent, vtkDataArray* src, int srcComponent)
 {
   if (this->GetNumberOfTuples() != src->GetNumberOfTuples())
@@ -1424,14 +1482,14 @@ void vtkDataArray::CopyComponent(int dstComponent, vtkDataArray* src, int srcCom
     return;
   }
 
-  vtkIdType i;
-  for (i = 0; i < this->GetNumberOfTuples(); i++)
+  CopyComponentWorker copyComponentWorker(srcComponent, dstComponent);
+  if (!vtkArrayDispatch::Dispatch2::Execute(this, src, copyComponentWorker))
   {
-    this->SetComponent(i, dstComponent, src->GetComponent(i, srcComponent));
+    copyComponentWorker(this, src);
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkDataArray::GetMaxNorm()
 {
   vtkIdType i;
@@ -1451,7 +1509,7 @@ double vtkDataArray::GetMaxNorm()
   return maxNorm;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkDataArray::CopyInformation(vtkInformation* infoFrom, int deep)
 {
   // Copy everything + give base classes a chance to
@@ -1469,7 +1527,7 @@ int vtkDataArray::CopyInformation(vtkInformation* infoFrom, int deep)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::ComputeFiniteRange(double range[2], int comp)
 {
   // this method needs a large refactoring to be way easier to read
@@ -1532,7 +1590,7 @@ void vtkDataArray::ComputeFiniteRange(double range[2], int comp)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::ComputeRange(double range[2], int comp)
 {
   // this method needs a large refactoring to be way easier to read
@@ -1594,7 +1652,7 @@ void vtkDataArray::ComputeRange(double range[2], int comp)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // call modified on superclass
 void vtkDataArray::Modified()
 {
@@ -1691,7 +1749,7 @@ struct FiniteVectorRangeDispatchWrapper
 
 } // end anon namespace
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkDataArray::ComputeScalarRange(double* ranges)
 {
   ScalarRangeDispatchWrapper worker(ranges);
@@ -1702,7 +1760,7 @@ bool vtkDataArray::ComputeScalarRange(double* ranges)
   return worker.Success;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkDataArray::ComputeVectorRange(double range[2])
 {
   VectorRangeDispatchWrapper worker(range);
@@ -1713,7 +1771,7 @@ bool vtkDataArray::ComputeVectorRange(double range[2])
   return worker.Success;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkDataArray::ComputeFiniteScalarRange(double* ranges)
 {
   FiniteScalarRangeDispatchWrapper worker(ranges);
@@ -1724,7 +1782,7 @@ bool vtkDataArray::ComputeFiniteScalarRange(double* ranges)
   return worker.Success;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkDataArray::ComputeFiniteVectorRange(double range[2])
 {
   FiniteVectorRangeDispatchWrapper worker(range);
@@ -1735,32 +1793,32 @@ bool vtkDataArray::ComputeFiniteVectorRange(double range[2])
   return worker.Success;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::GetDataTypeRange(double range[2])
 {
   vtkDataArray::GetDataTypeRange(this->GetDataType(), range);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkDataArray::GetDataTypeMin()
 {
   return vtkDataArray::GetDataTypeMin(this->GetDataType());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkDataArray::GetDataTypeMax()
 {
   return vtkDataArray::GetDataTypeMax(this->GetDataType());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::GetDataTypeRange(int type, double range[2])
 {
   range[0] = vtkDataArray::GetDataTypeMin(type);
   range[1] = vtkDataArray::GetDataTypeMax(type);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkDataArray::GetDataTypeMin(int type)
 {
   switch (type)
@@ -1800,7 +1858,7 @@ double vtkDataArray::GetDataTypeMin(int type)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkDataArray::GetDataTypeMax(int type)
 {
   switch (type)
@@ -1840,7 +1898,7 @@ double vtkDataArray::GetDataTypeMax(int type)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::RemoveLastTuple()
 {
   if (this->GetNumberOfTuples() > 0)
@@ -1849,7 +1907,7 @@ void vtkDataArray::RemoveLastTuple()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataArray::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

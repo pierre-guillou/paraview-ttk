@@ -57,6 +57,7 @@
 #ifndef vtkPythonInterpreter_h
 #define vtkPythonInterpreter_h
 
+#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_0_0
 #include "vtkObject.h"
 #include "vtkPythonInterpreterModule.h" // For export macro
 #include "vtkStdString.h"               // needed for vtkStdString.
@@ -128,7 +129,7 @@ public:
    * that if Python is initialized again (by calls to Initialize()), then these
    * paths will be re-added.
    */
-  static void PrependPythonPath(const char* path);
+  static void PrependPythonPath(const char* dir);
 
   //@{
   /**
@@ -159,7 +160,8 @@ public:
   static bool GetCaptureStdin();
   //@}
 
-  VTK_LEGACY(static int GetPythonVerboseFlag());
+  VTK_DEPRECATED_IN_9_0_0("Use vtkPythonInterpreter::GetLogVerbosity")
+  static int GetPythonVerboseFlag();
 
   //@{
   /**

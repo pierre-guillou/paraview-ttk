@@ -23,7 +23,6 @@
 #include "vtkSMArrayListDomain.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMUncheckedPropertyHelper.h"
-#include "vtkStdString.h"
 
 #include <algorithm>
 #include <assert.h>
@@ -60,7 +59,7 @@ void vtkSMChartSeriesListDomain::Update(vtkSMProperty*)
     return;
   }
 
-  std::vector<vtkStdString> strings;
+  std::vector<std::string> strings;
   int fieldAssociation = vtkSMUncheckedPropertyHelper(fieldDataSelection).GetAsInt(0);
   vtkPVDataSetAttributesInformation* dsa = dataInfo->GetAttributeInformation(fieldAssociation);
 
@@ -80,23 +79,28 @@ void vtkSMChartSeriesListDomain::Update(vtkSMProperty*)
 
 //----------------------------------------------------------------------------
 void vtkSMChartSeriesListDomain::PopulateArrayComponents(
-  vtkPVArrayInformation* arrayInfo, std::vector<vtkStdString>& strings)
+  vtkPVArrayInformation* arrayInfo, std::vector<std::string>& strings)
 {
   if (arrayInfo && (this->HidePartialArrays == false || arrayInfo->GetIsPartial() == 0))
   {
-    if (arrayInfo->GetNumberOfComponents() > 1)
+    int dataType = arrayInfo->GetDataType();
+
+    if (dataType != VTK_STRING && dataType != VTK_UNICODE_STRING && dataType != VTK_VARIANT)
     {
-      for (int kk = 0; kk <= arrayInfo->GetNumberOfComponents(); kk++)
+      if (arrayInfo->GetNumberOfComponents() > 1)
       {
-        strings.push_back(vtkSMArrayListDomain::CreateMangledName(arrayInfo, kk));
+        for (int kk = 0; kk <= arrayInfo->GetNumberOfComponents(); kk++)
+        {
+          strings.push_back(vtkSMArrayListDomain::CreateMangledName(arrayInfo, kk));
+        }
       }
-    }
-    else
-    {
-      const char* arrayName = arrayInfo->GetName();
-      if (arrayName)
+      else
       {
-        strings.push_back(arrayName);
+        const char* arrayName = arrayInfo->GetName();
+        if (arrayName)
+        {
+          strings.push_back(arrayName);
+        }
       }
     }
   }
@@ -149,7 +153,8 @@ int vtkSMChartSeriesListDomain::ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLE
 //----------------------------------------------------------------------------
 const char** vtkSMChartSeriesListDomain::GetKnownSeriesNames()
 {
-  static const char* strings_to_check[] = { "bin_extents", "Time", "time", "arc_length", NULL };
+  static const char* strings_to_check[] = { "bin_extents", "Time", "time", "arc_length", "XArray",
+    "x_array", nullptr };
   return strings_to_check;
 }
 //----------------------------------------------------------------------------
@@ -157,7 +162,7 @@ int vtkSMChartSeriesListDomain::SetDefaultValues(vtkSMProperty* prop, bool use_u
 {
   const char** strings_to_check = vtkSMChartSeriesListDomain::GetKnownSeriesNames();
 
-  const std::vector<vtkStdString> domain_strings = this->GetStrings();
+  const std::vector<std::string> domain_strings = this->GetStrings();
   for (int cc = 0; strings_to_check[cc] != NULL; cc++)
   {
     if (std::find(domain_strings.begin(), domain_strings.end(),

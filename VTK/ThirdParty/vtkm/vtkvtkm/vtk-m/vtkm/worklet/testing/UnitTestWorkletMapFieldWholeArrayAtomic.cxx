@@ -54,14 +54,12 @@ struct DoTestAtomicArrayWorklet
   VTKM_CONT void operator()(T) const
   {
     std::cout << "Set up data." << std::endl;
-    T inOutValue = 0;
-
-    vtkm::cont::ArrayHandle<T> inOutHandle = vtkm::cont::make_ArrayHandle(&inOutValue, 1);
+    vtkm::cont::ArrayHandle<T> inOutHandle = vtkm::cont::make_ArrayHandle<T>({ 0 });
 
     this->CallWorklet(vtkm::cont::VariantArrayHandle(inOutHandle));
 
     std::cout << "Check result." << std::endl;
-    T result = inOutHandle.GetPortalConstControl().Get(0);
+    T result = inOutHandle.ReadPortal().Get(0);
 
     VTKM_TEST_ASSERT(result == (ARRAY_SIZE * (ARRAY_SIZE - 1)) / 2,
                      "Got wrong summation in atomic array.");

@@ -78,6 +78,12 @@ public:
     bool quickLaunchable = true);
 
   /**
+   * Builds "Extractors" menu.
+   */
+  static void buildExtractorsMenu(QMenu& menu, QMainWindow* mainWindow = nullptr,
+    bool hideDisabled = false, bool quickLaunchable = true);
+
+  /**
   * Builds the "Tools" menu.
   */
   static void buildToolsMenu(QMenu& menu);
@@ -85,7 +91,7 @@ public:
   /**
   * Builds the "Catalyst" menu
   */
-  static void buildCatalystMenu(QMenu& menu, QWidget* confpanel);
+  static void buildCatalystMenu(QMenu& menu);
 
   /**
   * Builds the "View" menu.
@@ -107,7 +113,7 @@ public:
   * Builds the context menu shown over the pipeline browser for some common
   * pipeline operations.
   */
-  static void buildPipelineBrowserContextMenu(QMenu& menu);
+  static void buildPipelineBrowserContextMenu(QMenu& menu, QMainWindow* window = nullptr);
 
   /**
   * Builds and adds all standard ParaView toolbars.

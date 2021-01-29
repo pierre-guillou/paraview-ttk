@@ -51,9 +51,9 @@ public:
 
 protected:
   vtkVRSpaceNavigatorGrabWorldStyle();
-  ~vtkVRSpaceNavigatorGrabWorldStyle();
+  ~vtkVRSpaceNavigatorGrabWorldStyle() override;
 
-  virtual void HandleAnalog(const vtkVREventData& data);
+  void HandleAnalog(const vtkVREventData& data) override;
 
 private:
   vtkVRSpaceNavigatorGrabWorldStyle(const vtkVRSpaceNavigatorGrabWorldStyle&) = delete;

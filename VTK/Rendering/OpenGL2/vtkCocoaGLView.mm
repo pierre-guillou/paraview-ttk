@@ -20,6 +20,8 @@
 #import "vtkCocoaRenderWindow.h"
 #import "vtkCocoaRenderWindowInteractor.h"
 #import "vtkCommand.h"
+#import "vtkNew.h"
+#import "vtkStringArray.h"
 
 //----------------------------------------------------------------------------
 // Private
@@ -39,6 +41,22 @@
 //----------------------------------------------------------------------------
 @synthesize rolloverTrackingArea = _rolloverTrackingArea;
 
+//------------------------------------------------------------------------------
+- (void)commonInit
+{
+  // Force Cocoa into "multi threaded mode" because VTK spawns pthreads.
+  // Apple's docs say: "If you intend to use Cocoa calls, you must force
+  // Cocoa into its multithreaded mode before detaching any POSIX threads.
+  // To do this, simply detach an NSThread and have it promptly exit.
+  // This is enough to ensure that the locks needed by the Cocoa
+  // frameworks are put in place"
+  if ([NSThread isMultiThreaded] == NO)
+  {
+    [NSThread detachNewThreadSelector:@selector(emptyMethod:) toTarget:self withObject:nil];
+  }
+  [self registerForDraggedTypes:@[ (NSString*)kUTTypeFileURL ]];
+}
+
 //----------------------------------------------------------------------------
 // Overridden (from NSView).
 // designated initializer
@@ -47,16 +65,20 @@
   self = [super initWithFrame:frameRect];
   if (self)
   {
-    // Force Cocoa into "multi threaded mode" because VTK spawns pthreads.
-    // Apple's docs say: "If you intend to use Cocoa calls, you must force
-    // Cocoa into its multithreaded mode before detaching any POSIX threads.
-    // To do this, simply detach an NSThread and have it promptly exit.
-    // This is enough to ensure that the locks needed by the Cocoa
-    // frameworks are put in place"
-    if ([NSThread isMultiThreaded] == NO)
-    {
-      [NSThread detachNewThreadSelector:@selector(emptyMethod:) toTarget:self withObject:nil];
-    }
+    [self commonInit];
+  }
+  return self;
+}
+
+//----------------------------------------------------------------------------
+// Overridden (from NSView).
+// designated initializer
+- (/*nullable*/ id)initWithCoder:(NSCoder*)decoder
+{
+  self = [super initWithCoder:decoder];
+  if (self)
+  {
+    [self commonInit];
   }
   return self;
 }
@@ -474,22 +496,78 @@ static const char* vtkMacKeyCodeToKeySymTable[128] = { nullptr, nullptr, nullptr
 }
 
 //----------------------------------------------------------------------------
+// From NSDraggingDestination protocol.
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender
+{
+  NSArray* types = [[sender draggingPasteboard] types];
+  if ([types containsObject:(NSString*)kUTTypeFileURL])
+  {
+    return NSDragOperationCopy;
+  }
+  return NSDragOperationNone;
+}
+
+//----------------------------------------------------------------------------
+// From NSDraggingDestination protocol.
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)sender
+{
+  vtkCocoaRenderWindowInteractor* interactor = [self getInteractor];
+
+  NSPoint pt = [sender draggingLocation];
+  NSPoint viewLoc = [self convertPoint:pt fromView:nil];
+  NSPoint backingLoc = [self convertPointToBacking:viewLoc];
+  double location[2];
+  location[0] = backingLoc.x;
+  location[1] = backingLoc.y;
+  interactor->InvokeEvent(vtkCommand::UpdateDropLocationEvent, location);
+
+  vtkNew<vtkStringArray> filePaths;
+  NSPasteboard* pboard = [sender draggingPasteboard];
+  NSArray* fileURLs = [pboard readObjectsForClasses:@ [[NSURL class]] options:nil];
+  for (NSURL* fileURL in fileURLs)
+  {
+    const char* filePath = [fileURL fileSystemRepresentation];
+    filePaths->InsertNextValue(filePath);
+  }
+
+  if (filePaths->GetNumberOfTuples() > 0)
+  {
+    interactor->InvokeEvent(vtkCommand::DropFilesEvent, filePaths);
+    return YES;
+  }
+
+  return NO;
+}
+
+//----------------------------------------------------------------------------
 // Private
 - (void)modifyDPIForBackingScaleFactorOfWindow:(/*nullable*/ NSWindow*)window
 {
-  if (window)
+  // Convert from points to pixels.
+  NSRect viewRect = [self frame];
+  NSRect backingViewRect = [self convertRectToBacking:viewRect];
+  CGFloat viewHeight = NSHeight(viewRect);
+  CGFloat backingViewHeight = NSHeight(backingViewRect);
+  CGFloat backingScaleFactor = 1.0;
+  if (viewHeight > 0.0 && backingViewHeight > 0.0)
   {
-    CGFloat backingScaleFactor = [window backingScaleFactor];
-    assert(backingScaleFactor >= 1.0);
+    // the scale factor based on convertRectToBacking
+    backingScaleFactor = backingViewHeight / viewHeight;
+  }
+  else if (window)
+  {
+    // fall back to less reliable method
+    backingScaleFactor = [window backingScaleFactor];
+  }
+  assert(backingScaleFactor >= 1.0);
 
-    vtkCocoaRenderWindow* renderWindow = [self getVTKRenderWindow];
-    if (renderWindow)
-    {
-      // Ordinarily, DPI is hardcoded to 72, but in order for vtkTextActors
-      // to have the correct apparent size, we adjust it per the NSWindow's
-      // scaling factor.
-      renderWindow->SetDPI(lround(72.0 * backingScaleFactor));
-    }
+  vtkCocoaRenderWindow* renderWindow = [self getVTKRenderWindow];
+  if (renderWindow)
+  {
+    // Ordinarily, DPI is hardcoded to 72, but in order for vtkTextActors
+    // to have the correct apparent size, we adjust it per the NSWindow's
+    // scaling factor.
+    renderWindow->SetDPI(lround(72.0 * backingScaleFactor));
   }
 }
 

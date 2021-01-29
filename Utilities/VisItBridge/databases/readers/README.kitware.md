@@ -9,7 +9,6 @@ within a single process.
   * Add attributes to pass commit checks within VisItBridge.
   * Add missing newlines to the ends of files.
   * Replace non-utf8 characters in imported files.
-  * Replace CMake Find modules needed by ParaView to be compatible.
   * Rework CMake code to build the subset required for ParaView.
   * Add CMake code to integrate with ParaView.
   * Modify readers to use VTK's third party modules.

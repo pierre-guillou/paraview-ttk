@@ -10,7 +10,6 @@
 
 #include <vtkm/cont/DataSetBuilderExplicit.h>
 #include <vtkm/cont/testing/Testing.h>
-#include <vtkm/io/writer/VTKDataSetWriter.h>
 #include <vtkm/worklet/DispatcherMapField.h>
 #include <vtkm/worklet/Tube.h>
 
@@ -192,7 +191,7 @@ void TestLinearPolylines()
                      "Wrong cell shape in Tube worklet");
 
     //Each of the 3 points should be in the plane defined by dir.
-    auto portal = newPoints.GetPortalConstControl();
+    auto portal = newPoints.ReadPortal();
     for (vtkm::Id i = 0; i < newPoints.GetNumberOfValues(); i += 3)
     {
       auto p0 = portal.Get(i + 0);

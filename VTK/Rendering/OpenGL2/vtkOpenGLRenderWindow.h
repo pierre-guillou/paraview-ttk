@@ -25,7 +25,8 @@
 #ifndef vtkOpenGLRenderWindow_h
 #define vtkOpenGLRenderWindow_h
 
-#include "vtkRect.h" // for vtkRecti
+#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_0_0
+#include "vtkRect.h"        // for vtkRecti
 #include "vtkRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkType.h"                   // for ivar
@@ -37,6 +38,7 @@ class vtkIdList;
 class vtkOpenGLBufferObject;
 class vtkOpenGLFramebufferObject;
 class vtkOpenGLHardwareSupport;
+class vtkOpenGLQuadHelper;
 class vtkOpenGLShaderCache;
 class vtkOpenGLVertexBufferObjectCache;
 class vtkOpenGLVertexArrayObject;
@@ -81,6 +83,8 @@ public:
   //@{
   /**
    * Set/Get the pixel data of an image, transmitted as RGBRGB...
+   * front in this context indicates that the read should come from the
+   * display buffer versus the render buffer
    */
   unsigned char* GetPixelData(int x, int y, int x2, int y2, int front, int right) override;
   int GetPixelData(
@@ -119,7 +123,7 @@ public:
    */
   float* GetZbufferData(int x1, int y1, int x2, int y2) override;
   int GetZbufferData(int x1, int y1, int x2, int y2, float* z) override;
-  int GetZbufferData(int x1, int y1, int x2, int y2, vtkFloatArray* z) override;
+  int GetZbufferData(int x1, int y1, int x2, int y2, vtkFloatArray* buffer) override;
   int SetZbufferData(int x1, int y1, int x2, int y2, float* buffer) override;
   int SetZbufferData(int x1, int y1, int x2, int y2, vtkFloatArray* buffer) override;
   //@}
@@ -162,14 +166,6 @@ public:
    */
   int GetColorBufferInternalFormat(int attachmentPoint);
 
-  //@{
-  /**
-   * Set the size of the window in screen coordinates in pixels.
-   */
-  void SetSize(int a[2]) override;
-  void SetSize(int, int) override;
-  //@}
-
   /**
    * Initialize OpenGL for this window.
    */
@@ -188,53 +184,20 @@ public:
    */
   void GetOpenGLVersion(int& major, int& minor);
 
-  /**
-   * Return the OpenGL name of the back left buffer.
-   * It is GL_BACK_LEFT if GL is bound to the window-system-provided
-   * framebuffer. It is vtkgl::COLOR_ATTACHMENT0_EXT if GL is bound to an
-   * application-created framebuffer object (GPU-based offscreen rendering)
-   * It is used by vtkOpenGLCamera.
-   */
+  //@{
+  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
   unsigned int GetBackLeftBuffer();
-
-  /**
-   * Return the OpenGL name of the back right buffer.
-   * It is GL_BACK_RIGHT if GL is bound to the window-system-provided
-   * framebuffer. It is vtkgl::COLOR_ATTACHMENT0_EXT+1 if GL is bound to an
-   * application-created framebuffer object (GPU-based offscreen rendering)
-   * It is used by vtkOpenGLCamera.
-   */
+  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
   unsigned int GetBackRightBuffer();
-
-  /**
-   * Return the OpenGL name of the front left buffer.
-   * It is GL_FRONT_LEFT if GL is bound to the window-system-provided
-   * framebuffer. It is vtkgl::COLOR_ATTACHMENT0_EXT if GL is bound to an
-   * application-created framebuffer object (GPU-based offscreen rendering)
-   * It is used by vtkOpenGLCamera.
-   */
+  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
   unsigned int GetFrontLeftBuffer();
-
-  /**
-   * Return the OpenGL name of the front right buffer.
-   * It is GL_FRONT_RIGHT if GL is bound to the window-system-provided
-   * framebuffer. It is vtkgl::COLOR_ATTACHMENT0_EXT+1 if GL is bound to an
-   * application-created framebuffer object (GPU-based offscreen rendering)
-   * It is used by vtkOpenGLCamera.
-   */
+  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
   unsigned int GetFrontRightBuffer();
-
-  /**
-   * Return the OpenGL name of the back left buffer.
-   * Identical to GetBackLeftBuffer.
-   */
+  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
   unsigned int GetBackBuffer();
-
-  /**
-   * Return the OpenGL name of the front left buffer.
-   * Identical to GetFrontLeftBuffer.
-   */
+  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
   unsigned int GetFrontBuffer();
+  //@}
 
   /**
    * Get the time when the OpenGL context was created.
@@ -253,10 +216,17 @@ public:
 
   //@{
   /**
-   * Returns the offscreen framebuffer object if any
+   * Returns the render framebuffer object.
    */
-  vtkGetObjectMacro(OffScreenFramebuffer, vtkOpenGLFramebufferObject);
+  vtkGetObjectMacro(RenderFramebuffer, vtkOpenGLFramebufferObject);
+  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1")
+  vtkOpenGLFramebufferObject* GetOffScreenFramebuffer() { return this->RenderFramebuffer; }
   //@}
+
+  /**
+   * Returns the display framebuffer object.
+   */
+  vtkGetObjectMacro(DisplayFramebuffer, vtkOpenGLFramebufferObject);
 
   /**
    * Returns its texture unit manager object. A new one will be created if one
@@ -301,7 +271,7 @@ public:
    * because point sprites don't work correctly (gl_PointCoord is undefined) unless
    * glEnable(GL_POINT_SPRITE)
    */
-  virtual bool IsPointSpriteBugPresent() { return 0; }
+  virtual bool IsPointSpriteBugPresent() { return false; }
 
   /**
    * Get a mapping of vtk data types to native texture formats for this window
@@ -375,15 +345,6 @@ public:
   bool InitializeFromCurrentContext() override;
 
   /**
-   * Returns the id for the frame buffer object, if any, used by the render window
-   * in which the window does all its rendering. This may be 0, in which case
-   * the render window is rendering to the default OpenGL render buffers.
-   *
-   * @returns the name (or id) of the frame buffer object to render to.
-   */
-  vtkGetMacro(DefaultFrameBufferId, unsigned int);
-
-  /**
    * Set the number of vertical syncs required between frames.
    * A value of 0 means swap buffers as quickly as possible
    * regardless of the vertical refresh. A value of 1 means swap
@@ -434,9 +395,62 @@ public:
    */
   void ReleaseGraphicsResources(vtkWindow*) override;
 
+  /**
+   * Blit a display framebuffer into a currently bound draw destination
+   */
+  void BlitDisplayFramebuffer();
+
+  /**
+   * Blit a display buffer into a currently bound draw destination
+   */
+  void BlitDisplayFramebuffer(int right, int srcX, int srcY, int srcWidth, int srcHeight, int destX,
+    int destY, int destWidth, int destHeight, int bufferMode, int interpolation);
+
+  //@{
+  /**
+   * Blit the currently bound read buffer to the renderbuffer. This is useful for
+   * taking rendering from an external system and then having VTK draw on top of it.
+   */
+  void BlitToRenderFramebuffer(bool includeDepth);
+  void BlitToRenderFramebuffer(int srcX, int srcY, int srcWidth, int srcHeight, int destX,
+    int destY, int destWidth, int destHeight, int bufferMode, int interpolation);
+  //@}
+
+  /**
+   * Define how the resulting image should be blitted when at the end of the Frame() call if
+   * SwapBuffers is true
+   */
+  enum FrameBlitModes
+  {
+    BlitToHardware, // hardware buffers
+    BlitToCurrent,  // currently bound draw framebuffer
+    NoBlit          // no blit, GUI or external code will handle the blit
+  };
+
+  //@{
+  /**
+   * SetGet how to handle blits at the end of a Frame() call.
+   * Only happens when SwapBuffers is true.
+   */
+  vtkSetClampMacro(FrameBlitMode, FrameBlitModes, BlitToHardware, NoBlit);
+  vtkGetMacro(FrameBlitMode, FrameBlitModes);
+  void SetFrameBlitModeToBlitToHardware() { this->SetFrameBlitMode(BlitToHardware); }
+  void SetFrameBlitModeToBlitToCurrent() { this->SetFrameBlitMode(BlitToCurrent); }
+  void SetFrameBlitModeToNoBlit() { this->SetFrameBlitMode(NoBlit); }
+  //@}
+
 protected:
   vtkOpenGLRenderWindow();
   ~vtkOpenGLRenderWindow() override;
+
+  // blits the display buffers to the appropriate hardware buffers
+  virtual void BlitDisplayFramebuffersToHardware();
+
+  // when frame is called, at the end blit to the hardware buffers
+  FrameBlitModes FrameBlitMode;
+
+  // a FSQ we use to resolve MSAA that handles gamma
+  vtkOpenGLQuadHelper* ResolveQuad;
 
   // used in testing for opengl support
   // in the SupportsOpenGL() method
@@ -455,8 +469,13 @@ protected:
    * \pre not_initialized: !OffScreenUseFrameBuffer
    * \post valid_result: (result==0 || result==1)
    */
-  int CreateOffScreenFramebuffer(int width, int height);
-  vtkOpenGLFramebufferObject* OffScreenFramebuffer;
+  int CreateFramebuffers(int width, int height);
+  vtkOpenGLFramebufferObject* RenderFramebuffer;
+  vtkOpenGLFramebufferObject* DisplayFramebuffer;
+
+  // used when we need to resolve a multisampled
+  // framebuffer
+  vtkOpenGLFramebufferObject* ResolveFramebuffer;
 
   /**
    * Create a not-off-screen window.
@@ -480,16 +499,10 @@ protected:
 
   std::map<std::string, int> GLStateIntegers;
 
-  unsigned int BackLeftBuffer;
-  unsigned int BackRightBuffer;
-  unsigned int FrontLeftBuffer;
-  unsigned int FrontRightBuffer;
-  unsigned int DefaultFrameBufferId;
-
   /**
    * Flag telling if the context has been created here or was inherited.
    */
-  int OwnContext;
+  vtkTypeBool OwnContext;
 
   vtkTimeStamp ContextCreationTime;
 
@@ -512,6 +525,8 @@ protected:
 
   // keep track of in case we need to recreate the framebuffer
   int LastMultiSamples;
+
+  int ScreenSize[2];
 
 private:
   vtkOpenGLRenderWindow(const vtkOpenGLRenderWindow&) = delete;

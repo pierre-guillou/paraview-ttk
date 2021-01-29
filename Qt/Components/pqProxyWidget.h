@@ -60,9 +60,10 @@ class PQCOMPONENTS_EXPORT pqProxyWidget : public QWidget
   typedef QWidget Superclass;
 
 public:
-  pqProxyWidget(vtkSMProxy* proxy, QWidget* parent = 0, Qt::WindowFlags flags = 0);
-  pqProxyWidget(vtkSMProxy* proxy, const QStringList& properties, QWidget* parent = 0,
-    Qt::WindowFlags flags = 0);
+  pqProxyWidget(
+    vtkSMProxy* proxy, QWidget* parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags{});
+  pqProxyWidget(vtkSMProxy* proxy, const QStringList& properties, bool showHeadersFooters = true,
+    QWidget* parent = 0, Qt::WindowFlags flags = Qt::WindowFlags{});
   ~pqProxyWidget() override;
 
   /**
@@ -91,7 +92,8 @@ public:
   * used on the pqProxyWidget to separate groups. Other widgets can use it for
   * the same purpose, as needed.
   */
-  static QWidget* newGroupLabelWidget(const QString& label, QWidget* parentWidget);
+  static QWidget* newGroupLabelWidget(const QString& label, QWidget* parentWidget,
+    const QList<QWidget*>& buttons = QList<QWidget*>());
 
   /**
   * Returns true of the proxy provided has XML hints indicating that labels
@@ -128,7 +130,7 @@ public:
   */
   static DocumentationType showProxyDocumentationInPanel(vtkSMProxy* proxy);
 
-signals:
+Q_SIGNALS:
   /**
   * This signal is fired as soon as the user starts editing in the widget. The
   * editing may not be complete.
@@ -147,7 +149,7 @@ signals:
   */
   void restartRequired();
 
-public slots:
+public Q_SLOTS:
   /**
   * Updates the property widgets shown based on the filterText or
   * show_advanced flag. Calling filterWidgets() without any arguments will
@@ -188,11 +190,17 @@ public slots:
   */
   void saveAsDefaults();
 
+  /**
+  * create a widget for a property.
+  */
+  static pqPropertyWidget* createWidgetForProperty(
+    vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parentObj);
+
 protected:
   void showEvent(QShowEvent* event) override;
   void hideEvent(QHideEvent* event) override;
 
-private slots:
+private Q_SLOTS:
   /**
   * Called when a pqPropertyWidget fires changeFinished() signal.
   * This callback fires changeFinished() signal and handles AutoUpdateVTKObjects.
@@ -203,8 +211,8 @@ private:
   /**
   * the actual constructor implementation.
   */
-  void constructor(
-    vtkSMProxy* proxy, const QStringList& properties, QWidget* parent, Qt::WindowFlags flags);
+  void constructor(vtkSMProxy* proxy, const QStringList& properties, bool showHeadersFooters,
+    QWidget* parent, Qt::WindowFlags flags);
 
   /**
   * create all widgets
@@ -221,17 +229,12 @@ private:
   */
   void create3DWidgets();
 
-  /**
-  * create a widget for a property.
-  */
-  pqPropertyWidget* createWidgetForProperty(
-    vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parentObj);
-
 private:
   Q_DISABLE_COPY(pqProxyWidget)
 
   bool ApplyChangesImmediately;
   bool UseDocumentationForLabels;
+  bool ShowHeadersFooters = false;
   class pqInternals;
   pqInternals* Internals;
 };

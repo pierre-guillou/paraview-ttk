@@ -15,6 +15,8 @@
 #include "vtkPVGeneralSettings.h"
 
 #include "vtkObjectFactory.h"
+#include "vtkPVOptions.h"
+#include "vtkProcessModule.h"
 #include "vtkProcessModuleAutoMPI.h"
 #include "vtkSISourceProxy.h"
 #include "vtkSMArraySelectionDomain.h"
@@ -68,7 +70,8 @@ vtkPVGeneralSettings::vtkPVGeneralSettings()
   , GUIFontSize(0)
   , GUIOverrideFont(false)
   , ColorByBlockColorsOnApply(true)
-  , AnimationTimeNotation('g')
+  , AnimationTimeNotation(vtkPVGeneralSettings::MIXED)
+  , EnableStreaming(false)
 {
   this->SetDefaultViewType("RenderView");
 }
@@ -173,6 +176,7 @@ void vtkPVGeneralSettings::SetAnimationGeometryCacheLimit(unsigned long val)
 //----------------------------------------------------------------------------
 void vtkPVGeneralSettings::SetIgnoreNegativeLogAxisWarning(bool val)
 {
+  (void)val;
 #if VTK_MODULE_ENABLE_ParaView_RemotingViews
   if (vtkPVXYChartView::GetIgnoreNegativeLogAxisWarning() != val)
   {
@@ -195,6 +199,7 @@ bool vtkPVGeneralSettings::GetIgnoreNegativeLogAxisWarning()
 //----------------------------------------------------------------------------
 void vtkPVGeneralSettings::SetScalarBarMode(int val)
 {
+  (void)val;
 #if VTK_MODULE_ENABLE_ParaView_RemotingViews
   switch (val)
   {
@@ -221,6 +226,7 @@ void vtkPVGeneralSettings::SetScalarBarMode(int val)
 //----------------------------------------------------------------------------
 void vtkPVGeneralSettings::SetInheritRepresentationProperties(bool val)
 {
+  (void)val;
 #if VTK_MODULE_ENABLE_ParaView_RemotingViews
   if (val != vtkSMParaViewPipelineControllerWithRendering::GetInheritRepresentationProperties())
   {
@@ -249,6 +255,7 @@ bool vtkPVGeneralSettings::GetLoadAllVariables()
 //----------------------------------------------------------------------------
 void vtkPVGeneralSettings::SetLoadNoChartVariables(bool val)
 {
+  (void)val;
 #if VTK_MODULE_ENABLE_ParaView_RemotingViews
   if (val != vtkSMChartSeriesSelectionDomain::GetLoadNoChartVariables())
   {
@@ -269,6 +276,23 @@ bool vtkPVGeneralSettings::GetLoadNoChartVariables()
 }
 
 //----------------------------------------------------------------------------
+void vtkPVGeneralSettings::SetEnableStreaming(bool val)
+{
+  if (this->GetEnableStreaming() != val)
+  {
+    vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
+    if (!pm)
+    {
+      vtkErrorMacro("vtkProcessModule not initialized. Igoring streaming change.");
+      return;
+    }
+    auto options = pm->GetOptions();
+    options->SetEnableStreaming(val);
+    this->Modified();
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkPVGeneralSettings::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -282,21 +306,4 @@ void vtkPVGeneralSettings::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "AnimationGeometryCacheLimit: " << this->AnimationGeometryCacheLimit << "\n";
   os << indent << "PropertiesPanelMode: " << this->PropertiesPanelMode << "\n";
   os << indent << "LockPanels: " << this->LockPanels << "\n";
-}
-
-//----------------------------------------------------------------------------
-void vtkPVGeneralSettings::SetAnimationTimeNotation(int notation)
-{
-  switch (notation)
-  {
-    case vtkPVGeneralSettings::SCIENTIFIC:
-      this->SetAnimationTimeNotation('e');
-      break;
-    case vtkPVGeneralSettings::FIXED:
-      this->SetAnimationTimeNotation('f');
-      break;
-    case vtkPVGeneralSettings::MIXED:
-    default:
-      this->SetAnimationTimeNotation('g');
-  }
 }

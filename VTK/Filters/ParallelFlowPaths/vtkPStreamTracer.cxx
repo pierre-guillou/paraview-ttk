@@ -409,15 +409,15 @@ public:
   vtkSetMacro(GridId, int);
   vtkGetMacro(GridId, int);
 
-  virtual int GetSize() override { return PStreamTracerPoint::GetSize() + 2 * sizeof(int); }
+  int GetSize() override { return PStreamTracerPoint::GetSize() + 2 * sizeof(int); }
 
-  virtual void Read(MyStream& stream) override
+  void Read(MyStream& stream) override
   {
     PStreamTracerPoint::Read(stream);
     stream >> Level;
     stream >> GridId;
   }
-  virtual void Write(MyStream& stream) override
+  void Write(MyStream& stream) override
   {
     PStreamTracerPoint::Write(stream);
     stream << Level << GridId;
@@ -433,7 +433,7 @@ private:
   int GridId;
 };
 
-typedef std::vector<vtkSmartPointer<PStreamTracerPoint> > PStreamTracerPointArray;
+typedef std::vector<vtkSmartPointer<PStreamTracerPoint>> PStreamTracerPointArray;
 
 vtkStandardNewMacro(AMRPStreamTracerPoint);
 
@@ -687,18 +687,18 @@ public:
 
   PStreamTracerUtils() { this->Locator = nullptr; }
 
-  virtual void Initialize(vtkPStreamTracer* tracer) override
+  void Initialize(vtkPStreamTracer* tracer) override
   {
     this->Superclass::Initialize(tracer);
     this->Locator = vtkSmartPointer<ProcessLocator>::New();
     this->Locator->Initialize(tracer->InputData);
   }
 
-  virtual ProcessLocator* GetProcessLocator() override { return this->Locator; }
+  ProcessLocator* GetProcessLocator() override { return this->Locator; }
 
-  virtual bool InBound(PStreamTracerPoint*) override { return true; }
+  bool InBound(PStreamTracerPoint*) override { return true; }
 
-  virtual vtkSmartPointer<PStreamTracerPoint> NewPoint(int id, double* x, int dir) override
+  vtkSmartPointer<PStreamTracerPoint> NewPoint(int id, double* x, int dir) override
   {
     vtkSmartPointer<PStreamTracerPoint> p = vtkSmartPointer<PStreamTracerPoint>::New();
     p->SetId(id);
@@ -723,7 +723,7 @@ public:
   static AMRPStreamTracerUtils* New();
   vtkSetMacro(AMR, vtkOverlappingAMR*);
 
-  virtual void InitializeVelocityFunction(
+  void InitializeVelocityFunction(
     PStreamTracerPoint* point, vtkAbstractInterpolatedVelocityField* func) override
   {
     AMRPStreamTracerPoint* amrPoint = AMRPStreamTracerPoint::SafeDownCast(point);
@@ -773,7 +773,7 @@ public:
 
   // this assume that p's AMR information has been set correctly
   // it makes no attempt to look for it
-  virtual bool InBound(PStreamTracerPoint* p) override
+  bool InBound(PStreamTracerPoint* p) override
   {
     AMRPStreamTracerPoint* amrp = AMRPStreamTracerPoint::SafeDownCast(p);
     if (amrp->GetLevel() < 0)
@@ -785,7 +785,7 @@ public:
     return grid != nullptr;
   }
 
-  virtual vtkSmartPointer<PStreamTracerPoint> NewPoint(int id, double* x, int dir) override
+  vtkSmartPointer<PStreamTracerPoint> NewPoint(int id, double* x, int dir) override
   {
 
     vtkSmartPointer<AMRPStreamTracerPoint> amrp = vtkSmartPointer<AMRPStreamTracerPoint>::New();
@@ -816,7 +816,7 @@ public:
 
     return p;
   }
-  virtual void Initialize(vtkPStreamTracer* tracer) override
+  void Initialize(vtkPStreamTracer* tracer) override
   {
     this->Superclass::Initialize(tracer);
     AssertNe(this->InputData, nullptr);
@@ -1189,8 +1189,8 @@ private:
   ProcessLocator* Locator;
   vtkSmartPointer<PStreamTracerPoint> Proto;
   vtkMPIController* Controller;
-  std::vector<vtkSmartPointer<Task> > NTasks;
-  std::vector<vtkSmartPointer<Task> > PTasks;
+  std::vector<vtkSmartPointer<Task>> NTasks;
+  std::vector<vtkSmartPointer<Task>> PTasks;
   std::vector<Message> Msgs;
   int NumProcs;
   int Rank;
@@ -1488,7 +1488,7 @@ int vtkPStreamTracer::RequestData(
   }
   this->Utils->Initialize(this);
   ALLPRINT("Vec Name: " << this->Utils->GetVecName());
-  typedef std::vector<vtkSmartPointer<vtkPolyData> > traceOutputsType;
+  typedef std::vector<vtkSmartPointer<vtkPolyData>> traceOutputsType;
   traceOutputsType traceOutputs;
 
   TaskManager taskManager(this->Utils->GetProcessLocator(), this->Utils->GetProto());

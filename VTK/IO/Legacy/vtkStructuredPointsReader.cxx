@@ -29,25 +29,25 @@ vtkStandardNewMacro(vtkStructuredPointsReader);
 vtkStructuredPointsReader::vtkStructuredPointsReader() = default;
 vtkStructuredPointsReader::~vtkStructuredPointsReader() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkStructuredPointsReader::SetOutput(vtkStructuredPoints* output)
 {
   this->GetExecutive()->SetOutputData(0, output);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStructuredPoints* vtkStructuredPointsReader::GetOutput()
 {
   return this->GetOutput(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStructuredPoints* vtkStructuredPointsReader::GetOutput(int idx)
 {
   return vtkStructuredPoints::SafeDownCast(this->GetOutputDataObject(idx));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkStructuredPointsReader::ReadMetaDataSimple(
   const std::string& fname, vtkInformation* metadata)
 {
@@ -70,7 +70,7 @@ int vtkStructuredPointsReader::ReadMetaDataSimple(
     return 1;
   }
 
-  if (!strncmp(this->LowerCase(line), "dataset", (unsigned long)7))
+  if (!strncmp(this->LowerCase(line), "dataset", 7))
   {
     // Make sure we're reading right type of geometry
     if (!this->ReadString(line))
@@ -81,7 +81,7 @@ int vtkStructuredPointsReader::ReadMetaDataSimple(
       return 1;
     }
 
-    if (strncmp(this->LowerCase(line), "structured_points", 17))
+    if (strncmp(this->LowerCase(line), "structured_points", 17) != 0)
     {
       vtkErrorMacro(<< "Cannot read dataset type: " << line);
       this->CloseVTKFile();
@@ -228,7 +228,7 @@ int vtkStructuredPointsReader::ReadMetaDataSimple(
             // lookup table
             this->ReadString(line);
             int numComp;
-            if (strcmp(this->LowerCase(line), "lookup_table"))
+            if (strcmp(this->LowerCase(line), "lookup_table") != 0)
             {
               numComp = atoi(line);
               if (numComp < 1 || !this->ReadString(line))
@@ -317,7 +317,7 @@ int vtkStructuredPointsReader::ReadMeshSimple(const std::string& fname, vtkDataO
     return 1;
   }
 
-  if (!strncmp(this->LowerCase(line), "dataset", (unsigned long)7))
+  if (!strncmp(this->LowerCase(line), "dataset", 7))
   {
     // Make sure we're reading right type of geometry
     //
@@ -329,7 +329,7 @@ int vtkStructuredPointsReader::ReadMeshSimple(const std::string& fname, vtkDataO
       return 1;
     }
 
-    if (strncmp(this->LowerCase(line), "structured_points", 17))
+    if (strncmp(this->LowerCase(line), "structured_points", 17) != 0)
     {
       vtkErrorMacro(<< "Cannot read dataset type: " << line);
       this->CloseVTKFile();
@@ -381,7 +381,8 @@ int vtkStructuredPointsReader::ReadMeshSimple(const std::string& fname, vtkDataO
           return 1;
         }
 
-        numPts = dim[0] * dim[1] * dim[2];
+        numPts = static_cast<vtkIdType>(dim[0]) * static_cast<vtkIdType>(dim[1]) *
+          static_cast<vtkIdType>(dim[2]);
         output->SetDimensions(dim);
         numCells = output->GetNumberOfCells();
         dimsRead = 1;

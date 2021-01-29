@@ -15,6 +15,7 @@
 #include <vtkm/TopologyElementTag.h>
 #include <vtkm/cont/CellSet.h>
 #include <vtkm/cont/DeviceAdapter.h>
+#include <vtkm/cont/ErrorBadType.h>
 #include <vtkm/exec/ConnectivityStructured.h>
 #include <vtkm/internal/ConnectivityStructuredInternals.h>
 
@@ -115,7 +116,18 @@ public:
 
   template <typename DeviceAdapter, typename VisitTopology, typename IncidentTopology>
   typename ExecutionTypes<DeviceAdapter, VisitTopology, IncidentTopology>::ExecObjectType
-    PrepareForInput(DeviceAdapter, VisitTopology, IncidentTopology) const;
+  PrepareForInput(DeviceAdapter, VisitTopology, IncidentTopology, vtkm::cont::Token&) const;
+
+  template <typename DeviceAdapter, typename VisitTopology, typename IncidentTopology>
+  VTKM_DEPRECATED(1.6, "Provide a vtkm::cont::Token object when calling PrepareForInput.")
+  typename ExecutionTypes<DeviceAdapter, VisitTopology, IncidentTopology>::ExecObjectType
+    PrepareForInput(DeviceAdapter device,
+                    VisitTopology visitTopology,
+                    IncidentTopology incidentTopology) const
+  {
+    vtkm::cont::Token token;
+    return this->PrepareForInput(device, visitTopology, incidentTopology, token);
+  }
 
   void PrintSummary(std::ostream& out) const override;
 
@@ -138,8 +150,9 @@ public:
     return *this;
   }
 
-  CellSetStructured(CellSetStructured&& src) noexcept : CellSet(),
-                                                        Structure(std::move(src.Structure))
+  CellSetStructured(CellSetStructured&& src) noexcept
+    : CellSet()
+    , Structure(std::move(src.Structure))
   {
   }
 

@@ -190,7 +190,7 @@ public:
    * Get/Set the context. Context must be a vtkOpenGLRenderWindow.
    * This does not increase the reference count of the
    * context to avoid reference loops.
-   * SetContext() may raise an error is the OpenGL context does not support the
+   * SetContext() may raise an error if the OpenGL context does not support the
    * required OpenGL extensions.
    */
   void SetContext(vtkRenderWindow* context);
@@ -280,6 +280,12 @@ public:
   void RemoveColorAttachment(unsigned int index);
   void RemoveColorAttachments(unsigned int num);
   //@}
+
+  /**
+   * Return the texture object bound to the passed attachment number.
+   * In the case that a renderbuffer is used, this will return nullptr.
+   */
+  vtkTextureObject* GetColorAttachmentAsTextureObject(unsigned int num);
 
   /**
    * Return the number of color attachments for the given mode
@@ -401,7 +407,7 @@ public:
 
   /**
    * Download data from the read buffer of the current FBO. These
-   * are low level meothds. In the static variant a PBO must be
+   * are low level methods. In the static variant a PBO must be
    * passed in since we don't have access to a context. The static
    * method is provided so that one may download from the default
    * FBO.

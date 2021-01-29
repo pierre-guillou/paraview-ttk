@@ -18,7 +18,7 @@
 
 vtkStandardNewMacro(vtkIdList);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdList::vtkIdList()
 {
   this->NumberOfIds = 0;
@@ -26,13 +26,22 @@ vtkIdList::vtkIdList()
   this->Ids = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdList::~vtkIdList()
 {
   delete[] this->Ids;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+vtkIdType* vtkIdList::Release()
+{
+  auto retval = this->Ids;
+  this->Ids = nullptr;
+  this->Initialize();
+  return retval;
+}
+
+//------------------------------------------------------------------------------
 void vtkIdList::Initialize()
 {
   delete[] this->Ids;
@@ -41,7 +50,7 @@ void vtkIdList::Initialize()
   this->Size = 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkIdList::Allocate(const vtkIdType sz, const int vtkNotUsed(strategy))
 {
   if (sz > this->Size)
@@ -57,14 +66,14 @@ int vtkIdList::Allocate(const vtkIdType sz, const int vtkNotUsed(strategy))
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkIdList::SetNumberOfIds(const vtkIdType number)
 {
   this->Allocate(number, 0);
   this->NumberOfIds = number;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkIdList::InsertUniqueId(const vtkIdType vtkid)
 {
   for (vtkIdType i = 0; i < this->NumberOfIds; i++)
@@ -78,7 +87,7 @@ vtkIdType vtkIdList::InsertUniqueId(const vtkIdType vtkid)
   return this->InsertNextId(vtkid);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType* vtkIdList::WritePointer(const vtkIdType i, const vtkIdType number)
 {
   vtkIdType newSize = i + number;
@@ -93,7 +102,7 @@ vtkIdType* vtkIdList::WritePointer(const vtkIdType i, const vtkIdType number)
   return this->Ids + i;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkIdList::SetArray(vtkIdType* array, vtkIdType size)
 {
   delete[] this->Ids;
@@ -102,7 +111,7 @@ void vtkIdList::SetArray(vtkIdType* array, vtkIdType size)
   this->Size = size;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkIdList::DeleteId(vtkIdType vtkid)
 {
   vtkIdType i = 0;
@@ -127,7 +136,7 @@ void vtkIdList::DeleteId(vtkIdType vtkid)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkIdList::DeepCopy(vtkIdList* ids)
 {
   this->SetNumberOfIds(ids->NumberOfIds);
@@ -138,7 +147,7 @@ void vtkIdList::DeepCopy(vtkIdList* ids)
   this->Squeeze();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType* vtkIdList::Resize(const vtkIdType sz)
 {
   vtkIdType* newIds;
@@ -186,7 +195,7 @@ vtkIdType* vtkIdList::Resize(const vtkIdType sz)
   return this->Ids;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 #define VTK_TMP_ARRAY_SIZE 500
 // Intersect this list with another vtkIdList. Updates current list according
 // to result of intersection operation.
@@ -236,7 +245,7 @@ void vtkIdList::IntersectWith(vtkIdList* otherIds)
 }
 #undef VTK_TMP_ARRAY_SIZE
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkIdList::Sort()
 {
   if (this->Ids == nullptr || this->NumberOfIds < 2)
@@ -246,7 +255,7 @@ void vtkIdList::Sort()
   vtkSMPTools::Sort(this->Ids, this->Ids + this->NumberOfIds);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkIdList::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

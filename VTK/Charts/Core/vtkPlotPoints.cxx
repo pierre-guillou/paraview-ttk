@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPlotPoints.h"
 
 #include "vtkAxis.h"
@@ -61,10 +64,10 @@ public:
   }
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPlotPoints);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotPoints::vtkPlotPoints()
 {
   this->Points = nullptr;
@@ -84,7 +87,7 @@ vtkPlotPoints::vtkPlotPoints()
   this->UnscaledInputBounds[1] = this->UnscaledInputBounds[3] = -vtkMath::Inf();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotPoints::~vtkPlotPoints()
 {
   if (this->Points)
@@ -108,7 +111,7 @@ vtkPlotPoints::~vtkPlotPoints()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::Update()
 {
   if (!this->Visible)
@@ -151,7 +154,7 @@ void vtkPlotPoints::Update()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotPoints::Paint(vtkContext2D* painter)
 {
   // This is where everything should be drawn, or dispatched to other methods.
@@ -258,7 +261,7 @@ bool vtkPlotPoints::Paint(vtkContext2D* painter)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotPoints::PaintLegend(vtkContext2D* painter, const vtkRectf& rect, int)
 {
   if (this->MarkerStyle)
@@ -278,7 +281,7 @@ bool vtkPlotPoints::PaintLegend(vtkContext2D* painter, const vtkRectf& rect, int
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::GetBounds(double bounds[4])
 {
   if (this->Points)
@@ -290,7 +293,7 @@ void vtkPlotPoints::GetBounds(double bounds[4])
                 << bounds[3]);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::GetUnscaledInputBounds(double bounds[4])
 {
   this->CalculateUnscaledInputBounds();
@@ -333,7 +336,7 @@ bool inRange(const vtkVector2f& point, const vtkVector2f& tol, const vtkVector2f
 
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::CreateSortedPoints()
 {
   // Sort the data if it has not been done already...
@@ -346,11 +349,10 @@ void vtkPlotPoints::CreateSortedPoints()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkPlotPoints::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
   vtkVector2f* location, vtkIdType* vtkNotUsed(segmentId))
 {
-#ifndef VTK_LEGACY_REMOVE
   if (!this->LegacyRecursionFlag)
   {
     this->LegacyRecursionFlag = true;
@@ -360,13 +362,12 @@ vtkIdType vtkPlotPoints::GetNearestPoint(const vtkVector2f& point, const vtkVect
     {
       VTK_LEGACY_REPLACED_BODY(vtkPlotPoints::GetNearestPoint(const vtkVector2f& point,
                                  const vtkVector2f& tol, vtkVector2f* location),
-        "VTK 8.3",
+        "VTK 9.0",
         vtkPlotPoints::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
           vtkVector2f* location, vtkIdType* segmentId));
       return ret;
     }
   }
-#endif // VTK_LEGACY_REMOVE
 
   // Right now doing a simple bisector search of the array.
   if (!this->Points)
@@ -406,7 +407,7 @@ vtkIdType vtkPlotPoints::GetNearestPoint(const vtkVector2f& point, const vtkVect
   return -1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotPoints::SelectPoints(const vtkVector2f& min, const vtkVector2f& max)
 {
   if (!this->Points)
@@ -458,7 +459,7 @@ bool vtkPlotPoints::SelectPoints(const vtkVector2f& min, const vtkVector2f& max)
   return this->Selection->GetNumberOfTuples() > 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotPoints::SelectPointsInPolygon(const vtkContextPolygon& polygon)
 {
   if (!this->Points)
@@ -495,7 +496,7 @@ bool vtkPlotPoints::SelectPointsInPolygon(const vtkContextPolygon& polygon)
   return this->Selection->GetNumberOfTuples() > 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 namespace
 {
 
@@ -638,7 +639,7 @@ void CopyToPointsSwitch(vtkPoints2D* points, A* a, vtkDataArray* b, int n, const
 
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotPoints::GetDataArrays(vtkTable* table, vtkDataArray* array[2])
 {
   if (!table)
@@ -670,7 +671,7 @@ bool vtkPlotPoints::GetDataArrays(vtkTable* table, vtkDataArray* array[2])
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotPoints::UpdateTableCache(vtkTable* table)
 {
   vtkDataArray* array[2] = { nullptr, nullptr };
@@ -742,7 +743,7 @@ bool vtkPlotPoints::UpdateTableCache(vtkTable* table)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::CalculateUnscaledInputBounds()
 {
   vtkTable* table = this->Data->GetInput();
@@ -772,7 +773,7 @@ void vtkPlotPoints::CalculateUnscaledInputBounds()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::CalculateLogSeries()
 {
   if (!this->XAxis || !this->YAxis)
@@ -819,7 +820,7 @@ void vtkPlotPoints::CalculateLogSeries()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::FindBadPoints()
 {
   // This should be run after CalculateLogSeries as a final step.
@@ -880,7 +881,7 @@ void vtkPlotPoints::FindBadPoints()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::CalculateBounds(double bounds[4])
 {
   // We can use the BadPoints array to skip the bad points
@@ -905,7 +906,7 @@ void vtkPlotPoints::CalculateBounds(double bounds[4])
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::SetLookupTable(vtkScalarsToColors* lut)
 {
   if (this->LookupTable != lut)
@@ -923,7 +924,7 @@ void vtkPlotPoints::SetLookupTable(vtkScalarsToColors* lut)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkScalarsToColors* vtkPlotPoints::GetLookupTable()
 {
   if (this->LookupTable == nullptr)
@@ -933,7 +934,7 @@ vtkScalarsToColors* vtkPlotPoints::GetLookupTable()
   return this->LookupTable;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::CreateDefaultLookupTable()
 {
   if (this->LookupTable)
@@ -946,7 +947,7 @@ void vtkPlotPoints::CreateDefaultLookupTable()
   this->LookupTable->Delete();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::SelectColorArray(const vtkStdString& arrayName)
 {
   vtkTable* table = this->Data->GetInput();
@@ -973,7 +974,7 @@ void vtkPlotPoints::SelectColorArray(const vtkStdString& arrayName)
   this->Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::SelectColorArray(vtkIdType arrayNum)
 {
   vtkTable* table = this->Data->GetInput();
@@ -1004,13 +1005,13 @@ void vtkPlotPoints::SelectColorArray(vtkIdType arrayNum)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStdString vtkPlotPoints::GetColorArrayName()
 {
   return this->ColorArrayName;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPoints::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

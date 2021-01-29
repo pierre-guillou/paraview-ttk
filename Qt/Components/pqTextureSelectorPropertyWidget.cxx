@@ -100,6 +100,9 @@ pqTextureSelectorPropertyWidget::pqTextureSelectorPropertyWidget(
     {
       QObject::connect(this->Representation, &pqDataRepresentation::dataUpdated, this,
         [=] { this->checkAttributes(checkTCoords, checkTangents); });
+
+      QObject::connect(this->Representation, &pqDataRepresentation::attrArrayNameModified, this,
+        [=] { this->checkAttributes(checkTCoords, checkTangents); });
     }
     this->checkAttributes(checkTCoords, checkTangents);
   }
@@ -113,8 +116,8 @@ void pqTextureSelectorPropertyWidget::onTextureChanged(vtkSMProxy* texture)
   vtkSMPropertyHelper(this->property()).Set(texture);
   this->proxy()->UpdateVTKObjects();
   END_UNDO_SET();
-  emit this->changeAvailable();
-  emit this->changeFinished();
+  Q_EMIT this->changeAvailable();
+  Q_EMIT this->changeFinished();
 }
 
 //-----------------------------------------------------------------------------
@@ -150,4 +153,8 @@ void pqTextureSelectorPropertyWidget::checkAttributes(bool tcoords, bool tangent
     }
   }
   this->Selector->setEnabled(enable);
+  if (enable)
+  {
+    this->setToolTip("");
+  }
 }

@@ -20,6 +20,7 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   TestAppendPoints.cxx,NO_VALID
   TestBooleanOperationPolyDataFilter2.cxx
   TestBooleanOperationPolyDataFilter.cxx
+  TestDeflectNormals.cxx
   TestLoopBooleanPolyDataFilter.cxx
   TestCellValidator.cxx,NO_VALID
   TestContourTriangulatorCutter.cxx
@@ -36,6 +37,7 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   TestIntersectionPolyDataFilter3.cxx
   TestIntersectionPolyDataFilter2.cxx,NO_VALID
   TestIntersectionPolyDataFilter.cxx
+  TestMergeCells.cxx,NO_VALID
   TestRectilinearGridToPointSet.cxx,NO_VALID
   TestReflectionFilter.cxx,NO_VALID
   TestSplitByCellScalarFilter.cxx,NO_VALID

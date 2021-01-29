@@ -107,24 +107,6 @@ public:
 
   //@{
   /**
-   * Set/Get the computation of gradients. Gradient computation is
-   * fairly expensive in both time and storage. Note that if
-   * ComputeNormals is on, gradients will have to be calculated, but
-   * will not be stored in the output dataset.  If the output data
-   * will be processed by filters that modify topology or geometry, it
-   * may be wise to turn Normals and Gradients off.  @deprecated
-   * ComputeGradients is not used so these methods don't affect
-   * anything (VTK 6.0).
-   */
-#ifndef VTK_LEGACY_REMOVE
-  vtkSetMacro(ComputeGradients, vtkTypeBool);
-  vtkGetMacro(ComputeGradients, vtkTypeBool);
-  vtkBooleanMacro(ComputeGradients, vtkTypeBool);
-#endif
-  //@}
-
-  //@{
-  /**
    * Set/Get the computation of scalars.
    */
   vtkSetMacro(ComputeScalars, vtkTypeBool);
@@ -197,9 +179,6 @@ protected:
 
   vtkContourValues* ContourValues;
   vtkTypeBool ComputeNormals;
-#ifndef VTK_LEGACY_REMOVE
-  vtkTypeBool ComputeGradients;
-#endif
   vtkTypeBool ComputeScalars;
   vtkTypeBool GenerateTriangles;
 

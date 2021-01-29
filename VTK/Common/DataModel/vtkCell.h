@@ -43,8 +43,9 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
-#include "vtkCellType.h" // Needed to define cell types
-#include "vtkIdList.h"   // Needed for inline methods
+#include "vtkBoundingBox.h" // Needed for IntersectWithCell
+#include "vtkCellType.h"    // Needed to define cell types
+#include "vtkIdList.h"      // Needed for inline methods
 
 class vtkCellArray;
 class vtkCellData;
@@ -165,7 +166,15 @@ public:
   virtual vtkCell* GetEdge(int edgeId) = 0;
 
   /**
-   * Return the face cell from the faceId of the cell.
+   * Return the face cell from the faceId of the cell. The returned vtkCell
+   * is an object owned by this instance, hence the return value
+   * must not be deleted by the caller.
+   *
+   * @warning Repeat calls to this function for different face ids will change
+   * the data stored in the internal member object whose pointer is returned by
+   * this function.
+   *
+   * @warning THIS METHOD IS NOT THREAD SAFE.
    */
   virtual vtkCell* GetFace(int faceId) = 0;
 
@@ -240,6 +249,31 @@ public:
     vtkIdType cellId, vtkCellData* outCd, int insideOut) = 0;
 
   /**
+   * Inflates the cell. Each edge is displaced following its normal by a
+   * distance of value `dist`. If dist is negative, then the cell shrinks.
+   * The resulting cell edges / faces are colinear / coplanar to their previous
+   * self.
+   *
+   * The cell is assumed to be non-degenerate and to have no
+   * edge of length zero for linear 2D cells.
+   * If it is not the case, then no inflation is performed.
+   * This method needs to be overriden by inheriting non-linear / non-2D cells.
+   *
+   * \return 1 if inflation was successful, 0 if no inflation was performed
+   */
+  virtual int Inflate(double dist);
+
+  /**
+   * Computes the bounding sphere of the cell. If the number of points in the cell is lower
+   * or equal to 4, an exact bounding sphere is computed. If not, Ritter's algorithm
+   * is followed. If the input sphere has zero points, then each coordinate of
+   * center is set to NaN, as well as the returned distance.
+   *
+   * This method computes the center of the sphere, and returns its squared radius.
+   */
+  virtual double ComputeBoundingSphere(double center[3]) const;
+
+  /**
    * Intersect with a ray. Return parametric coordinates (both line and cell)
    * and global intersection coordinates, given ray definition p1[3], p2[3] and tolerance tol.
    * The method returns non-zero value if intersection occurs. A parametric distance t
@@ -249,6 +283,19 @@ public:
    */
   virtual int IntersectWithLine(const double p1[3], const double p2[3], double tol, double& t,
     double x[3], double pcoords[3], int& subId) = 0;
+
+  //@{
+  /**
+   * Intersects with an other cell. Returns 1 if cells intersect, 0 otherwise.
+   * If an exact intersection detection with regards to floating point precision is wanted,
+   * tol should be disregarded.
+   * `vtkBoundingBox` are optional parameters which slightly improve the speed of the computation
+   * if bounding boxes are already available to user.
+   */
+  virtual int IntersectWithCell(vtkCell* other, double tol = 0.0);
+  virtual int IntersectWithCell(vtkCell* other, const vtkBoundingBox& boudingBox,
+    const vtkBoundingBox& otherBoundingBox, double tol = 0.0);
+  //@}
 
   /**
    * Generate simplices of proper dimension. If cell is 3D, tetrahedron are

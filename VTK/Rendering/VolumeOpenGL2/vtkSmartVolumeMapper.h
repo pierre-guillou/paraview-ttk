@@ -483,6 +483,15 @@ protected:
   vtkTimeStamp MagnitudeUploadTime;
   //@}
 
+  //@{
+  /**
+   * Keep a cache of the last input to the mapper so that input data changes can be propogated to
+   * the resample filter and internal mappers.
+   */
+  vtkDataSet* LastInput;
+  vtkDataSet* LastFilterInput;
+  //@}
+
 private:
   //@{
   /**
@@ -495,8 +504,8 @@ private:
    * array. vtkImageMagnitude can only process point data, so in the case of cell
    * data it is first transformed to points.
    */
-  void ComputeMagnitudeCellData(vtkImageData* input, vtkDataArray* arr);
-  void ComputeMagnitudePointData(vtkImageData* input, vtkDataArray* arr);
+  void ComputeMagnitudeCellData(vtkDataSet* input, vtkDataArray* arr);
+  void ComputeMagnitudePointData(vtkDataSet* input, vtkDataArray* arr);
   //@}
 
   vtkSmartVolumeMapper(const vtkSmartVolumeMapper&) = delete;

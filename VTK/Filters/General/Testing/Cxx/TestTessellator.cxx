@@ -44,7 +44,6 @@
 #include "vtkXMLUnstructuredGridReader.h"
 
 #include <algorithm>
-using std::copy;
 
 #undef ONLY_WIRE
 #undef FOR_PAPER
@@ -3240,7 +3239,7 @@ int TestTessellator(int argc, char* argv[])
                                                              // otet << "},\n{\n";
 #endif                                                       // VTK_GENERATE_BASELINE
 #ifdef VTK_CHECK_RESULTS
-        if (strcmp(vtkTestSummaries[vtkTstCode].Name, annotation))
+        if (strcmp(vtkTestSummaries[vtkTstCode].Name, annotation) != 0)
         {
           std::cerr << "ERROR: Test " << vtkTstCode << " was named \"" << annotation
                     << ", expecting \"" << vtkTestSummaries[vtkTstCode].Name << "\"\n";
@@ -3389,7 +3388,7 @@ int TestTessellator(int argc, char* argv[])
     tstc << "  { \"" << annotation << "\", " << otetCtr; // << " },\n";
 #endif                                                   // VTK_GENERATE_BASELINE
 #ifdef VTK_CHECK_RESULTS
-    if (strcmp(vtkTestSummaries[vtkTstCode].Name, annotation))
+    if (strcmp(vtkTestSummaries[vtkTstCode].Name, annotation) != 0)
     {
       std::cerr << "ERROR: Test " << vtkTstCode << " was named \"" << annotation << ", expecting \""
                 << vtkTestSummaries[vtkTstCode].Name << "\"\n";

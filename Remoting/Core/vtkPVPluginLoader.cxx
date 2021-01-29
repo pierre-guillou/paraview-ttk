@@ -27,6 +27,8 @@
 #include "vtkPVServerManagerPluginInterface.h"
 #include "vtkPVXMLParser.h"
 #include "vtkProcessModule.h"
+
+#include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include <cstdlib>
@@ -37,11 +39,15 @@
 #include <vector>
 
 #define vtkPVPluginLoaderErrorMacro(x)                                                             \
-  if (!no_errors)                                                                                  \
+  do                                                                                               \
   {                                                                                                \
-    vtkErrorMacro(<< x << endl);                                                                   \
-  }                                                                                                \
-  this->SetErrorString(x);
+    const char* errstring = x;                                                                     \
+    if (!no_errors)                                                                                \
+    {                                                                                              \
+      vtkErrorMacro(<< errstring << endl);                                                         \
+    }                                                                                              \
+    this->SetErrorString(errstring);                                                               \
+  } while (false)
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 const char ENV_PATH_SEP = ';';
@@ -73,7 +79,7 @@ public:
     vtkPVXMLOnlyPlugin* instance = new vtkPVXMLOnlyPlugin();
     instance->PluginName = vtksys::SystemTools::GetFilenameWithoutExtension(xmlfile);
 
-    ifstream is;
+    vtksys::ifstream is;
     is.open(xmlfile, ios::binary);
     // get length of file:
     is.seekg(0, ios::end);

@@ -34,12 +34,12 @@
 
 class vtkIceTSynchronizedRenderers;
 class vtkImageProcessingPass;
-class vtkPartitionOrderingInterface;
+class vtkOpenGLRenderer;
+class vtkOrderedCompositingHelper;
 class vtkPVSession;
 class vtkRenderer;
 class vtkRenderPass;
 class vtkSynchronizedRenderers;
-class vtkOpenGLRenderer;
 
 class VTKREMOTINGVIEWS_EXPORT vtkPVSynchronizedRenderer : public vtkObject
 {
@@ -66,10 +66,11 @@ public:
   void Initialize(vtkPVSession* session);
 
   /**
-   * partition ordering that gives processes ordering. Initial value is a NULL pointer.
-   * This is used only when UseOrderedCompositing is true.
+   * Used to determine sorting order and use ordered compositing. Set to nullptr
+   * to not use ordered compositing and instead use depth-buffer based
+   * compositing, if applicable.
    */
-  void SetPartitionOrdering(vtkPartitionOrderingInterface* partitionOrdering);
+  void SetOrderedCompositingHelper(vtkOrderedCompositingHelper* helper);
 
   /**
    * Set the renderer that is being synchronized.
@@ -154,6 +155,16 @@ public:
 
   //@{
   /**
+   * State flags to turn on specialized treatment for ray tracing.
+   */
+  void SetEnableRayTracing(bool val);
+  vtkGetMacro(EnableRayTracing, bool);
+  void SetEnablePathTracing(bool val);
+  vtkGetMacro(EnablePathTracing, bool);
+  //@}
+
+  //@{
+  /**
    * Not for the faint hearted. This internal vtkSynchronizedRenderers instances
    * are exposed for advanced users that want to do advanced tricks with
    * rendering. These will change without notice. Do not use them unless you
@@ -193,9 +204,20 @@ protected:
   bool RenderEmptyImages;
   bool DataReplicatedOnAllProcesses;
 
+  bool EnableRayTracing;
+  bool EnablePathTracing;
+
 private:
   vtkPVSynchronizedRenderer(const vtkPVSynchronizedRenderer&) = delete;
   void operator=(const vtkPVSynchronizedRenderer&) = delete;
+
+  /**
+   * Internal method to update FixBackground flag on all synchronized renderers
+   * based on state of raytracing/pathtracing and tile-display/cave modes.
+   */
+  void UpdateFixBackgroundState();
+  bool InTileDisplayMode;
+  bool InCAVEMode;
 };
 
 #endif

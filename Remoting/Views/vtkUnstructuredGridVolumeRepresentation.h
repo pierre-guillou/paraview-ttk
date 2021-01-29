@@ -25,13 +25,13 @@
 #ifndef vtkUnstructuredGridVolumeRepresentation_h
 #define vtkUnstructuredGridVolumeRepresentation_h
 
-#include "vtkPVDataRepresentation.h"
 #include "vtkRemotingViewsModule.h" //needed for exports
+#include "vtkVolumeRepresentation.h"
 
 class vtkAbstractVolumeMapper;
 class vtkColorTransferFunction;
+class vtkDataSet;
 class vtkOutlineSource;
-class vtkPExtentTranslator;
 class vtkPiecewiseFunction;
 class vtkPolyDataMapper;
 class vtkProjectedTetrahedraMapper;
@@ -42,11 +42,11 @@ class vtkVolumeProperty;
 class vtkVolumeRepresentationPreprocessor;
 
 class VTKREMOTINGVIEWS_EXPORT vtkUnstructuredGridVolumeRepresentation
-  : public vtkPVDataRepresentation
+  : public vtkVolumeRepresentation
 {
 public:
   static vtkUnstructuredGridVolumeRepresentation* New();
-  vtkTypeMacro(vtkUnstructuredGridVolumeRepresentation, vtkPVDataRepresentation);
+  vtkTypeMacro(vtkUnstructuredGridVolumeRepresentation, vtkVolumeRepresentation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
@@ -71,13 +71,6 @@ public:
   int ProcessViewRequest(vtkInformationRequestKey* request_type, vtkInformation* inInfo,
     vtkInformation* outInfo) override;
 
-  /**
-   * Get/Set the visibility for this representation. When the visibility of
-   * representation of false, all view passes are ignored.
-   * Overridden to propagate to the active representation.
-   */
-  void SetVisibility(bool val) override;
-
   //***************************************************************************
   // Forwarded to vtkVolumeRepresentationPreprocessor
   void SetExtractedBlockIndex(unsigned int index);
@@ -89,26 +82,6 @@ public:
     this->SetSamplingDimensions(dims[0], dims[1], dims[2]);
   }
   void SetSamplingDimensions(int xdim, int ydim, int zdim);
-
-  //***************************************************************************
-  // Forwarded to Actor.
-  void SetOrientation(double, double, double);
-  void SetOrigin(double, double, double);
-  void SetPickable(int val);
-  void SetPosition(double, double, double);
-  void SetScale(double, double, double);
-
-  //***************************************************************************
-  // Forwarded to vtkVolumeProperty and vtkProperty (when applicable).
-  void SetInterpolationType(int val);
-  void SetColor(vtkColorTransferFunction* lut);
-  void SetScalarOpacity(vtkPiecewiseFunction* pwf);
-  void SetScalarOpacityUnitDistance(double val);
-
-  /**
-   * Provides access to the actor used by this representation.
-   */
-  vtkPVLODVolume* GetActor() { return this->Actor; }
 
   //@{
   /**
@@ -156,24 +129,15 @@ protected:
   int RequestDataResampleToImage(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector);
 
-  vtkVolumeRepresentationPreprocessor* Preprocessor;
-  vtkProjectedTetrahedraMapper* DefaultMapper;
-  vtkVolumeProperty* Property;
-  vtkPVLODVolume* Actor;
+  vtkNew<vtkVolumeRepresentationPreprocessor> Preprocessor;
+  vtkNew<vtkProjectedTetrahedraMapper> DefaultMapper;
 
-  vtkResampleToImage* ResampleToImageFilter;
-  unsigned long DataSize;
-  vtkPExtentTranslator* PExtentTranslator;
-  double Origin[3];
-  double Spacing[3];
-  int WholeExtent[6];
-  vtkOutlineSource* OutlineSource;
+  vtkNew<vtkResampleToImage> ResampleToImageFilter;
 
-  vtkPVGeometryFilter* LODGeometryFilter;
-  vtkPolyDataMapper* LODMapper;
-  double DataBounds[6];
+  vtkNew<vtkPVGeometryFilter> LODGeometryFilter;
+  vtkNew<vtkPolyDataMapper> LODMapper;
 
-  bool UseDataPartitions;
+  bool UseDataPartitions = false;
 
 private:
   vtkUnstructuredGridVolumeRepresentation(const vtkUnstructuredGridVolumeRepresentation&) = delete;

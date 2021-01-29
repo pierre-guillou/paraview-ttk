@@ -15,7 +15,9 @@
 #ifndef vtkType_h
 #define vtkType_h
 
-#include "vtkConfigure.h"
+#include "vtkCompiler.h" // for VTK_USE_EXTERN_TEMPLATE
+#include "vtkLegacy.h"   // For VTK_LEGACY_REMOVE
+#include "vtkOptions.h"  // for VTK_USE_64BIT_IDS and VTK_USE_64BIT_TIMESTAMPS
 #include "vtk_kwiml.h"
 
 #define VTK_SIZEOF_CHAR KWIML_ABI_SIZEOF_CHAR
@@ -60,16 +62,6 @@
 
 #define VTK_LONG_LONG 16
 #define VTK_UNSIGNED_LONG_LONG 17
-
-#if !defined(VTK_LEGACY_REMOVE)
-
-/* Legacy.  This type is never enabled.  */
-#define VTK___INT64 18
-
-/* Legacy.  This type is never enabled.  */
-#define VTK_UNSIGNED___INT64 19
-
-#endif
 
 /* These types are required by vtkVariant and vtkVariantArray */
 #define VTK_VARIANT 20
@@ -261,16 +253,11 @@ typedef signed long vtkTypeInt64;
 #error "No native data type can represent a 64-bit integer."
 #endif
 
+#if !defined(VTK_LEGACY_REMOVE)
 // Provide this define to facilitate apps that need to support older
 // versions that do not have vtkMTimeType
-// #ifndef VTK_HAS_MTIME_TYPE
-// #if VTK_SIZEOF_LONG == 8
-// typedef unsigned long vtkMTimeType;
-// #else
-// typedef vtkTypeUInt64 vtkMTimeType;
-// #endif
-// #endif
 #define VTK_HAS_MTIME_TYPE
+#endif
 
 // If this is a 64-bit platform, or the user has indicated that 64-bit
 // timestamps should be used, select an unsigned 64-bit integer type

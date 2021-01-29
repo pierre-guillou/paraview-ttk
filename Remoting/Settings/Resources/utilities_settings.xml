@@ -103,9 +103,9 @@
 
       <IntVectorProperty name="ScreenPixelsPerInch"
         number_of_elements="1"
-        default_values="96"
+        default_values="72"
         panel_visibility="advanced">
-        <IntRangeDomain name="range" min="80" />
+        <IntRangeDomain name="range" />
         <Documentation>
           Set pixels per inch on the current screen/monitor. This is used for determining
           pixel sizes for fonts and other 2D annotations.
@@ -466,6 +466,20 @@
 	  standard warning and draw only the data with positive values. Changes will take
 	  effect for all charts created after this option is changed.
         </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="EnableStreaming"
+        command="SetEnableStreaming"
+        number_of_elements="1"
+        default_values="0"
+        panel_visibility="default">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Enable streamed multipass rendering (Experimental).
+        </Documentation>
+        <Hints>
+          <RestartRequired />
+        </Hints>
       </IntVectorProperty>
 
       <PropertyGroup label="General Options">

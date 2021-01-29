@@ -68,6 +68,8 @@
 #include <array>                       // for ivar
 #include <list>                        // for ivar
 #include <map>                         // for ivar
+#include <stack>                       // for ivar
+#include <string>                      // for ivar
 
 class vtkOpenGLFramebufferObject;
 class vtkOpenGLRenderWindow;
@@ -112,9 +114,21 @@ public:
   void vtkglDrawBuffers(unsigned int n, unsigned int*);
   void vtkglReadBuffer(unsigned int);
 
+  void vtkglPointSize(float);
+  void vtkglLineWidth(float);
+  void vtkglStencilMaskSeparate(unsigned int face, unsigned int mask);
+  void vtkglStencilMask(unsigned int mask);
+  void vtkglStencilOpSeparate(
+    unsigned int face, unsigned int sfail, unsigned int dpfail, unsigned int dppass);
+  void vtkglStencilOp(unsigned int sfail, unsigned int dpfail, unsigned int dppass);
+  void vtkglStencilFuncSeparate(unsigned int face, unsigned int func, int ref, unsigned int mask);
+  void vtkglStencilFunc(unsigned int func, int ref, unsigned int mask);
+
   void vtkBindFramebuffer(unsigned int target, vtkOpenGLFramebufferObject* fo);
   void vtkDrawBuffers(unsigned int n, unsigned int*, vtkOpenGLFramebufferObject*);
   void vtkReadBuffer(unsigned int, vtkOpenGLFramebufferObject*);
+
+  void vtkglPixelStorei(unsigned int, int);
   //@}
 
   //@{
@@ -230,29 +244,29 @@ public:
   public:
     ScopedglDepthMask(vtkOpenGLState* state);
   };
-  class VTKRENDERINGOPENGL2_EXPORT ScopedglClearColor : public ScopedValue<std::array<float, 4> >
+  class VTKRENDERINGOPENGL2_EXPORT ScopedglClearColor : public ScopedValue<std::array<float, 4>>
   {
   public:
     ScopedglClearColor(vtkOpenGLState* state);
   };
   class VTKRENDERINGOPENGL2_EXPORT ScopedglColorMask
-    : public ScopedValue<std::array<unsigned char, 4> >
+    : public ScopedValue<std::array<unsigned char, 4>>
   {
   public:
     ScopedglColorMask(vtkOpenGLState* state);
   };
-  class VTKRENDERINGOPENGL2_EXPORT ScopedglScissor : public ScopedValue<std::array<int, 4> >
+  class VTKRENDERINGOPENGL2_EXPORT ScopedglScissor : public ScopedValue<std::array<int, 4>>
   {
   public:
     ScopedglScissor(vtkOpenGLState* state);
   };
-  class VTKRENDERINGOPENGL2_EXPORT ScopedglViewport : public ScopedValue<std::array<int, 4> >
+  class VTKRENDERINGOPENGL2_EXPORT ScopedglViewport : public ScopedValue<std::array<int, 4>>
   {
   public:
     ScopedglViewport(vtkOpenGLState* state);
   };
   class VTKRENDERINGOPENGL2_EXPORT ScopedglBlendFuncSeparate
-    : public ScopedValue<std::array<unsigned int, 4> >
+    : public ScopedValue<std::array<unsigned int, 4>>
   {
   public:
     ScopedglBlendFuncSeparate(vtkOpenGLState* state);
@@ -326,6 +340,56 @@ public:
   int GetDefaultTextureInternalFormat(
     int vtktype, int numComponents, bool needInteger, bool needFloat, bool needSRGB);
 
+  /**
+   * Get the current stored state of the draw buffer and binding
+   */
+  void GetCurrentDrawFramebufferState(unsigned int& drawBinding, unsigned int& drawBuffer);
+
+  /**
+   * Record the OpenGL state into this class. Lots of get calls so probably
+   * a pipeline stall. This method is most useful when integrating VTK with
+   * something else that touches OpenGL such as a GUI library or external
+   * OpenGL code. As OpenGL has a lot of state it is easy for VTK and
+   * external libraries to interfere with each other by changing that state.
+   * When extrnal code is calling VTK you would typically call Reset()
+   * Push() Pop() Reset will record the current state from OpenGL. Push
+   * saves it on the stack. Pop pops it from the stack and reapplies it to
+   * OpenGL so that the state is the same as when Pushed. Note that OpenGL
+   * has an incredible amount of state. This class only handles the values
+   * that VTK is known to touch. If you find other values that need saving
+   * please feel free to report an issue or provide an MR.
+   */
+  void Reset();
+
+  /**
+   * Push all the recorded state onto the stack. Typically called after a
+   * Reset. Not generally used internally in VTK as it is rarely required to
+   * save more than a couple state settings within VTKs render process.
+   */
+  void Push();
+
+  /**
+   *  Pop the state stack to restore a previous state. At the end of this
+   *  method OpenGL state will be set to the new popped state.
+   */
+  void Pop();
+
+  /**
+   * Return the opengl version for this context
+   */
+  std::string const& GetVersion() { return this->Version; }
+
+  /**
+   * Return the opengl vendor for this context
+   */
+  std::string const& GetVendor() { return this->Vendor; }
+
+  /**
+   * Return the opengl renderer for this context. Note this is
+   * the renderer opengl property, not a vtk renderer.
+   */
+  std::string const& GetRenderer() { return this->Renderer; }
+
 protected:
   vtkOpenGLState(); // set initial values
   ~vtkOpenGLState() override;
@@ -355,10 +419,6 @@ protected:
   {
   public:
     BufferBindingState();
-    // bool operator==(const BufferBindingState& a, const BufferBindingState& b);
-    // either this holds a vtkOpenGLFramebufferObject
-    vtkOpenGLFramebufferObject* Framebuffer;
-    // or the handle to an unknown OpenGL FO
     unsigned int Binding;
     unsigned int ReadBuffer;
     unsigned int DrawBuffers[10];
@@ -368,6 +428,14 @@ protected:
   };
   std::list<BufferBindingState> DrawBindings;
   std::list<BufferBindingState> ReadBindings;
+
+  // static opengl properties
+  int MajorVersion;
+  int MinorVersion;
+  int MaxTextureSize;
+  std::string Vendor;
+  std::string Renderer;
+  std::string Version;
 
   class VTKRENDERINGOPENGL2_EXPORT GLState
   {
@@ -379,6 +447,21 @@ protected:
     unsigned int BlendEquationValue2;
     unsigned int CullFaceMode;
     unsigned int ActiveTexture;
+
+    float PointSize;
+    float LineWidth;
+    unsigned int StencilMaskFront;
+    unsigned int StencilMaskBack;
+    std::array<unsigned int, 3> StencilFuncFront;
+    std::array<unsigned int, 3> StencilFuncBack;
+    std::array<unsigned int, 3> StencilOpFront;
+    std::array<unsigned int, 3> StencilOpBack;
+
+    int PackAlignment;
+    int UnpackAlignment;
+    int UnpackRowLength;
+    int UnpackImageHeight;
+
     std::array<float, 4> ClearColor;
     std::array<unsigned char, 4> ColorMask;
     std::array<int, 4> Viewport;
@@ -390,15 +473,16 @@ protected:
     bool StencilTest;
     bool Blend;
     bool MultiSample;
-    int MaxTextureSize;
-    int MajorVersion;
-    int MinorVersion;
+    bool CubeMapSeamless;
+    bool LineSmooth;
+    int BoundVAO;
+    int BoundProgram;
     BufferBindingState DrawBinding;
     BufferBindingState ReadBinding;
-    GLState() {}
+    GLState() = default;
   };
 
-  GLState CurrentState;
+  std::stack<GLState> Stack;
 
   vtkOpenGLVertexBufferObjectCache* VBOCache;
   vtkOpenGLShaderCache* ShaderCache;

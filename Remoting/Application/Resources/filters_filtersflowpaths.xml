@@ -1141,5 +1141,65 @@
       </Hints>
       <!-- End StreamTracer -->
     </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy name="VortexCores"
+      class="vtkVortexCore"
+      label="Vortex Cores">
+      <Documentation long_help="Compute vortex cores"
+        short_help="Compute vortex cores of a vector field">
+        Compute vortex core lines using the parallel vectors method. By default, the "Higher-Order"
+        approach of computing the parallel vector lines between the flow field's velocity and jerk
+        is disabled in favor of computing the parallel vector lines between the velocity and
+        acceleration. To further discriminate against spurious vortex cores, at each potential point
+        value the Q-criterion, delta-criterion, lambda_ci, and lambda_2-criterion are checked. The Q-criterion
+        and delta-criterion are used to prefilter cells prior to the execution of the parallel lines
+        algorithm, and all criteria values are stored as point values on the output polylines.
+      </Documentation>
+
+      <InputProperty command="SetInputConnection"
+        name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet" />
+        </DataTypeDomain>
+        <InputArrayDomain name="input_array1"
+                          number_of_components="3"
+                          optional="0" />
+        <Documentation>The input.</Documentation>
+      </InputProperty>
+
+      <StringVectorProperty name="SelectInputArray"
+       command="SetInputArrayToProcess"
+       number_of_elements="5"
+       element_types="0 0 0 0 2"
+       label="Vector Field" >
+       <ArrayListDomain name="array_list" attribute_type="Vectors"
+         input_domain_name="input_array1">
+         <RequiredProperties>
+           <Property name="Input" function="Input" />
+         </RequiredProperties>
+       </ArrayListDomain>
+       <Documentation>
+         This property indicates the name of the vector array from which to compute vortex cores.
+       </Documentation>
+     </StringVectorProperty>
+
+      <IntVectorProperty command="SetHigherOrderMethod"
+        name="UseHigherOrderMethod"
+        default_values="0"
+        number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Use the flow field's jerk instead of acceleration as the second vector field during the
+          parallel vector operation. Disabled by default.
+        </Documentation>
+      </IntVectorProperty>
+
+    </SourceProxy>
+      <!-- End VortexCores -->
   </ProxyGroup>
 </ServerManagerConfiguration>

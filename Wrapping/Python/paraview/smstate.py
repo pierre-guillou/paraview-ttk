@@ -1,6 +1,6 @@
 r"""Module for generating a Python state for ParaView.
 This module uses paraview.smtrace to generate a trace for a selected set of
-proxies my mimicking the creating of various pipeline components in sequence.
+proxies by mimicking the creation of various pipeline components in sequence.
 Typical usage of this module is as follows::
 
     from paraview import smstate
@@ -17,6 +17,9 @@ import sys
 
 if sys.version_info >= (3,):
     xrange = range
+
+RECORD_MODIFIED_PROPERTIES = sm.vtkSMTrace.RECORD_MODIFIED_PROPERTIES
+RECORD_ALL_PROPERTIES = sm.vtkSMTrace.RECORD_ALL_PROPERTIES
 
 class supported_proxies(object):
     """filter object used to hide proxies that are currently not supported by
@@ -102,11 +105,20 @@ def get_producers(proxy, filter, producer_set):
             get_producers(proxy.ScalarOpacityFunction, filter, producer_set)
     except AttributeError: pass
 
-def get_state(propertiesToTraceOnCreate=1, # sm.vtkSMTrace.RECORD_MODIFIED_PROPERTIES,
-    skipHiddenRepresentations=True, source_set=[], filter=None, raw=False):
+def get_state(options=None, source_set=[], filter=None, raw=False,
+        preamble=None, postamble=None):
     """Returns the state string"""
+    if options:
+        options = sm._getPyProxy(options)
+        propertiesToTraceOnCreate = options.PropertiesToTraceOnCreate
+        skipHiddenRepresentations = options.SkipHiddenDisplayProperties
+        skipRenderingComponents = options.SkipRenderingComponents
+    else:
+        propertiesToTraceOnCreate = RECORD_MODIFIED_PROPERTIES
+        skipHiddenRepresentations = True
+        skipRenderingComponents = False
 
-    # essential to ensure any obsolete accessor don't linger can cause havoc
+    # essential to ensure any obsolete accessors don't linger - can cause havoc
     # when saving state following a Python trace session
     # (paraview/paraview#18994)
     import gc
@@ -139,16 +151,24 @@ def get_state(propertiesToTraceOnCreate=1, # sm.vtkSMTrace.RECORD_MODIFIED_PROPE
     proxies_of_interest = producers.union(consumers)
     #print ("proxies_of_interest", proxies_of_interest)
 
-    trace_config = smtrace.start_trace()
+    trace_config = smtrace.start_trace(preamble="")
     # this ensures that lookup tables/scalar bars etc. are fully traced.
     trace_config.SetFullyTraceSupplementalProxies(True)
+    trace_config.SetSkipRenderingComponents(skipRenderingComponents)
 
     trace = smtrace.TraceOutput()
-    trace.append("# state file generated using %s" % simple.GetParaViewSourceVersion())
+    if preamble is None:
+        trace.append("# state file generated using %s" % simple.GetParaViewSourceVersion())
+    elif preamble:
+        trace.append(preamble)
+    trace.append_separated(smtrace.get_current_trace_output_and_reset(raw=True))
 
     #--------------------------------------------------------------------------
-    # First, we trace the views and layouts, if any.
-    views = [x for x in proxies_of_interest if smtrace.Trace.get_registered_name(x, "views")]
+    # We trace the views and layouts, if any.
+    if skipRenderingComponents:
+        views = []
+    else:
+        views = [x for x in proxies_of_interest if smtrace.Trace.get_registered_name(x, "views")]
 
     if views:
         # sort views by their names, so the state has some structure to it.
@@ -213,7 +233,7 @@ def get_state(propertiesToTraceOnCreate=1, # sm.vtkSMTrace.RECORD_MODIFIED_PROPE
 
     #--------------------------------------------------------------------------
     # Can't decide if the representations should be saved with the pipeline
-    # objects or afterwords, opting for afterwords for now since the topological
+    # objects or afterwards, opting for afterwards for now since the topological
     # sort doesn't guarantee that the representations will follow their sources
     # anyways.
     sorted_representations = [x for x in sorted_proxies_of_interest \
@@ -222,7 +242,7 @@ def get_state(propertiesToTraceOnCreate=1, # sm.vtkSMTrace.RECORD_MODIFIED_PROPE
         if smtrace.Trace.get_registered_name(x, "scalar_bars")]
     # print ("sorted_representations", sorted_representations)
     # print ("scalarbar_representations", scalarbar_representations)
-    if sorted_representations or scalarbar_representations:
+    if not skipRenderingComponents and (sorted_representations or scalarbar_representations):
         for view in views:
             view_representations = [x for x in view.Representations if x in sorted_representations]
             view_scalarbars = [x for x in view.Representations if x in scalarbar_representations]
@@ -285,7 +305,7 @@ def get_state(propertiesToTraceOnCreate=1, # sm.vtkSMTrace.RECORD_MODIFIED_PROPE
     # Now, trace the transfer functions (color maps and opacity maps) used.
     ctfs = set([x for x in proxies_of_interest \
         if smtrace.Trace.get_registered_name(x, "lookup_tables")])
-    if ctfs:
+    if not skipRenderingComponents and ctfs:
         trace.append_separated([\
             "# ----------------------------------------------------------------",
             "# setup color maps and opacity mapes used in the visualization",
@@ -297,14 +317,45 @@ def get_state(propertiesToTraceOnCreate=1, # sm.vtkSMTrace.RECORD_MODIFIED_PROPE
                 smtrace.Trace.get_accessor(ctf.ScalarOpacityFunction)
         trace.append_separated(smtrace.get_current_trace_output_and_reset(raw=True))
 
+    # Trace extractors.
+    exgens = set([x for x in proxies_of_interest \
+            if smtrace.Trace.get_registered_name(x, "extractors")])
+    if exgens:
+        trace.append_separated([\
+            "# ----------------------------------------------------------------",
+            "# setup extractors",
+            "# ----------------------------------------------------------------"])
+        for exgen in exgens:
+            # FIXME: this currently doesn't handle multiple output ports
+            # correctly.
+            traceitem = smtrace.CreateExtractor(\
+                    xmlname=exgen.Writer.GetXMLName(),
+                    producer=exgen.Producer,
+                    extractor=exgen,
+                    registrationName=smtrace.Trace.get_registered_name(exgen, "extractors"))
+            traceitem.finalize()
+            del traceitem
+        trace.append_separated(smtrace.get_current_trace_output_and_reset(raw=True))
+
     # restore the active source since the order in which the pipeline is created
     # in the state file can end up changing the active source to be different
     # than what it was when the state is being saved.
     trace.append_separated([\
             "# ----------------------------------------------------------------",
-            "# finally, restore active source",
+            "# restore active source",
             "SetActiveSource(%s)" % smtrace.Trace.get_accessor(simple.GetActiveSource()),
             "# ----------------------------------------------------------------"])
+
+    if postamble is None:
+        if options:
+            # add coda about extracts generation.
+            trace.append_separated(["",
+                "if __name__ == '__main__':",
+                "    # generate extracts",
+                "    SaveExtracts(ExtractsOutputDirectory='%s')" % options.ExtractsOutputDirectory])
+    elif postamble:
+        trace.append_separated(postamble)
+
     del trace_config
     smtrace.stop_trace()
     #print (trace)

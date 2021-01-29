@@ -16,7 +16,7 @@
  * @class   vtkExtractTemporalFieldData
  * @brief   Extract temporal arrays from input field data
  *
- * @deprecated in VTK 8.3. Use vtkExtractExodusGlobalTemporalVariables instead.
+ * @deprecated in VTK 9.0. Use vtkExtractExodusGlobalTemporalVariables instead.
  * The global temporal variable concept is a very Exodus specific thing and
  * hence the filter is now maybe to work closely with the exodus reader and
  * hence can better support other exodus use-cases like restart files.
@@ -27,13 +27,14 @@
 #define vtkExtractTemporalFieldData_h
 
 #include "vtkDataObjectAlgorithm.h"
+#include "vtkDeprecation.h"             // For VTK_DEPRECATED_IN_9_0_0
 #include "vtkFiltersExtractionModule.h" // For export macro
 
-#if !defined(VTK_LEGACY_REMOVE)
 class vtkDataSet;
 class vtkTable;
 class vtkDataSetAttributes;
 
+VTK_DEPRECATED_IN_9_0_0("Use vtkExtractExodusGlobalTemporalVariables instead")
 class VTKFILTERSEXTRACTION_EXPORT vtkExtractTemporalFieldData : public vtkDataObjectAlgorithm
 {
 public:
@@ -85,5 +86,4 @@ private:
   vtkInternals* Internals;
 };
 
-#endif // !defined(VTK_LEGACY_REMOVE)
 #endif

@@ -344,39 +344,35 @@ public:
   inline quaternionType operator+(const quaternionType& q) const                                   \
   {                                                                                                \
     return quaternionType(                                                                         \
-      (static_cast<vtkQuaternion<type> >(*this) + static_cast<vtkQuaternion<type> >(q))            \
-        .GetData());                                                                               \
+      (static_cast<vtkQuaternion<type>>(*this) + static_cast<vtkQuaternion<type>>(q)).GetData());  \
   }
 #define vtkQuaternionOperatorMinus(quaternionType, type)                                           \
   inline quaternionType operator-(const quaternionType& q) const                                   \
   {                                                                                                \
     return quaternionType(                                                                         \
-      (static_cast<vtkQuaternion<type> >(*this) - static_cast<vtkQuaternion<type> >(q))            \
-        .GetData());                                                                               \
+      (static_cast<vtkQuaternion<type>>(*this) - static_cast<vtkQuaternion<type>>(q)).GetData());  \
   }
 #define vtkQuaternionOperatorMultiply(quaternionType, type)                                        \
   inline quaternionType operator*(const quaternionType& q) const                                   \
   {                                                                                                \
     return quaternionType(                                                                         \
-      (static_cast<vtkQuaternion<type> >(*this) * static_cast<vtkQuaternion<type> >(q))            \
-        .GetData());                                                                               \
+      (static_cast<vtkQuaternion<type>>(*this) * static_cast<vtkQuaternion<type>>(q)).GetData());  \
   }
 #define vtkQuaternionOperatorMultiplyScalar(quaternionType, type)                                  \
   inline quaternionType operator*(const type& scalar) const                                        \
   {                                                                                                \
-    return quaternionType((static_cast<vtkQuaternion<type> >(*this) * scalar).GetData());          \
+    return quaternionType((static_cast<vtkQuaternion<type>>(*this) * scalar).GetData());           \
   }
 #define vtkQuaternionOperatorDivide(quaternionType, type)                                          \
   inline quaternionType operator/(const quaternionType& q) const                                   \
   {                                                                                                \
     return quaternionType(                                                                         \
-      (static_cast<vtkQuaternion<type> >(*this) / static_cast<vtkQuaternion<type> >(q))            \
-        .GetData());                                                                               \
+      (static_cast<vtkQuaternion<type>>(*this) / static_cast<vtkQuaternion<type>>(q)).GetData());  \
   }
 #define vtkQuaternionOperatorDivideScalar(quaternionType, type)                                    \
   inline quaternionType operator/(const type& scalar) const                                        \
   {                                                                                                \
-    return quaternionType((static_cast<vtkQuaternion<type> >(*this) / scalar).GetData());          \
+    return quaternionType((static_cast<vtkQuaternion<type>>(*this) / scalar).GetData());           \
   }
 
 #define vtkQuaternionOperatorMacro(quaternionType, type)                                           \
@@ -405,7 +401,7 @@ public:
 class vtkQuaternionf : public vtkQuaternion<float>
 {
 public:
-  vtkQuaternionf() {}
+  vtkQuaternionf() = default;
   explicit vtkQuaternionf(float w, float x, float y, float z)
     : vtkQuaternion<float>(w, x, y, z)
   {
@@ -430,7 +426,7 @@ public:
 class vtkQuaterniond : public vtkQuaternion<double>
 {
 public:
-  vtkQuaterniond() {}
+  vtkQuaterniond() = default;
   explicit vtkQuaterniond(double w, double x, double y, double z)
     : vtkQuaternion<double>(w, x, y, z)
   {

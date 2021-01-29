@@ -25,7 +25,7 @@
 
 vtkStandardNewMacro(vtkInteractorStyleDrawPolygon);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class vtkInteractorStyleDrawPolygon::vtkInternal
 {
 public:
@@ -42,7 +42,7 @@ public:
   void Clear() { this->points.clear(); }
 
   void DrawPixels(
-    const vtkVector2i& StartPos, const vtkVector2i& EndPos, unsigned char* pixels, int* size)
+    const vtkVector2i& StartPos, const vtkVector2i& EndPos, unsigned char* pixels, const int* size)
   {
     int x1 = StartPos.GetX(), x2 = EndPos.GetX();
     int y1 = StartPos.GetY(), y2 = EndPos.GetY();
@@ -73,7 +73,7 @@ public:
   }
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkInteractorStyleDrawPolygon::vtkInteractorStyleDrawPolygon()
 {
   this->Internal = new vtkInternal();
@@ -84,20 +84,20 @@ vtkInteractorStyleDrawPolygon::vtkInteractorStyleDrawPolygon()
   this->PixelArray = vtkUnsignedCharArray::New();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkInteractorStyleDrawPolygon::~vtkInteractorStyleDrawPolygon()
 {
   this->PixelArray->Delete();
   delete this->Internal;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::vector<vtkVector2i> vtkInteractorStyleDrawPolygon::GetPolygonPoints()
 {
   return this->Internal->points;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleDrawPolygon::OnMouseMove()
 {
   if (!this->Interactor || !this->Moving)
@@ -107,7 +107,7 @@ void vtkInteractorStyleDrawPolygon::OnMouseMove()
 
   this->EndPosition[0] = this->Interactor->GetEventPosition()[0];
   this->EndPosition[1] = this->Interactor->GetEventPosition()[1];
-  int* size = this->Interactor->GetRenderWindow()->GetSize();
+  const int* size = this->Interactor->GetRenderWindow()->GetSize();
   if (this->EndPosition[0] > (size[0] - 1))
   {
     this->EndPosition[0] = size[0] - 1;
@@ -137,7 +137,7 @@ void vtkInteractorStyleDrawPolygon::OnMouseMove()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleDrawPolygon::OnLeftButtonDown()
 {
   if (!this->Interactor)
@@ -155,7 +155,7 @@ void vtkInteractorStyleDrawPolygon::OnLeftButtonDown()
 
   this->PixelArray->Initialize();
   this->PixelArray->SetNumberOfComponents(3);
-  int* size = renWin->GetSize();
+  const int* size = renWin->GetSize();
   this->PixelArray->SetNumberOfTuples(size[0] * size[1]);
 
   renWin->GetPixelData(0, 0, size[0] - 1, size[1] - 1, 1, this->PixelArray);
@@ -164,7 +164,7 @@ void vtkInteractorStyleDrawPolygon::OnLeftButtonDown()
   this->InvokeEvent(vtkCommand::StartInteractionEvent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleDrawPolygon::OnLeftButtonUp()
 {
   if (!this->Interactor || !this->Moving)
@@ -174,7 +174,7 @@ void vtkInteractorStyleDrawPolygon::OnLeftButtonUp()
 
   if (this->DrawPolygonPixels)
   {
-    int* size = this->Interactor->GetRenderWindow()->GetSize();
+    const int* size = this->Interactor->GetRenderWindow()->GetSize();
     unsigned char* pixels = this->PixelArray->GetPointer(0);
     this->Interactor->GetRenderWindow()->SetPixelData(0, 0, size[0] - 1, size[1] - 1, pixels, 0);
     this->Interactor->GetRenderWindow()->Frame();
@@ -185,13 +185,13 @@ void vtkInteractorStyleDrawPolygon::OnLeftButtonUp()
   this->InvokeEvent(vtkCommand::EndInteractionEvent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleDrawPolygon::DrawPolygon()
 {
   vtkNew<vtkUnsignedCharArray> tmpPixelArray;
   tmpPixelArray->DeepCopy(this->PixelArray);
   unsigned char* pixels = tmpPixelArray->GetPointer(0);
-  int* size = this->Interactor->GetRenderWindow()->GetSize();
+  const int* size = this->Interactor->GetRenderWindow()->GetSize();
 
   // draw each line segment
   for (vtkIdType i = 0; i < this->Internal->GetNumberOfPoints() - 1; i++)
@@ -215,7 +215,7 @@ void vtkInteractorStyleDrawPolygon::DrawPolygon()
   this->Interactor->GetRenderWindow()->Frame();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleDrawPolygon::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

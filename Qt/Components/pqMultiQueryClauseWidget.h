@@ -52,7 +52,7 @@ class PQCOMPONENTS_EXPORT pqMultiQueryClauseWidget : public QWidget
   typedef QWidget Superclass;
 
 public:
-  pqMultiQueryClauseWidget(QWidget* parent = 0, Qt::WindowFlags flags = 0);
+  pqMultiQueryClauseWidget(QWidget* parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags{});
   ~pqMultiQueryClauseWidget() override = default;
 
   //@{
@@ -101,7 +101,7 @@ public:
    */
   vtkPVDataSetAttributesInformation* getChosenAttributeInfo() const;
 
-protected slots:
+protected Q_SLOTS:
   /**
    * Adds a default query clause widget.
    */

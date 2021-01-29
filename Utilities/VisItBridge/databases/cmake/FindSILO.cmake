@@ -4,7 +4,7 @@ find_path(SILO_INCLUDE_DIR
 mark_as_advanced(SILO_INCLUDE_DIR)
 
 find_library(SILO_LIBRARY
-  NAMES silo siloh5
+  NAMES silo siloh5 silohdf5
   DOC   "Path to the SILO library")
 mark_as_advanced(SILO_LIBRARY)
 

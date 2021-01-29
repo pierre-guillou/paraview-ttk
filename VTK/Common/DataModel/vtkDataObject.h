@@ -38,6 +38,7 @@
 #include "vtkObject.h"
 
 class vtkAbstractArray;
+class vtkDataArray;
 class vtkDataSetAttributes;
 class vtkFieldData;
 class vtkInformation;
@@ -285,8 +286,25 @@ public:
    * field data is stored as a vtkFieldData instance, not a
    * vtkDataSetAttributes instance. To retrieve field data, use
    * GetAttributesAsFieldData.
+   *
+   * @warning This method NEEDS to be
+   * overriden in subclasses to work as documented.
+   * If not, it returns nullptr for any type but FIELD.
    */
   virtual vtkDataSetAttributes* GetAttributes(int type);
+
+  /**
+   * Returns the ghost arrays of the data object of the specified
+   * atribute type. The type may be:
+   * <ul>
+   * <li>POINT    - Defined in vtkDataSet subclasses
+   * <li>CELL   - Defined in vtkDataSet subclasses.
+   * </ul>
+   * The other attribute types, will return nullptr since
+   * ghosts arrays are not defined for now outside of
+   * point or cell.
+   */
+  virtual vtkDataArray* GetGhostArray(int type);
 
   /**
    * Returns the attributes of the data object as a vtkFieldData.
@@ -321,15 +339,15 @@ public:
 
   /**
    * Given an integer association type, this static method returns a string type
-   * for the attribute (i.e. type = 0: returns "Points").
+   * for the attribute (i.e. associationType = 0: returns "Points").
    */
   static const char* GetAssociationTypeAsString(int associationType);
 
   /**
-   * Given an integer association type, this static method returns a string type
-   * for the attribute (i.e. type = 0: returns "Points").
+   * Given a string association name, this static method returns an integer association type
+   * for the attribute (i.e. associationName = "Points": returns 0).
    */
-  static int GetAssociationTypeFromString(const char* associationType);
+  static int GetAssociationTypeFromString(const char* associationName);
 
   // \ingroup InformationKeys
   static vtkInformationStringKey* DATA_TYPE_NAME();

@@ -86,11 +86,11 @@ int TestSmartPointer(int, char*[])
   (void)da4;
   ia->Delete();
 
-  std::vector<vtkSmartPointer<vtkIntArray> > intarrays;
+  std::vector<vtkSmartPointer<vtkIntArray>> intarrays;
   { // local scope for vtkNew object
     vtkNew<vtkIntArray> vtknew;
     vtkSmartPointer<vtkIntArray> aa(vtknew);
-    intarrays.push_back(vtknew);
+    intarrays.emplace_back(vtknew);
   }
   if (intarrays[0]->GetReferenceCount() != 1)
   {

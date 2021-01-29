@@ -67,7 +67,7 @@ public:
   static TupleType StringToTupleType(const std::string& s);
 
   /** Convert between scalar types an string */
-  static std::string ScalarTypeToString(int scalaType);
+  static std::string ScalarTypeToString(int scalarType);
   static int StringToScalarType(const std::string& s);
 
   /** Remove uniform variable named @p name */
@@ -182,8 +182,8 @@ public:
   virtual int GetUniformNumberOfTuples(const char* name) = 0;
 
 protected:
-  vtkUniforms() {}
-  ~vtkUniforms() override {}
+  vtkUniforms() = default;
+  ~vtkUniforms() override = default;
 
 private:
   vtkUniforms(const vtkUniforms&) = delete;

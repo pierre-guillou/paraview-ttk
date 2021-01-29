@@ -35,7 +35,8 @@
 #include <string>
 #include <vector>
 
-#include "vtkCGNSSubsetInclusionLattice.h"
+#include "vtkCGNSReader.h"
+#include "vtkDataArraySelection.h"
 #include "vtkIdTypeArray.h"
 #include "vtkMultiProcessController.h"
 #include "vtkNew.h"
@@ -70,6 +71,39 @@ struct is_float<float>
 {
   static const bool value = true;
 };
+}
+
+namespace detail
+{
+template <typename T>
+constexpr const char* cgns_type_name() noexcept
+{
+  return "MT";
+}
+
+template <>
+constexpr const char* cgns_type_name<float>() noexcept
+{
+  return "R4";
+}
+
+template <>
+constexpr const char* cgns_type_name<double>() noexcept
+{
+  return "R8";
+}
+
+template <>
+constexpr const char* cgns_type_name<vtkTypeInt32>() noexcept
+{
+  return "I4";
+}
+
+template <>
+constexpr const char* cgns_type_name<vtkTypeInt64>() noexcept
+{
+  return "I8";
+}
 }
 
 typedef char char_33[33];
@@ -170,11 +204,11 @@ class ZoneBCInformation
 {
 public:
   char_33 name;
-  char_33 family;
+  std::string family;
   ZoneBCInformation()
+    : family(32, '\0')
   {
     this->name[0] = '\0';
-    this->family[0] = '\0';
   }
 };
 
@@ -183,12 +217,12 @@ class ZoneInformation
 {
 public:
   char_33 name;
-  char_33 family;
+  std::string family;
   std::vector<CGNSRead::ZoneBCInformation> bcs;
   ZoneInformation()
+    : family(32, '\0')
   {
     this->name[0] = '\0';
-    this->family[0] = '\0';
   }
 };
 
@@ -196,7 +230,7 @@ public:
 class FamilyInformation
 {
 public:
-  char_33 name;
+  std::string name;
   bool isBC;
 };
 
@@ -206,12 +240,12 @@ class BaseInformation
 public:
   char_33 name;
 
-  int cellDim;
-  int physicalDim;
+  int32_t cellDim;
+  int32_t physicalDim;
   //
   int baseNumber;
 
-  std::vector<int> steps;
+  std::vector<int32_t> steps;
   std::vector<double> times;
 
   // For unsteady meshes :
@@ -248,7 +282,24 @@ public:
   vtkCGNSArraySelection CellDataArraySelection;
 };
 
-//------------------------------------------------------------------------------
+//==============================================================================
+
+//@{
+/**
+ * Helpers to encapsulate all logic to read various nodes (zones, bc patches
+ * etc.).
+ */
+bool ReadBase(vtkCGNSReader* reader, const BaseInformation& baseInfo);
+bool ReadDataForZone(
+  vtkCGNSReader* reader, const BaseInformation& baseInfo, const ZoneInformation& zoneInfo);
+bool ReadGridForZone(
+  vtkCGNSReader* reader, const BaseInformation& baseInfo, const ZoneInformation& zoneInfo);
+bool ReadPatchesForBase(vtkCGNSReader* reader, const BaseInformation&);
+bool ReadPatch(vtkCGNSReader* reader, const BaseInformation&, const ZoneInformation& zoneInfo,
+  const std::string& patchFamilyname);
+//@}
+
+//==============================================================================
 class vtkCGNSMetaData
 {
 public:
@@ -284,38 +335,18 @@ public:
   /**
    * Constructor/Destructor
    */
-  vtkCGNSMetaData();
-  ~vtkCGNSMetaData();
+  vtkCGNSMetaData() = default;
+  ~vtkCGNSMetaData() = default;
   //@}
-
-  vtkCGNSSubsetInclusionLattice* GetSIL() const { return this->SIL; }
-  void SetExternalSIL(vtkCGNSSubsetInclusionLattice* sil)
-  {
-    if (sil)
-    {
-      this->SIL = sil;
-      this->SkipSILUpdates = true;
-    }
-    else
-    {
-      this->SIL = vtkSmartPointer<vtkCGNSSubsetInclusionLattice>::New();
-      this->SkipSILUpdates = false;
-    }
-  }
 
 private:
   vtkCGNSMetaData(const vtkCGNSMetaData&) = delete;
   void operator=(const vtkCGNSMetaData&) = delete;
 
-  void UpdateSIL();
-
   std::vector<CGNSRead::BaseInformation> baseList;
   std::string LastReadFilename;
   // Not very elegant :
   std::vector<double> GlobalTime;
-
-  vtkSmartPointer<vtkCGNSSubsetInclusionLattice> SIL;
-  bool SkipSILUpdates;
 };
 
 //------------------------------------------------------------------------------
@@ -469,16 +500,18 @@ int get_XYZ_mesh(const int cgioNum, const std::vector<double>& gridChildId,
     // quick transfer of data if same data types
     if (sameType == true)
     {
-      if (cgio_read_data(cgioNum, coordId, srcStart, srcEnd, srcStride, cellDim, memEnd, memStart,
-            memEnd, memStride, (void*)currentCoord))
+      constexpr const char* dtNameT = detail::cgns_type_name<T>();
+      if (cgio_read_data_type(cgioNum, coordId, srcStart, srcEnd, srcStride, dtNameT, cellDim,
+            memEnd, memStart, memEnd, memStride, (void*)currentCoord))
       {
         char message[81];
         cgio_error_message(message);
-        std::cerr << "cgio_read_data :" << message;
+        std::cerr << "cgio_read_data_type :" << message;
       }
     }
     else
     {
+      constexpr const char* dtNameY = detail::cgns_type_name<Y>();
       Y* dataArray = 0;
       const cgsize_t memNoStride[3] = { 1, 1, 1 };
 
@@ -489,13 +522,13 @@ int get_XYZ_mesh(const int cgioNum, const std::vector<double>& gridChildId,
         std::cerr << "Error allocating buffer array\n";
         break;
       }
-      if (cgio_read_data(cgioNum, coordId, srcStart, srcEnd, srcStride, cellDim, memDims, memStart,
-            memDims, memNoStride, (void*)dataArray))
+      if (cgio_read_data_type(cgioNum, coordId, srcStart, srcEnd, srcStride, dtNameY, cellDim,
+            memDims, memStart, memDims, memNoStride, (void*)dataArray))
       {
         delete[] dataArray;
         char message[81];
         cgio_error_message(message);
-        std::cerr << "Buffer array cgio_read_data :" << message;
+        std::cerr << "Buffer array cgio_read_data_type :" << message;
         break;
       }
       for (vtkIdType ii = 0; ii < nPts; ++ii)

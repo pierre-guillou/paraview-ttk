@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPlane.h"
 #include "vtkPolyData.h"
 #include "vtkPolyhedron.h"
@@ -41,7 +44,7 @@ const char inputDataStream[] =
   "42\n";
 
 // Test of contour/clip of vtkPolyhedron. uses input from
-// https://gitlab.kitware.com/vtk/vtk/issues/15026
+// https://gitlab.kitware.com/vtk/vtk/-/issues/15026
 int TestPolyhedron3(int argc, char* argv[])
 {
   (void)argc;

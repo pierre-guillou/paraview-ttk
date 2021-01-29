@@ -16,9 +16,11 @@
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 
+#include <algorithm>
+
 vtkStandardNewMacro(vtkSphere);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Construct sphere with center at (0,0,0) and radius=0.5.
 vtkSphere::vtkSphere()
 {
@@ -29,7 +31,7 @@ vtkSphere::vtkSphere()
   this->Center[2] = 0.0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Evaluate sphere equation ((x-x0)^2 + (y-y0)^2 + (z-z0)^2) - R^2.
 double vtkSphere::EvaluateFunction(double x[3])
 {
@@ -39,7 +41,7 @@ double vtkSphere::EvaluateFunction(double x[3])
     this->Radius * this->Radius);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Evaluate sphere gradient.
 void vtkSphere::EvaluateGradient(double x[3], double n[3])
 {
@@ -56,7 +58,7 @@ void vtkSphere::EvaluateGradient(double x[3], double n[3])
     _x[1] = _y[1];                                                                                 \
     _x[2] = _y[2];                                                                                 \
   }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Inspired by Graphics Gems Vol. I ("An Efficient Bounding Sphere" by Jack Ritter).
 // The algorithm works in two parts: first an initial estimate of the largest sphere;
 // second an adjustment to the sphere to make sure that it includes all the points.
@@ -183,7 +185,7 @@ void vtkSphereComputeBoundingSphere(T* pts, vtkIdType numPts, T sphere[4], vtkId
 // grow the bounding sphere if the remaining spheres are not contained within
 // it. The hints[2] array indicates two spheres that are expected to be the
 // farthest apart.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 template <class T>
 void vtkSphereComputeBoundingSphere(
   T** spheres, vtkIdType numSpheres, T sphere[4], vtkIdType hints[2])
@@ -239,15 +241,18 @@ void vtkSphereComputeBoundingSphere(
       if ((s[2] + s[3]) > (zMax[2] + zMax[3]))
         VTK_ASSIGN_SPHERE(zMax, s);
     }
-    T xSpan = (xMax[0] + xMax[3] - xMin[0] - xMin[3]) * (xMax[0] + xMax[3] - xMin[0] - xMin[3]) +
-      (xMax[1] + xMax[3] - xMin[1] - xMin[3]) * (xMax[1] + xMax[3] - xMin[1] - xMin[3]) +
-      (xMax[2] + xMax[3] - xMin[2] - xMin[3]) * (xMax[2] + xMax[3] - xMin[2] - xMin[3]);
-    T ySpan = (yMax[0] + yMax[3] - yMin[0] - yMin[3]) * (yMax[0] + yMax[3] - yMin[0] - yMin[3]) +
-      (yMax[1] + yMax[3] - yMin[1] - yMin[3]) * (yMax[1] + yMax[3] - yMin[1] - yMin[3]) +
-      (yMax[2] + yMax[3] - yMin[2] - yMin[3]) * (yMax[2] + yMax[3] - yMin[2] - yMin[3]);
-    T zSpan = (zMax[0] + zMax[3] - zMin[0] - zMin[3]) * (zMax[0] + zMax[3] - zMin[0] - zMin[3]) +
-      (zMax[1] + zMax[3] - zMin[1] - zMin[3]) * (zMax[1] + zMax[3] - zMin[1] - zMin[3]) +
-      (zMax[2] + zMax[3] - zMin[2] - zMin[3]) * (zMax[2] + zMax[3] - zMin[2] - zMin[3]);
+    T xSpan =
+      ((xMax[0] + xMax[3]) - (xMin[0] - xMin[3])) * ((xMax[0] + xMax[3]) - (xMin[0] - xMin[3])) +
+      ((xMax[1] + xMax[3]) - (xMin[1] - xMin[3])) * ((xMax[1] + xMax[3]) - (xMin[1] - xMin[3])) +
+      ((xMax[2] + xMax[3]) - (xMin[2] - xMin[3])) * ((xMax[2] + xMax[3]) - (xMin[2] - xMin[3]));
+    T ySpan =
+      ((yMax[0] + yMax[3]) - (yMin[0] - yMin[3])) * ((yMax[0] + yMax[3]) - (yMin[0] - yMin[3])) +
+      ((yMax[1] + yMax[3]) - (yMin[1] - yMin[3])) * ((yMax[1] + yMax[3]) - (yMin[1] - yMin[3])) +
+      ((yMax[2] + yMax[3]) - (yMin[2] - yMin[3])) * ((yMax[2] + yMax[3]) - (yMin[2] - yMin[3]));
+    T zSpan =
+      ((zMax[0] + zMax[3]) - (zMin[0] - zMin[3])) * ((zMax[0] + zMax[3]) - (zMin[0] - zMin[3])) +
+      ((zMax[1] + zMax[3]) - (zMin[1] - zMin[3])) * ((zMax[1] + zMax[3]) - (zMin[1] - zMin[3])) +
+      ((zMax[2] + zMax[3]) - (zMin[2] - zMin[3])) * ((zMax[2] + zMax[3]) - (zMin[2] - zMin[3]));
 
     if (xSpan > ySpan)
     {
@@ -279,7 +284,7 @@ void vtkSphereComputeBoundingSphere(
 
   // Compute initial estimated sphere, take into account the radius of each sphere
   T tmp, v[3], r2 = vtkMath::Distance2BetweenPoints(s1, s2) / 4.0;
-  sphere[3] = sqrt(r2);
+  sphere[3] = r2 > 0.0 ? sqrt(r2) : s1[3];
   T t1 = -s1[3] / (2.0 * sphere[3]);
   T t2 = 1.0 + s2[3] / (2.0 * sphere[3]);
   for (i = 0; i < 3; ++i)
@@ -291,7 +296,15 @@ void vtkSphereComputeBoundingSphere(
     sphere[i] = (s1[i] + s2[i]) / 2.0;
   }
   r2 = vtkMath::Distance2BetweenPoints(s1, s2) / 4.0;
-  sphere[3] = sqrt(r2);
+  if (r2 > 0.0)
+  {
+    sphere[3] = sqrt(r2);
+  }
+  else
+  {
+    sphere[3] = s1[3];
+    r2 = sphere[3] * sphere[3];
+  }
 
   // Second part: Make a pass over the points to make sure that they fit inside the sphere.
   // If not, adjust the sphere to fit the point.
@@ -301,6 +314,10 @@ void vtkSphereComputeBoundingSphere(
     s = spheres[i];
     sR2 = s[3] * s[3];
     dist2 = vtkMath::Distance2BetweenPoints(s, sphere);
+    if (dist2 <= 0.0)
+    {
+      dist2 = s[3];
+    }
     if (sR2 > dist2) // approximation to avoid square roots if possible
     {
       fac = 2.0 * sR2;
@@ -322,7 +339,15 @@ void vtkSphereComputeBoundingSphere(
           sphere[j] = (s1[j] + s2[j]) / 2.0;
         }
         r2 = vtkMath::Distance2BetweenPoints(s1, s2) / 4.0;
-        sphere[3] = sqrt(r2);
+        if (r2 > 0.0)
+        {
+          sphere[3] = sqrt(r2);
+        }
+        else
+        {
+          sphere[3] = std::max(s1[3], sphere[3]);
+          r2 = sphere[3] * sphere[3];
+        }
       }
     }
   }
@@ -330,32 +355,32 @@ void vtkSphereComputeBoundingSphere(
 #undef VTK_ASSIGN_SPHERE
 
 // Type specific wrappers for the templated functions below
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSphere::ComputeBoundingSphere(
   float* pts, vtkIdType numPts, float sphere[4], vtkIdType hints[2])
 {
   vtkSphereComputeBoundingSphere(pts, numPts, sphere, hints);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSphere::ComputeBoundingSphere(
   double* pts, vtkIdType numPts, double sphere[4], vtkIdType hints[2])
 {
   vtkSphereComputeBoundingSphere(pts, numPts, sphere, hints);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSphere::ComputeBoundingSphere(
   float** spheres, vtkIdType numSpheres, float sphere[4], vtkIdType hints[2])
 {
   vtkSphereComputeBoundingSphere(spheres, numSpheres, sphere, hints);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSphere::ComputeBoundingSphere(
   double** spheres, vtkIdType numSpheres, double sphere[4], vtkIdType hints[2])
 {
   vtkSphereComputeBoundingSphere(spheres, numSpheres, sphere, hints);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSphere::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

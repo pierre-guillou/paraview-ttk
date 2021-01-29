@@ -182,6 +182,9 @@ public:
    * Returns true if all values are in all domains, false otherwise.
    * The domains will check the unchecked values (SetUncheckedXXX())
    * instead of the actual values.
+   *
+   * Domains that return `vtkSMDomain::NOT_APPLICABLE` for `vtkSMDomain::IsInDomain`
+   * are skipped.
    */
   int IsInDomains();
 
@@ -189,6 +192,9 @@ public:
    * Overload of IsInDomains() that provides a mechanism to return the first
    * domain that fails the check. \c domain is set to NULL when all domain
    * checks pass.
+   *
+   * Domains that return `vtkSMDomain::NOT_APPLICABLE` for `vtkSMDomain::IsInDomain`
+   * are skipped.
    */
   int IsInDomains(vtkSMDomain** domain);
 
@@ -424,8 +430,18 @@ public:
    * the first one returns true i.e. indicate that it can set a default value
    * and did so. Returns true if any domain can setup a default value for this
    * property. Otherwise false.
+   *
    * vtkSMVectorProperty overrides this method to add support for setting
    * default values using information_property.
+   *
+   * In symmetric MPI mode (i.e. when vtkProcessModule::GetSymmetricMPIMode() ==
+   * true), domains need not have correct values since data information is not
+   * collected by doing any reduction in parallel. To avoid setting incorrect
+   * values, or worse, different values on different ranks, this method does
+   * nothing in the case. Except for vtkSMProxyProperty. For vtkSMProxyProperty,
+   * we don't have any domain that is runtime data dependent and hence we let
+   * the property reset itself. This ensures that properties with
+   * vtkSMProxyListDomain, for example, are initialized correctly.
    */
   virtual bool ResetToDomainDefaults(bool use_unchecked_values = false);
 
@@ -721,7 +737,7 @@ private:
   vtkSMPropertyTemplateMacroCase(vtkSMDoubleVectorProperty, double, prop, call)                    \
   vtkSMPropertyTemplateMacroCase(vtkSMIntVectorProperty, int, prop, call)                          \
   vtkSMPropertyTemplateMacroCase(vtkSMIdTypeVectorProperty, vtkIdType, prop, call)                 \
-  vtkSMPropertyTemplateMacroCase(vtkSMStringVectorProperty, vtkStdString, prop, call)
+  vtkSMPropertyTemplateMacroCase(vtkSMStringVectorProperty, std::string, prop, call)
 /* clang-format on */
 
 template <class DomainType>

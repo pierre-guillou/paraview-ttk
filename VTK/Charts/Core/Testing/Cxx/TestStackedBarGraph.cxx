@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkAxis.h"
 #include "vtkChartLegend.h"
 #include "vtkChartXY.h"
@@ -65,7 +68,7 @@ static void build_array(const char* name, vtkIntArray* array, const int c_array[
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestStackedBarGraph(int, char*[])
 {
   // Set up a 2D scene, add an XY chart to it

@@ -51,8 +51,8 @@
 //==============================================================================
 
 
-#ifndef vtkm_worklet_contourtree_augmented_mesh_dem_triangulation_3d_marchingcubes_h
-#define vtkm_worklet_contourtree_augmented_mesh_dem_triangulation_3d_marchingcubes_h
+#ifndef vtk_m_worklet_contourtree_augmented_mesh_dem_triangulation_3d_marchingcubes_h
+#define vtk_m_worklet_contourtree_augmented_mesh_dem_triangulation_3d_marchingcubes_h
 
 #include <cstdlib>
 #include <vtkm/Types.h>
@@ -61,9 +61,10 @@
 #include <vtkm/cont/ExecutionObjectBase.h>
 
 #include <vtkm/worklet/contourtree_augmented/Mesh_DEM_Triangulation.h>
-#include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/MeshBoundary.h>
 #include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/MeshStructureMarchingCubes.h>
 #include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/marchingcubes_3D/Types.h>
+#include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/mesh_boundary/ComputeMeshBoundary3D.h>
+#include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/mesh_boundary/MeshBoundary3D.h>
 
 namespace vtkm
 {
@@ -73,31 +74,39 @@ namespace contourtree_augmented
 {
 
 template <typename T, typename StorageType>
-class Mesh_DEM_Triangulation_3D_MarchingCubes : public Mesh_DEM_Triangulation_3D<T, StorageType>,
-                                                public vtkm::cont::ExecutionObjectBase
+class Mesh_DEM_Triangulation_3D_MarchingCubes
+  : public Mesh_DEM_Triangulation_3D<T, StorageType>
+  , public vtkm::cont::ExecutionObjectBase
 { // class Mesh_DEM_Triangulation
 public:
   //Constants and case tables
 
-  m3d_marchingcubes::edgeBoundaryDetectionMasksType edgeBoundaryDetectionMasks;
-  m3d_marchingcubes::cubeVertexPermutationsType cubeVertexPermutations;
-  m3d_marchingcubes::linkVertexConnectionsType linkVertexConnectionsSix;
-  m3d_marchingcubes::linkVertexConnectionsType linkVertexConnectionsEighteen;
-  m3d_marchingcubes::inCubeConnectionsType inCubeConnectionsSix;
-  m3d_marchingcubes::inCubeConnectionsType inCubeConnectionsEighteen;
+  m3d_marchingcubes::EdgeBoundaryDetectionMasksType EdgeBoundaryDetectionMasks;
+  m3d_marchingcubes::CubeVertexPermutationsType CubeVertexPermutations;
+  m3d_marchingcubes::LinkVertexConnectionsType LinkVertexConnectionsSix;
+  m3d_marchingcubes::LinkVertexConnectionsType LinkVertexConnectionsEighteen;
+  m3d_marchingcubes::InCubeConnectionsType InCubeConnectionsSix;
+  m3d_marchingcubes::InCubeConnectionsType InCubeConnectionsEighteen;
 
   // mesh depended helper functions
-  void setPrepareForExecutionBehavior(bool getMax);
+  void SetPrepareForExecutionBehavior(bool getMax);
 
   template <typename DeviceTag>
-  MeshStructureMarchingCubes<DeviceTag> PrepareForExecution(DeviceTag) const;
+  MeshStructureMarchingCubes<DeviceTag> PrepareForExecution(DeviceTag,
+                                                            vtkm::cont::Token& token) const;
 
   Mesh_DEM_Triangulation_3D_MarchingCubes(vtkm::Id ncols, vtkm::Id nrows, vtkm::Id nslices);
 
   MeshBoundary3DExec GetMeshBoundaryExecutionObject() const;
 
+  void GetBoundaryVertices(IdArrayType& boundaryVertexArray,    // output
+                           IdArrayType& boundarySortIndexArray, // output
+                           MeshBoundary3DExec* meshBoundaryExecObj =
+                             NULL // optional input, included for consistency with ContourTreeMesh
+  ) const;
+
 private:
-  bool useGetMax; // Define the behavior ofr the PrepareForExecution function
+  bool UseGetMax; // Define the behavior ofr the PrepareForExecution function
 };                // class Mesh_DEM_Triangulation
 
 // creates input mesh
@@ -110,71 +119,101 @@ Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::Mesh_DEM_Triangulation_
 
 {
   // Initialize the case tables in vtkm
-  edgeBoundaryDetectionMasks = vtkm::cont::make_ArrayHandle(
-    m3d_marchingcubes::edgeBoundaryDetectionMasks, m3d_marchingcubes::N_ALL_NEIGHBOURS);
-  cubeVertexPermutations = vtkm::cont::make_ArrayHandleGroupVec<
+  this->EdgeBoundaryDetectionMasks =
+    vtkm::cont::make_ArrayHandle(m3d_marchingcubes::EdgeBoundaryDetectionMasks,
+                                 m3d_marchingcubes::N_ALL_NEIGHBOURS,
+                                 vtkm::CopyFlag::Off);
+  this->CubeVertexPermutations = vtkm::cont::make_ArrayHandleGroupVec<
     m3d_marchingcubes::
-      cubeVertexPermutations_PermVecLength>( // create 2D array of vectors of lenghts ...PermVecLength
+      CubeVertexPermutations_PermVecLength>( // create 2D array of vectors of lenghts ...PermVecLength
     vtkm::cont::make_ArrayHandle(
-      m3d_marchingcubes::cubeVertexPermutations, // the array to convert
-      m3d_marchingcubes::cubeVertexPermutations_NumPermutations *
-        m3d_marchingcubes::cubeVertexPermutations_PermVecLength // total number of elements
-      ));
-  linkVertexConnectionsSix = vtkm::cont::make_ArrayHandleGroupVec<
+      m3d_marchingcubes::CubeVertexPermutations, // the array to convert
+      m3d_marchingcubes::CubeVertexPermutations_NumPermutations *
+        m3d_marchingcubes::CubeVertexPermutations_PermVecLength, // total number of elements
+      vtkm::CopyFlag::Off));
+  this->LinkVertexConnectionsSix = vtkm::cont::make_ArrayHandleGroupVec<
     m3d_marchingcubes::
-      vertexConnections_VecLength>( // create 2D array of vectors o lenght ...VecLength
+      VertexConnections_VecLength>( // create 2D array of vectors o lenght ...VecLength
     vtkm::cont::make_ArrayHandle(
-      m3d_marchingcubes::linkVertexConnectionsSix, // the array to convert
-      m3d_marchingcubes::linkVertexConnectionsSix_NumPairs *
-        m3d_marchingcubes::vertexConnections_VecLength // total number of elements
-      ));
-  linkVertexConnectionsEighteen = vtkm::cont::make_ArrayHandleGroupVec<
+      m3d_marchingcubes::LinkVertexConnectionsSix, // the array to convert
+      m3d_marchingcubes::LinkVertexConnectionsSix_NumPairs *
+        m3d_marchingcubes::VertexConnections_VecLength, // total number of elements
+      vtkm::CopyFlag::Off));
+  this->LinkVertexConnectionsEighteen = vtkm::cont::make_ArrayHandleGroupVec<
     m3d_marchingcubes::
-      vertexConnections_VecLength>( // create 2D array of vectors o lenght ...VecLength
+      VertexConnections_VecLength>( // create 2D array of vectors o lenght ...VecLength
     vtkm::cont::make_ArrayHandle(
-      m3d_marchingcubes::linkVertexConnectionsEighteen, // the array to convert
-      m3d_marchingcubes::linkVertexConnectionsEighteen_NumPairs *
-        m3d_marchingcubes::vertexConnections_VecLength // total number of elements
-      ));
-  inCubeConnectionsSix = vtkm::cont::make_ArrayHandle(
-    m3d_marchingcubes::inCubeConnectionsSix, m3d_marchingcubes::inCubeConnectionsSix_NumElements);
-  inCubeConnectionsEighteen =
-    vtkm::cont::make_ArrayHandle(m3d_marchingcubes::inCubeConnectionsEighteen,
-                                 m3d_marchingcubes::inCubeConnectionsEighteen_NumElements);
+      m3d_marchingcubes::LinkVertexConnectionsEighteen, // the array to convert
+      m3d_marchingcubes::LinkVertexConnectionsEighteen_NumPairs *
+        m3d_marchingcubes::VertexConnections_VecLength, // total number of elements
+      vtkm::CopyFlag::Off));
+  this->InCubeConnectionsSix =
+    vtkm::cont::make_ArrayHandle(m3d_marchingcubes::InCubeConnectionsSix,
+                                 m3d_marchingcubes::InCubeConnectionsSix_NumElements,
+                                 vtkm::CopyFlag::Off);
+  this->InCubeConnectionsEighteen =
+    vtkm::cont::make_ArrayHandle(m3d_marchingcubes::InCubeConnectionsEighteen,
+                                 m3d_marchingcubes::InCubeConnectionsEighteen_NumElements,
+                                 vtkm::CopyFlag::Off);
 }
 
 template <typename T, typename StorageType>
-void Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::setPrepareForExecutionBehavior(
+void Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::SetPrepareForExecutionBehavior(
   bool getMax)
 {
-  this->useGetMax = getMax;
+  this->UseGetMax = getMax;
 }
 
 // Get VTKM execution object that represents the structure of the mesh and provides the mesh helper functions on the device
 template <typename T, typename StorageType>
 template <typename DeviceTag>
 MeshStructureMarchingCubes<DeviceTag>
-  Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::PrepareForExecution(DeviceTag) const
+Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::PrepareForExecution(
+  DeviceTag,
+  vtkm::cont::Token& token) const
 {
-  return MeshStructureMarchingCubes<DeviceTag>(this->nCols,
-                                               this->nRows,
-                                               this->nSlices,
-                                               this->useGetMax,
-                                               this->sortIndices,
-                                               this->sortOrder,
-                                               edgeBoundaryDetectionMasks,
-                                               cubeVertexPermutations,
-                                               linkVertexConnectionsSix,
-                                               linkVertexConnectionsEighteen,
-                                               inCubeConnectionsSix,
-                                               inCubeConnectionsEighteen);
+  return MeshStructureMarchingCubes<DeviceTag>(this->NumColumns,
+                                               this->NumRows,
+                                               this->NumSlices,
+                                               this->UseGetMax,
+                                               this->SortIndices,
+                                               this->SortOrder,
+                                               this->EdgeBoundaryDetectionMasks,
+                                               this->CubeVertexPermutations,
+                                               this->LinkVertexConnectionsSix,
+                                               this->LinkVertexConnectionsEighteen,
+                                               this->InCubeConnectionsSix,
+                                               this->InCubeConnectionsEighteen,
+                                               token);
 }
 
 template <typename T, typename StorageType>
 MeshBoundary3DExec
 Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::GetMeshBoundaryExecutionObject() const
 {
-  return MeshBoundary3DExec(this->nCols, this->nRows, this->nSlices, this->sortOrder);
+  return MeshBoundary3DExec(this->NumColumns, this->NumRows, this->NumSlices, this->SortOrder);
+}
+
+template <typename T, typename StorageType>
+void Mesh_DEM_Triangulation_3D_MarchingCubes<T, StorageType>::GetBoundaryVertices(
+  IdArrayType& boundaryVertexArray,       // output
+  IdArrayType& boundarySortIndexArray,    // output
+  MeshBoundary3DExec* meshBoundaryExecObj // input
+) const
+{
+  vtkm::Id numBoundary = 2 * this->NumRows * this->NumColumns // xy faces
+    + 2 * this->NumRows * (this->NumSlices - 2)               // yz faces - excluding vertices on xy
+    + 2 * (this->NumColumns - 2) * (this->NumSlices - 2);     // xz face interiors
+  auto boundaryId = vtkm::cont::ArrayHandleIndex(numBoundary);
+  ComputeMeshBoundary3D computeMeshBoundary3dWorklet;
+  this->Invoke(computeMeshBoundary3dWorklet,
+               boundaryId,        // input
+               this->SortIndices, // input
+               (meshBoundaryExecObj == NULL) ? this->GetMeshBoundaryExecutionObject()
+                                             : *meshBoundaryExecObj, // input
+               boundaryVertexArray,                                  // output
+               boundarySortIndexArray                                // output
+  );
 }
 
 } // namespace contourtree_augmented

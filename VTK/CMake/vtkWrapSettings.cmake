@@ -1,8 +1,12 @@
 # Configure files with settings for use by the build.
+option(VTK_ENABLE_WRAPPING "Whether wrapping is available or not" ON)
+mark_as_advanced(VTK_ENABLE_WRAPPING)
 
 # Add the option for build the Python wrapping to VTK.
-option(VTK_WRAP_PYTHON "Should VTK Python wrapping be built?" OFF)
-set(VTK_PYTHON_VERSION 2 CACHE STRING
+include(CMakeDependentOption)
+cmake_dependent_option(VTK_WRAP_PYTHON "Should VTK Python wrapping be built?" OFF
+  "VTK_ENABLE_WRAPPING" OFF)
+set(VTK_PYTHON_VERSION 3 CACHE STRING
   "Python version to use")
 set_property(CACHE VTK_PYTHON_VERSION
   PROPERTY
@@ -15,6 +19,9 @@ if(VTK_WRAP_HINTS AND NOT EXISTS ${VTK_WRAP_HINTS})
 endif()
 
 if(BUILD_TESTING OR VTK_WRAP_PYTHON)
+  # VTK only supports a single Python version at a time, so make artifact
+  # finding interactive.
+  set("Python${VTK_PYTHON_VERSION}_ARTIFACTS_INTERACTIVE" ON)
   # Need PYTHON_EXECUTABLE for HeaderTesting or python wrapping
   find_package("Python${VTK_PYTHON_VERSION}" QUIET COMPONENTS Interpreter)
 endif()
@@ -24,11 +31,11 @@ if(VTK_WRAP_PYTHON)
   set(VTK_WRAP_PYTHON_INIT_EXE VTK::WrapPythonInit)
 endif()
 
-include(CMakeDependentOption)
 cmake_dependent_option(VTK_USE_TK "Build VTK with Tk support" OFF
   "VTK_WRAP_PYTHON" OFF)
 
-option(VTK_WRAP_JAVA "Should VTK Java wrapping be built?" OFF)
+cmake_dependent_option(VTK_WRAP_JAVA "Should VTK Java wrapping be built?" OFF
+  "VTK_ENABLE_WRAPPING;NOT CMAKE_VERSION VERSION_LESS \"3.12\"" OFF)
 if(VTK_WRAP_JAVA)
   set(VTK_WRAP_JAVA3_INIT_DIR "${VTK_SOURCE_DIR}/Wrapping/Java")
   # Wrapping executables.

@@ -5,11 +5,12 @@
 #include <vtkCPDataDescription.h>
 #include <vtkCPInputDataDescription.h>
 #include <vtkCPProcessor.h>
-#include <vtkCPPythonScriptPipeline.h>
+#include <vtkCPPythonPipeline.h>
 #include <vtkCellData.h>
 #include <vtkCellType.h>
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
+#include <vtkLogger.h>
 #include <vtkNew.h>
 #include <vtkPointData.h>
 #include <vtkPoints.h>
@@ -33,7 +34,7 @@ void BuildVTKGrid(Grid& grid)
   vtkNew<vtkPoints> points;
   points->SetData(pointArray);
   pointArray->Delete();
-  VTKGrid->SetPoints(points.GetPointer());
+  VTKGrid->SetPoints(points);
 
   // create the cells
   size_t numCells = grid.GetNumberOfCells();
@@ -73,7 +74,7 @@ void UpdateVTKAttributes(Grid& grid, Attributes& attributes, vtkCPInputDataDescr
       vtkNew<vtkFloatArray> pressure;
       pressure->SetName("pressure");
       pressure->SetNumberOfComponents(1);
-      VTKGrid->GetCellData()->AddArray(pressure.GetPointer());
+      VTKGrid->GetCellData()->AddArray(pressure);
     }
     vtkFloatArray* pressure =
       vtkFloatArray::SafeDownCast(VTKGrid->GetCellData()->GetArray("pressure"));
@@ -114,9 +115,14 @@ void Initialize(int numScripts, char* scripts[])
   }
   for (int i = 0; i < numScripts; i++)
   {
-    vtkNew<vtkCPPythonScriptPipeline> pipeline;
-    pipeline->Initialize(scripts[i]);
-    Processor->AddPipeline(pipeline.GetPointer());
+    if (auto pipeline = vtkCPPythonPipeline::CreateAndInitializePipeline(scripts[i]))
+    {
+      Processor->AddPipeline(pipeline);
+    }
+    else
+    {
+      vtkLogF(ERROR, "failed to setup pipeline for '%s'", scripts[i]);
+    }
   }
 }
 
@@ -146,12 +152,12 @@ void CoProcess(
     // is the last time step.
     dataDescription->ForceOutputOn();
   }
-  if (Processor->RequestDataDescription(dataDescription.GetPointer()) != 0)
+  if (Processor->RequestDataDescription(dataDescription) != 0)
   {
     vtkCPInputDataDescription* idd = dataDescription->GetInputDescriptionByName("input");
     BuildVTKDataStructures(grid, attributes, idd);
     idd->SetGrid(VTKGrid);
-    Processor->CoProcess(dataDescription.GetPointer());
+    Processor->CoProcess(dataDescription);
   }
 }
 } // end of Catalyst namespace

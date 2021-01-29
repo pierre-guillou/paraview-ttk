@@ -49,6 +49,7 @@
 #define VTK_HAS_INITIALIZE_OBJECT_BASE
 
 #include "vtkCommonCoreModule.h" // For export macro
+#include "vtkFeatures.h"         // for VTK_USE_MEMKIND
 #include "vtkIndent.h"
 #include "vtkSystemIncludes.h"
 #include "vtkType.h"
@@ -59,6 +60,11 @@ class vtkGarbageCollector;
 class vtkGarbageCollectorToObjectBaseFriendship;
 class vtkWeakPointerBase;
 class vtkWeakPointerBaseToObjectBaseFriendship;
+
+// typedefs for malloc and free compatible replacement functions
+typedef void* (*vtkMallocingFunction)(size_t);
+typedef void* (*vtkReallocingFunction)(void*, size_t);
+typedef void (*vtkFreeingFunction)(void*);
 
 class VTKCOMMONCORE_EXPORT vtkObjectBase
 {
@@ -71,7 +77,7 @@ class VTKCOMMONCORE_EXPORT vtkObjectBase
 
 public:
 #ifdef VTK_WORKAROUND_WINDOWS_MANGLE
-  // Avoid windows name mangling.
+// Avoid windows name mangling.
 #define GetClassNameA GetClassName
 #define GetClassNameW GetClassName
 #endif
@@ -106,6 +112,26 @@ public:
   virtual vtkTypeBool IsA(const char* name);
 
   /**
+   * Given a the name of a base class of this class type, return the distance
+   * of inheritance between this class type and the named class (how many
+   * generations of inheritance are there between this class and the named
+   * class). If the named class is not in this class's inheritance tree, return
+   * a negative value. Valid responses will always be nonnegative. This method
+   * works in combination with vtkTypeMacro found in vtkSetGet.h.
+   */
+  static vtkIdType GetNumberOfGenerationsFromBaseType(const char* name);
+
+  /**
+   * Given the name of a base class of this class type, return the distance
+   * of inheritance between this class type and the named class (how many
+   * generations of inheritance are there between this class and the named
+   * class). If the named class is not in this class's inheritance tree, return
+   * a negative value. Valid responses will always be nonnegative. This method
+   * works in combination with vtkTypeMacro found in vtkSetGet.h.
+   */
+  virtual vtkIdType GetNumberOfGenerationsFromBase(const char* name);
+
+  /**
    * Delete a VTK object.  This method should always be used to delete
    * an object when the New() method was used to create it. Using the
    * C++ delete method will not work with reference counting.
@@ -136,8 +162,8 @@ public:
   // vtkDebugLeaks registration:
   void InitializeObjectBase();
 
-#ifdef _WIN32
-  // avoid dll boundary problems
+#if defined(_WIN32) || defined(VTK_USE_MEMKIND)
+  // Take control of allocation to avoid dll boundary problems or to use memkind.
   void* operator new(size_t tSize);
   void operator delete(void* p);
 #endif
@@ -183,19 +209,46 @@ public:
   void SetReferenceCount(int);
 
   /**
-   * Legacy.  Do not call.
+   * The name of a directory, ideally mounted -o dax, to memory map an
+   * extended memory space within.
+   * This must be called before any objects are constructed in the extended space.
+   * It can not be changed once setup.
    */
-#ifndef VTK_LEGACY_REMOVE
-  void PrintRevisions(ostream&) {}
-#endif
+  static void SetMemkindDirectory(const char* directoryname);
+
+  //@{
+  /**
+   * A global state flag that controls whether vtkObjects are
+   * constructed in the usual way (the default) or within the extended
+   * memory space.
+   */
+  static bool GetUsingMemkind();
+  //@}
+
+  /**
+   * A class to help modify and restore the global UsingMemkind state, like
+   * SetUsingMemkind(newValue), but safer. Declare it on the stack in a function where you want to
+   * make a temporary change. When the function returns it will restore the original value.
+   */
+  class VTKCOMMONCORE_EXPORT vtkMemkindRAII
+  {
+    bool OriginalValue;
+
+  public:
+    vtkMemkindRAII(bool newValue);
+    ~vtkMemkindRAII();
+    vtkMemkindRAII(vtkMemkindRAII const&) = default;
+  };
+
+  /**
+   * A local state flag that remembers whether this object lives in
+   * the normal or extended memory space.
+   */
+  bool GetIsInMemkind() const;
 
 protected:
   vtkObjectBase();
   virtual ~vtkObjectBase();
-
-#ifndef VTK_LEGACY_REMOVE
-  virtual void CollectRevisions(ostream&) {} // Legacy; do not use!
-#endif
 
   std::atomic<int32_t> ReferenceCount;
   vtkWeakPointerBase** WeakPointers;
@@ -209,16 +262,30 @@ protected:
   // See vtkGarbageCollector.h:
   virtual void ReportReferences(vtkGarbageCollector*);
 
+  // Call this to call from either malloc or memkind_malloc depending on current UsingMemkind
+  static vtkMallocingFunction GetCurrentMallocFunction();
+  // Call this to call from either realloc or memkind_realloc depending on current UsingMemkind
+  static vtkReallocingFunction GetCurrentReallocFunction();
+  // Call this to call from either free or memkind_free depending on instance's IsInMemkind
+  static vtkFreeingFunction GetCurrentFreeFunction();
+  // Call this to unconditionally call memkind_free
+  static vtkFreeingFunction GetAlternateFreeFunction();
+
 private:
   friend VTKCOMMONCORE_EXPORT ostream& operator<<(ostream& os, vtkObjectBase& o);
   friend class vtkGarbageCollectorToObjectBaseFriendship;
   friend class vtkWeakPointerBaseToObjectBaseFriendship;
 
+  friend class vtkMemkindRAII;
+  friend class vtkTDSCMemkindRAII;
+  static void SetUsingMemkind(bool);
+  bool IsInMemkind;
+  void SetIsInMemkind(bool);
+
 protected:
   vtkObjectBase(const vtkObjectBase&) {}
   void operator=(const vtkObjectBase&) {}
 };
-
 #endif
 
 // VTK-HeaderTest-Exclude: vtkObjectBase.h

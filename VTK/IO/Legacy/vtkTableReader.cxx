@@ -29,31 +29,31 @@ vtkStandardNewMacro(vtkTableReader);
 #undef read
 #endif
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTableReader::vtkTableReader() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTableReader::~vtkTableReader() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTable* vtkTableReader::GetOutput()
 {
   return this->GetOutput(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTable* vtkTableReader::GetOutput(int idx)
 {
   return vtkTable::SafeDownCast(this->GetOutputDataObject(idx));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTableReader::SetOutput(vtkTable* output)
 {
   this->GetExecutive()->SetOutputData(0, output);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTableReader::ReadMeshSimple(const std::string& fname, vtkDataObject* doOutput)
 {
   vtkDebugMacro(<< "Reading vtk table...");
@@ -72,7 +72,7 @@ int vtkTableReader::ReadMeshSimple(const std::string& fname, vtkDataObject* doOu
     return 1;
   }
 
-  if (strncmp(this->LowerCase(line), "dataset", (unsigned long)7))
+  if (strncmp(this->LowerCase(line), "dataset", 7) != 0)
   {
     vtkErrorMacro(<< "Unrecognized keyword: " << line);
     this->CloseVTKFile();
@@ -86,7 +86,7 @@ int vtkTableReader::ReadMeshSimple(const std::string& fname, vtkDataObject* doOu
     return 1;
   }
 
-  if (strncmp(this->LowerCase(line), "table", 5))
+  if (strncmp(this->LowerCase(line), "table", 5) != 0)
   {
     vtkErrorMacro(<< "Cannot read dataset type: " << line);
     this->CloseVTKFile();
@@ -135,14 +135,14 @@ int vtkTableReader::ReadMeshSimple(const std::string& fname, vtkDataObject* doOu
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTableReader::FillOutputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkTable");
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTableReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

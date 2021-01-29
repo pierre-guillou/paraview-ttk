@@ -396,10 +396,10 @@ pqFileDialog::pqFileDialog(pqServer* server, QWidget* p, const QString& title,
   // This code is similar to QFileDialog code
   // It positions different columns and orders in a standard way
   QFontMetrics fm(this->font());
-  header->resizeSection(0, fm.width(QLatin1String("wwwwwwwwwwwwwwwwwwwwwwwwww")));
-  header->resizeSection(1, fm.width(QLatin1String("mp3Folder")));
-  header->resizeSection(2, fm.width(QLatin1String("128.88 GB")));
-  header->resizeSection(3, fm.width(QLatin1String("10/29/81 02:02PM")));
+  header->resizeSection(0, fm.horizontalAdvance(QLatin1String("wwwwwwwwwwwwwwwwwwwwwwwwww")));
+  header->resizeSection(1, fm.horizontalAdvance(QLatin1String("mp3Folder")));
+  header->resizeSection(2, fm.horizontalAdvance(QLatin1String("128.88 GB")));
+  header->resizeSection(3, fm.horizontalAdvance(QLatin1String("10/29/81 02:02PM")));
   impl.Ui.Files->setSortingEnabled(true);
   impl.Ui.Files->header()->setSortIndicator(0, Qt::AscendingOrder);
 
@@ -582,10 +582,10 @@ void pqFileDialog::addToFilesSelected(const QStringList& files)
 void pqFileDialog::emitFilesSelectionDone()
 {
   auto& impl = *this->Implementation;
-  emit filesSelected(impl.SelectedFiles);
+  Q_EMIT filesSelected(impl.SelectedFiles);
   if (impl.Mode != this->ExistingFiles && impl.SelectedFiles.size() > 0)
   {
-    emit filesSelected(impl.SelectedFiles[0]);
+    Q_EMIT filesSelected(impl.SelectedFiles[0]);
   }
   this->done(QDialog::Accepted);
 }
@@ -628,7 +628,7 @@ void pqFileDialog::accept()
   }
   if (loadedFile)
   {
-    emit this->emitFilesSelectionDone();
+    Q_EMIT this->emitFilesSelectionDone();
   }
 }
 
@@ -650,7 +650,7 @@ bool pqFileDialog::acceptExistingFiles()
     filename = filename.trimmed();
 
     QString fullFilePath = impl.Model->absoluteFilePath(filename);
-    emit this->fileAccepted(fullFilePath);
+    Q_EMIT this->fileAccepted(fullFilePath);
     loadedFiles = (this->acceptInternal(this->buildFileGroup(filename)) || loadedFiles);
   }
   return loadedFiles;
@@ -665,7 +665,7 @@ bool pqFileDialog::acceptDefault(const bool& checkForGrouping)
   filename = filename.trimmed();
 
   QString fullFilePath = impl.Model->absoluteFilePath(filename);
-  emit this->fileAccepted(fullFilePath);
+  Q_EMIT this->fileAccepted(fullFilePath);
 
   QStringList files;
   if (checkForGrouping)
@@ -854,7 +854,7 @@ void pqFileDialog::onFilterChange(const QString& filter)
   impl.FileFilter.setFilter(filter);
 
   // update view
-  impl.FileFilter.clear();
+  impl.FileFilter.invalidate();
 }
 
 //-----------------------------------------------------------------------------

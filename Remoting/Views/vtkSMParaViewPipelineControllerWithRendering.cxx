@@ -22,9 +22,11 @@
 #include "vtkPVDataInformation.h"
 #include "vtkPVXMLElement.h"
 #include "vtkProcessModule.h"
+#include "vtkSMDomain.h"
 #include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
+#include "vtkSMProxyManager.h"
 #include "vtkSMProxyProperty.h"
 #include "vtkSMProxySelectionModel.h"
 #include "vtkSMSessionProxyManager.h"
@@ -47,6 +49,21 @@
 
 namespace
 {
+template <typename T>
+class vtkScopedSet
+{
+  T& Ref;
+  const T OldVal;
+
+public:
+  vtkScopedSet(T& var, const T val)
+    : Ref(var)
+    , OldVal(var)
+  {
+    var = val;
+  }
+  ~vtkScopedSet() { this->Ref = this->OldVal; }
+};
 //---------------------------------------------------------------------------
 vtkPVXMLElement* vtkFindChildFromHints(vtkPVXMLElement* hints, const int outputPort,
   const char* xmlTag, const char* xmlAttributeName = nullptr,
@@ -196,7 +213,32 @@ void vtkInheritRepresentationProperties(vtkSMRepresentationProxy* repr, vtkSMSou
     }
     auto destVP = vtkSMVectorProperty::SafeDownCast(dest);
     auto sourceVP = vtkSMVectorProperty::SafeDownCast(source);
-    if (dest && source &&
+
+    // If we have a "Representation" property, check that the destination supports
+    // the representation type that is being copied over (#20274)
+    bool isInDomain = false;
+    if (dest && dest->GetNumberOfDomains() > 0)
+    {
+      vtkSMDomainIterator* destDomainIter = dest->NewDomainIterator();
+      destDomainIter->SetProperty(dest);
+      for (destDomainIter->Begin(); !destDomainIter->IsAtEnd(); destDomainIter->Next())
+      {
+        auto domain = destDomainIter->GetDomain();
+        if (domain->IsInDomain(source) == vtkSMDomain::IN_DOMAIN)
+        {
+          isInDomain = true;
+          break;
+        }
+      }
+      destDomainIter->Delete();
+    }
+    else
+    {
+      // No domains - anything goes
+      isInDomain = true;
+    }
+
+    if (dest && source && isInDomain &&
       // the property wasn't modified since initialization or if it is
       // "Representation" property -- (HACK)
       (dest->GetMTime() < initTimeStamp || strcmp("Representation", pname) == 0) &&
@@ -248,6 +290,7 @@ vtkObjectFactoryNewMacro(vtkSMParaViewPipelineControllerWithRendering);
 //----------------------------------------------------------------------------
 vtkSMParaViewPipelineControllerWithRendering::vtkSMParaViewPipelineControllerWithRendering()
 {
+  this->SkipUpdatePipelineBeforeDisplay = false;
 }
 
 //----------------------------------------------------------------------------
@@ -381,8 +424,13 @@ vtkSMProxy* vtkSMParaViewPipelineControllerWithRendering::Show(
     return repr;
   }
 
-  // update pipeline to create correct representation type.
-  this->UpdatePipelineBeforeDisplay(producer, outputPort, view);
+  // `Show` gets called in `ShowInPreferredView` and then we end up calling
+  // UpdatePipeline twice. Let's avoid that.
+  if (this->SkipUpdatePipelineBeforeDisplay == false)
+  {
+    // update pipeline to create correct representation type.
+    this->UpdatePipelineBeforeDisplay(producer, outputPort, view);
+  }
 
   vtkSMRepresentationProxy* repr = nullptr;
 
@@ -590,6 +638,7 @@ vtkSMViewProxy* vtkSMParaViewPipelineControllerWithRendering::ShowInPreferredVie
     return nullptr;
   }
 
+  vtkScopedSet<bool> scoped_setter(this->SkipUpdatePipelineBeforeDisplay, true);
   this->UpdatePipelineBeforeDisplay(producer, outputPort, view);
 
   vtkSMSessionProxyManager* pxm = producer->GetSessionProxyManager();
@@ -736,7 +785,16 @@ void vtkSMParaViewPipelineControllerWithRendering::UpdatePipelineBeforeDisplay(
   double time = view
     ? vtkSMPropertyHelper(view, "ViewTime").GetAsDouble()
     : vtkSMPropertyHelper(this->FindTimeKeeper(producer->GetSession()), "Time").GetAsDouble();
-  producer->UpdatePipeline(time);
+
+  if (vtkSMTrace::GetActiveTracer() && vtkSMTrace::GetActiveTracer()->GetSkipRenderingComponents())
+  {
+    SM_SCOPED_TRACE(CallFunction).arg("UpdatePipeline").arg("time", time).arg("proxy", producer);
+    producer->UpdatePipeline(time);
+  }
+  else
+  {
+    producer->UpdatePipeline(time);
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -749,9 +807,20 @@ bool vtkSMParaViewPipelineControllerWithRendering::RegisterLayoutProxy(
   }
 
   SM_SCOPED_TRACE(RegisterLayoutProxy).arg("layout", proxy);
-
   vtkSMSessionProxyManager* pxm = proxy->GetSessionProxyManager();
-  pxm->RegisterProxy("layouts", proxyname, proxy);
+
+  std::string pname;
+  if (proxyname == nullptr)
+  {
+    // get a unique name across all sessions (for multi-server sessions).
+    vtkSMProxyManager* gpxm = vtkSMProxyManager::GetProxyManager();
+    pname = gpxm->GetUniqueProxyName("layouts", "Layout #", /*alwaysAppend=*/true);
+  }
+  else
+  {
+    pname = proxyname;
+  }
+  pxm->RegisterProxy("layouts", pname.c_str(), proxy);
   return true;
 }
 

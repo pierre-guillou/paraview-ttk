@@ -207,7 +207,8 @@ public:
   bool PostInitializeProxy(vtkSMProxy* proxy) override;
 
   /**
-   * Register layout proxy.
+   * Register layout proxy. If `proxyname` is nullptr, a new name will be
+   * assigned.
    */
   virtual bool RegisterLayoutProxy(vtkSMProxy* proxy, const char* proxyname = NULL);
 
@@ -249,6 +250,7 @@ private:
   void operator=(const vtkSMParaViewPipelineControllerWithRendering&) = delete;
   static bool HideScalarBarOnHide;
   static bool InheritRepresentationProperties;
+  bool SkipUpdatePipelineBeforeDisplay;
 };
 
 #endif

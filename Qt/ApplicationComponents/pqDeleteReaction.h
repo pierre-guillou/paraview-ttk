@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqReaction.h"
 
 class pqPipelineSource;
+class pqProxy;
 
 /**
 * @ingroup Reactions
@@ -64,9 +65,9 @@ public:
   * modified to remove all deleted sources. Any undeleted sources will remain
   * in the set.
   */
-  static void deleteSources(QSet<pqPipelineSource*>& sources);
+  static void deleteSources(const QSet<pqProxy*>& sources);
 
-public slots:
+public Q_SLOTS:
   /**
   * Updates the enabled state. Applications need not explicitly call
   * this.
@@ -76,7 +77,7 @@ public slots:
   /**
   * Request deletion of a particular source.
   */
-  void deleteSource(pqPipelineSource* source);
+  void deleteSource(pqProxy* source);
 
 protected:
   /**
@@ -92,7 +93,7 @@ private:
   * Method called just before deleting a source.
   * Updates to the UI before deletion are done here.
   */
-  static void aboutToDelete(pqPipelineSource* source);
+  static void aboutToDelete(pqProxy* source);
 };
 
 #endif

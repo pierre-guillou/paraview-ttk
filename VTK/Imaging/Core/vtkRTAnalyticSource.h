@@ -135,7 +135,7 @@ protected:
   /**
    * Destructor.
    */
-  ~vtkRTAnalyticSource() override {}
+  ~vtkRTAnalyticSource() override = default;
 
   double XFreq;
   double YFreq;
@@ -152,8 +152,6 @@ protected:
   int RequestInformation(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
   void ExecuteDataWithInformation(vtkDataObject* data, vtkInformation* outInfo) override;
-
-  int FillOutputPortInformation(int port, vtkInformation* info) override;
 
 private:
   vtkRTAnalyticSource(const vtkRTAnalyticSource&) = delete;

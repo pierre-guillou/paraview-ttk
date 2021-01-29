@@ -22,15 +22,14 @@ void TestFieldToColors()
 
   //build a color table with clamping off and verify that sampling works
   vtkm::Range range{ 0.0, 50.0 };
-  vtkm::cont::ColorTable table(vtkm::cont::ColorTable::Preset::COOL_TO_WARM);
+  vtkm::cont::ColorTable table(vtkm::cont::ColorTable::Preset::CoolToWarm);
   table.RescaleToRange(range);
   table.SetClampingOff();
   table.SetAboveRangeColor(vtkm::Vec<float, 3>{ 1.0f, 0.0f, 0.0f }); //red
   table.SetBelowRangeColor(vtkm::Vec<float, 3>{ 0.0f, 0.0f, 1.0f }); //green
 
   vtkm::cont::DataSet ds = vtkm::cont::testing::MakeTestDataSet().Make3DExplicitDataSetPolygonal();
-  vtkm::cont::DataSetFieldAdd dsf;
-  dsf.AddPointField(ds, "faux", data, nvals);
+  ds.AddPointField("faux", data, nvals);
 
   vtkm::filter::FieldToColors ftc(table);
   ftc.SetOutputToRGBA();
@@ -48,7 +47,7 @@ void TestFieldToColors()
     { 0, 0, 255, 255 },     { 59, 76, 192, 255 },   { 122, 157, 248, 255 }, { 191, 211, 246, 255 },
     { 241, 204, 184, 255 }, { 238, 134, 105, 255 }, { 180, 4, 38, 255 },    { 255, 0, 0, 255 }
   };
-  auto portalRGBA = resultRGBAHandle.GetPortalConstControl();
+  auto portalRGBA = resultRGBAHandle.ReadPortal();
   for (std::size_t i = 0; i < nvals; ++i)
   {
     auto result = portalRGBA.Get(static_cast<vtkm::Id>(i));
@@ -69,7 +68,7 @@ void TestFieldToColors()
                                                                { 122, 157, 248 }, { 191, 211, 246 },
                                                                { 241, 204, 184 }, { 238, 134, 105 },
                                                                { 180, 4, 38 },    { 255, 0, 0 } };
-  auto portalRGB = resultRGBHandle.GetPortalConstControl();
+  auto portalRGB = resultRGBHandle.ReadPortal();
   for (std::size_t i = 0; i < nvals; ++i)
   {
     auto result = portalRGB.Get(static_cast<vtkm::Id>(i));

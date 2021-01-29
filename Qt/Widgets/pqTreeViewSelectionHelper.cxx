@@ -41,18 +41,37 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QWidgetAction>
 #include <QtDebug>
 
+#include <QTableView>
+#include <QTreeView>
+
 namespace
 {
-void updateFilter(QTreeView* tree, int section, const QString& txt)
+int genericColumnAt(QAbstractItemView* item, int x)
+{
+  auto treeView = dynamic_cast<QTreeView*>(item);
+  auto tableView = dynamic_cast<QTableView*>(item);
+
+  return treeView ? treeView->columnAt(x) : tableView ? tableView->columnAt(x) : -1;
+}
+
+QHeaderView* genericHeader(QAbstractItemView* item)
+{
+  auto treeView = dynamic_cast<QTreeView*>(item);
+  auto tableView = dynamic_cast<QTableView*>(item);
+
+  return treeView ? treeView->header() : tableView ? tableView->horizontalHeader() : nullptr;
+}
+
+void updateFilter(QAbstractItemView* tree, int section, const QString& txt)
 {
   auto model = tree->model();
-  auto header = tree->header();
+  auto header = genericHeader(tree);
   auto pqheader = qobject_cast<pqHeaderView*>(header);
   auto sfmodel = qobject_cast<QSortFilterProxyModel*>(model);
 
   if (sfmodel)
   {
-    sfmodel->setFilterRegExp(QRegExp(txt, Qt::CaseInsensitive, QRegExp::Wildcard));
+    sfmodel->setFilterRegExp(QRegExp(txt, Qt::CaseInsensitive));
     sfmodel->setFilterKeyColumn(section);
   }
   if (pqheader && sfmodel)
@@ -70,7 +89,7 @@ void updateFilter(QTreeView* tree, int section, const QString& txt)
 }
 
 //-----------------------------------------------------------------------------
-pqTreeViewSelectionHelper::pqTreeViewSelectionHelper(QTreeView* tree)
+pqTreeViewSelectionHelper::pqTreeViewSelectionHelper(QAbstractItemView* tree, bool customIndicator)
   : Superclass(tree)
   , TreeView(tree)
   , Filterable(true)
@@ -78,7 +97,8 @@ pqTreeViewSelectionHelper::pqTreeViewSelectionHelper(QTreeView* tree)
   tree->setSelectionMode(QAbstractItemView::ExtendedSelection);
   tree->setContextMenuPolicy(Qt::CustomContextMenu);
 
-  if (auto pqheader = qobject_cast<pqHeaderView*>(tree->header()))
+  auto pqheader = qobject_cast<pqHeaderView*>(genericHeader(tree));
+  if (customIndicator && pqheader)
   {
     pqheader->setCustomIndicatorShown(true);
     pqheader->addCustomIndicatorIcon(QIcon(":/QtWidgets/Icons/pqShowMenu.svg"), "menu");
@@ -94,8 +114,8 @@ pqTreeViewSelectionHelper::pqTreeViewSelectionHelper(QTreeView* tree)
         }
       });
   }
-  QObject::connect(tree, &QTreeView::customContextMenuRequested,
-    [this, tree](const QPoint& pt) { this->showContextMenu(tree->columnAt(pt.x()), pt); });
+  QObject::connect(tree, &QAbstractItemView::customContextMenuRequested,
+    [this, tree](const QPoint& pt) { this->showContextMenu(genericColumnAt(tree, pt.x()), pt); });
 }
 
 //-----------------------------------------------------------------------------
@@ -124,7 +144,7 @@ void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
 {
   auto tree = this->TreeView;
   auto model = tree->model();
-  auto header = tree->header();
+  auto header = genericHeader(tree);
   auto sfmodel = qobject_cast<QSortFilterProxyModel*>(model);
 
   QList<QModelIndex> selectedIndexes;
@@ -148,7 +168,7 @@ void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
     if (auto filterActn = new QWidgetAction(&menu))
     {
       auto ledit = new QLineEdit(&menu);
-      ledit->setPlaceholderText("Filter items");
+      ledit->setPlaceholderText("Filter items (regex)");
       ledit->setClearButtonEnabled(true);
       ledit->setText(sfmodel->filterRegExp().pattern());
 

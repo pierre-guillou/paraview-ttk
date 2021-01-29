@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkLagrangeTetra.h"
 
 #include "vtkDoubleArray.h"
@@ -24,13 +28,13 @@
 #include "vtkTetra.h"
 
 vtkStandardNewMacro(vtkLagrangeTetra);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLagrangeTetra::vtkLagrangeTetra()
   : vtkHigherOrderTetra()
 {
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLagrangeTetra::~vtkLagrangeTetra() = default;
 
 void vtkLagrangeTetra::PrintSelf(ostream& os, vtkIndent indent)
@@ -70,7 +74,7 @@ vtkCell* vtkLagrangeTetra::GetFace(int faceId)
   return result;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangeTetra::InterpolateFunctions(const double pcoords[3], double* weights)
 {
   // Adapted from P. Silvester, "High-Order Polynomial Triangular Finite
@@ -146,7 +150,7 @@ void vtkLagrangeTetra::InterpolateFunctions(const double pcoords[3], double* wei
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangeTetra::InterpolateDerivs(const double pcoords[3], double* derivs)
 {
   // Analytic differentiation of the tetra shape functions, as adapted from

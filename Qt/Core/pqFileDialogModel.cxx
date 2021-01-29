@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vtkDirectory.h>
 #include <vtkPVFileInformation.h>
 #include <vtkPVFileInformationHelper.h>
+#include <vtkPVSession.h>
 #include <vtkSMDirectoryProxy.h>
 #include <vtkSMIntVectorProperty.h>
 #include <vtkSMPropertyHelper.h>
@@ -148,7 +149,8 @@ public:
 
   const QString modificationTimeString() const
   {
-    return QDateTime::fromTime_t(this->ModificationTime).toString(Qt::SystemLocaleDate);
+    return QLocale::system().toString(
+      QDateTime::fromTime_t(this->ModificationTime), QLocale::ShortFormat);
   }
 
   qulonglong size() const { return static_cast<qulonglong>(this->Size); }
@@ -708,6 +710,7 @@ bool pqFileDialogModel::mkdir(const QString& dirName)
   {
     vtkSMDirectoryProxy* dirProxy = vtkSMDirectoryProxy::SafeDownCast(
       this->Implementation->getServer()->proxyManager()->NewProxy("misc", "Directory"));
+    dirProxy->SetLocation(vtkPVSession::SERVERS);
     ret = dirProxy->MakeDirectory(dirPath.toUtf8().data());
     dirProxy->Delete();
   }

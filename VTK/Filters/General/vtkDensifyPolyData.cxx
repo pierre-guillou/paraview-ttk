@@ -27,7 +27,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include <vector>
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class vtkDensifyPolyDataInternals
 {
 public:
@@ -175,6 +175,11 @@ public:
     // the pointers.
     Polygon& operator=(const Polygon& p)
     {
+      if (this == &p)
+      {
+        return *this;
+      }
+
       // start afresh
       this->Clear();
 
@@ -321,20 +326,20 @@ private:
   PolygonsType::iterator PolygonsIterator;
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkDensifyPolyData);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDensifyPolyData::vtkDensifyPolyData()
 {
   this->NumberOfSubdivisions = 1;
   this->SetNumberOfInputPorts(1);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDensifyPolyData::~vtkDensifyPolyData() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkDensifyPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -509,7 +514,7 @@ int vtkDensifyPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkDensifyPolyData::FillInputPortInformation(int port, vtkInformation* info)
 {
   if (port == 0)
@@ -523,7 +528,7 @@ int vtkDensifyPolyData::FillInputPortInformation(int port, vtkInformation* info)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDensifyPolyData::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

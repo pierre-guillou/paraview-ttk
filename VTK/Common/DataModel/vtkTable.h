@@ -63,6 +63,7 @@ class VTKCOMMONDATAMODEL_EXPORT vtkTable : public vtkDataObject
 {
 public:
   static vtkTable* New();
+  static vtkTable* ExtendedNew();
   vtkTypeMacro(vtkTable, vtkDataObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
@@ -136,7 +137,7 @@ public:
    * Insert a row specified by a vtkVariantArray.  The number of entries in the array
    * should match the number of columns in the table.
    */
-  vtkIdType InsertNextRow(vtkVariantArray* arr);
+  vtkIdType InsertNextRow(vtkVariantArray* values);
 
   /**
    * Delete a row from the table.  Rows below the deleted row are shifted up.

@@ -525,7 +525,7 @@ void vtkPVDataInformation::CopyFromDataSet(vtkDataSet* data)
   }
 #if 0
   vtkProcessModule *pm = vtkProcessModule::GetProcessModule();
-  ofstream *tmpFile = pm->GetLogFile();
+  ostream *tmpFile = pm->GetLogFile();
   if (tmpFile)
     {
     if (data->GetSource())
@@ -698,7 +698,7 @@ void vtkPVDataInformation::CopyFromTable(vtkTable* data)
 void vtkPVDataInformation::CopyFromHyperTreeGrid(vtkHyperTreeGrid* data)
 {
   this->NumberOfTrees = data->GetMaxNumberOfTrees();
-  this->NumberOfVertices = data->GetNumberOfVertices();
+  this->NumberOfCells = data->GetNumberOfVertices();
   this->NumberOfLeaves = data->GetNumberOfLeaves();
 
   int idx;
@@ -716,7 +716,7 @@ void vtkPVDataInformation::CopyFromHyperTreeGrid(vtkHyperTreeGrid* data)
   }
   this->MemorySize = data->GetActualMemorySize();
 
-  this->PointDataInformation->CopyFromDataSetAttributes(data->GetPointData());
+  this->CellDataInformation->CopyFromDataSetAttributes(data->GetCellData());
 
   // Copy Field Data information, if any
   vtkFieldData* fd = data->GetFieldData();

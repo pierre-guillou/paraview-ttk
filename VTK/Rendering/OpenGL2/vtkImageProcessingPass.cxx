@@ -34,13 +34,13 @@
 
 vtkCxxSetObjectMacro(vtkImageProcessingPass, DelegatePass, vtkRenderPass);
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkImageProcessingPass::vtkImageProcessingPass()
 {
   this->DelegatePass = nullptr;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkImageProcessingPass::~vtkImageProcessingPass()
 {
   if (this->DelegatePass != nullptr)
@@ -49,7 +49,7 @@ vtkImageProcessingPass::~vtkImageProcessingPass()
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkImageProcessingPass::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -64,7 +64,7 @@ void vtkImageProcessingPass::PrintSelf(ostream& os, vtkIndent indent)
     os << "(none)" << endl;
   }
 }
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Render delegate with a image of different dimensions than the
 // original one.
@@ -163,6 +163,13 @@ void vtkImageProcessingPass::RenderDelegate(const vtkRenderState* s, int width, 
 
   fbo->AddDepthAttachment();
   fbo->StartNonOrtho(newWidth, newHeight);
+  if (r->Transparent())
+  {
+    // Clear is not called on tranparent renderers. But since this is a offscreen render target we
+    // want it cleared
+    ostate->vtkglClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    ostate->vtkglClear(GL_COLOR_BUFFER_BIT);
+  }
   ostate->vtkglViewport(0, 0, newWidth, newHeight);
   ostate->vtkglScissor(0, 0, newWidth, newHeight);
 
@@ -214,7 +221,7 @@ void vtkImageProcessingPass::RenderDelegate(const vtkRenderState* s, int width, 
   savedCamera->UnRegister(this);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Release graphics resources and ask components to release their own
 // resources.

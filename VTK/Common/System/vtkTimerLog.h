@@ -32,7 +32,6 @@
 #include "vtkObject.h"
 
 #include <string> // STL Header
-#include <vector> // STL Header
 
 #ifdef _WIN32
 #include <sys/timeb.h> // Needed for Win32 implementation of timer
@@ -117,7 +116,7 @@ public:
    * string.  The internal buffer is 4096 bytes and will truncate anything longer.
    */
 #ifndef __VTK_WRAP__
-  static void FormatAndMarkEvent(const char* EventString, ...) VTK_FORMAT_PRINTF(1, 2);
+  static void FormatAndMarkEvent(const char* format, ...) VTK_FORMAT_PRINTF(1, 2);
 #endif
 
   //@{
@@ -209,8 +208,8 @@ protected:
   {
     this->StartTime = 0;
     this->EndTime = 0;
-  } // insure constructor/destructor protected
-  ~vtkTimerLog() override {}
+  } // ensure constructor/destructor protected
+  ~vtkTimerLog() override = default;
 
   static int Logging;
   static int Indent;
@@ -218,7 +217,6 @@ protected:
   static int NextEntry;
   static int WrapFlag;
   static int TicksPerSecond;
-  static std::vector<vtkTimerLogEntry> TimerLog;
 
 #ifdef _WIN32
 #ifndef _WIN32_WCE
@@ -289,5 +287,18 @@ private:
     vtkTimerLog::FormatAndMarkEvent(                                                               \
       "Mark: In %s, line %d, class %s: %s", __FILE__, __LINE__, this->GetClassName(), string);     \
   }
+
+// Implementation detail for Schwarz counter idiom.
+class VTKCOMMONSYSTEM_EXPORT vtkTimerLogCleanup
+{
+public:
+  vtkTimerLogCleanup();
+  ~vtkTimerLogCleanup();
+
+private:
+  vtkTimerLogCleanup(const vtkTimerLogCleanup&) = delete;
+  void operator=(const vtkTimerLogCleanup&) = delete;
+};
+static vtkTimerLogCleanup vtkTimerLogCleanupInstance;
 
 #endif

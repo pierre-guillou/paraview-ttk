@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkAxis.h"
 #include "vtkChartXY.h"
 #include "vtkColor.h"
@@ -39,7 +42,7 @@ static int periodical[] = { 184, 176, 166, 131, 171, 191, 231, 166, 197, 162, 15
 static int audiobook[] = { 903, 1038, 987, 1073, 1144, 1203, 1173, 1196, 1213, 1076, 926, 874 };
 static int video[] = { 1524, 1565, 1627, 1445, 1179, 1816, 2293, 1811, 1588, 1561, 1542, 1563 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestStackedPlot(int, char*[])
 {
   // Set up a 2D scene, add an XY chart to it

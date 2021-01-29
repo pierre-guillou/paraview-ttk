@@ -36,6 +36,7 @@ set(classes
   pqAnimatablePropertiesComboBox
   pqAnimatableProxyComboBox
   pqAnimationManager
+  pqAnimationProgressDialog
   pqAnimationTimeWidget
   pqAnimationViewWidget
   pqArrayListDomain
@@ -62,6 +63,7 @@ set(classes
   pqCustomFilterManager
   pqCustomFilterManagerModel
   pqCustomViewpointButtonDialog
+  pqDataAssemblyTreeModel
   pqDataInformationModel
   pqDataInformationWidget
   pqDialog
@@ -99,6 +101,7 @@ set(classes
   pqLiveInsituManager
   pqLiveInsituVisualizationManager
   pqLockViewSizeCustomDialog
+  pqLogViewerDialog
   pqMemoryInspectorPanel
   pqMultiBlockInspectorWidget
   pqMultiQueryClauseWidget
@@ -138,6 +141,7 @@ set(classes
   pqRescaleRange
   pqSILModel
   pqSILWidget
+  pqSingleLogViewerWidget
   pqSMSignalAdaptors
   pqScalarSetModel
   pqScalarValueListPropertyWidget
@@ -216,6 +220,7 @@ set(ui_files
   Resources/UI/pqLinksEditor.ui
   Resources/UI/pqLinksManager.ui
   Resources/UI/pqLockViewSizeCustomDialog.ui
+  Resources/UI/pqLogViewerDialog.ui
   Resources/UI/pqMemoryInspectorPanelForm.ui
   Resources/UI/pqMultiBlockInspectorWidget.ui
   Resources/UI/pqOrbitCreatorDialog.ui

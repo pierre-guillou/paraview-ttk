@@ -6,10 +6,11 @@ set(classes
   vtkOSPRayLightNode
   vtkOSPRayMaterialHelpers
   vtkOSPRayMaterialLibrary
+  vtkOSPRayMoleculeMapperNode
   vtkOSPRayPass
   vtkOSPRayPolyDataMapperNode
   vtkOSPRayRendererNode
-  vtkOSPRayTetrahedraMapperNode
+  vtkOSPRayUnstructuredVolumeMapperNode
   vtkOSPRayViewNodeFactory
   vtkOSPRayVolumeMapper
   vtkOSPRayVolumeMapperNode
@@ -56,11 +57,12 @@ vtk_module_install_headers(
 if (VTK_ENABLE_OSPRAY)
   vtk_module_find_package(
     PACKAGE ospray
-    VERSION 1.8)
+    VERSION 2.1)
 
   vtk_module_link(VTK::RenderingRayTracing
     PUBLIC
-      ospray::ospray)
+      ospray::ospray
+      )
   if (VTKOSPRAY_ENABLE_DENOISER)
     vtk_module_find_package(
       PACKAGE OpenImageDenoise
@@ -82,7 +84,8 @@ if (VTK_ENABLE_OSPRAY)
   endif ()
   vtk_module_definitions(VTK::RenderingRayTracing
     PRIVATE
-      VTK_ENABLE_OSPRAY)
+      VTK_ENABLE_OSPRAY
+      OSPRAY_VERSION_MINOR=${ospray_VERSION_MINOR})
 endif ()
 
 # VisRTX

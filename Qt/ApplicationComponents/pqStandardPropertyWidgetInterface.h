@@ -76,6 +76,7 @@ public:
    * \li \c viewtype_selector: pqViewTypePropertyWidget
    * \li \c view_resolution: pqViewResolutionPropertyWidget
    * \li \c pause_livesource: pqPauseLiveSourcePropertyWidget
+   * \li \c data_assembly: pqDataAssemblyPropertyWidget
    */
   pqPropertyWidget* createWidgetForProperty(
     vtkSMProxy* proxy, vtkSMProperty* property, QWidget* parentWidget) override;
@@ -102,6 +103,9 @@ public:
    * \li \c InteractiveCylinder: pqCylinderPropertyWidget
    * \li \c YoungsMaterial: pqYoungsMaterialPropertyWidget
    * \li \c OMETransferFunctions : pqOMETransferFunctionsPropertyWidget
+   * \li \c PropertyCollection : pqPropertyCollectionWidget
+   * \li \c DataAssemblyEditor: pqDataAssemblyPropertyWidget
+   * \li \c CheckableProperty : pqCheckableProperty
    */
   pqPropertyWidget* createWidgetForPropertyGroup(
     vtkSMProxy* proxy, vtkSMPropertyGroup* group, QWidget* parentWidget) override;

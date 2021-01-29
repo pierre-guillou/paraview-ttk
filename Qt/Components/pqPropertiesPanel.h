@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define pqPropertiesPanel_h
 
 #include "pqComponentsModule.h"
+#include "vtkLegacy.h" // for legacy macros
 #include <QWidget>
 
 class pqDataRepresentation;
@@ -115,9 +116,11 @@ public:
   int panelMode() const { return this->PanelMode; }
 
   /**
-  * Update the panel to show the widgets for the given pair.
-  */
-  void updatePanel(pqOutputPort* port);
+   * Update the panel to show the widgets for the given pair.
+   * @deprecated in ParaView 5.9. Use `setRepresentation`, `setView` and
+   * `setPipelineProxy` instead.
+   */
+  VTK_LEGACY(void updatePanel(pqOutputPort* port));
 
   /**
    * Returns true if there are changes to be applied.
@@ -129,7 +132,15 @@ public:
    */
   bool canReset();
 
-public slots:
+  /**
+   * This has been replaced by `setPipelineProxy` to add support for other types
+   * of pqProxy subclasses such as pqExtractor.
+   *
+   * @deprecated in ParaView 5.9. Use `setPipelineProxy` instead.
+   */
+  VTK_LEGACY(void setOutputPort(pqOutputPort*));
+
+public Q_SLOTS:
   /**
   * Apply the changes properties to the proxies.
   *
@@ -210,11 +221,11 @@ public slots:
   void setView(pqView*);
 
   /**
-  * Set the output port currently managed by the
-  * panel, should be called automatically
-  * when the active output port changes.
-  */
-  void setOutputPort(pqOutputPort*);
+   * Set the `pqProxy` to show properties for under the "Properties" section.
+   * Typically, this is a pqPipelineSource (or subclass), pqOutputPort, or
+   * a pqExtractor.
+   */
+  void setPipelineProxy(pqProxy*);
 
   /**
   * Set the representation currently managed by the
@@ -222,7 +233,7 @@ public slots:
   * when the active representation changes.
   */
   void setRepresentation(pqDataRepresentation*);
-signals:
+Q_SIGNALS:
   /**
   * This signal is emitted after the user clicks the apply button.
   */
@@ -246,7 +257,7 @@ signals:
   /**
   * This signal is emitted when the user clicks the delete button.
   */
-  void deleteRequested(pqPipelineSource* source);
+  void deleteRequested(pqProxy* source);
 
   /**
    * This signal is emitted when the apply button's enable state changes.
@@ -255,7 +266,7 @@ signals:
    */
   void applyEnableStateChanged();
 
-private slots:
+private Q_SLOTS:
   /**
   * This is called when the user clicks the "Delete" button on the
   * properties panel. This triggers the deleteRequested() signal with proper
@@ -266,7 +277,7 @@ private slots:
   /**
   * slot gets called when a proxy is deleted.
   */
-  void proxyDeleted(pqPipelineSource*);
+  void proxyDeleted(pqProxy*);
 
   /**
   * Updates the entire panel (properties+display) using the current
@@ -315,7 +326,7 @@ private slots:
   void pasteView();
 
 protected:
-  void updatePropertiesPanel(pqPipelineSource* source);
+  void updatePropertiesPanel(pqProxy* source);
   void updateDisplayPanel(pqDataRepresentation* repr);
   void updateViewPanel(pqView* view);
 

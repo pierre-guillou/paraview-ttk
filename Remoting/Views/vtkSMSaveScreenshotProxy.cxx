@@ -14,18 +14,23 @@
 =========================================================================*/
 #include "vtkSMSaveScreenshotProxy.h"
 
+#include "vtkAlgorithm.h"
 #include "vtkErrorCode.h"
 #include "vtkImageData.h"
-#include "vtkImageWriter.h"
+#include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
+#include "vtkPVLogger.h"
 #include "vtkPVXMLElement.h"
 #include "vtkProcessModule.h"
+#include "vtkRenderWindow.h"
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxyListDomain.h"
+#include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
+#include "vtkSMSourceProxy.h"
 #include "vtkSMTrace.h"
 #include "vtkSMViewLayoutProxy.h"
 #include "vtkSMViewProxy.h"
@@ -39,6 +44,35 @@
 #include <set>
 #include <sstream>
 #include <vtksys/SystemTools.hxx>
+
+template <typename T>
+T SymmetricReturnCode(const T& ref)
+{
+  auto pm = vtkProcessModule::GetProcessModule();
+  if (pm->GetSymmetricMPIMode())
+  {
+    auto controller = pm->GetGlobalController();
+    if (pm->GetPartitionId() == 0)
+    {
+      controller->Broadcast(const_cast<T*>(&ref), 1, 0);
+      return ref;
+    }
+    else
+    {
+      T temp{ ref };
+      controller->Broadcast(&temp, 1, 0);
+      return temp;
+    }
+  }
+  return ref;
+}
+
+template <>
+bool SymmetricReturnCode(const bool& ref)
+{
+  int val = ref ? 1 : 0;
+  return SymmetricReturnCode<int>(val) != 0;
+}
 
 //============================================================================
 /**
@@ -113,6 +147,7 @@ private:
 protected:
   vtkVector2i Magnification;
   vtkVector2i OriginalSize;
+  bool BothEyes;
 
 public:
   vtkState(vtkSMSessionProxyManager* pxm)
@@ -120,6 +155,7 @@ public:
     , TransparentBackground(false)
     , Magnification(1, 1)
     , OriginalSize(0, 0)
+    , BothEyes(false)
   {
     this->TransparentBackground = vtkSMViewProxy::GetTransparentBackground();
   }
@@ -196,38 +232,74 @@ public:
     }
   }
 
+  void SetStereoMode(int mode)
+  {
+    if (mode == VTK_STEREO_EMULATE)
+    {
+      this->BothEyes = true;
+      this->UpdateStereoMode(VTK_STEREO_LEFT, /*restoreable=*/true);
+    }
+    else
+    {
+      this->BothEyes = false;
+      this->UpdateStereoMode(mode, /*restoreable=*/true);
+    }
+  }
+
   void SetTransparentBackground(bool val) { vtkSMViewProxy::SetTransparentBackground(val); }
+
+  std::pair<vtkSmartPointer<vtkImageData>, vtkSmartPointer<vtkImageData> > CaptureImages()
+  {
+    std::pair<vtkSmartPointer<vtkImageData>, vtkSmartPointer<vtkImageData> > result;
+    if (this->BothEyes)
+    {
+      vtkVLogScopeF(PARAVIEW_LOG_RENDERING_VERBOSITY(), "Capture stereo images");
+      this->UpdateStereoMode(VTK_STEREO_LEFT, /*restoreable=*/false);
+      result.first = this->CaptureImage();
+      this->UpdateStereoMode(VTK_STEREO_RIGHT, /*restoreable=*/false);
+      result.second = this->CaptureImage();
+    }
+    else
+    {
+      vtkVLogScopeF(PARAVIEW_LOG_RENDERING_VERBOSITY(), "Capture image");
+      result.first = this->CaptureImage();
+    }
+    return result;
+  }
+
   virtual vtkSmartPointer<vtkImageData> CaptureImage() = 0;
-  virtual void SetStereoMode(int mode) = 0;
   virtual void SetFontScaling(int mode) = 0;
   virtual void SetSeparatorWidth(int) {}
   virtual void SetSeparatorColor(double[3]) {}
 
 protected:
   virtual void Resize(const vtkVector2i& size) = 0;
+  virtual void UpdateStereoMode(int mode, bool restoreable) = 0;
 
-  void SetViewStereoMode(vtkSMViewProxy* view, int stereoMode)
+  void SetViewStereoMode(vtkSMViewProxy* view, int stereoMode, bool restoreable = true)
   {
     assert(view);
     if (stereoMode <= -1)
     {
       return;
     }
+    const int stereo_render = stereoMode == 0 ? 0 : 1;
+
     vtkSMPropertyHelper srender(view, "StereoRender", true);
     vtkSMPropertyHelper stype(view, "StereoType", true);
-    if (stype.GetAsInt() != stereoMode)
+
+    // Save it so we can restore at the end.
+    if (restoreable)
     {
-      // if mode changed, then we save it so we can restore at the end.
       ViewStereoState svalue;
       svalue.View = view;
       svalue.StereoType = stype.GetAsInt();
       svalue.StereoRender = srender.GetAsInt();
       this->SavedStereoValues.push_back(svalue);
-
-      stype.Set(stereoMode);
-      srender.Set(stereoMode == 0 ? 0 : 1);
-      view->UpdateVTKObjects();
     }
+    stype.Set(stereoMode);
+    srender.Set(stereo_render);
+    view->UpdateVTKObjects();
   }
 
   void SetViewFontScaling(vtkSMViewProxy* view, int mode)
@@ -290,10 +362,13 @@ public:
     return img;
   }
 
-  void SetStereoMode(int mode) override { this->SetViewStereoMode(this->View, mode); }
   void SetFontScaling(int mode) override { this->SetViewFontScaling(this->View, mode); }
 
 protected:
+  void UpdateStereoMode(int mode, bool restoreable) override
+  {
+    this->SetViewStereoMode(this->View, mode, restoreable);
+  }
   void Resize(const vtkVector2i& size) override
   {
     vtkSMPropertyHelper(this->View, "ViewSize").Set(size.GetData(), 2);
@@ -347,15 +422,6 @@ public:
     return img;
   }
 
-  void SetStereoMode(int mode) override
-  {
-    const std::vector<vtkSMViewProxy*> views = this->Layout->GetViews();
-    for (auto iter = views.begin(); iter != views.end(); ++iter)
-    {
-      this->SetViewStereoMode(*iter, mode);
-    }
-  }
-
   void SetFontScaling(int mode) override
   {
     const std::vector<vtkSMViewProxy*> views = this->Layout->GetViews();
@@ -379,6 +445,14 @@ public:
 
 protected:
   void Resize(const vtkVector2i& size) override { this->Layout->SetSize(size.GetData()); }
+  void UpdateStereoMode(int mode, bool restoreable) override
+  {
+    const std::vector<vtkSMViewProxy*> views = this->Layout->GetViews();
+    for (auto iter = views.begin(); iter != views.end(); ++iter)
+    {
+      this->SetViewStereoMode(*iter, mode, restoreable);
+    }
+  }
 };
 
 //============================================================================
@@ -398,8 +472,41 @@ vtkSMSaveScreenshotProxy::~vtkSMSaveScreenshotProxy()
 }
 
 //----------------------------------------------------------------------------
-bool vtkSMSaveScreenshotProxy::WriteImage(const char* filename)
+bool vtkSMSaveScreenshotProxy::WriteImage(const char* fname)
 {
+  return this->WriteImage(fname, vtkPVSession::CLIENT);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSMSaveScreenshotProxy::WriteImage(const char* fname, vtkTypeUInt32 location)
+{
+  if (fname == nullptr)
+  {
+    return false;
+  }
+
+  if (location != vtkPVSession::CLIENT && location != vtkPVSession::DATA_SERVER &&
+    location != vtkPVSession::DATA_SERVER_ROOT)
+  {
+    vtkErrorMacro("Location not supported: " << location);
+    return false;
+  }
+
+  auto session = this->GetSession();
+  if (session->GetProcessRoles() != vtkPVSession::CLIENT)
+  {
+    // implies that the current session is not a remote-session (since the
+    // process is acting as more than just CLIENT). Simply set location to
+    // CLIENT since CLIENT and DATA_SERVER_ROOT are the same process.
+    location = vtkPVSession::CLIENT;
+  }
+  else if (location == vtkPVSession::DATA_SERVER)
+  {
+    location = vtkPVSession::DATA_SERVER_ROOT;
+  }
+
+  const std::string filename(fname);
+
   vtkSMViewLayoutProxy* layout = this->GetLayout();
   vtkSMViewProxy* view = this->GetView();
 
@@ -414,64 +521,107 @@ bool vtkSMSaveScreenshotProxy::WriteImage(const char* filename)
   auto format = this->GetFormatProxy(filename);
   if (!format)
   {
-    vtkErrorMacro("Failed to determine format for '" << filename << "'");
+    vtkErrorMacro("Failed to determine format for '" << filename.c_str() << "'");
     return false;
   }
+
+  SM_SCOPED_TRACE(SaveLayoutSizes)
+    .arg("proxy", view != NULL ? static_cast<vtkSMProxy*>(view) : static_cast<vtkSMProxy*>(layout));
 
   SM_SCOPED_TRACE(SaveCameras)
     .arg("proxy", view != NULL ? static_cast<vtkSMProxy*>(view) : static_cast<vtkSMProxy*>(layout));
 
   SM_SCOPED_TRACE(SaveScreenshotOrAnimation)
     .arg("helper", this)
-    .arg("filename", filename)
+    .arg("filename", filename.c_str())
     .arg("view", view)
     .arg("layout", layout)
     .arg("mode_screenshot", 1);
 
-  vtkSmartPointer<vtkImageData> img = this->CaptureImage();
-  if (img && vtkProcessModule::GetProcessModule()->GetPartitionId() == 0)
+  if (!this->Prepare())
   {
-    auto writer = vtkImageWriter::SafeDownCast(format->GetClientSideObject());
-    if (writer)
-    {
-      vtkTimerLog::MarkStartEvent("Write image to disk");
-      writer->SetFileName(filename);
-      writer->SetInputData(img);
-      writer->Write();
-      writer->SetInputData(nullptr);
-      vtkTimerLog::MarkEndEvent("Write image to disk");
-      return writer->GetErrorCode() == vtkErrorCode::NoError;
-    }
-    else
-    {
-      vtkErrorMacro("Format writer not a 'vtkImageWriter'. "
-                    " Failed to write '"
-        << filename << "'.");
-    }
+    vtkErrorMacro("Failed to prepare to capture image.");
+    return false;
   }
-  return false;
+  auto image_pair = this->CapturePreppedImages();
+  this->Cleanup();
+
+  if (image_pair.first == nullptr || vtkProcessModule::GetProcessModule()->GetPartitionId() > 0)
+  {
+    return SymmetricReturnCode(false);
+  }
+
+  vtkVLogScopeF(PARAVIEW_LOG_RENDERING_VERBOSITY(), "Save captured image to '%s'", fname);
+
+  auto pxm = this->GetSessionProxyManager();
+  auto remoteWriter = vtkSmartPointer<vtkSMSourceProxy>::Take(
+    vtkSMSourceProxy::SafeDownCast(pxm->NewProxy("misc", "RemoteWriterHelper")));
+  vtkSMPropertyHelper(remoteWriter, "Writer").Set(format);
+  vtkSMPropertyHelper(remoteWriter, "OutputDestination").Set(static_cast<int>(location));
+  remoteWriter->UpdateVTKObjects();
+
+  vtkTimerLog::MarkStartEvent("Write image to disk");
+  auto remoteWriterAlgorithm = vtkAlgorithm::SafeDownCast(remoteWriter->GetClientSideObject());
+
+  // write right-eye image first.
+  if (image_pair.second)
+  {
+    vtkSMPropertyHelper(format, "FileName")
+      .Set(this->GetStereoFileName(filename, /*left=*/false).c_str());
+    format->UpdateVTKObjects();
+    remoteWriterAlgorithm->SetInputDataObject(image_pair.second);
+    remoteWriter->UpdatePipeline();
+
+    // change left-eye filename too
+    vtkSMPropertyHelper(format, "FileName")
+      .Set(this->GetStereoFileName(filename, /*left=*/true).c_str());
+    format->UpdateVTKObjects();
+  }
+  else
+  {
+    vtkSMPropertyHelper(format, "FileName").Set(filename.c_str());
+    format->UpdateVTKObjects();
+  }
+
+  // now write left-eye.
+  remoteWriterAlgorithm->SetInputDataObject(image_pair.first);
+  remoteWriter->UpdatePipeline();
+  remoteWriterAlgorithm->SetInputDataObject(nullptr);
+  vtkTimerLog::MarkEndEvent("Write image to disk");
+
+  return SymmetricReturnCode(true); // FIXME writer->GetErrorCode() == vtkErrorCode::NoError);
 }
 
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkImageData> vtkSMSaveScreenshotProxy::CaptureImage()
 {
+  if (vtkSMPropertyHelper(this, "StereoMode").GetAsInt() == VTK_STEREO_EMULATE)
+  {
+    vtkErrorMacro("StereoMode is set to 'VTK_STEREO_EMULATE' (aka Both Eyes). "
+                  "`CaptureImage` does not support capturing both eyes at the same time."
+                  "Please set stereo mode to one eye at a time.");
+    return nullptr;
+  }
+
   if (!this->Prepare())
   {
     vtkErrorMacro("Failed to prepare to capture image.");
     return NULL;
   }
 
-  vtkSmartPointer<vtkImageData> img = this->CapturePreppedImage();
+  assert(this->State != NULL);
+  vtkSmartPointer<vtkImageData> img = this->CapturePreppedImages().first;
 
   this->Cleanup();
   return img;
 }
 
 //----------------------------------------------------------------------------
-vtkSmartPointer<vtkImageData> vtkSMSaveScreenshotProxy::CapturePreppedImage()
+std::pair<vtkSmartPointer<vtkImageData>, vtkSmartPointer<vtkImageData> >
+vtkSMSaveScreenshotProxy::CapturePreppedImages()
 {
   assert(this->State != NULL);
-  return this->State->CaptureImage();
+  return this->State->CaptureImages();
 }
 
 //----------------------------------------------------------------------------
@@ -649,13 +799,16 @@ bool vtkSMSaveScreenshotProxy::Prepare()
     vtkSMPropertyHelper(this, "TransparentBackground").GetAsInt() != 0);
   this->State->SetColorPalette(vtkSMPropertyHelper(this, "OverrideColorPalette").GetAsString());
   this->State->SetStereoMode(vtkSMPropertyHelper(this, "StereoMode").GetAsInt());
-  this->State->SetFontScaling(vtkSMPropertyHelper(this, "FontScaling").GetAsInt());
   this->State->SetSeparatorWidth(vtkSMPropertyHelper(this, "SeparatorWidth").GetAsInt());
   double scolor[3];
   vtkSMPropertyHelper(this, "SeparatorColor").Get(scolor, 3);
   this->State->SetSeparatorColor(scolor);
 
   this->State->SetSize(targetSize);
+
+  // font scaling is using this->Maginifcation which is evaluated in SetSize
+  // so font scaling has to happen after SetSize
+  this->State->SetFontScaling(vtkSMPropertyHelper(this, "FontScaling").GetAsInt());
   return true;
 }
 
@@ -833,6 +986,20 @@ vtkSMProxy* vtkSMSaveScreenshotProxy::GetFormatProxy(const std::string& filename
     }
   }
   return nullptr;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSMSaveScreenshotProxy::GetStereoFileName(const std::string& filename, bool left)
+{
+  const auto dot_pos = filename.rfind('.');
+  if (dot_pos == std::string::npos)
+  {
+    return filename + (left ? "_left" : "_right");
+  }
+  else
+  {
+    return filename.substr(0, dot_pos) + (left ? "_left" : "_right") + filename.substr(dot_pos);
+  }
 }
 
 //----------------------------------------------------------------------------

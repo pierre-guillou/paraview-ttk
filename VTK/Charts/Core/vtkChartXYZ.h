@@ -29,6 +29,8 @@
 #include "vtkNew.h"          // For ivars
 #include "vtkRect.h"         // For vtkRectf ivars
 #include "vtkSmartPointer.h" // For ivars
+#include "vtkStdString.h"
+#include "vtkTextProperty.h" // For axes text properties
 #include <vector>            // For ivars
 
 class vtkAnnotationLink;
@@ -55,13 +57,25 @@ public:
    * This method also sets up the end points of the axes of the chart.
    * For this reason, if you call SetAroundX(), you should call SetGeometry()
    * afterwards.
+   *
+   * This method will result in a plot with a fixed size. If you want it to scale
+   * with the scene then use SetMargins.
    */
   void SetGeometry(const vtkRectf& bounds);
 
   /**
+   * Set the margins in pixels ordered top right bottom left
+   * The box will be drawn inside those margins, but the labels and textdecorations will still
+   * escape. Note that the width and height automatically adapt to those of the scene.
+   *
+   * If you want a fixed size instead then use SetGeometry.
+   */
+  void SetMargins(const vtkVector4i& margins);
+
+  /**
    * Set the rotation angle for the chart (AutoRotate mode only).
    */
-  void SetAngle(double angle);
+  vtkSetMacro(Angle, double);
 
   /**
    * Set whether or not we're rotating about the X axis.
@@ -92,10 +106,53 @@ public:
   //@}
 
   /**
+   * Get the text property for axes. Useful for changing font size, font family, font file.
+   *
+   * For example to use a larger font which is capable of displaying unicode values change
+   * the property like this:
+   *
+   *   chart->GetAxesTextProperty()->SetFontFamily(VTK_FONT_FILE);
+   *   chart->GetAxesTextProperty()->SetFontFile("fonts/DejaVuSans.ttf");
+   *   chart->GetAxesTextProperty()->SetFontSize(32);
+   *
+   * You'll need a unicode capable font in a suitable location.
+   *
+   * Now to get the X axis to display Theta subscript (0) set the label like this using
+   * the hex unicode representation:
+   *
+   *   chart->SetXAxisLabel("\xcf\xb4\xe2\x82\x8d\xe2\x82\x80\xe2\x82\x8e");
+   *
+   * @return
+   */
+  vtkTextProperty* GetAxesTextProperty();
+
+  /**
+   * Set the X axis label
+   */
+  vtkSetMacro(XAxisLabel, vtkStdString);
+
+  /**
+   * Set the Y axis label
+   */
+  vtkSetMacro(YAxisLabel, vtkStdString);
+
+  /**
+   * Set the Z axis label
+   */
+  vtkSetMacro(ZAxisLabel, vtkStdString);
+
+  /**
+   * Set to true to ensure that axis labels are always on the outer edges of the chart.
+   * Default is false, the legacy behaviour, for backwards compatibility, where axis
+   * labelling may occur on inner or back edges.
+   */
+  vtkSetMacro(EnsureOuterEdgeAxisLabelling, bool);
+
+  /**
    * Set whether or not we're using this chart to rotate on a timer.
    * Default value is false.
    */
-  void SetAutoRotate(bool b);
+  vtkSetMacro(AutoRotate, bool);
 
   /**
    * Set whether or not axes labels & tick marks should be drawn.
@@ -123,6 +180,11 @@ public:
    * Adds a plot to the chart.
    */
   virtual vtkIdType AddPlot(vtkPlot3D* plot);
+
+  /**
+   * Removes a plot from the chart.
+   */
+  virtual bool RemovePlot(vtkPlot3D* plot);
 
   /**
    * Remove all the plots from this chart.
@@ -169,9 +231,68 @@ public:
    */
   bool KeyPressEvent(const vtkContextKeyEvent& key) override;
 
+  /**
+   * Hide data outside the box.
+   */
+  void SetClippingPlanesEnabled(bool);
+
+  /**
+   * Check whether data outside the box will be hidden or not.
+   */
+  vtkGetMacro(ClippingPlanesEnabled, bool);
+
+  /**
+   * When rotating the mousewheel, scale not only the plot but also the box.
+   */
+  vtkSetMacro(ScaleBoxWithPlot, bool);
+
+  /**
+   * Check whether scaling the plot will also scale the box.
+   */
+  vtkGetMacro(ScaleBoxWithPlot, bool);
+
 protected:
   vtkChartXYZ();
   ~vtkChartXYZ() override;
+
+  /**
+   * Rotation directions.
+   */
+  enum RotateDirection
+  {
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN
+  };
+
+  /**
+   * The state of an axis.
+   */
+  enum AxisState
+  {
+    VERTICAL,
+    VERTICAL_2,
+    HORIZONTAL,
+    HORIZONTAL_2,
+    DO_NOT_LABEL,
+    STANDARD
+  };
+
+  /**
+   * The direction to data from an axis.
+   */
+  enum Direction
+  {
+    NORTH,
+    NORTH_EAST,
+    EAST,
+    SOUTH_EAST,
+    SOUTH,
+    SOUTH_WEST,
+    WEST,
+    NORTH_WEST
+  };
 
   /**
    * Calculate the transformation matrices used to draw data points and axes
@@ -192,6 +313,11 @@ protected:
    * Rotate the chart in response to a mouse movement.
    */
   bool Rotate(const vtkContextMouseEvent& mouse);
+
+  /**
+   * Rotate the chart in a specific direction.
+   */
+  bool Rotate(const RotateDirection rotateDirection);
 
   /**
    * Pan the data within the chart in response to a mouse movement.
@@ -297,6 +423,17 @@ protected:
   void DetermineWhichAxesToLabel();
 
   /**
+   * New style axis labelling, ensuring labelling is always at the edges of the
+   * chart in the most sensible places.
+   */
+  void NewDetermineWhichAxesToLabel();
+
+  /**
+   * Old-style axis labelling, for compatibility; labelling may occur in less
+   * optimal places e.g. on inner or back edges of the chart.
+   */
+  void LegacyDetermineWhichAxesToLabel();
+  /**
    * Draw tick marks and tick mark labels along the axes.
    */
   void DrawTickMarks(vtkContext2D* painter);
@@ -326,44 +463,80 @@ protected:
   void GetClippingPlaneEquation(int i, double* planeEquation);
 
   /**
-   * The size and position of this chart.
+   * Gets the current margin left in pixels irrespective of the size-strategy used.
    */
-  vtkRectf Geometry;
+  std::size_t GetMarginLeft() const;
+
+  /**
+   * Gets the current margin top in pixels irrespective of the size-strategy used.
+   */
+  std::size_t GetMarginBottom() const;
+
+  /**
+   * Gets the current width of the plot in pixels irrespective of the size-strategy used.
+   */
+  std::size_t GetPlotWidth() const;
+
+  /**
+   * Gets the current height of the plot in pixels irrespective of the size-strategy used.
+   */
+  std::size_t GetPlotHeight() const;
+
+  /**
+   * Specifies how to calculate the size of the chart in function of the size of the scene.
+   */
+  enum
+  {
+    USE_MARGINS_AND_SCENE_SIZE,
+    USE_GEOMETRY
+  } SizeStrategy = USE_GEOMETRY;
+
+  /**
+   * The margins in pixels for the box ordered top right bottom left
+   * Applicable only when SizeStrategy == USE_MARGINS_AND_SCENE_SIZE
+   */
+  vtkVector4i Margins = vtkVector4i(40, 40, 40, 40);
+
+  /**
+   * The size and position of this chart.
+   * Applicable only when SizeStrategy == USE_GEOMETRY
+   */
+  vtkRectf Geometry = vtkRectf(40, 40, 120, 120);
 
   /**
    * The 3 axes of this chart.
    */
-  std::vector<vtkSmartPointer<vtkAxis> > Axes;
+  std::vector<vtkSmartPointer<vtkAxis>> Axes;
 
   /**
    * This boolean indicates whether or not we're using this chart to rotate
    * on a timer.
    */
-  bool AutoRotate;
+  bool AutoRotate = false;
 
   /**
    * When we're in AutoRotate mode, this boolean tells us if we should rotate
    * about the X axis or the Y axis.
    */
-  bool IsX;
+  bool IsX = false;
 
   /**
    * When we're in AutoRotate mode, this value tells the chart how much it
    * should be rotated.
    */
-  double Angle;
+  double Angle = 0;
 
   /**
    * This boolean indicates whether or not we should draw tick marks
    * and axes labels.
    */
-  bool DrawAxesDecoration;
+  bool DrawAxesDecoration = true;
 
   /**
    * This boolean indicates whether or not we should automatically resize the
    * chart so that it snugly fills up the scene.
    */
-  bool FitToScene;
+  bool FitToScene = true;
 
   /**
    * This is the transform that is applied when rendering data from the plots.
@@ -438,6 +611,16 @@ protected:
   std::vector<vtkPlot3D*> Plots;
 
   /**
+   * These plots got removed (from Plots), try to reuse the free spot.
+   */
+  std::vector<vtkIdType> FreePlaces;
+
+  /**
+   * The text properties of the axes.
+   */
+  vtkNew<vtkTextProperty> AxesTextProperty;
+
+  /**
    * The label for the X Axis.
    */
   std::string XAxisLabel;
@@ -453,6 +636,12 @@ protected:
   std::string ZAxisLabel;
 
   /**
+   * If set to true, use the new behaviour of ensuring that axis labels are on the outer
+   * edges of the chart. If false, the legacy behaviour will be used where axis labels
+   * can occur on inner or back edges of the chart.
+   */
+  bool EnsureOuterEdgeAxisLabelling = false;
+  /**
    * The six planes that define the bounding cube of our 3D axes.
    */
   vtkNew<vtkPlaneCollection> BoundingCube;
@@ -461,7 +650,7 @@ protected:
    * Points used to determine whether the axes will fit within the scene as
    * currently sized, regardless of rotation.
    */
-  float AxesBoundaryPoints[14][3];
+  float AxesBoundaryPoints[8][3];
 
   /**
    * This member variable stores the size of the tick labels for each axis.
@@ -497,6 +686,16 @@ protected:
    * A bounding box surrounding the currently rendered data points.
    */
   double DataBounds[4];
+
+  /**
+   * Hide data outside the box.
+   */
+  bool ClippingPlanesEnabled = true;
+
+  /**
+   * When rotating the mousewheel, scale not only the plot but also the box.
+   */
+  bool ScaleBoxWithPlot = true;
 
 private:
   vtkChartXYZ(const vtkChartXYZ&) = delete;

@@ -31,11 +31,11 @@
 
 vtkStandardNewMacro(vtkQuadricLODActor);
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Specify the quadric clustering algorithm for decimating the geometry.
 vtkCxxSetObjectMacro(vtkQuadricLODActor, LODFilter, vtkQuadricClustering);
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkQuadricLODActor::vtkQuadricLODActor()
 {
   // Configure the decimation (quadric clustering) filter
@@ -66,7 +66,7 @@ vtkQuadricLODActor::vtkQuadricLODActor()
   m->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkQuadricLODActor::~vtkQuadricLODActor()
 {
   this->LODFilter->Delete();
@@ -75,7 +75,7 @@ vtkQuadricLODActor::~vtkQuadricLODActor()
   this->LODMapper->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkQuadricLODActor::RenderOpaqueGeometry(vtkViewport* vp)
 {
   int renderedSomething = 0;
@@ -111,7 +111,7 @@ int vtkQuadricLODActor::RenderOpaqueGeometry(vtkViewport* vp)
   return renderedSomething;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQuadricLODActor::Render(vtkRenderer* ren, vtkMapper* vtkNotUsed(m))
 {
   if (!this->Mapper)
@@ -126,7 +126,7 @@ void vtkQuadricLODActor::Render(vtkRenderer* ren, vtkMapper* vtkNotUsed(m))
   frameRate = (frameRate < 1.0 ? 1.0 : (frameRate > 75 ? 75.0 : frameRate));
   int interactiveRender = 0;
   // interactive renders are defined when compared with the desired update rate. Here we use
-  // a generous fudge factor to insure that the LOD kicks in.
+  // a generous fudge factor to ensure that the LOD kicks in.
   if (allowedTime <= (1.1 / frameRate))
   {
     interactiveRender = 1;
@@ -307,7 +307,7 @@ void vtkQuadricLODActor::Render(vtkRenderer* ren, vtkMapper* vtkNotUsed(m))
   this->EstimatedRenderTime = bestMapper->GetTimeToDraw();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQuadricLODActor::ReleaseGraphicsResources(vtkWindow* renWin)
 {
   vtkActor::ReleaseGraphicsResources(renWin);
@@ -315,14 +315,14 @@ void vtkQuadricLODActor::ReleaseGraphicsResources(vtkWindow* renWin)
   this->Mapper->ReleaseGraphicsResources(renWin);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQuadricLODActor::ShallowCopy(vtkProp* prop)
 {
   // Now do superclass
   this->vtkActor::ShallowCopy(prop);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQuadricLODActor::SetCamera(vtkCamera* camera)
 {
   vtkFollower* follower = vtkFollower::SafeDownCast(this->LODActor);
@@ -332,7 +332,7 @@ void vtkQuadricLODActor::SetCamera(vtkCamera* camera)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQuadricLODActor::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

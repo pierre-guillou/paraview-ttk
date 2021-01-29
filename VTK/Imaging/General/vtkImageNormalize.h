@@ -35,11 +35,11 @@ public:
 
 protected:
   vtkImageNormalize();
-  ~vtkImageNormalize() override {}
+  ~vtkImageNormalize() override = default;
 
   int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-  void ThreadedExecute(vtkImageData* inData, vtkImageData* outData, int extent[6], int id) override;
+  void ThreadedExecute(vtkImageData* inData, vtkImageData* outData, int outExt[6], int id) override;
 
 private:
   vtkImageNormalize(const vtkImageNormalize&) = delete;

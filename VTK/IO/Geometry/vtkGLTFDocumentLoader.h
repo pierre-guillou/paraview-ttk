@@ -53,7 +53,6 @@ class vtkImageData;
 class vtkMatrix4x4;
 class vtkPoints;
 class vtkPolyData;
-class vtkTransform;
 class vtkUnsignedShortArray;
 
 class VTKIOGEOMETRY_EXPORT vtkGLTFDocumentLoader : public vtkObject
@@ -171,7 +170,7 @@ public:
     // accessor indices from the .gltf file, the map's keys correspond to attribute names
     std::map<std::string, int> AttributeIndices;
     // attribute values
-    std::map<std::string, vtkSmartPointer<vtkFloatArray> > AttributeValues;
+    std::map<std::string, vtkSmartPointer<vtkFloatArray>> AttributeValues;
   };
 
   /**
@@ -189,7 +188,7 @@ public:
     vtkSmartPointer<vtkCellArray> Indices;
 
     // attribute values from buffer data
-    std::map<std::string, vtkSmartPointer<vtkDataArray> > AttributeValues;
+    std::map<std::string, vtkSmartPointer<vtkDataArray>> AttributeValues;
 
     vtkSmartPointer<vtkPolyData> Geometry;
 
@@ -203,7 +202,7 @@ public:
   /**
    * This struct describes a glTF node object.
    * A node represents an object within a scene.
-   * Nodes can contain transform properties (stored as vtkTransform objects) as well as indices to
+   * Nodes can contain transform properties (stored as vtkMatrix4x4 objects) as well as indices to
    * children nodes, forming a hierarchy. No node may be a direct descendant of more than one node.
    */
   struct Node
@@ -213,8 +212,8 @@ public:
     int Mesh;
     int Skin;
 
-    vtkSmartPointer<vtkTransform> Transform;
-    vtkSmartPointer<vtkTransform> GlobalTransform;
+    vtkSmartPointer<vtkMatrix4x4> Transform;
+    vtkSmartPointer<vtkMatrix4x4> GlobalTransform;
 
     bool TRSLoaded;
 
@@ -382,7 +381,7 @@ public:
    */
   struct Skin
   {
-    std::vector<vtkSmartPointer<vtkMatrix4x4> > InverseBindMatrices;
+    std::vector<vtkSmartPointer<vtkMatrix4x4>> InverseBindMatrices;
     std::vector<int> Joints;
     int InverseBindMatricesAccessorId;
     int Skeleton;
@@ -503,7 +502,7 @@ public:
   {
     std::vector<Accessor> Accessors;
     std::vector<Animation> Animations;
-    std::vector<std::vector<char> > Buffers;
+    std::vector<std::vector<char>> Buffers;
     std::vector<BufferView> BufferViews;
     std::vector<Camera> Cameras;
     std::vector<Image> Images;
@@ -575,6 +574,25 @@ public:
    */
   const std::vector<std::string>& GetUsedExtensions();
 
+  /**
+   * Concatenate the current node's local transform to its parent's global transform, storing
+   * the resulting transform in the node's globalTransform field. Then does the same for the current
+   * node's children.
+   * Recursive.
+   */
+  void BuildGlobalTransforms(unsigned int nodeIndex, vtkSmartPointer<vtkMatrix4x4> parentTransform);
+
+  /**
+   * Build all global transforms
+   */
+  void BuildGlobalTransforms();
+
+  /**
+   * Compute all joint matrices of the skin of a specific node
+   */
+  static void ComputeJointMatrices(const Model& model, const Skin& skin, Node& node,
+    std::vector<vtkSmartPointer<vtkMatrix4x4>>& jointMats);
+
 protected:
   vtkGLTFDocumentLoader() = default;
   ~vtkGLTFDocumentLoader() override = default;
@@ -624,14 +642,6 @@ private:
    * Load Model's Images into vtkImageData objects, from filesystem and bufferView when specified.
    */
   bool LoadImageData();
-
-  /**
-   * Concatenate the current node's local transform to its parent's global transform, storing
-   * the resulting transform in the node's globalTransform field. Then does the same for the current
-   * node's children.
-   * Recursive.
-   */
-  void BuildGlobalTransforms(unsigned int nodeIndex, vtkSmartPointer<vtkTransform> parentTransform);
 
   std::shared_ptr<Model> InternalModel;
 

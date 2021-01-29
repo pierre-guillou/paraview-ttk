@@ -30,7 +30,7 @@
 
 vtkStandardNewMacro(vtkBorderRepresentation);
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkBorderRepresentation::vtkBorderRepresentation()
 {
   this->InteractionState = vtkBorderRepresentation::Outside;
@@ -94,7 +94,7 @@ vtkBorderRepresentation::vtkBorderRepresentation()
   this->Moving = 0;
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkBorderRepresentation::~vtkBorderRepresentation()
 {
   this->PositionCoordinate->Delete();
@@ -109,7 +109,7 @@ vtkBorderRepresentation::~vtkBorderRepresentation()
   this->BorderProperty->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMTimeType vtkBorderRepresentation::GetMTime()
 {
   vtkMTimeType mTime = this->Superclass::GetMTime();
@@ -119,7 +119,7 @@ vtkMTimeType vtkBorderRepresentation::GetMTime()
   return mTime;
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::SetShowBorder(int border)
 {
   this->SetShowVerticalBorder(border);
@@ -127,33 +127,33 @@ void vtkBorderRepresentation::SetShowBorder(int border)
   this->UpdateShowBorder();
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBorderRepresentation::GetShowBorderMinValue()
 {
   return BORDER_OFF;
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBorderRepresentation::GetShowBorderMaxValue()
 {
   return BORDER_ACTIVE;
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBorderRepresentation::GetShowBorder()
 {
   return this->GetShowVerticalBorder() != BORDER_OFF ? this->GetShowVerticalBorder()
                                                      : this->GetShowHorizontalBorder();
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::StartWidgetInteraction(double eventPos[2])
 {
   this->StartEventPosition[0] = eventPos[0];
   this->StartEventPosition[1] = eventPos[1];
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::WidgetInteraction(double eventPos[2])
 {
   double XF = eventPos[0];
@@ -286,7 +286,7 @@ void vtkBorderRepresentation::WidgetInteraction(double eventPos[2])
   this->BuildRepresentation();
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::NegotiateLayout()
 {
   double size[2];
@@ -299,7 +299,7 @@ void vtkBorderRepresentation::NegotiateLayout()
   this->BWPoints->SetPoint(3, 0.0, size[1], 0.0);
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBorderRepresentation::ComputeInteractionState(int X, int Y, int vtkNotUsed(modify))
 {
   int* pos1 = this->PositionCoordinate->GetComputedDisplayValue(this->Renderer);
@@ -383,7 +383,7 @@ int vtkBorderRepresentation::ComputeInteractionState(int X, int Y, int vtkNotUse
   return this->InteractionState;
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::UpdateShowBorder()
 {
   enum
@@ -440,7 +440,7 @@ void vtkBorderRepresentation::UpdateShowBorder()
   bool visible = (newBorder != NoBorder);
   if (currentBorder != newBorder && visible)
   {
-    vtkCellArray* outline = vtkCellArray::New();
+    vtkNew<vtkCellArray> outline;
     switch (newBorder)
     {
       case AllBorders:
@@ -471,14 +471,12 @@ void vtkBorderRepresentation::UpdateShowBorder()
         break;
     }
     this->BWPolyData->SetLines(outline);
-    outline->Delete();
-    this->BWPolyData->Modified();
     this->Modified();
   }
   this->BWActor->SetVisibility(visible);
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::BuildRepresentation()
 {
   if (this->Renderer &&
@@ -511,6 +509,11 @@ void vtkBorderRepresentation::BuildRepresentation()
     double sx = (pos2[0] - pos1[0]) / size[0];
     double sy = (pos2[1] - pos1[1]) / size[1];
 
+    sx = (sx < this->MinimumSize[0] ? this->MinimumSize[0]
+                                    : (sx > this->MaximumSize[0] ? this->MaximumSize[0] : sx));
+    sy = (sy < this->MinimumSize[1] ? this->MinimumSize[1]
+                                    : (sy > this->MaximumSize[1] ? this->MaximumSize[1] : sy));
+
     this->BWTransform->Identity();
     this->BWTransform->Translate(tx, ty, 0.0);
     this->BWTransform->Scale(sx, sy, 1);
@@ -519,19 +522,19 @@ void vtkBorderRepresentation::BuildRepresentation()
   }
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::GetActors2D(vtkPropCollection* pc)
 {
   pc->AddItem(this->BWActor);
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::ReleaseGraphicsResources(vtkWindow* w)
 {
   this->BWActor->ReleaseGraphicsResources(w);
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBorderRepresentation::RenderOverlay(vtkViewport* w)
 {
   this->BuildRepresentation();
@@ -542,7 +545,7 @@ int vtkBorderRepresentation::RenderOverlay(vtkViewport* w)
   return this->BWActor->RenderOverlay(w);
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBorderRepresentation::RenderOpaqueGeometry(vtkViewport* w)
 {
   this->BuildRepresentation();
@@ -553,7 +556,7 @@ int vtkBorderRepresentation::RenderOpaqueGeometry(vtkViewport* w)
   return this->BWActor->RenderOpaqueGeometry(w);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBorderRepresentation::RenderTranslucentPolygonalGeometry(vtkViewport* w)
 {
   this->BuildRepresentation();
@@ -564,7 +567,7 @@ int vtkBorderRepresentation::RenderTranslucentPolygonalGeometry(vtkViewport* w)
   return this->BWActor->RenderTranslucentPolygonalGeometry(w);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Does this prop have some translucent polygonal geometry?
 vtkTypeBool vtkBorderRepresentation::HasTranslucentPolygonalGeometry()
@@ -577,7 +580,7 @@ vtkTypeBool vtkBorderRepresentation::HasTranslucentPolygonalGeometry()
   return this->BWActor->HasTranslucentPolygonalGeometry();
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBorderRepresentation::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

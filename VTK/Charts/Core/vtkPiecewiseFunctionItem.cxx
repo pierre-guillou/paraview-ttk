@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPiecewiseFunctionItem.h"
 #include "vtkBrush.h"
 #include "vtkCallbackCommand.h"
@@ -27,10 +30,10 @@
 #include <cassert>
 #include <vector>
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPiecewiseFunctionItem);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPiecewiseFunctionItem::vtkPiecewiseFunctionItem()
 {
   this->PolyLinePen->SetLineType(vtkPen::SOLID_LINE);
@@ -38,7 +41,7 @@ vtkPiecewiseFunctionItem::vtkPiecewiseFunctionItem()
   this->SetColor(1., 1., 1.);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPiecewiseFunctionItem::~vtkPiecewiseFunctionItem()
 {
   if (this->PiecewiseFunction)
@@ -49,7 +52,7 @@ vtkPiecewiseFunctionItem::~vtkPiecewiseFunctionItem()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPiecewiseFunctionItem::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -65,7 +68,7 @@ void vtkPiecewiseFunctionItem::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPiecewiseFunctionItem::ComputeBounds(double* bounds)
 {
   this->Superclass::ComputeBounds(bounds);
@@ -77,7 +80,7 @@ void vtkPiecewiseFunctionItem::ComputeBounds(double* bounds)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPiecewiseFunctionItem::SetPiecewiseFunction(vtkPiecewiseFunction* t)
 {
   if (t == this->PiecewiseFunction)
@@ -96,7 +99,7 @@ void vtkPiecewiseFunctionItem::SetPiecewiseFunction(vtkPiecewiseFunction* t)
   this->ScalarsToColorsModified(this->PiecewiseFunction, vtkCommand::ModifiedEvent, nullptr);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPiecewiseFunctionItem::ComputeTexture()
 {
   double bounds[4];

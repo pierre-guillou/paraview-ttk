@@ -14,9 +14,7 @@
 =========================================================================*/
 /**
  * @class   vtkAMReXGridReaderInternal
- *
- *
- *  Consists of the low-level AMReX Reader used by the vtkAMReXGridReader.
+ * @brief   Consists of the low-level AMReX Reader used by the vtkAMReXGridReader.
  *
  * @sa
  *  vtkAMReXGridReader
@@ -99,13 +97,13 @@ public:
   std::vector<double> problemDomainLoEnd;
   std::vector<double> problemDomainHiEnd;
   std::vector<int> refinementRatio;
-  std::vector<std::vector<std::vector<int> > > levelDomains;
+  std::vector<std::vector<std::vector<int>>> levelDomains;
   std::vector<int> levelSteps;
-  std::vector<std::vector<double> > cellSize;
+  std::vector<std::vector<double>> cellSize;
   int geometryCoord;
   int magicZero;
   std::vector<int> levelSize;
-  std::vector<std::vector<std::vector<std::vector<double> > > > levelCells;
+  std::vector<std::vector<std::vector<std::vector<double>>>> levelCells;
   std::vector<std::string> levelPrefix;
   std::vector<std::string> multiFabPrefix;
   bool debugHeader;
@@ -155,13 +153,13 @@ public:
   int levelNumberOfGhostCells;
   int levelBoxArraySize;
   int levelMagicZero;
-  std::vector<std::vector<std::vector<int> > > levelBoxArrays;
+  std::vector<std::vector<std::vector<int>>> levelBoxArrays;
   int levelNumberOfFABOnDisk;
   std::string levelFabOnDiskPrefix;
   std::vector<std::string> levelFABFile;
   std::vector<long> levelFileOffset;
-  std::vector<std::vector<double> > levelMinimumsFAB;
-  std::vector<std::vector<double> > levelMaximumsFAB;
+  std::vector<std::vector<double>> levelMinimumsFAB;
+  std::vector<std::vector<double>> levelMaximumsFAB;
   std::vector<double> levelFABArrayMinimum;
   std::vector<double> levelFABArrayMaximum;
   int levelRealNumberOfBytes;

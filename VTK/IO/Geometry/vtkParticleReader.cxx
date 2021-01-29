@@ -18,6 +18,7 @@
 #include "vtkCellArray.h"
 #include "vtkDataArray.h"
 #include "vtkDoubleArray.h"
+#include "vtkEndian.h"
 #include "vtkFloatArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -28,6 +29,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtksys/Encoding.hxx"
+#include "vtksys/FStream.hxx"
 
 #include <algorithm>
 #include <sstream>
@@ -115,7 +117,7 @@ int const quantum = 20;
 double hiToLowASCII = 0.1;
 
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkParticleReader::vtkParticleReader()
   : FileName(nullptr)
   , File(nullptr)
@@ -130,21 +132,17 @@ vtkParticleReader::vtkParticleReader()
   this->SetNumberOfInputPorts(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkParticleReader::~vtkParticleReader()
 {
-  if (this->File)
-  {
-    this->File->close();
-    delete this->File;
-    this->File = nullptr;
-  }
+  delete this->File;
+  this->File = nullptr;
 
   delete[] this->FileName;
   this->FileName = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkParticleReader::OpenFile()
 {
   if (!this->FileName)
@@ -154,21 +152,16 @@ void vtkParticleReader::OpenFile()
   }
 
   // If the file was open close it.
-  if (this->File)
-  {
-    this->File->close();
-    delete this->File;
-    this->File = nullptr;
-  }
+  delete this->File;
+  this->File = nullptr;
 
   // Open the new file.
   vtkDebugMacro(<< "Initialize: opening file " << this->FileName);
+  std::ios_base::openmode mode = ios::in;
 #ifdef _WIN32
-  this->File =
-    new ifstream(vtksys::Encoding::ToWindowsExtendedPath(this->FileName), ios::in | ios::binary);
-#else
-  this->File = new ifstream(this->FileName, ios::in);
+  mode |= ios::binary;
 #endif
+  this->File = new vtksys::ifstream(this->FileName, mode);
   if (!this->File || this->File->fail())
   {
     vtkErrorMacro(<< "Initialize: Could not open file " << this->FileName);
@@ -176,7 +169,7 @@ void vtkParticleReader::OpenFile()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkParticleReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
 {
@@ -201,7 +194,7 @@ int vtkParticleReader::RequestInformation(vtkInformation* vtkNotUsed(request),
       return 0;
     }
   }
-  this->File->close();
+
   delete this->File;
   this->File = nullptr;
 
@@ -214,7 +207,7 @@ int vtkParticleReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkParticleReader::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
 {
@@ -272,7 +265,7 @@ int vtkParticleReader::RequestData(vtkInformation* vtkNotUsed(request),
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkParticleReader::DetermineFileType()
 {
   // This function assumes that the file has been opened.
@@ -361,7 +354,7 @@ int vtkParticleReader::DetermineFileType()
   return FILE_TYPE_IS_BINARY;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkParticleReader::ProduceOutputFromTextFileDouble(vtkInformationVector* outputVector)
 {
   // Get the size of the file.
@@ -437,7 +430,7 @@ int vtkParticleReader::ProduceOutputFromTextFileDouble(vtkInformationVector* out
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkParticleReader::ProduceOutputFromTextFileFloat(vtkInformationVector* outputVector)
 {
   // Get the size of the file.
@@ -516,7 +509,7 @@ int vtkParticleReader::ProduceOutputFromTextFileFloat(vtkInformationVector* outp
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkParticleReader::ProduceOutputFromBinaryFileDouble(vtkInformationVector* outputVector)
 {
 
@@ -693,7 +686,7 @@ int vtkParticleReader::ProduceOutputFromBinaryFileDouble(vtkInformationVector* o
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkParticleReader::ProduceOutputFromBinaryFileFloat(vtkInformationVector* outputVector)
 {
 
@@ -869,7 +862,7 @@ int vtkParticleReader::ProduceOutputFromBinaryFileFloat(vtkInformationVector* ou
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkParticleReader::DoProgressUpdate(size_t& bytesRead, size_t& fileLength)
 {
   if (bytesRead > this->Alliquot)
@@ -880,7 +873,7 @@ void vtkParticleReader::DoProgressUpdate(size_t& bytesRead, size_t& fileLength)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkParticleReader::SetDataByteOrderToBigEndian()
 {
 #ifndef VTK_WORDS_BIGENDIAN
@@ -890,7 +883,7 @@ void vtkParticleReader::SetDataByteOrderToBigEndian()
 #endif
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkParticleReader::SetDataByteOrderToLittleEndian()
 {
 #ifdef VTK_WORDS_BIGENDIAN
@@ -900,7 +893,7 @@ void vtkParticleReader::SetDataByteOrderToLittleEndian()
 #endif
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkParticleReader::SetDataByteOrder(int byteOrder)
 {
   if (byteOrder == VTK_FILE_BYTE_ORDER_BIG_ENDIAN)
@@ -913,7 +906,7 @@ void vtkParticleReader::SetDataByteOrder(int byteOrder)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkParticleReader::GetDataByteOrder()
 {
 #ifdef VTK_WORDS_BIGENDIAN
@@ -937,7 +930,7 @@ int vtkParticleReader::GetDataByteOrder()
 #endif
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const char* vtkParticleReader::GetDataByteOrderAsString()
 {
 #ifdef VTK_WORDS_BIGENDIAN
@@ -961,7 +954,7 @@ const char* vtkParticleReader::GetDataByteOrderAsString()
 #endif
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkParticleReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

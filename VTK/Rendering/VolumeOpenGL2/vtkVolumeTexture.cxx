@@ -3,14 +3,19 @@
 #include "vtkBlockSortHelper.h"
 #include "vtkCamera.h"
 #include "vtkDataArray.h"
+#include "vtkDataArrayRange.h"
 #include "vtkFloatArray.h"
 #include "vtkImageData.h"
 #include "vtkMatrix3x3.h"
 #include "vtkMatrix4x4.h"
 #include "vtkNew.h"
 #include "vtkOpenGLRenderWindow.h"
+#include "vtkOpenGLState.h"
+#include "vtkRectilinearGrid.h"
 #include "vtkRenderer.h"
 #include "vtkTextureObject.h"
+#include "vtkUniformGrid.h"
+#include "vtkUnsignedCharArray.h"
 #include "vtkVolumeProperty.h"
 #include "vtkVolumeTexture.h"
 #include "vtk_glew.h"
@@ -46,29 +51,45 @@ vtkVolumeTexture::vtkVolumeTexture()
   this->AdjustedTexMax[3] = 1.0f;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkVolumeTexture::~vtkVolumeTexture()
 {
   this->ClearBlocks();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkVolumeTexture);
 
-//-----------------------------------------------------------------------------
-bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkImageData* data, vtkDataArray* scalars,
+//------------------------------------------------------------------------------
+bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArray* scalars,
   int const isCell, int const interpolation)
 {
   this->ClearBlocks();
   this->Scalars = scalars;
   this->IsCellData = isCell;
   this->InterpolationType = interpolation;
-  data->GetExtent(this->FullExtent.GetData());
+  vtkImageData* imData = vtkImageData::SafeDownCast(data);
+  vtkRectilinearGrid* rGrid = vtkRectilinearGrid::SafeDownCast(data);
+  if (imData)
+  {
+    imData->GetExtent(this->FullExtent.GetData());
+  }
+  else if (rGrid)
+  {
+    rGrid->GetExtent(this->FullExtent.GetData());
+  }
 
   // Setup partition blocks
   if (this->Partitions[0] > 1 || this->Partitions[1] > 1 || this->Partitions[2] > 1)
   {
-    this->SplitVolume(data, this->Partitions);
+    // TODO: Partitions are only supported for image data input for now.
+    if (!imData)
+    {
+
+      vtkErrorMacro(<< "Partitioning only supported for vtkImageData input right now!");
+      return false;
+    }
+    this->SplitVolume(imData, this->Partitions);
   }
   else // Single block
   {
@@ -76,10 +97,29 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkImageData* data, vtkDataA
     {
       this->AdjustExtentForCell(this->FullExtent);
     }
-    vtkImageData* singleBlock = vtkImageData::New();
-    singleBlock->ShallowCopy(data);
-    singleBlock->SetExtent(this->FullExtent.GetData());
-    this->ImageDataBlocks.push_back(singleBlock);
+    if (imData)
+    {
+      vtkImageData* singleBlock = nullptr;
+      if (vtkUniformGrid* ugData = vtkUniformGrid::SafeDownCast(data))
+      {
+        singleBlock = vtkUniformGrid::New();
+        singleBlock->ShallowCopy(ugData);
+      }
+      else
+      {
+        singleBlock = vtkImageData::New();
+        singleBlock->ShallowCopy(imData);
+      }
+      singleBlock->SetExtent(this->FullExtent.GetData());
+      this->ImageDataBlocks.push_back(singleBlock);
+    }
+    else if (rGrid)
+    {
+      vtkRectilinearGrid* singleBlock = vtkRectilinearGrid::New();
+      singleBlock->ShallowCopy(rGrid);
+      singleBlock->SetExtent(this->FullExtent.GetData());
+      this->ImageDataBlocks.push_back(singleBlock);
+    }
   }
 
   // Get default formats from vtkTextureObject
@@ -87,6 +127,19 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkImageData* data, vtkDataA
   {
     this->Texture = vtkSmartPointer<vtkTextureObject>::New();
     this->Texture->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
+  }
+  if (rGrid)
+  {
+    if (!this->CoordsTex)
+    {
+      this->CoordsTex = vtkSmartPointer<vtkTextureObject>::New();
+      this->CoordsTex->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
+    }
+  }
+  if (data->GetPointGhostArray() || data->GetCellGhostArray())
+  {
+    this->BlankingTex = vtkSmartPointer<vtkTextureObject>::New();
+    this->BlankingTex->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
   }
 
   int scalarType = this->Scalars->GetDataType();
@@ -112,7 +165,7 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkImageData* data, vtkDataA
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::SetInterpolation(int const interpolation)
 {
   this->InterpolationType = interpolation;
@@ -125,7 +178,7 @@ void vtkVolumeTexture::SetInterpolation(int const interpolation)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkVolumeTexture::VolumeBlock* vtkVolumeTexture::GetNextBlock()
 {
   this->CurrentBlockIdx++;
@@ -146,13 +199,13 @@ vtkVolumeTexture::VolumeBlock* vtkVolumeTexture::GetNextBlock()
   return block;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkVolumeTexture::VolumeBlock* vtkVolumeTexture::GetCurrentBlock()
 {
   return this->SortedVolumeBlocks[this->CurrentBlockIdx];
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::CreateBlocks(
   unsigned int const format, unsigned int const internalFormat, int const type)
 {
@@ -164,17 +217,27 @@ void vtkVolumeTexture::CreateBlocks(
   size_t const numBlocks = this->ImageDataBlocks.size();
   for (size_t i = 0; i < numBlocks; i++)
   {
-    vtkImageData* imData = this->ImageDataBlocks.at(i);
-    int* ext = imData->GetExtent();
-    Size3 const texSize = this->ComputeBlockSize(imData->GetExtent());
-    VolumeBlock* block = new VolumeBlock(imData, this->Texture, texSize);
+    vtkDataSet* dataset = this->ImageDataBlocks.at(i);
+    vtkImageData* imData = vtkImageData::SafeDownCast(dataset);
+    vtkRectilinearGrid* rGrid = vtkRectilinearGrid::SafeDownCast(dataset);
+    int* ext = nullptr;
+    if (imData)
+    {
+      ext = imData->GetExtent();
+    }
+    else if (rGrid)
+    {
+      ext = rGrid->GetExtent();
+    }
+    Size3 const texSize = this->ComputeBlockSize(ext);
+    VolumeBlock* block = new VolumeBlock(dataset, this->Texture, texSize);
 
     // Compute tuple index (array aligned in x -> Y -> Z)
     // index = z0 * Dx * Dy + y0 * Dx + x0
     block->TupleIndex =
       ext[4] * this->FullSize[0] * this->FullSize[1] + ext[2] * this->FullSize[0] + ext[0];
 
-    this->ImageDataBlockMap[imData] = block;
+    this->ImageDataBlockMap[dataset] = block;
     this->ComputeBounds(block);
     this->UpdateTextureToDataMatrix(block);
   }
@@ -193,7 +256,7 @@ void vtkVolumeTexture::CreateBlocks(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::AdjustExtentForCell(Size6& extent)
 {
   int i = 1;
@@ -204,7 +267,7 @@ void vtkVolumeTexture::AdjustExtentForCell(Size6& extent)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkVolumeTexture::Size3 vtkVolumeTexture::ComputeBlockSize(int* extent)
 {
   int i = 0;
@@ -217,18 +280,29 @@ vtkVolumeTexture::Size3 vtkVolumeTexture::ComputeBlockSize(int* extent)
   return texSize;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBlock)
 {
   int const noOfComponents = this->Scalars->GetNumberOfComponents();
   int scalarType = this->Scalars->GetDataType();
 
-  vtkSmartPointer<vtkImageData> block = volBlock->ImageData;
+  auto dataSet = volBlock->DataSet;
+  auto imBlock = vtkImageData::SafeDownCast(dataSet);
+  auto rgBlock = vtkRectilinearGrid::SafeDownCast(dataSet);
   int blockExt[6];
-  block->GetExtent(blockExt);
+  if (imBlock)
+  {
+    imBlock->GetExtent(blockExt);
+  }
+  else if (rgBlock)
+  {
+    rgBlock->GetExtent(blockExt);
+  }
   Size3 const& blockSize = volBlock->TextureSize;
   vtkTextureObject* texture = volBlock->TextureObject;
   vtkIdType const& tupleIdx = volBlock->TupleIndex;
+
+  auto ostate = texture->GetContext()->GetState();
 
   bool success = true;
   if (!this->HandleLargeDataTypes)
@@ -238,13 +312,13 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
     bool const useXStride = blockSize[0] != this->FullSize[0];
     if (useXStride)
     {
-      glPixelStorei(GL_UNPACK_ROW_LENGTH, this->FullSize[0]);
+      ostate->vtkglPixelStorei(GL_UNPACK_ROW_LENGTH, this->FullSize[0]);
     }
 
     bool const useYStride = blockSize[1] != this->FullSize[1];
     if (useYStride)
     {
-      glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, this->FullSize[1]);
+      ostate->vtkglPixelStorei(GL_UNPACK_IMAGE_HEIGHT, this->FullSize[1]);
     }
 
     // Account for component offset
@@ -272,12 +346,12 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
 
     if (useXStride)
     {
-      glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+      ostate->vtkglPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     }
 
     if (useYStride)
     {
-      glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+      ostate->vtkglPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
     }
   }
   else // Handle 64-bit types
@@ -339,7 +413,7 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
         jDestOffset += blockSize[0];
       }
 
-      void* slicePtr = sliceArray->GetVoidPointer(0);
+      void* slicePtr = static_cast<void*>(sliceArray->GetPointer(0));
       GLint format = texture->GetFormat(scalarType, noOfComponents, false);
       GLenum type = texture->GetDataType(scalarType);
       glTexSubImage3D(
@@ -353,13 +427,130 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
     sliceArray->Delete();
   }
 
+  if (rgBlock)
+  {
+    vtkDataArray* xCoords = rgBlock->GetXCoordinates();
+    this->CoordsTexSizes[0] = xCoords->GetNumberOfTuples();
+    float fRange[2];
+    double* r = xCoords->GetFiniteRange(0);
+    for (int i = 0; i < 2; ++i)
+    {
+      fRange[i] = static_cast<float>(r[i]);
+    }
+    this->GetScaleAndBias(VTK_FLOAT, fRange, this->CoordsScale[0], this->CoordsBias[0]);
+    vtkDataArray* yCoords = rgBlock->GetYCoordinates();
+    this->CoordsTexSizes[1] = yCoords->GetNumberOfTuples();
+    r = yCoords->GetFiniteRange(0);
+    for (int i = 0; i < 2; ++i)
+    {
+      fRange[i] = static_cast<float>(r[i]);
+    }
+    this->GetScaleAndBias(VTK_FLOAT, fRange, this->CoordsScale[1], this->CoordsBias[1]);
+    vtkDataArray* zCoords = rgBlock->GetZCoordinates();
+    this->CoordsTexSizes[2] = zCoords->GetNumberOfTuples();
+    r = zCoords->GetFiniteRange(0);
+    for (int i = 0; i < 2; ++i)
+    {
+      fRange[i] = static_cast<float>(r[i]);
+    }
+    this->GetScaleAndBias(VTK_FLOAT, fRange, this->CoordsScale[2], this->CoordsBias[2]);
+
+    vtkNew<vtkFloatArray> coordsArray;
+    coordsArray->SetNumberOfComponents(3);
+    int numTuples = std::max(this->CoordsTexSizes[0], this->CoordsTexSizes[1]);
+    numTuples = std::max(numTuples, this->CoordsTexSizes[2]);
+    coordsArray->SetNumberOfTuples(numTuples);
+    for (int i = 0; i < this->CoordsTexSizes[0]; ++i)
+    {
+      coordsArray->SetTypedComponent(i, 0,
+        static_cast<float>(xCoords->GetTuple1(i) * this->CoordsScale[0] + this->CoordsBias[0]));
+    }
+    for (int i = 0; i < this->CoordsTexSizes[1]; ++i)
+    {
+      coordsArray->SetTypedComponent(i, 1,
+        static_cast<float>(yCoords->GetTuple1(i) * this->CoordsScale[1] + this->CoordsBias[1]));
+    }
+    for (int i = 0; i < this->CoordsTexSizes[2]; ++i)
+    {
+      coordsArray->SetTypedComponent(i, 2,
+        static_cast<float>(zCoords->GetTuple1(i) * this->CoordsScale[2] + this->CoordsBias[2]));
+    }
+
+    void* coordsPtr = static_cast<void*>(coordsArray->GetPointer(0));
+    this->CoordsTex->Create1DFromRaw(numTuples, 3, VTK_FLOAT, coordsPtr);
+    this->CoordsTex->SetWrapR(vtkTextureObject::ClampToEdge);
+    this->CoordsTex->SetWrapS(vtkTextureObject::ClampToEdge);
+    this->CoordsTex->SetWrapT(vtkTextureObject::ClampToEdge);
+    this->CoordsTex->SetMagnificationFilter(vtkTextureObject::Nearest);
+    this->CoordsTex->SetMinificationFilter(vtkTextureObject::Nearest);
+    this->CoordsTex->SetBorderColor(0.0f, 0.0f, 0.0f, 0.0f);
+  }
+
+  vtkSmartPointer<vtkUnsignedCharArray> ugCellBlankArray = dataSet->GetCellGhostArray();
+  vtkSmartPointer<vtkUnsignedCharArray> ugPointBlankArray = dataSet->GetPointGhostArray();
+  // Not relying on HasAnyBlankCells because it also does the additional step of checking point
+  // ghost array to determine if any cells are blanked.
+  bool blankCells = (ugCellBlankArray != nullptr);
+  bool blankPoints = (ugPointBlankArray != nullptr);
+  if (blankCells || blankPoints)
+  {
+    vtkNew<vtkUnsignedCharArray> blankingArray;
+    auto numComps = (blankCells && blankPoints) ? 2 : 1;
+    blankingArray->SetNumberOfComponents(numComps);
+    auto numPts = dataSet->GetNumberOfPoints();
+    blankingArray->SetNumberOfTuples(numPts);
+    blankingArray->FillValue(0);
+
+    auto blankingArrayRange = vtk::DataArrayTupleRange(blankingArray);
+    if (blankPoints)
+    {
+      const auto blankPointsRange = vtk::DataArrayValueRange<1>(ugPointBlankArray);
+      for (auto blankPtId = 0; blankPtId < numPts; ++blankPtId)
+      {
+        blankingArrayRange[blankPtId][0] = blankPointsRange[blankPtId];
+      }
+    }
+
+    if (blankCells)
+    {
+      int comp = blankPoints ? 1 : 0;
+      int d0 = blockSize[0] * blockSize[1];
+      int d01 = (blockSize[0] - 1) * (blockSize[1] - 1);
+      const auto blankCellsRange = vtk::DataArrayValueRange<1>(ugCellBlankArray);
+      int ptId, cellId;
+      for (int k = 0; k < blockSize[2] - 1; ++k)
+      {
+        for (int j = 0; j < blockSize[1] - 1; ++j)
+        {
+          for (int i = 0; i < blockSize[0] - 1; ++i)
+          {
+            ptId = k * d0 + j * blockSize[0] + i;
+            cellId = k * d01 + j * (blockSize[0] - 1) + i;
+            blankingArrayRange[ptId][comp] = blankCellsRange[cellId];
+          }
+        }
+      }
+    }
+
+    // Since this is a pseudo-bit array i.e. values either 0 or 255, skip scale and bias
+    // computation
+    this->BlankingTex->Create3DFromRaw(blockSize[0], blockSize[1], blockSize[2], numComps,
+      VTK_UNSIGNED_CHAR, &blankingArrayRange[0][0]);
+    this->BlankingTex->SetWrapR(vtkTextureObject::ClampToEdge);
+    this->BlankingTex->SetWrapS(vtkTextureObject::ClampToEdge);
+    this->BlankingTex->SetWrapT(vtkTextureObject::ClampToEdge);
+    this->BlankingTex->SetMagnificationFilter(vtkTextureObject::Nearest);
+    this->BlankingTex->SetMinificationFilter(vtkTextureObject::Nearest);
+    this->BlankingTex->SetBorderColor(0.0f, 0.0f, 0.0f, 0.0f);
+  }
+
   texture->Deactivate();
   this->UploadTime.Modified();
 
   return success;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::ReleaseGraphicsResources(vtkWindow* win)
 {
   if (this->Texture)
@@ -369,7 +560,7 @@ void vtkVolumeTexture::ReleaseGraphicsResources(vtkWindow* win)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::ClearBlocks()
 {
   if (this->ImageDataBlocks.empty())
@@ -390,7 +581,7 @@ void vtkVolumeTexture::ClearBlocks()
   this->ImageDataBlockMap.clear();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::SplitVolume(vtkImageData* imageData, Size3 const& part)
 {
   Size6& fullExt = this->FullExtent;
@@ -402,7 +593,7 @@ void vtkVolumeTexture::SplitVolume(vtkImageData* imageData, Size3 const& part)
   double const deltaZ = (fullExt[5] - fullExt[4]) / numBlocks_z;
   unsigned int const numBlocks = static_cast<unsigned int>(numBlocks_x * numBlocks_y * numBlocks_z);
 
-  this->ImageDataBlocks = std::vector<vtkImageData*>();
+  this->ImageDataBlocks = std::vector<vtkDataSet*>();
   this->ImageDataBlocks.reserve(numBlocks);
   this->SortedVolumeBlocks.reserve(numBlocks);
 
@@ -437,7 +628,7 @@ void vtkVolumeTexture::SplitVolume(vtkImageData* imageData, Size3 const& part)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::GetScaleAndBias(
   const int scalarType, float* scalarRange, float& scale, float& bias)
 {
@@ -483,7 +674,7 @@ void vtkVolumeTexture::GetScaleAndBias(
   bias = static_cast<float>(0.0 - glRange[0] * scale);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::SelectTextureFormat(unsigned int& format, unsigned int& internalFormat,
   int& type, int const scalarType, int const noOfComponents)
 {
@@ -613,7 +804,7 @@ void vtkVolumeTexture::SelectTextureFormat(unsigned int& format, unsigned int& i
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::UpdateVolume(vtkVolumeProperty* property)
 {
   if (property->GetMTime() > this->UpdateTime.GetMTime())
@@ -625,7 +816,7 @@ void vtkVolumeTexture::UpdateVolume(vtkVolumeProperty* property)
   this->UpdateTime.Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::UpdateInterpolationType(int const interpolation)
 {
   if (interpolation == VTK_LINEAR_INTERPOLATION &&
@@ -644,13 +835,14 @@ void vtkVolumeTexture::UpdateInterpolationType(int const interpolation)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::SortBlocksBackToFront(vtkRenderer* ren, vtkMatrix4x4* volumeMat)
 {
   if (this->ImageDataBlocks.size() > 1)
   {
     vtkBlockSortHelper::BackToFront<vtkImageData> sortBlocks(ren, volumeMat);
-    std::sort(this->ImageDataBlocks.begin(), this->ImageDataBlocks.end(), sortBlocks);
+    vtkBlockSortHelper::Sort(
+      this->ImageDataBlocks.begin(), this->ImageDataBlocks.end(), sortBlocks);
 
     size_t const numBlocks = this->ImageDataBlocks.size();
     this->SortedVolumeBlocks.clear();
@@ -666,7 +858,7 @@ void vtkVolumeTexture::SortBlocksBackToFront(vtkRenderer* ren, vtkMatrix4x4* vol
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::SetPartitions(int const x, int const y, int const z)
 {
   if (x > 0 && y > 0 && z > 0)
@@ -687,13 +879,13 @@ void vtkVolumeTexture::SetPartitions(int const x, int const y, int const z)
   this->Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const vtkVolumeTexture::Size3& vtkVolumeTexture::GetPartitions()
 {
   return this->Partitions;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -709,7 +901,7 @@ void vtkVolumeTexture::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "StreamBlocks: " << this->StreamBlocks << '\n';
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkVolumeTexture::AreDimensionsValid(
   vtkTextureObject* texture, int const width, int const height, int const depth)
 {
@@ -723,7 +915,7 @@ bool vtkVolumeTexture::AreDimensionsValid(
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkVolumeTexture::SafeLoadTexture(vtkTextureObject* texture, int const width, int const height,
   int const depth, int numComps, int dataType, void* dataPtr)
 {
@@ -750,18 +942,40 @@ bool vtkVolumeTexture::SafeLoadTexture(vtkTextureObject* texture, int const widt
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
 {
-  vtkImageData* input = block->ImageData;
+  vtkImageData* imData = vtkImageData::SafeDownCast(block->DataSet);
+  vtkRectilinearGrid* rGrid = vtkRectilinearGrid::SafeDownCast(block->DataSet);
   double spacing[3];
-  input->GetSpacing(spacing); /// TODO could be causing inf issue on streaming
-  input->GetExtent(block->Extents);
-
   double origin[3];
-  input->GetOrigin(origin);
-
-  double* direction = input->GetDirectionMatrix()->GetData();
+  double* direction = nullptr;
+  if (imData)
+  {
+    imData->GetSpacing(spacing); /// TODO could be causing inf issue on streaming
+    imData->GetExtent(block->Extents);
+    imData->GetOrigin(origin);
+    direction = imData->GetDirectionMatrix()->GetData();
+  }
+  else if (rGrid)
+  {
+    double bounds[6];
+    int dims[3];
+    rGrid->GetBounds(bounds);
+    rGrid->GetDimensions(dims);
+    for (int cc = 0; cc < 3; ++cc)
+    {
+      spacing[cc] = (bounds[2 * cc + 1] - bounds[2 * cc]) / dims[cc];
+      origin[cc] = bounds[2 * cc];
+    }
+    rGrid->GetExtent(block->Extents);
+    if (this->IsCellData)
+    {
+      block->Extents[1]--;
+      block->Extents[3]--;
+      block->Extents[5]--;
+    }
+  }
 
   int swapBounds[3];
   swapBounds[0] = (spacing[0] < 0);
@@ -787,8 +1001,15 @@ void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
   {
     int* ijkCorner = ijkCorners[i];
     double* xyz = block->VolumeGeometry + i * 3;
-    vtkImageData::TransformContinuousIndexToPhysicalPoint(
-      ijkCorner[0], ijkCorner[1], ijkCorner[2], origin, spacing, direction, xyz);
+    if (imData)
+    {
+      vtkImageData::TransformContinuousIndexToPhysicalPoint(
+        ijkCorner[0], ijkCorner[1], ijkCorner[2], origin, spacing, direction, xyz);
+    }
+    else if (rGrid)
+    {
+      rGrid->GetPoint(ijkCorner[0], ijkCorner[1], ijkCorner[2], xyz);
+    }
     if (xyz[0] < xMin)
       xMin = xyz[0];
     if (xyz[0] > xMax)
@@ -812,34 +1033,59 @@ void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
   // Loaded data represents points
   if (!this->IsCellData)
   {
-    // If spacing is negative, we may have to rethink the equation
-    // between real point and texture coordinate...
-    block->LoadedBounds[0] =
-      origin[0] + static_cast<double>(block->Extents[0 + swapBounds[0]]) * spacing[0];
-    block->LoadedBounds[2] =
-      origin[1] + static_cast<double>(block->Extents[2 + swapBounds[1]]) * spacing[1];
-    block->LoadedBounds[4] =
-      origin[2] + static_cast<double>(block->Extents[4 + swapBounds[2]]) * spacing[2];
-    block->LoadedBounds[1] =
-      origin[0] + static_cast<double>(block->Extents[1 - swapBounds[0]]) * spacing[0];
-    block->LoadedBounds[3] =
-      origin[1] + static_cast<double>(block->Extents[3 - swapBounds[1]]) * spacing[1];
-    block->LoadedBounds[5] =
-      origin[2] + static_cast<double>(block->Extents[5 - swapBounds[2]]) * spacing[2];
+    if (imData)
+    {
+      // If spacing is negative, we may have to rethink the equation
+      // between real point and texture coordinate...
+      block->LoadedBounds[0] =
+        origin[0] + static_cast<double>(block->Extents[0 + swapBounds[0]]) * spacing[0];
+      block->LoadedBounds[2] =
+        origin[1] + static_cast<double>(block->Extents[2 + swapBounds[1]]) * spacing[1];
+      block->LoadedBounds[4] =
+        origin[2] + static_cast<double>(block->Extents[4 + swapBounds[2]]) * spacing[2];
+      block->LoadedBounds[1] =
+        origin[0] + static_cast<double>(block->Extents[1 - swapBounds[0]]) * spacing[0];
+      block->LoadedBounds[3] =
+        origin[1] + static_cast<double>(block->Extents[3 - swapBounds[1]]) * spacing[1];
+      block->LoadedBounds[5] =
+        origin[2] + static_cast<double>(block->Extents[5 - swapBounds[2]]) * spacing[2];
+    }
+    else if (rGrid)
+    {
+      double xyzMin[3], xyzMax[3];
+      rGrid->GetPoint(block->Extents[0], block->Extents[2], block->Extents[4], xyzMin);
+      rGrid->GetPoint(block->Extents[1], block->Extents[3], block->Extents[5], xyzMax);
+      for (int i = 0; i < 3; ++i)
+      {
+        block->LoadedBounds[2 * i] = xyzMin[i];
+        block->LoadedBounds[2 * i + 1] = xyzMax[i];
+      }
+    }
   }
   // Loaded extents represent cells
   else
   {
-    int i = 0;
-    while (i < 3)
+    if (imData)
     {
-      block->LoadedBounds[2 * i + swapBounds[i]] =
-        origin[i] + (static_cast<double>(block->Extents[2 * i])) * spacing[i];
+      for (int i = 0; i < 3; ++i)
+      {
+        block->LoadedBounds[2 * i + swapBounds[i]] =
+          origin[i] + (static_cast<double>(block->Extents[2 * i])) * spacing[i];
 
-      block->LoadedBounds[2 * i + 1 - swapBounds[i]] =
-        origin[i] + (static_cast<double>(block->Extents[2 * i + 1]) + 1.0) * spacing[i];
-
-      i++;
+        block->LoadedBounds[2 * i + 1 - swapBounds[i]] =
+          origin[i] + (static_cast<double>(block->Extents[2 * i + 1]) + 1.0) * spacing[i];
+      }
+    }
+    else if (rGrid)
+    {
+      double xyzMin[3], xyzMax[3];
+      rGrid->GetPoint(block->Extents[0], block->Extents[2], block->Extents[4], xyzMin);
+      rGrid->GetPoint(block->Extents[1] + 1, block->Extents[3] + 1, block->Extents[5] + 1, xyzMax);
+      for (int i = 0; i < 3; ++i)
+      {
+        block->LoadedBounds[2 * i] = xyzMin[i];
+        block->LoadedBounds[2 * i + 1] = xyzMax[i];
+      }
     }
   }
 
@@ -860,17 +1106,24 @@ void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
   this->CellSpacing[2] = static_cast<float>(spacing[2]);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::UpdateTextureToDataMatrix(VolumeBlock* block)
 {
   // take the 0.0 to 1.0 texture coordinates and map them into
   // physical/dataset coordinates.
-  vtkImageData* input = block->ImageData;
-  double* direction = input->GetDirectionMatrix()->GetData();
+  vtkImageData* imData = vtkImageData::SafeDownCast(block->DataSet);
+  vtkRectilinearGrid* rGrid = vtkRectilinearGrid::SafeDownCast(block->DataSet);
+
   double origin[3];
-  input->GetOrigin(origin);
   double spacing[3];
-  input->GetSpacing(spacing);
+  vtkMatrix3x3* directionMat = vtkMatrix3x3::New();
+  directionMat->Identity();
+  if (imData)
+  {
+    directionMat->DeepCopy(imData->GetDirectionMatrix()->GetData());
+    imData->GetOrigin(origin);
+    imData->GetSpacing(spacing);
+  }
 
   auto stepsize = block->DatasetStepSize;
   vtkMatrix4x4* matrix = block->TextureToDataset;
@@ -878,6 +1131,7 @@ void vtkVolumeTexture::UpdateTextureToDataMatrix(VolumeBlock* block)
   double* result = matrix->GetData();
 
   // Scale diag (1.0 -> world coord width)
+  double* direction = directionMat->GetData();
   for (int i = 0; i < 3; ++i)
   {
     result[i * 4] = direction[i * 3] / stepsize[0];
@@ -886,8 +1140,15 @@ void vtkVolumeTexture::UpdateTextureToDataMatrix(VolumeBlock* block)
   }
 
   double blockOrigin[3];
-  vtkImageData::TransformContinuousIndexToPhysicalPoint(block->Extents[0], block->Extents[2],
-    block->Extents[4], origin, spacing, direction, blockOrigin);
+  if (imData)
+  {
+    vtkImageData::TransformContinuousIndexToPhysicalPoint(block->Extents[0], block->Extents[2],
+      block->Extents[4], origin, spacing, direction, blockOrigin);
+  }
+  else if (rGrid)
+  {
+    rGrid->GetPoint(block->Extents[0], block->Extents[2], block->Extents[4], blockOrigin);
+  }
 
   // Translation vec
   result[3] = blockOrigin[0];
@@ -897,9 +1158,11 @@ void vtkVolumeTexture::UpdateTextureToDataMatrix(VolumeBlock* block)
   auto matrixInv = block->TextureToDatasetInv.GetPointer();
   matrixInv->DeepCopy(matrix);
   matrixInv->Invert();
+
+  directionMat->Delete();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkVolumeTexture::ComputeCellToPointMatrix(int extents[6])
 {
   this->CellToPointMatrix->Identity();
@@ -920,9 +1183,9 @@ void vtkVolumeTexture::ComputeCellToPointMatrix(int extents[6])
     delta[2] = extents[5] - extents[4] + 1;
 
     float min[3];
-    min[0] = 0.5f / delta[0];
-    min[1] = 0.5f / delta[1];
-    min[2] = 0.5f / delta[2];
+    min[0] = delta[0] > 0.0 ? 0.5f / delta[0] : 0.5f;
+    min[1] = delta[1] > 0.0 ? 0.5f / delta[1] : 0.5f;
+    min[2] = delta[2] > 0.0 ? 0.5f / delta[2] : 0.5f;
 
     float range[3]; // max - min
     range[0] = (delta[0] - 0.5f) / delta[0] - min[0];
@@ -944,7 +1207,7 @@ void vtkVolumeTexture::ComputeCellToPointMatrix(int extents[6])
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataArray* vtkVolumeTexture::GetLoadedScalars()
 {
   return this->Scalars;

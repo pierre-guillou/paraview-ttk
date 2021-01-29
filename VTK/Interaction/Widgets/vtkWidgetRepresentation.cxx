@@ -24,7 +24,7 @@
 #include "vtkRenderer.h"
 #include "vtkTransform.h"
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkWidgetRepresentation::vtkWidgetRepresentation()
 {
   this->Renderer = nullptr;
@@ -49,13 +49,13 @@ vtkWidgetRepresentation::vtkWidgetRepresentation()
   this->PickingManaged = true;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkWidgetRepresentation::~vtkWidgetRepresentation()
 {
   this->UnRegisterPickers();
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWidgetRepresentation::SetRenderer(vtkRenderer* ren)
 {
   if (ren == this->Renderer)
@@ -73,16 +73,16 @@ void vtkWidgetRepresentation::SetRenderer(vtkRenderer* ren)
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkRenderer* vtkWidgetRepresentation::GetRenderer()
 {
   return this->Renderer;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWidgetRepresentation::RegisterPickers() {}
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWidgetRepresentation::UnRegisterPickers()
 {
   vtkPickingManager* pm = this->GetPickingManager();
@@ -94,7 +94,7 @@ void vtkWidgetRepresentation::UnRegisterPickers()
   pm->RemoveObject(this);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWidgetRepresentation::SetPickingManaged(bool managed)
 {
   if (this->PickingManaged == managed)
@@ -109,7 +109,7 @@ void vtkWidgetRepresentation::SetPickingManaged(bool managed)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPickingManager* vtkWidgetRepresentation::GetPickingManager()
 {
   if (!this->Renderer || !this->Renderer->GetRenderWindow() ||
@@ -144,7 +144,26 @@ vtkAssemblyPath* vtkWidgetRepresentation::GetAssemblyPath3DPoint(
   return picker->GetPath();
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Typically implemented by derived classes. Provided here as a convenience.
+void vtkWidgetRepresentation::PlaceWidget(double bds[6])
+{
+  double bounds[6], origin[3];
+  this->AdjustBounds(bds, bounds, origin);
+
+  this->InitialLength = sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
+    (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
+    (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
+
+  for (auto i = 0; i < 6; i++)
+  {
+    this->InitialBounds[i] = bounds[i];
+  }
+
+  this->Placed = 1;
+}
+
+//------------------------------------------------------------------------------
 void vtkWidgetRepresentation::AdjustBounds(double bounds[6], double newBounds[6], double center[3])
 {
   center[0] = (bounds[0] + bounds[1]) / 2.0;
@@ -159,7 +178,7 @@ void vtkWidgetRepresentation::AdjustBounds(double bounds[6], double newBounds[6]
   newBounds[5] = center[2] + this->PlaceFactor * (bounds[5] - center[2]);
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWidgetRepresentation::ShallowCopy(vtkProp* prop)
 {
   vtkWidgetRepresentation* rep = vtkWidgetRepresentation::SafeDownCast(prop);
@@ -171,7 +190,7 @@ void vtkWidgetRepresentation::ShallowCopy(vtkProp* prop)
   this->Superclass::ShallowCopy(prop);
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkWidgetRepresentation::ComputeInteractionState(int, int, int)
 {
   return 0;
@@ -183,7 +202,7 @@ int vtkWidgetRepresentation::ComputeComplexInteractionState(
   return 0;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkWidgetRepresentation::SizeHandlesInPixels(double factor, double pos[3])
 {
   //
@@ -220,7 +239,7 @@ double vtkWidgetRepresentation::SizeHandlesInPixels(double factor, double pos[3]
   }
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkWidgetRepresentation::SizeHandlesRelativeToViewport(double factor, double pos[3])
 {
   int i;
@@ -235,7 +254,7 @@ double vtkWidgetRepresentation::SizeHandlesRelativeToViewport(double factor, dou
     double radius, z;
     double windowLowerLeft[4], windowUpperRight[4];
     double* viewport = renderer->GetViewport();
-    int* winSize = renderer->GetRenderWindow()->GetSize();
+    const int* winSize = renderer->GetRenderWindow()->GetSize();
     double focalPoint[4];
 
     vtkInteractorObserver::ComputeWorldToDisplay(
@@ -335,7 +354,7 @@ void vtkWidgetRepresentation::UpdatePropPose(vtkProp3D* prop3D, const double* po
   }
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkWidgetRepresentation::NearbyEvent(int X, int Y, double bounds[6])
 {
   double focus[3], z, pickPoint[4], dFocus[4], length, dist;
@@ -358,7 +377,7 @@ bool vtkWidgetRepresentation::NearbyEvent(int X, int Y, double bounds[6])
   return ((dist > 0.75 * length) ? false : true);
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWidgetRepresentation::PrintSelf(ostream& os, vtkIndent indent)
 {
   // Superclass typedef defined in vtkTypeMacro() found in vtkSetGet.h

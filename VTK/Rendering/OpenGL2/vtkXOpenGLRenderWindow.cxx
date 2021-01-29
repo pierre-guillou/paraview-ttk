@@ -47,6 +47,7 @@ typedef ptrdiff_t GLsizeiptr;
 
 #include "vtkCommand.h"
 #include "vtkIdList.h"
+#include "vtkImageData.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLShaderCache.h"
@@ -61,6 +62,10 @@ typedef ptrdiff_t GLsizeiptr;
 
 #include <sstream>
 
+#include <X11/Xatom.h>
+#if VTK_HAVE_XCURSOR
+#include <X11/Xcursor/Xcursor.h>
+#endif
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
@@ -264,8 +269,6 @@ XVisualInfo* vtkXOpenGLRenderWindow::GetDesiredVisualInfo()
 vtkXOpenGLRenderWindow::vtkXOpenGLRenderWindow()
 {
   this->ParentId = static_cast<Window>(0);
-  this->ScreenSize[0] = 0;
-  this->ScreenSize[1] = 0;
   this->OwnDisplay = 0;
   this->CursorHidden = 0;
   this->ForceMakeCurrent = 0;
@@ -288,6 +291,7 @@ vtkXOpenGLRenderWindow::vtkXOpenGLRenderWindow()
   this->XCSizeSE = 0;
   this->XCSizeSW = 0;
   this->XCHand = 0;
+  this->XCCustom = 0;
 }
 
 // free up memory & close the window
@@ -433,8 +437,8 @@ void vtkXOpenGLRenderWindow::CreateAWindow()
     xsh.y = static_cast<int>(this->Position[1]);
   }
 
-  x = ((this->Position[0] >= 0) ? this->Position[0] : 5);
-  y = ((this->Position[1] >= 0) ? this->Position[1] : 5);
+  x = this->Position[0];
+  y = this->Position[1];
   width = ((this->Size[0] > 0) ? this->Size[0] : 300);
   height = ((this->Size[1] > 0) ? this->Size[1] : 300);
 
@@ -659,6 +663,12 @@ void vtkXOpenGLRenderWindow::CreateAWindow()
     width = winattr.width;
     height = winattr.height;
     this->Mapped = 1;
+
+    if (this->FullScreen)
+    {
+      XGrabKeyboard(
+        this->DisplayId, this->WindowId, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+    }
   }
   // free the visual info
   if (v)
@@ -724,6 +734,10 @@ void vtkXOpenGLRenderWindow::DestroyWindow()
     {
       XFreeCursor(this->DisplayId, this->XCHand);
     }
+    if (this->XCCustom)
+    {
+      XFreeCursor(this->DisplayId, this->XCCustom);
+    }
   }
 
   this->XCCrosshair = 0;
@@ -736,6 +750,7 @@ void vtkXOpenGLRenderWindow::DestroyWindow()
   this->XCSizeSE = 0;
   this->XCSizeSW = 0;
   this->XCHand = 0;
+  this->XCCustom = 0;
 
   if (this->OwnContext && this->Internal->ContextId)
   {
@@ -824,7 +839,11 @@ void vtkXOpenGLRenderWindow::SetFullScreen(vtkTypeBool arg)
   }
 
   if (this->FullScreen == arg)
+  {
     return;
+  }
+
+  this->FullScreen = arg;
 
   if (!this->Mapped)
   {
@@ -833,7 +852,6 @@ void vtkXOpenGLRenderWindow::SetFullScreen(vtkTypeBool arg)
   }
 
   // set the mode
-  this->FullScreen = arg;
   if (this->FullScreen <= 0)
   {
     this->Position[0] = this->OldScreen[0];
@@ -884,8 +902,7 @@ void vtkXOpenGLRenderWindow::PrefFullScreen()
   }
   else
   {
-    int* size;
-    size = this->GetScreenSize();
+    const int* size = this->GetScreenSize();
     this->Size[0] = size[0];
     this->Size[1] = size[1];
   }
@@ -1080,7 +1097,7 @@ void vtkXOpenGLRenderWindow::MakeCurrent()
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Tells if this window is the current OpenGL context for the calling thread.
 bool vtkXOpenGLRenderWindow::IsCurrent()
@@ -1123,7 +1140,7 @@ void vtkXOpenGLRenderWindow::SetForceMakeCurrent()
   this->ForceMakeCurrent = 1;
 }
 
-int vtkXOpenGLRenderWindowFoundMatch;
+vtkTypeBool vtkXOpenGLRenderWindowFoundMatch;
 
 extern "C"
 {
@@ -1150,7 +1167,7 @@ void* vtkXOpenGLRenderWindow::GetGenericContext()
   return static_cast<void*>(gc);
 }
 
-int vtkXOpenGLRenderWindow::GetEventPending()
+vtkTypeBool vtkXOpenGLRenderWindow::GetEventPending()
 {
   XEvent report;
 
@@ -1206,7 +1223,7 @@ int* vtkXOpenGLRenderWindow::GetPosition(void)
   x = attribs.x;
   y = attribs.y;
 
-  XTranslateCoordinates(this->DisplayId, this->WindowId,
+  XTranslateCoordinates(this->DisplayId, this->ParentId,
     XRootWindowOfScreen(XScreenOfDisplay(this->DisplayId, 0)), x, y, &this->Position[0],
     &this->Position[1], &child);
 
@@ -1429,7 +1446,7 @@ void vtkXOpenGLRenderWindow::CloseDisplay()
   }
 }
 
-int vtkXOpenGLRenderWindow::IsDirect()
+vtkTypeBool vtkXOpenGLRenderWindow::IsDirect()
 {
   this->MakeCurrent();
   this->UsingHardware = 0;
@@ -1463,6 +1480,50 @@ void vtkXOpenGLRenderWindow::SetWindowName(const char* cname)
     XFree(win_name_text_prop.value);
   }
   delete[] name;
+}
+
+void vtkXOpenGLRenderWindow::SetIcon(vtkImageData* img)
+{
+  int dim[3];
+  img->GetDimensions(dim);
+
+  int nbComp = img->GetNumberOfScalarComponents();
+
+  if (img->GetScalarType() != VTK_UNSIGNED_CHAR || dim[2] != 1 || nbComp < 3 || nbComp > 4)
+  {
+    vtkErrorMacro(
+      "Icon image should be 2D, have 3 or 4 components, and its type must be unsigned char.");
+    return;
+  }
+
+  unsigned char* imgScalars = static_cast<unsigned char*>(img->GetScalarPointer());
+
+  std::vector<unsigned long> pixels(2 + dim[0] * dim[1]);
+  pixels[0] = dim[0];
+  pixels[1] = dim[1];
+
+  // Convert vtkImageData buffer to X icon.
+  // We need to flip Y and use ARGB 32-bits encoded convention
+  for (int col = 0; col < dim[1]; col++)
+  {
+    for (int line = 0; line < dim[0]; line++)
+    {
+      unsigned char* inPixel = imgScalars + nbComp * ((dim[0] - col - 1) * dim[1] + line); // flip Y
+      unsigned long* outPixel = pixels.data() + col * dim[1] + line + 2;
+      if (nbComp == 4)
+      {
+        *outPixel = nbComp == 4 ? inPixel[3] : 0xff;
+      }
+      *outPixel = (*outPixel << 8) + inPixel[0];
+      *outPixel = (*outPixel << 8) + inPixel[1];
+      *outPixel = (*outPixel << 8) + inPixel[2];
+    }
+  }
+
+  Atom iconAtom = XInternAtom(this->DisplayId, "_NET_WM_ICON", False);
+  Atom typeAtom = XInternAtom(this->DisplayId, "CARDINAL", False);
+  XChangeProperty(this->DisplayId, this->WindowId, iconAtom, typeAtom, 32, PropModeReplace,
+    reinterpret_cast<unsigned char*>(pixels.data()), pixels.size());
 }
 
 // Specify the X window id to use if a WindowRemap is done.
@@ -1513,7 +1574,7 @@ void vtkXOpenGLRenderWindow::Render()
   this->vtkOpenGLRenderWindow::Render();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXOpenGLRenderWindow::HideCursor()
 {
   static char blankBits[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1541,7 +1602,7 @@ void vtkXOpenGLRenderWindow::HideCursor()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXOpenGLRenderWindow::ShowCursor()
 {
   if (!this->DisplayId || !this->WindowId)
@@ -1650,6 +1711,26 @@ void vtkXOpenGLRenderWindow::SetCurrentCursor(int shape)
         this->XCHand = XCreateFontCursor(this->DisplayId, XC_hand1);
       }
       XDefineCursor(this->DisplayId, this->WindowId, this->XCHand);
+      break;
+    case VTK_CURSOR_CUSTOM:
+#if VTK_HAVE_XCURSOR
+      this->XCCustom = XcursorFilenameLoadCursor(this->DisplayId, this->GetCursorFileName());
+      if (!this->XCCustom)
+      {
+        vtkErrorMacro(<< "Failed to load cursor from Xcursor file: " << this->GetCursorFileName());
+        break;
+      }
+      XDefineCursor(this->DisplayId, this->WindowId, this->XCCustom);
+#else
+    {
+      static bool once = false;
+      if (!once)
+      {
+        once = true;
+        vtkWarningMacro("VTK built without Xcursor support; ignoring requests for custom cursors.");
+      }
+    }
+#endif
       break;
   }
 }

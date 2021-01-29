@@ -36,7 +36,7 @@ public:
   }
 
   using ControlSignature =
-    void(FieldIn, WholeArrayInOut, FieldIn, FieldIn, FieldIn, WholeArrayOut, WholeArrayOut);
+    void(FieldIn, WholeArrayInOut, FieldIn, FieldIn, FieldIn, WholeArrayInOut, WholeArrayInOut);
   using ExecutionSignature = void(_1, _2, _3, _4, _5, _6, _7, WorkIndex);
   template <typename Precision,
             typename ColorPortalType,
@@ -115,8 +115,8 @@ VTKM_CONT void WriteToCanvas(const vtkm::rendering::raytracing::Ray<Precision>& 
             canvas->GetColorBuffer());
 
   //Force the transfer so the vectors contain data from device
-  canvas->GetColorBuffer().GetPortalControl().Get(0);
-  canvas->GetDepthBuffer().GetPortalControl().Get(0);
+  canvas->GetColorBuffer().WritePortal().Get(0);
+  canvas->GetDepthBuffer().WritePortal().Get(0);
 }
 
 } // namespace internal
@@ -126,9 +126,7 @@ CanvasRayTracer::CanvasRayTracer(vtkm::Id width, vtkm::Id height)
 {
 }
 
-CanvasRayTracer::~CanvasRayTracer()
-{
-}
+CanvasRayTracer::~CanvasRayTracer() {}
 
 void CanvasRayTracer::WriteToCanvas(const vtkm::rendering::raytracing::Ray<vtkm::Float32>& rays,
                                     const vtkm::cont::ArrayHandle<vtkm::Float32>& colors,

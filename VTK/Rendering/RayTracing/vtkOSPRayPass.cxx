@@ -40,6 +40,8 @@
 
 #include "RTWrapper/RTWrapper.h"
 
+#include <sstream>
+
 class vtkOSPRayPassInternals : public vtkRenderPass
 {
 public:
@@ -50,7 +52,7 @@ public:
 
   ~vtkOSPRayPassInternals() override { delete this->QuadHelper; }
 
-  void Init(vtkOpenGLRenderWindow* context)
+  void Init(vtkOpenGLRenderWindow* context, const std::string& renType)
   {
     std::string FSSource = vtkOpenGLRenderUtilities::GetFullScreenQuadFragmentShaderTemplate();
 
@@ -58,9 +60,23 @@ public:
       "uniform sampler2D colorTexture;\n"
       "uniform sampler2D depthTexture;\n");
 
-    vtkShaderProgram::Substitute(FSSource, "//VTK::FSQ::Impl",
-      "gl_FragData[0] = texture(colorTexture, texCoord);\n"
-      "gl_FragDepth = texture(depthTexture, texCoord).r;\n");
+    std::stringstream ss;
+    ss << "vec4 color = texture(colorTexture, texCoord);\n"
+       << "gl_FragDepth = texture(depthTexture, texCoord).r;\n";
+
+    // The framebuffer are linear, a conversion to sRGB is required
+    // This is particularly important for OSPRay pathtracer but for compatibility
+    // with legacy behavior we keep the old behavior with the sciviz backend
+    if (renType == "pathtracer")
+    {
+      ss << "gl_FragData[0] = vec4(pow(color.rgb, vec3(1.0/2.2)), color.a);\n";
+    }
+    else
+    {
+      ss << "gl_FragData[0] = color;\n";
+    }
+
+    vtkShaderProgram::Substitute(FSSource, "//VTK::FSQ::Impl", ss.str());
 
     this->QuadHelper = new vtkOpenGLQuadHelper(context,
       vtkOpenGLRenderUtilities::GetFullScreenQuadVertexShader().c_str(), FSSource.c_str(), "");
@@ -73,12 +89,15 @@ public:
     this->SharedColorTexture->AutoParametersOff();
     this->SharedDepthTexture->SetContext(context);
     this->SharedDepthTexture->AutoParametersOff();
+
+    this->RendererType = renType;
   }
 
   void Render(const vtkRenderState* s) override { this->Parent->RenderInternal(s); }
 
   vtkNew<vtkOSPRayViewNodeFactory> Factory;
   vtkOSPRayPass* Parent = nullptr;
+  std::string RendererType;
 
   // OpenGL-based display
   vtkOpenGLQuadHelper* QuadHelper = nullptr;
@@ -90,13 +109,13 @@ public:
 
 int vtkOSPRayPass::RTDeviceRefCount = 0;
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkOSPRayPassInternals);
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkOSPRayPass);
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkOSPRayPass::vtkOSPRayPass()
 {
   this->SceneGraph = nullptr;
@@ -123,7 +142,7 @@ vtkOSPRayPass::vtkOSPRayPass()
   this->PreviousType = "none";
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkOSPRayPass::~vtkOSPRayPass()
 {
   this->SetSceneGraph(nullptr);
@@ -162,7 +181,7 @@ vtkOSPRayPass::~vtkOSPRayPass()
   vtkOSPRayPass::RTShutdown();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOSPRayPass::RTInit()
 {
   if (RTDeviceRefCount == 0)
@@ -172,7 +191,7 @@ void vtkOSPRayPass::RTInit()
   RTDeviceRefCount++;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOSPRayPass::RTShutdown()
 {
   --RTDeviceRefCount;
@@ -182,16 +201,16 @@ void vtkOSPRayPass::RTShutdown()
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOSPRayPass::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCxxSetObjectMacro(vtkOSPRayPass, SceneGraph, vtkOSPRayRendererNode);
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOSPRayPass::Render(const vtkRenderState* s)
 {
   vtkRenderer* ren = s->GetRenderer();
@@ -214,7 +233,7 @@ void vtkOSPRayPass::Render(const vtkRenderState* s)
   this->CameraPass->Render(s);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOSPRayPass::RenderInternal(const vtkRenderState* s)
 {
   this->NumberOfRenderedProps = 0;
@@ -226,21 +245,33 @@ void vtkOSPRayPass::RenderInternal(const vtkRenderState* s)
     vtkFrameBufferObjectBase* fbo = s->GetFrameBuffer();
     int viewportX, viewportY;
     int viewportWidth, viewportHeight;
+    double tileViewport[4];
+    int tileScale[2];
     if (fbo)
     {
       viewportX = 0;
       viewportY = 0;
       fbo->GetLastSize(viewportWidth, viewportHeight);
+
+      tileViewport[0] = tileViewport[1] = 0.0;
+      tileViewport[2] = tileViewport[3] = 1.0;
+      tileScale[0] = tileScale[1] = 1;
     }
     else
     {
       ren->GetTiledSizeAndOrigin(&viewportWidth, &viewportHeight, &viewportX, &viewportY);
+
+      vtkWindow* win = ren->GetVTKWindow();
+      win->GetTileViewport(tileViewport);
+      win->GetTileScale(tileScale);
     }
 
     vtkOSPRayRendererNode* oren =
       vtkOSPRayRendererNode::SafeDownCast(this->SceneGraph->GetViewNodeFor(ren));
 
     oren->SetSize(viewportWidth, viewportHeight);
+    oren->SetViewport(tileViewport);
+    oren->SetScale(tileScale);
 
     this->SceneGraph->TraverseAllPasses();
 
@@ -258,9 +289,17 @@ void vtkOSPRayPass::RenderInternal(const vtkRenderState* s)
 
     vtkOpenGLRenderWindow* windowOpenGL = vtkOpenGLRenderWindow::SafeDownCast(rwin);
 
+    std::string renType = vtkOSPRayRendererNode::GetRendererType(ren);
+
+    if (this->Internal->QuadHelper && this->Internal->RendererType != renType)
+    {
+      delete this->Internal->QuadHelper;
+      this->Internal->QuadHelper = nullptr;
+    }
+
     if (!this->Internal->QuadHelper)
     {
-      this->Internal->Init(windowOpenGL);
+      this->Internal->Init(windowOpenGL, renType);
     }
     else
     {
@@ -291,7 +330,7 @@ void vtkOSPRayPass::RenderInternal(const vtkRenderState* s)
     {
       // upload to the texture
       this->Internal->ColorTexture->Create2DFromRaw(
-        viewportWidth, viewportHeight, 4, VTK_UNSIGNED_CHAR, this->SceneGraph->GetBuffer());
+        viewportWidth, viewportHeight, 4, VTK_FLOAT, this->SceneGraph->GetBuffer());
       this->Internal->DepthTexture->CreateDepthFromRaw(viewportWidth, viewportHeight,
         vtkTextureObject::Float32, VTK_FLOAT, this->SceneGraph->GetZBuffer());
 
@@ -345,7 +384,7 @@ void vtkOSPRayPass::RenderInternal(const vtkRenderState* s)
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkOSPRayPass::IsBackendAvailable(const char* choice)
 {
   std::set<RTWBackendType> bends = rtwGetAvailableBackends();

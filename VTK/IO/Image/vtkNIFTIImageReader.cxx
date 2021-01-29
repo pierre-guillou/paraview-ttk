@@ -17,6 +17,7 @@
 #include "vtkByteSwap.h"
 #include "vtkCommand.h"
 #include "vtkDataArray.h"
+#include "vtkEndian.h"
 #include "vtkErrorCode.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
@@ -45,7 +46,7 @@
 
 vtkStandardNewMacro(vtkNIFTIImageReader);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkNIFTIImageReader::vtkNIFTIImageReader()
 {
   for (int i = 0; i < 8; i++)
@@ -66,7 +67,7 @@ vtkNIFTIImageReader::vtkNIFTIImageReader()
   this->PlanarRGB = false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkNIFTIImageReader::~vtkNIFTIImageReader()
 {
   if (this->QFormMatrix)
@@ -83,7 +84,7 @@ vtkNIFTIImageReader::~vtkNIFTIImageReader()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 namespace
 { // anonymous namespace
 
@@ -114,7 +115,7 @@ void vtkNIFTIImageReaderSwapHeader(nifti_1_header* hdr)
   vtkByteSwap::SwapVoidRange(&hdr->glmin, 1, 4);
 
   // All NIFTI-specific (meaning is totally different in Analyze 7.5)
-  if (strncmp(hdr->magic, "ni1", 4) == 0 || strncmp(hdr->magic, "n+1", 4) == 0)
+  if (strncmp(hdr->magic, "ni1", 3) == 0 || strncmp(hdr->magic, "n+1", 3) == 0)
   {
     vtkByteSwap::SwapVoidRange(&hdr->qform_code, 1, 2);
     vtkByteSwap::SwapVoidRange(&hdr->sform_code, 1, 2);
@@ -167,7 +168,7 @@ void vtkNIFTIImageReaderSwapHeader(nifti_2_header* hdr)
 
 } // end anonymous namespace
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkNIFTIImageHeader* vtkNIFTIImageReader::GetNIFTIHeader()
 {
   if (!this->NIFTIHeader)
@@ -177,7 +178,7 @@ vtkNIFTIImageHeader* vtkNIFTIImageReader::GetNIFTIHeader()
   return this->NIFTIHeader;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkNIFTIImageReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -225,7 +226,7 @@ void vtkNIFTIImageReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PlanarRGB: " << (this->PlanarRGB ? "On\n" : "Off\n");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkNIFTIImageReader::CheckExtension(const char* filename, const char* ext)
 {
   if (strlen(ext) == 4 && ext[0] == '.')
@@ -245,7 +246,7 @@ bool vtkNIFTIImageReader::CheckExtension(const char* filename, const char* ext)
   return false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 char* vtkNIFTIImageReader::ReplaceExtension(
   const char* filename, const char* ext1, const char* ext2)
 {
@@ -315,7 +316,7 @@ char* vtkNIFTIImageReader::ReplaceExtension(
   return newname;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkNIFTIImageReader::CheckNIFTIVersion(const nifti_1_header* hdr)
 {
   int version = 0;
@@ -344,7 +345,7 @@ int vtkNIFTIImageReader::CheckNIFTIVersion(const nifti_1_header* hdr)
   return version;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkNIFTIImageReader::CheckAnalyzeHeader(const nifti_1_header* hdr)
 {
   if (hdr->sizeof_hdr == 348 ||    // Analyze 7.5 header size
@@ -355,7 +356,7 @@ bool vtkNIFTIImageReader::CheckAnalyzeHeader(const nifti_1_header* hdr)
   return false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkNIFTIImageReader::CanReadFile(const char* filename)
 {
   vtkDebugMacro("Opening NIFTI file " << filename);
@@ -402,7 +403,7 @@ int vtkNIFTIImageReader::CanReadFile(const char* filename)
   return canRead;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkNIFTIImageReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
 {
@@ -1015,7 +1016,7 @@ int vtkNIFTIImageReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkNIFTIImageReader::RequestData(vtkInformation* request,
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
 {

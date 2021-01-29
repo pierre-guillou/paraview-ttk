@@ -57,7 +57,8 @@ public:
 
 //-----------------------------------------------------------------------------
 pqOutputPort::pqOutputPort(pqPipelineSource* source, int portno)
-  : Superclass(source)
+  : Superclass(QString(), QString(), source->getSourceProxy()->GetOutputPort(portno),
+      source->getServer(), source)
   , Source(source)
   , PortNumber(portno)
 {
@@ -93,6 +94,12 @@ vtkSMOutputPort* pqOutputPort::getOutputPortProxy() const
   }
 
   return source->GetOutputPort(this->PortNumber);
+}
+
+//-----------------------------------------------------------------------------
+vtkDataAssembly* pqOutputPort::dataAssembly() const
+{
+  return this->getOutputPortProxy()->GetDataAssembly();
 }
 
 //-----------------------------------------------------------------------------
@@ -200,9 +207,9 @@ void pqOutputPort::addConsumer(pqPipelineSource* cons)
 {
   if (!this->Internal->Consumers.contains(cons))
   {
-    emit this->preConnectionAdded(this, cons);
+    Q_EMIT this->preConnectionAdded(this, cons);
     this->Internal->Consumers.push_back(cons);
-    emit this->connectionAdded(this, cons);
+    Q_EMIT this->connectionAdded(this, cons);
   }
 }
 
@@ -211,9 +218,9 @@ void pqOutputPort::removeConsumer(pqPipelineSource* cons)
 {
   if (this->Internal->Consumers.contains(cons))
   {
-    emit this->preConnectionRemoved(this, cons);
+    Q_EMIT this->preConnectionRemoved(this, cons);
     this->Internal->Consumers.removeAll(cons);
-    emit this->connectionRemoved(this, cons);
+    Q_EMIT this->connectionRemoved(this, cons);
   }
 }
 
@@ -226,7 +233,7 @@ void pqOutputPort::addRepresentation(pqDataRepresentation* repr)
       repr, SIGNAL(visibilityChanged(bool)), this, SLOT(onRepresentationVisibilityChanged()));
 
     this->Internal->Representations.push_back(repr);
-    emit this->representationAdded(this, repr);
+    Q_EMIT this->representationAdded(this, repr);
   }
 }
 
@@ -235,13 +242,13 @@ void pqOutputPort::removeRepresentation(pqDataRepresentation* repr)
 {
   this->Internal->Representations.removeAll(repr);
   QObject::disconnect(repr, 0, this, 0);
-  emit this->representationRemoved(this, repr);
+  Q_EMIT this->representationRemoved(this, repr);
 }
 
 //-----------------------------------------------------------------------------
 void pqOutputPort::onRepresentationVisibilityChanged()
 {
-  emit this->visibilityChanged(this, qobject_cast<pqDataRepresentation*>(this->sender()));
+  Q_EMIT this->visibilityChanged(this, qobject_cast<pqDataRepresentation*>(this->sender()));
 }
 
 //-----------------------------------------------------------------------------

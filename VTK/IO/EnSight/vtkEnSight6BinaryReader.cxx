@@ -29,6 +29,7 @@
 #include "vtkStructuredPoints.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtksys/Encoding.hxx"
+#include "vtksys/FStream.hxx"
 
 #include <cctype>
 #include <string>
@@ -51,7 +52,7 @@
 
 vtkStandardNewMacro(vtkEnSight6BinaryReader);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkEnSight6BinaryReader::vtkEnSight6BinaryReader()
 {
   this->NumberOfUnstructuredPoints = 0;
@@ -65,7 +66,7 @@ vtkEnSight6BinaryReader::vtkEnSight6BinaryReader()
   this->ElementIdsListed = 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkEnSight6BinaryReader::~vtkEnSight6BinaryReader()
 {
   if (this->UnstructuredNodeIds)
@@ -78,13 +79,12 @@ vtkEnSight6BinaryReader::~vtkEnSight6BinaryReader()
 
   if (this->BinaryIFile)
   {
-    this->BinaryIFile->close();
     delete this->BinaryIFile;
     this->BinaryIFile = nullptr;
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::OpenFile(const char* filename)
 {
   if (!filename)
@@ -93,13 +93,8 @@ int vtkEnSight6BinaryReader::OpenFile(const char* filename)
     return 0;
   }
 
-  // Close file from any previous image
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
 
   // Open the new file
   vtkDebugMacro(<< "Opening file " << filename);
@@ -109,12 +104,11 @@ int vtkEnSight6BinaryReader::OpenFile(const char* filename)
     // Find out how big the file is.
     this->FileSize = static_cast<vtkTypeUInt64>(fs.st_size);
 
+    std::ios_base::openmode mode = ios::in;
 #ifdef _WIN32
-    this->BinaryIFile =
-      new ifstream(vtksys::Encoding::ToWindowsExtendedPath(filename), ios::in | ios::binary);
-#else
-    this->BinaryIFile = new ifstream(filename, ios::in);
+    mode |= ios::binary;
 #endif
+    this->BinaryIFile = new vtksys::ifstream(filename, mode);
   }
   else
   {
@@ -129,7 +123,7 @@ int vtkEnSight6BinaryReader::OpenFile(const char* filename)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::ReadGeometryFile(
   const char* fileName, int timeStep, vtkMultiBlockDataSet* output)
 {
@@ -297,13 +291,10 @@ int vtkEnSight6BinaryReader::ReadGeometryFile(
     this->UnstructuredNodeIds->Delete();
     this->UnstructuredNodeIds = nullptr;
   }
-  // Close file from any previous image
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
+
   if (lineRead < 0)
   {
     return 0;
@@ -311,7 +302,7 @@ int vtkEnSight6BinaryReader::ReadGeometryFile(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::SkipTimeStep()
 {
   char line[80], subLine[80];
@@ -391,7 +382,7 @@ int vtkEnSight6BinaryReader::SkipTimeStep()
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::SkipStructuredGrid(char line[256])
 {
   char subLine[80];
@@ -436,7 +427,7 @@ int vtkEnSight6BinaryReader::SkipStructuredGrid(char line[256])
   return lineRead;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::SkipUnstructuredGrid(char line[256])
 {
   int lineRead = 1;
@@ -715,7 +706,7 @@ int vtkEnSight6BinaryReader::SkipUnstructuredGrid(char line[256])
   return lineRead;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::ReadMeasuredGeometryFile(
   const char* fileName, int timeStep, vtkMultiBlockDataSet* output)
 {
@@ -864,16 +855,13 @@ int vtkEnSight6BinaryReader::ReadMeasuredGeometryFile(
   delete[] pointIds;
   delete[] coords;
 
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
+
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::ReadScalarsPerNode(const char* fileName, const char* description,
   int timeStep, vtkMultiBlockDataSet* compositeOutput, int measured, int numberOfComponents,
   int component)
@@ -1117,16 +1105,13 @@ int vtkEnSight6BinaryReader::ReadScalarsPerNode(const char* fileName, const char
     }
   }
 
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
+
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::ReadVectorsPerNode(const char* fileName, const char* description,
   int timeStep, vtkMultiBlockDataSet* compositeOutput, int measured)
 {
@@ -1317,17 +1302,22 @@ int vtkEnSight6BinaryReader::ReadVectorsPerNode(const char* fileName, const char
     lineRead = this->ReadLine(line);
   }
 
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
 
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+int vtkEnSight6BinaryReader::ReadAsymmetricTensorsPerNode(const char* vtkNotUsed(fileName),
+  const char* vtkNotUsed(description), int vtkNotUsed(timeStep),
+  vtkMultiBlockDataSet* vtkNotUsed(compositeOutput))
+{
+  vtkErrorMacro("Asymmetric Tensors are not supported for Ensight6 ASCII files");
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char* description,
   int timeStep, vtkMultiBlockDataSet* compositeOutput)
 {
@@ -1373,6 +1363,8 @@ int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char
   {
     for (i = 0; i < timeStep - 1; i++)
     {
+      // Complex reading code just to drop them, there must be a better way to do that !
+      // TODO
       this->ReadLine(line);
       while (strncmp(line, "BEGIN TIME STEP", 15) != 0)
       {
@@ -1483,16 +1475,13 @@ int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char
     lineRead = this->ReadLine(line);
   }
 
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
+
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::ReadScalarsPerElement(const char* fileName, const char* description,
   int timeStep, vtkMultiBlockDataSet* compositeOutput, int numberOfComponents, int component)
 {
@@ -1564,7 +1553,6 @@ int vtkEnSight6BinaryReader::ReadScalarsPerElement(const char* fileName, const c
             if (elementType < 0)
             {
               vtkErrorMacro("invalid element type");
-              this->BinaryIFile->close();
               delete this->BinaryIFile;
               this->BinaryIFile = nullptr;
               return 0;
@@ -1630,7 +1618,6 @@ int vtkEnSight6BinaryReader::ReadScalarsPerElement(const char* fileName, const c
         if (elementType < 0)
         {
           vtkErrorMacro("invalid element type");
-          this->BinaryIFile->close();
           delete this->BinaryIFile;
           this->BinaryIFile = nullptr;
           return 0;
@@ -1679,16 +1666,13 @@ int vtkEnSight6BinaryReader::ReadScalarsPerElement(const char* fileName, const c
     }
   }
 
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
+
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::ReadVectorsPerElement(const char* fileName, const char* description,
   int timeStep, vtkMultiBlockDataSet* compositeOutput)
 {
@@ -1860,16 +1844,22 @@ int vtkEnSight6BinaryReader::ReadVectorsPerElement(const char* fileName, const c
     vectors->Delete();
   }
 
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
+
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+int vtkEnSight6BinaryReader::ReadAsymmetricTensorsPerElement(const char* vtkNotUsed(fileName),
+  const char* vtkNotUsed(description), int vtkNotUsed(timeStep),
+  vtkMultiBlockDataSet* vtkNotUsed(compositeOutput))
+{
+  vtkErrorMacro("Asymmetric Tensors are not supported for Ensight6 ASCII files");
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const char* description,
   int timeStep, vtkMultiBlockDataSet* compositeOutput)
 {
@@ -1915,6 +1905,8 @@ int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const c
   {
     for (i = 0; i < timeStep - 1; i++)
     {
+      // Complex reading code just to drop them, there must be a better way to do that !
+      // TODO
       this->ReadLine(line);
       while (strncmp(line, "BEGIN TIME STEP", 15) != 0)
       {
@@ -1942,7 +1934,6 @@ int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const c
             if (elementType < 0)
             {
               vtkErrorMacro("invalid element type");
-              this->BinaryIFile->close();
               delete this->BinaryIFile;
               this->BinaryIFile = nullptr;
               return 0;
@@ -1999,7 +1990,6 @@ int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const c
         if (elementType < 0)
         {
           vtkErrorMacro("invalid element type");
-          this->BinaryIFile->close();
           delete this->BinaryIFile;
           this->BinaryIFile = nullptr;
           return 0;
@@ -2047,16 +2037,13 @@ int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const c
     tensors->Delete();
   }
 
-  if (this->BinaryIFile)
-  {
-    this->BinaryIFile->close();
-    delete this->BinaryIFile;
-    this->BinaryIFile = nullptr;
-  }
+  delete this->BinaryIFile;
+  this->BinaryIFile = nullptr;
+
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::CreateUnstructuredGridOutput(
   int partId, char line[80], const char* name, vtkMultiBlockDataSet* compositeOutput)
 {
@@ -2622,7 +2609,7 @@ int vtkEnSight6BinaryReader::CreateUnstructuredGridOutput(
   return lineRead;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkEnSight6BinaryReader::CreateStructuredGridOutput(
   int partId, char line[80], const char* name, vtkMultiBlockDataSet* compositeOutput)
 {
@@ -2857,7 +2844,7 @@ int vtkEnSight6BinaryReader::ReadFloatArray(float* result, int numFloats)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkEnSight6BinaryReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

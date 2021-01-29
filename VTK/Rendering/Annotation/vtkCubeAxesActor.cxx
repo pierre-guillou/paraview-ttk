@@ -578,7 +578,7 @@ int vtkCubeAxesActor::RenderOverlay(vtkViewport* viewport)
   return this->RenderGeometry(initialRender, viewport, false, &vtkAxisActor::RenderOverlay);
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTypeBool vtkCubeAxesActor::HasTranslucentPolygonalGeometry()
 {
   if ((this->NumberOfAxesX > 0 && this->XAxes[0]->HasTranslucentPolygonalGeometry()) ||
@@ -591,7 +591,7 @@ vtkTypeBool vtkCubeAxesActor::HasTranslucentPolygonalGeometry()
   return 0;
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Do final adjustment of axes to control offset, etc.
 void vtkCubeAxesActor::AdjustAxes(double bounds[6], double xCoords[NUMBER_OF_ALIGNED_AXIS][6],
   double yCoords[NUMBER_OF_ALIGNED_AXIS][6], double zCoords[NUMBER_OF_ALIGNED_AXIS][6],
@@ -896,7 +896,7 @@ void vtkCubeAxesActor::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCubeAxesActor::TransformBounds(
   vtkViewport* viewport, const double bounds[6], double pts[8][3])
 {
@@ -1892,19 +1892,19 @@ void vtkCubeAxesActor::DetermineRenderAxes(vtkViewport* viewport)
     (this->GridLineLocation == VTK_GRID_LINES_CLOSEST) ? closestIdx : furtherstIdx);
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkCubeAxesActor::MaxOf(double a, double b)
 {
   return (a > b ? a : b);
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkCubeAxesActor::MaxOf(double a, double b, double c, double d)
 {
   return this->MaxOf(this->MaxOf(a, b), this->MaxOf(c, d));
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 inline double vtkCubeAxesActor::FFix(double value)
 {
   int ivalue = static_cast<int>(value);
@@ -1925,7 +1925,7 @@ inline int vtkCubeAxesActor::GetNumTicks(double range, double fxt)
   return this->FRound(fnt);
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 inline double vtkCubeAxesActor::FSign(double value, double sign)
 {
   value = fabs(value);
@@ -2179,7 +2179,9 @@ void vtkCubeAxesActor::BuildLabels(vtkAxisActor* axes[NUMBER_OF_ALIGNED_AXIS])
   double axis[3] = { p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2] };
   double axisLength = vtkMath::Norm(axis);
   double extents = range[1] - range[0];
-  bool mustAdjustValue = 0;
+  double tol =
+    extents * 1e-6; // Calculate a relative tolerance based on the extent to compare to 0.
+  bool mustAdjustValue = false;
   int lastPow = 0;
   int axisIndex = 0;
   vtkStringArray* customizedLabels = nullptr;
@@ -2241,7 +2243,7 @@ void vtkCubeAxesActor::BuildLabels(vtkAxisActor* axes[NUMBER_OF_ALIGNED_AXIS])
 
     for (int i = 0; i < labelCount; i++)
     {
-      if (fabs(val) < 0.01 && extents > 1)
+      if (fabs(val) < tol)
       {
         // We just happened to fall at something near zero and the range is
         // large, so set it to zero to avoid ugliness.
@@ -2255,7 +2257,7 @@ void vtkCubeAxesActor::BuildLabels(vtkAxisActor* axes[NUMBER_OF_ALIGNED_AXIS])
       {
         snprintf(label, sizeof(label), format, val);
       }
-      if (fabs(val) < 0.01)
+      if (fabs(val) < tol)
       {
         //
         // Ensure that -0.0 is never a label
@@ -2511,7 +2513,7 @@ vtkProperty* vtkCubeAxesActor::GetZAxesGridpolysProperty()
 {
   return this->ZAxesGridpolysProperty;
 }
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCubeAxesActor::UpdateGridLineVisibility(int idx)
 {
   if (this->GridLineLocation != VTK_GRID_LINES_ALL &&
@@ -2553,7 +2555,7 @@ void vtkCubeAxesActor::UpdateGridLineVisibility(int idx)
     }
   }
 }
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkCubeAxesActor::FindClosestAxisIndex(double pts[8][3])
 {
   // Loop over points and find the closest point to the camera
@@ -2570,7 +2572,7 @@ int vtkCubeAxesActor::FindClosestAxisIndex(double pts[8][3])
   return idx;
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkCubeAxesActor::FindFurtherstAxisIndex(double pts[8][3])
 {
   // Loop over points and find the furthest point from the camera
@@ -2586,7 +2588,7 @@ int vtkCubeAxesActor::FindFurtherstAxisIndex(double pts[8][3])
   }
   return idx;
 }
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCubeAxesActor::FindBoundaryEdge(int& xloc, int& yloc, int& zloc, double pts[8][3])
 {
   // boundary edges fly mode
@@ -2706,7 +2708,7 @@ void vtkCubeAxesActor::FindBoundaryEdge(int& xloc, int& yloc, int& zloc, double 
   }
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkCubeAxesActor::RenderGeometry(bool& initialRender, vtkViewport* viewport,
   bool checkAxisVisibility, int (vtkAxisActor::*renderMethod)(vtkViewport*))
 {
@@ -2763,7 +2765,7 @@ int vtkCubeAxesActor::RenderGeometry(bool& initialRender, vtkViewport* viewport,
   return renderedSomething;
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCubeAxesActor::ComputeStickyAxesBoundingSphere(vtkViewport* viewport,
   const double originalBounds[6], double sphereCenter[3], double& sphereRadius)
 {
@@ -2924,7 +2926,7 @@ void vtkCubeAxesActor::ComputeStickyAxesBoundingSphere(vtkViewport* viewport,
   }
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCubeAxesActor::GetViewportLimitedBounds(vtkViewport* viewport, double bounds[6])
 {
   double originalBounds[6];
@@ -2963,7 +2965,7 @@ void vtkCubeAxesActor::GetViewportLimitedBounds(vtkViewport* viewport, double bo
   }
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCubeAxesActor::GetBoundsPointBits(
   unsigned int pointIndex, unsigned int& xBit, unsigned int& yBit, unsigned int& zBit)
 {
@@ -2980,7 +2982,7 @@ void vtkCubeAxesActor::GetBoundsPointBits(
   zBit = (pointIndex & zMask) >> 2;
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCubeAxesActor::GetBoundsPoint(
   unsigned int pointIndex, const double bounds[6], double point[3])
 {
@@ -2996,7 +2998,7 @@ void vtkCubeAxesActor::GetBoundsPoint(
   point[2] = bounds[zBit + 4];
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCubeAxesActor::GetRenderedBounds(double* b)
 {
   vtkBoundingBox bbox(this->GetBounds()); // Data bounds
@@ -3008,7 +3010,7 @@ void vtkCubeAxesActor::GetRenderedBounds(double* b)
   bbox.GetBounds(b);
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkCubeAxesActor::GetRenderedBounds()
 {
   this->GetRenderedBounds(this->RenderedBounds);

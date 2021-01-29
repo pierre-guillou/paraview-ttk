@@ -14,12 +14,12 @@
 =========================================================================*/
 #include "vtkHyperTreeGridEvaluateCoarse.h"
 #include "vtkBitArray.h"
+#include "vtkCellData.h"
 #include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkInformation.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkPointData.h"
 
 #include "vtkUniformHyperTreeGrid.h"
 
@@ -29,7 +29,7 @@
 
 vtkStandardNewMacro(vtkHyperTreeGridEvaluateCoarse);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridEvaluateCoarse::vtkHyperTreeGridEvaluateCoarse()
 {
   this->Operator = vtkHyperTreeGridEvaluateCoarse::OPERATOR_DON_T_CHANGE;
@@ -45,23 +45,23 @@ vtkHyperTreeGridEvaluateCoarse::vtkHyperTreeGridEvaluateCoarse()
   this->AppropriateOutput = true;
 }
 
-//-----------------------------------------------------------------------------
-vtkHyperTreeGridEvaluateCoarse::~vtkHyperTreeGridEvaluateCoarse() {}
+//------------------------------------------------------------------------------
+vtkHyperTreeGridEvaluateCoarse::~vtkHyperTreeGridEvaluateCoarse() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridEvaluateCoarse::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridEvaluateCoarse::FillOutputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkHyperTreeGrid");
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridEvaluateCoarse::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject* outputDO)
 {
   // Downcast output data object to hypertree grid
@@ -87,8 +87,8 @@ int vtkHyperTreeGridEvaluateCoarse::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
   this->NumberOfChildren = output->GetNumberOfChildren();
 
   this->NbChilds = input->GetNumberOfChildren();
-  this->InData = input->GetPointData();
-  this->OutData = output->GetPointData();
+  this->InData = input->GetCellData();
+  this->OutData = output->GetCellData();
   this->OutData->CopyAllocate(this->InData);
   // Iterate over all input and output hyper trees
   vtkIdType index;
@@ -107,7 +107,7 @@ int vtkHyperTreeGridEvaluateCoarse::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridEvaluateCoarse::ProcessNode(vtkHyperTreeGridNonOrientedCursor* outCursor)
 {
   vtkIdType id = outCursor->GetGlobalNodeIndex();
@@ -133,7 +133,7 @@ void vtkHyperTreeGridEvaluateCoarse::ProcessNode(vtkHyperTreeGridNonOrientedCurs
   //
   int nbArray = this->InData->GetNumberOfArrays();
   //
-  std::vector<std::vector<std::vector<double> > > values(nbArray);
+  std::vector<std::vector<std::vector<double>>> values(nbArray);
   // Coarse
   for (int ichild = 0; ichild < this->NbChilds; ++ichild)
   {
@@ -171,7 +171,7 @@ void vtkHyperTreeGridEvaluateCoarse::ProcessNode(vtkHyperTreeGridNonOrientedCurs
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkHyperTreeGridEvaluateCoarse::EvalCoarse(const std::vector<double>& array)
 {
   switch (this->Operator)
@@ -212,10 +212,10 @@ double vtkHyperTreeGridEvaluateCoarse::EvalCoarse(const std::vector<double>& arr
   return NAN;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkHyperTreeGridEvaluateCoarse::Min(const std::vector<double>& array)
 {
-  if (array.size() == 0)
+  if (array.empty())
   {
     return NAN;
   }
@@ -230,10 +230,10 @@ double vtkHyperTreeGridEvaluateCoarse::Min(const std::vector<double>& array)
   return val;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkHyperTreeGridEvaluateCoarse::Max(const std::vector<double>& array)
 {
-  if (array.size() == 0)
+  if (array.empty())
   {
     return NAN;
   }
@@ -248,7 +248,7 @@ double vtkHyperTreeGridEvaluateCoarse::Max(const std::vector<double>& array)
   return val;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkHyperTreeGridEvaluateCoarse::Sum(const std::vector<double>& array)
 {
   double val = array[0];
@@ -259,10 +259,10 @@ double vtkHyperTreeGridEvaluateCoarse::Sum(const std::vector<double>& array)
   return val;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkHyperTreeGridEvaluateCoarse::Average(const std::vector<double>& array)
 {
-  if (array.size() == 0)
+  if (array.empty())
   {
     return this->Default;
   }
@@ -274,30 +274,30 @@ double vtkHyperTreeGridEvaluateCoarse::Average(const std::vector<double>& array)
   return sum / this->NumberOfChildren;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkHyperTreeGridEvaluateCoarse::UnmaskedAverage(const std::vector<double>& array)
 {
-  if (array.size() == 0)
+  if (array.empty())
   {
     return NAN;
   }
   return Sum(array) / array.size();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkHyperTreeGridEvaluateCoarse::ElderChild(const std::vector<double>& array)
 {
-  if (array.size() == 0)
+  if (array.empty())
   {
     return NAN;
   }
   return array[0];
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkHyperTreeGridEvaluateCoarse::SplattingAverage(const std::vector<double>& array)
 {
-  if (array.size() == 0)
+  if (array.empty())
   {
     return this->Default;
   }

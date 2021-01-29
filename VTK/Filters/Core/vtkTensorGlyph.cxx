@@ -30,6 +30,7 @@
 
 vtkStandardNewMacro(vtkTensorGlyph);
 
+//------------------------------------------------------------------------------
 // Construct object with scaling on and scale factor 1.0. Eigenvalues are
 // extracted, glyphs are colored with input scalar data, and logarithmic
 // scaling is turned off.
@@ -57,10 +58,10 @@ vtkTensorGlyph::vtkTensorGlyph()
     1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, vtkDataSetAttributes::SCALARS);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTensorGlyph::~vtkTensorGlyph() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTensorGlyph::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -87,7 +88,7 @@ int vtkTensorGlyph::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTensorGlyph::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -488,7 +489,7 @@ int vtkTensorGlyph::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTensorGlyph::SetSourceConnection(int id, vtkAlgorithmOutput* algOutput)
 {
   if (id < 0)
@@ -515,13 +516,13 @@ void vtkTensorGlyph::SetSourceConnection(int id, vtkAlgorithmOutput* algOutput)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTensorGlyph::SetSourceData(vtkPolyData* source)
 {
   this->SetInputData(1, source);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPolyData* vtkTensorGlyph::GetSource()
 {
   if (this->GetNumberOfInputConnections(1) < 1)
@@ -531,7 +532,7 @@ vtkPolyData* vtkTensorGlyph::GetSource()
   return vtkPolyData::SafeDownCast(this->GetExecutive()->GetInputData(1, 0));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTensorGlyph::FillInputPortInformation(int port, vtkInformation* info)
 {
   if (port == 1)
@@ -543,7 +544,7 @@ int vtkTensorGlyph::FillInputPortInformation(int port, vtkInformation* info)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTensorGlyph::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

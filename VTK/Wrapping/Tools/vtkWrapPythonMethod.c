@@ -37,7 +37,7 @@ static void vtkWrapPython_SubstituteCode(
   FILE* fp, ClassInfo* data, FunctionInfo* func, const char* code);
 
 /* Check any "expects" preconditions prior to calling the function */
-static void vtkWrapPython_CheckPreconds(FILE* fp, ClassInfo* data, FunctionInfo* currentFunction);
+static void vtkWrapPython_CheckPreconds(FILE* fp, ClassInfo* data, FunctionInfo* func);
 
 /* save the contents of all arrays prior to calling the function */
 static void vtkWrapPython_SaveArgs(FILE* fp, FunctionInfo* currentFunction);
@@ -1121,6 +1121,12 @@ void vtkWrapPython_GenerateOneMethod(FILE* fp, const char* classname, ClassInfo*
     if (theOccurrence->Name && strcmp(theFunc->Name, theOccurrence->Name) == 0)
     {
       occCounter++;
+
+      if (theOccurrence->Deprecation)
+      {
+        /* in the future, deprecation warnings could be implemented */
+        fprintf(fp, "/* deprecated: %s */\n", theOccurrence->Deprecation);
+      }
 
       if (theOccurrence->IsLegacy)
       {

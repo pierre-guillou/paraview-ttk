@@ -85,14 +85,9 @@ pqCollaborationPanel::pqCollaborationPanel(QWidget* p)
 {
   this->Internal = new pqInternal();
   this->Internal->setupUi(this);
-#if QT_VERSION >= 0x050000
   this->Internal->members->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
   this->Internal->members->horizontalHeader()->setSectionResizeMode(
     1, QHeaderView::ResizeToContents);
-#else
-  this->Internal->members->horizontalHeader()->setResizeMode(0, QHeaderView::Stretch);
-  this->Internal->members->horizontalHeader()->setResizeMode(1, QHeaderView::ResizeToContents);
-#endif
   this->Internal->CameraToFollowOfUserId = -1;
   this->Internal->NeedToConnectToCollaborationManager = true;
   this->Internal->connectId->setMaximum(VTK_INT_MAX);
@@ -200,7 +195,7 @@ void pqCollaborationPanel::onUserMessage()
       pqApplicationCore::instance()->getServerManagerModel()->findServer(collab->GetSession());
     int userId = collab->GetUserId();
     QString msg = this->Internal->message->text();
-    emit triggerChatMessage(activeServer, userId, msg);
+    Q_EMIT triggerChatMessage(activeServer, userId, msg);
     this->Internal->message->clear();
   }
 }
@@ -504,5 +499,5 @@ void pqCollaborationPanel::onServerChanged()
 //-----------------------------------------------------------------------------
 void pqCollaborationPanel::onConnectIDChanged()
 {
-  emit connectIDChanged(this->Internal->connectId->value());
+  Q_EMIT connectIDChanged(this->Internal->connectId->value());
 }

@@ -44,11 +44,11 @@ public:
   std::vector<vtkVariant> Columns;
 };
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkStandardNewMacro(vtkTableToArray);
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkTableToArray::vtkTableToArray()
   : Implementation(new implementation())
@@ -57,14 +57,14 @@ vtkTableToArray::vtkTableToArray()
   this->SetNumberOfOutputPorts(1);
 }
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkTableToArray::~vtkTableToArray()
 {
   delete this->Implementation;
 }
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkTableToArray::PrintSelf(ostream& os, vtkIndent indent)
 {
@@ -87,19 +87,19 @@ void vtkTableToArray::AddColumn(const char* name)
     return;
   }
 
-  this->Implementation->Columns.push_back(vtkVariant(vtkStdString(name)));
+  this->Implementation->Columns.emplace_back(vtkStdString(name));
   this->Modified();
 }
 
 void vtkTableToArray::AddColumn(vtkIdType index)
 {
-  this->Implementation->Columns.push_back(vtkVariant(static_cast<int>(index)));
+  this->Implementation->Columns.emplace_back(static_cast<int>(index));
   this->Modified();
 }
 
 void vtkTableToArray::AddAllColumns()
 {
-  this->Implementation->Columns.push_back(vtkVariant(static_cast<char>('A')));
+  this->Implementation->Columns.emplace_back(static_cast<char>('A'));
   this->Modified();
 }
 
@@ -115,7 +115,7 @@ int vtkTableToArray::FillInputPortInformation(int port, vtkInformation* info)
   return 0;
 }
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 int vtkTableToArray::RequestData(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)

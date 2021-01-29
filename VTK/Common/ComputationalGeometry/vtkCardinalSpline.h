@@ -56,12 +56,12 @@ public:
 
 protected:
   vtkCardinalSpline();
-  ~vtkCardinalSpline() override {}
+  ~vtkCardinalSpline() override = default;
 
-  void Fit1D(int n, double* x, double* y, double* w, double coefficients[][4], int leftConstraint,
-    double leftValue, int rightConstraint, double rightValue);
+  void Fit1D(int size, double* x, double* y, double* w, double coefficients[][4],
+    int leftConstraint, double leftValue, int rightConstraint, double rightValue);
 
-  void FitClosed1D(int n, double* x, double* y, double* w, double coefficients[][4]);
+  void FitClosed1D(int size, double* x, double* y, double* w, double coefficients[][4]);
 
 private:
   vtkCardinalSpline(const vtkCardinalSpline&) = delete;

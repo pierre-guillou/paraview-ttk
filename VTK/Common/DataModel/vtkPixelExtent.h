@@ -262,7 +262,7 @@ public:
    * of A and C is C.
    */
   static void Subtract(
-    const vtkPixelExtent& A, const vtkPixelExtent& B, std::deque<vtkPixelExtent>& newExts);
+    const vtkPixelExtent& A, const vtkPixelExtent& B, std::deque<vtkPixelExtent>& C);
 
   /**
    * Merge compatible extents in the list. Extents are compatible
@@ -424,9 +424,9 @@ inline bool vtkPixelExtent::operator==(const vtkPixelExtent& other) const
   if ((this->Data[0] == other.Data[0]) && (this->Data[1] == other.Data[1]) &&
     (this->Data[2] == other.Data[2]) && (this->Data[3] == other.Data[3]))
   {
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 //-----------------------------------------------------------------------------

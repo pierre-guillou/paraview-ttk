@@ -60,8 +60,8 @@
 //  Oliver Ruebel (LBNL)
 //==============================================================================
 
-#ifndef vtkm_worklet_contourtree_augmented_contourtree_mesh_inc_compute_max_neighbour_worklet_h
-#define vtkm_worklet_contourtree_augmented_contourtree_mesh_inc_compute_max_neighbour_worklet_h
+#ifndef vtk_m_worklet_contourtree_augmented_contourtree_mesh_inc_compute_max_neighbour_worklet_h
+#define vtk_m_worklet_contourtree_augmented_contourtree_mesh_inc_compute_max_neighbour_worklet_h
 
 #include <vtkm/worklet/WorkletMapField.h>
 
@@ -110,7 +110,6 @@ public:
     }
 
     // In serial this worklet implements the following operation
-    // #pragma omp parallel for
     // for (indexVector::size_type startVtxNo = 0; startVtxNo < firstNeighbour.size()-1; ++startVtxNo)
     //   {
     //     nNeighbours[startVtxNo] = firstNeighbour[startVtxNo+1] - firstNeighbour[startVtxNo];

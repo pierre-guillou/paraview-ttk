@@ -69,6 +69,7 @@ public:
 
   /**
    * Specify the underlying data type of the object.
+   * Default is VTK_FLOAT.
    */
   virtual void SetDataType(int dataType);
   void SetDataTypeToBit() { this->SetDataType(VTK_BIT); }
@@ -221,7 +222,7 @@ public:
   /**
    * Given a list of pt ids, return an array of points.
    */
-  void GetPoints(vtkIdList* ptId, vtkPoints* fp);
+  void GetPoints(vtkIdList* ptId, vtkPoints* outPoints);
 
   /**
    * Determine (xmin,xmax, ymin,ymax, zmin,zmax) bounds of points.

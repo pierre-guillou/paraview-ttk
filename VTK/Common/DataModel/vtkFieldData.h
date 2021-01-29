@@ -54,6 +54,7 @@ class VTKCOMMONDATAMODEL_EXPORT vtkFieldData : public vtkObject
 {
 public:
   static vtkFieldData* New();
+  static vtkFieldData* ExtendedNew();
 
   vtkTypeMacro(vtkFieldData, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -102,6 +103,11 @@ public:
    * Return the index of the added array.
    */
   int AddArray(vtkAbstractArray* array);
+
+  /**
+   * Sets every vtkDataArray at index id to a null tuple.
+   */
+  void NullData(vtkIdType id);
 
   //@{
   /**

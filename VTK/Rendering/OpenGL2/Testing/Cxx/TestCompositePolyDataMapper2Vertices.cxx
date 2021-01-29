@@ -69,8 +69,8 @@ int TestCompositePolyDataMapper2Vertices(int argc, char* argv[])
     blocksPerLevel[1] = 32;
     blocksPerLevel[2] = 64;
   }
-  std::vector<vtkSmartPointer<vtkMultiBlockDataSet> > blocks;
-  blocks.push_back(data.GetPointer());
+  std::vector<vtkSmartPointer<vtkMultiBlockDataSet>> blocks;
+  blocks.emplace_back(data.GetPointer());
   unsigned levelStart = 0;
   unsigned levelEnd = 1;
   int numLevels = sizeof(blocksPerLevel) / sizeof(blocksPerLevel[0]);
@@ -109,7 +109,7 @@ int TestCompositePolyDataMapper2Vertices(int argc, char* argv[])
         {
           vtkNew<vtkMultiBlockDataSet> child;
           blocks[parent]->SetBlock(block, child);
-          blocks.push_back(child.GetPointer());
+          blocks.emplace_back(child.GetPointer());
         }
       }
     }

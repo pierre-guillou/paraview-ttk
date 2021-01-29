@@ -27,7 +27,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkPiecewiseFunction.h"
 #include "vtkPolyData.h"
-#include "vtkViewNodeCollection.h"
 #include "vtkVolume.h"
 #include "vtkVolumeProperty.h"
 
@@ -36,23 +35,28 @@
 //============================================================================
 vtkStandardNewMacro(vtkOSPRayVolumeNode);
 
-//----------------------------------------------------------------------------
-vtkOSPRayVolumeNode::vtkOSPRayVolumeNode() {}
+//------------------------------------------------------------------------------
+vtkOSPRayVolumeNode::vtkOSPRayVolumeNode() = default;
 
-//----------------------------------------------------------------------------
-vtkOSPRayVolumeNode::~vtkOSPRayVolumeNode() {}
+//------------------------------------------------------------------------------
+vtkOSPRayVolumeNode::~vtkOSPRayVolumeNode() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOSPRayVolumeNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMTimeType vtkOSPRayVolumeNode::GetMTime()
 {
   vtkMTimeType mtime = this->Superclass::GetMTime();
   vtkVolume* vol = (vtkVolume*)this->GetRenderable();
+  if (!vol)
+  {
+    return mtime;
+  }
+
   if (vol->GetMTime() > mtime)
   {
     mtime = vol->GetMTime();

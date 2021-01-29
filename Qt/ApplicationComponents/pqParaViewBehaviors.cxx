@@ -62,6 +62,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqStreamingTestingEventPlayer.h"
 #include "pqUndoRedoBehavior.h"
 #include "pqUndoStack.h"
+#include "pqUsageLoggingBehavior.h"
 #include "pqVerifyRequiredPluginBehavior.h"
 #include "pqViewStreamingBehavior.h"
 
@@ -157,6 +158,7 @@ PQ_BEHAVIOR_DEFINE_FLAG(WheelNeedsFocusBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(LiveSourceBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(CustomShortcutBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(MainWindowEventBehavior, true);
+PQ_BEHAVIOR_DEFINE_FLAG(UsageLoggingBehavior, false);
 #undef PQ_BEHAVIOR_DEFINE_FLAG
 
 #define PQ_IS_BEHAVIOR_ENABLED(_name) enable##_name()
@@ -303,9 +305,6 @@ pqParaViewBehaviors::pqParaViewBehaviors(QMainWindow* mainWindow, QObject* paren
     QShortcut* altSpace = new QShortcut(Qt::ALT + Qt::Key_Space, mainWindow);
     QObject::connect(
       altSpace, SIGNAL(activated()), pqApplicationCore::instance(), SLOT(quickLaunch()));
-    QShortcut* ctrlF = new QShortcut(Qt::CTRL + Qt::Key_F, mainWindow);
-    QObject::connect(
-      ctrlF, SIGNAL(activated()), pqApplicationCore::instance(), SLOT(startSearch()));
   }
 
   if (PQ_IS_BEHAVIOR_ENABLED(LockPanelsBehavior))
@@ -336,6 +335,10 @@ pqParaViewBehaviors::pqParaViewBehaviors(QMainWindow* mainWindow, QObject* paren
   if (PQ_IS_BEHAVIOR_ENABLED(MainWindowEventBehavior))
   {
     new pqMainWindowEventBehavior(mainWindow);
+  }
+  if (PQ_IS_BEHAVIOR_ENABLED(UsageLoggingBehavior))
+  {
+    new pqUsageLoggingBehavior(mainWindow);
   }
   CLEAR_UNDO_STACK();
 }

@@ -29,9 +29,11 @@
 #
 #==========================================================================
 set(classes
+  vtkAnnotateGlobalDataFilter
   vtkCellIntegrator
   vtkCleanUnstructuredGrid
   vtkCleanUnstructuredGridCells
+  vtkConvertPolyhedraFilter
   vtkEquivalenceSet
   vtkExtractScatterPlot
   vtkFlashContour
@@ -41,7 +43,6 @@ set(classes
   vtkImageSimpleSource
   vtkIntegrateFlowThroughSurface
   vtkIsoVolume
-  vtkMergeArrays
   vtkOMETIFFChannelCalculator
   vtkPEquivalenceSet
   vtkPlotEdges

@@ -1,13 +1,7 @@
 set(LagrangeGeometricOperations_ARGS
   -D DATA{../Data/Input/Elements.vtu}
-  -V DATA{../Data/Baseline/LagrangeGeometricOperations.png,:}
-  -V DATA{../Data/Baseline/LagrangeGeometricOperations_1.png,:}
-  -V DATA{../Data/Baseline/LagrangeGeometricOperations_2.png,:}
   -V DATA{../Data/Baseline/LagrangeGeometricOperations-Boundary.png,:}
-  -V DATA{../Data/Baseline/LagrangeGeometricOperations-Boundary_1.png,:}
-  -V DATA{../Data/Baseline/LagrangeGeometricOperations-Boundary_2.png,:}
   -V DATA{../Data/Baseline/LagrangeGeometricOperations-Contour.png,:}
-  -V DATA{../Data/Baseline/LagrangeGeometricOperations-Contour_1.png,:}
   -V DATA{../Data/Baseline/LagrangeGeometricOperations-Cut.png,:}
   -V DATA{../Data/Baseline/LagrangeGeometricOperations-Clip.png,:}
   -V DATA{../Data/Baseline/LagrangeGeometricOperations-StabR.png,:}
@@ -17,10 +11,15 @@ set(LagrangeGeometricOperations_ARGS
 
 vtk_add_test_python(
   dataSetSurfaceFilter.py
+  dataSetSurfaceFilter2.py,NO_DATA,NO_VALID,NO_OUTPUT
   geomFilter.py
   LagrangeGeometricOperations.py,JUST_VALID
   officeStreamPoints.py
   rectGrid.py
   structuredGridBlanking.py
+  TestGeometryFilter.py
+  TestGeometryFilter2.py
   TestGhostPoints.py,NO_DATA,NO_VALID,NO_OUTPUT
+  TestMarkBoundaryFilter.py,
+  TestMarkBoundaryFilter2.py
 )

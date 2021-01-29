@@ -32,7 +32,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqRenderView.h"
 
 // ParaView Server Manager includes.
-#include "pqQVTKWidgetBase.h"
 #include "vtkCollection.h"
 #include "vtkEventQtSlotConnect.h"
 #include "vtkIntArray.h"
@@ -75,6 +74,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqOptions.h"
 #include "pqOutputPort.h"
 #include "pqPipelineSource.h"
+#include "pqQVTKWidget.h"
 #include "pqSMAdaptor.h"
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
@@ -161,6 +161,10 @@ void pqRenderView::InternalConstructor(vtkSMViewProxy* renModule)
   // Monitor any interaction mode change
   this->getConnector()->Connect(this->getProxy()->GetProperty("InteractionMode"),
     vtkCommand::ModifiedEvent, this, SLOT(onInteractionModeChange()));
+
+  // Reuse tone mapping parameters set by the user if no presets are selected
+  this->getConnector()->Connect(this->getProxy()->GetProperty("GenericFilmicPresets"),
+    vtkCommand::ModifiedEvent, this, SLOT(onGenericFilmicPresetsChange()));
 }
 
 //-----------------------------------------------------------------------------
@@ -205,7 +209,7 @@ void pqRenderView::initialize()
 QWidget* pqRenderView::createWidget()
 {
   QWidget* vtkwidget = this->Superclass::createWidget();
-  if (pqQVTKWidgetBase* qvtkwidget = qobject_cast<pqQVTKWidgetBase*>(vtkwidget))
+  if (pqQVTKWidget* qvtkwidget = qobject_cast<pqQVTKWidget*>(vtkwidget))
   {
     vtkSMRenderViewProxy* renModule = this->getRenderViewProxy();
     qvtkwidget->setRenderWindow(renModule->GetRenderWindow());
@@ -389,8 +393,8 @@ void pqRenderView::onUndoStackChanged()
   bool can_undo = this->Internal->InteractionUndoStack->CanUndo();
   bool can_redo = this->Internal->InteractionUndoStack->CanRedo();
 
-  emit this->canUndoChanged(can_undo);
-  emit this->canRedoChanged(can_redo);
+  Q_EMIT this->canUndoChanged(can_undo);
+  Q_EMIT this->canRedoChanged(can_redo);
 }
 
 //-----------------------------------------------------------------------------
@@ -545,26 +549,30 @@ void pqRenderView::selectOnSurface(int rect[4], int selectionModifier, const cha
 {
   QList<pqOutputPort*> opPorts;
   this->selectOnSurfaceInternal(rect, opPorts, false, selectionModifier, false, array);
-  this->emitSelectionSignal(opPorts);
+  this->emitSelectionSignal(opPorts, selectionModifier);
 }
 
 //-----------------------------------------------------------------------------
-void pqRenderView::emitSelectionSignal(QList<pqOutputPort*> opPorts)
+void pqRenderView::emitSelectionSignal(QList<pqOutputPort*> opPorts, int selectionModifier)
 {
   // Fire selection event to let the world know that this view selected
   // something.
   if (opPorts.count() > 0)
   {
-    emit this->selected(opPorts.value(0));
+    Q_EMIT this->selected(opPorts.value(0));
   }
   else
   {
-    emit this->selected(0);
+    if (selectionModifier == pqView::PV_SELECTION_DEFAULT)
+    {
+      // Only emit an empty selection if we aren't modifying the current selection
+      Q_EMIT this->selected(0);
+    }
   }
 
   if (this->UseMultipleRepresentationSelection)
   {
-    emit this->multipleSelected(opPorts);
+    Q_EMIT this->multipleSelected(opPorts);
   }
 }
 
@@ -578,7 +586,7 @@ pqDataRepresentation* pqRenderView::pick(int pos[2])
   END_UNDO_EXCLUDE();
   if (pq_repr)
   {
-    emit this->picked(pq_repr->getOutputPortFromInput());
+    Q_EMIT this->picked(pq_repr->getOutputPortFromInput());
   }
   return pq_repr;
 }
@@ -593,7 +601,7 @@ pqDataRepresentation* pqRenderView::pickBlock(int pos[2], unsigned int& flatInde
   END_UNDO_EXCLUDE();
   if (pq_repr)
   {
-    emit this->picked(pq_repr->getOutputPortFromInput());
+    Q_EMIT this->picked(pq_repr->getOutputPortFromInput());
   }
   return pq_repr;
 }
@@ -739,7 +747,7 @@ void pqRenderView::selectPointsOnSurface(int rect[4], int selectionModifier, con
   this->selectOnSurfaceInternal(rect, output_ports, true, selectionModifier, false, array);
   // Fire selection event to let the world know that this view selected
   // something.
-  this->emitSelectionSignal(output_ports);
+  this->emitSelectionSignal(output_ports, selectionModifier);
 }
 
 //-----------------------------------------------------------------------------
@@ -749,7 +757,7 @@ void pqRenderView::selectPolygonPoints(vtkIntArray* polygon, int selectionModifi
   this->selectPolygonInternal(polygon, output_ports, true, selectionModifier, false);
   // Fire selection event to let the world know that this view selected
   // something.
-  this->emitSelectionSignal(output_ports);
+  this->emitSelectionSignal(output_ports, selectionModifier);
 }
 
 //-----------------------------------------------------------------------------
@@ -759,7 +767,7 @@ void pqRenderView::selectPolygonCells(vtkIntArray* polygon, int selectionModifie
   this->selectPolygonInternal(polygon, output_ports, false, selectionModifier, false);
   // Fire selection event to let the world know that this view selected
   // something.
-  this->emitSelectionSignal(output_ports);
+  this->emitSelectionSignal(output_ports, selectionModifier);
 }
 
 //-----------------------------------------------------------------------------
@@ -829,7 +837,7 @@ void pqRenderView::selectFrustum(int rect[4])
         rect, selectedRepresentations, selectionSources, this->UseMultipleRepresentationSelection))
   {
     END_UNDO_EXCLUDE();
-    this->emitSelectionSignal(output_ports);
+    this->emitSelectionSignal(output_ports, pqView::PV_SELECTION_DEFAULT);
     return;
   }
 
@@ -851,7 +859,7 @@ void pqRenderView::selectFrustum(int rect[4])
 
   // Fire selection event to let the world know that this view selected
   // something.
-  this->emitSelectionSignal(output_ports);
+  this->emitSelectionSignal(output_ports, pqView::PV_SELECTION_DEFAULT);
 }
 
 //-----------------------------------------------------------------------------
@@ -868,7 +876,7 @@ void pqRenderView::selectFrustumPoints(int rect[4])
         rect, selectedRepresentations, selectionSources, this->UseMultipleRepresentationSelection))
   {
     END_UNDO_EXCLUDE();
-    this->emitSelectionSignal(output_ports);
+    this->emitSelectionSignal(output_ports, pqView::PV_SELECTION_DEFAULT);
     return;
   }
 
@@ -890,7 +898,7 @@ void pqRenderView::selectFrustumPoints(int rect[4])
 
   // Fire selection event to let the world know that this view selected
   // something.
-  this->emitSelectionSignal(output_ports);
+  this->emitSelectionSignal(output_ports, pqView::PV_SELECTION_DEFAULT);
 }
 
 //-----------------------------------------------------------------------------
@@ -901,7 +909,7 @@ void pqRenderView::selectBlock(int rectangle[4], int selectionModifier)
   this->selectOnSurfaceInternal(rectangle, opPorts, false, selectionModifier, true);
 
   this->blockSignals(block);
-  this->emitSelectionSignal(opPorts);
+  this->emitSelectionSignal(opPorts, selectionModifier);
 }
 
 //-----------------------------------------------------------------------------
@@ -986,7 +994,24 @@ void pqRenderView::onInteractionModeChange()
   if (mode != this->Internal->CurrentInteractionMode)
   {
     this->Internal->CurrentInteractionMode = mode;
-    emit updateInteractionMode(this->Internal->CurrentInteractionMode);
+    Q_EMIT updateInteractionMode(this->Internal->CurrentInteractionMode);
+  }
+}
+
+//-----------------------------------------------------------------------------
+void pqRenderView::onGenericFilmicPresetsChange()
+{
+  int presets = -1;
+  vtkSMPropertyHelper(this->getProxy(), "GenericFilmicPresets").Get(&presets);
+  if (presets == vtkPVRenderView::Custom)
+  {
+    // No presets, fall back to user specified parameters
+    this->getProxy()->UpdateProperty("Contrast", 1);
+    this->getProxy()->UpdateProperty("Shoulder", 1);
+    this->getProxy()->UpdateProperty("MidIn", 1);
+    this->getProxy()->UpdateProperty("MidOut", 1);
+    this->getProxy()->UpdateProperty("HdrMax", 1);
+    this->getProxy()->UpdateProperty("UseACES", 1);
   }
 }
 

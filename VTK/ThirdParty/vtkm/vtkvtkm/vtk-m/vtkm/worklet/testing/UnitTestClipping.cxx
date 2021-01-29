@@ -17,7 +17,6 @@
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/cont/DataSetBuilderExplicit.h>
 #include <vtkm/cont/DataSetBuilderUniform.h>
-#include <vtkm/cont/DataSetFieldAdd.h>
 #include <vtkm/cont/Field.h>
 #include <vtkm/cont/ImplicitFunctionHandle.h>
 #include <vtkm/cont/testing/Testing.h>
@@ -40,7 +39,7 @@ bool TestArrayHandle(const vtkm::cont::ArrayHandle<T, Storage>& ah,
 
   for (vtkm::Id i = 0; i < size; ++i)
   {
-    if (ah.GetPortalConstControl().Get(i) != expected[i])
+    if (ah.ReadPortal().Get(i) != expected[i])
     {
       return false;
     }
@@ -69,19 +68,18 @@ vtkm::cont::DataSet MakeTestDatasetExplicit()
   vtkm::cont::DataSetBuilderExplicit builder;
   ds = builder.Create(coords, vtkm::CellShapeTagTriangle(), 3, connectivity, "coords");
 
-  vtkm::cont::DataSetFieldAdd fieldAdder;
 
   std::vector<vtkm::Float32> values;
   values.push_back(1.0);
   values.push_back(2.0);
   values.push_back(1.0);
   values.push_back(0.0);
-  fieldAdder.AddPointField(ds, "scalars", values);
+  ds.AddPointField("scalars", values);
 
   values.clear();
   values.push_back(100.f);
   values.push_back(-100.f);
-  fieldAdder.AddCellField(ds, "cellvar", values);
+  ds.AddCellField("cellvar", values);
 
   return ds;
 }
@@ -103,11 +101,10 @@ vtkm::cont::DataSet MakeTestDatasetStructured()
   vtkm::cont::DataSetBuilderUniform builder;
   ds = builder.Create(dim);
 
-  vtkm::cont::DataSetFieldAdd fieldAdder;
-  fieldAdder.AddPointField(ds, "scalars", scalars, numVerts);
+  ds.AddPointField("scalars", scalars, numVerts);
 
   std::vector<vtkm::Float32> cellvar = { -100.f, 100.f, 30.f, -30.f };
-  fieldAdder.AddCellField(ds, "cellvar", cellvar);
+  ds.AddCellField("cellvar", cellvar);
 
   return ds;
 }
@@ -123,7 +120,7 @@ void TestClippingExplicit()
              clipValue,
              invertClip);
 
-  auto coordsIn = ds.GetCoordinateSystem("coords").GetData();
+  auto coordsIn = ds.GetCoordinateSystem("coords").GetDataAsMultiplexer();
   vtkm::cont::ArrayHandle<Coord3D> coords = clip.ProcessPointField(coordsIn);
 
   vtkm::cont::ArrayHandle<vtkm::Float32> scalarsIn;
@@ -179,7 +176,7 @@ void TestClippingStructured()
              clipValue,
              invertClip);
 
-  auto coordsIn = ds.GetCoordinateSystem("coords").GetData();
+  auto coordsIn = ds.GetCoordinateSystem("coords").GetDataAsMultiplexer();
   CoordsOutType coords = clip.ProcessPointField(coordsIn);
 
   vtkm::cont::ArrayHandle<vtkm::Float32> scalarsIn;
@@ -241,7 +238,7 @@ void TestClippingWithImplicitFunction()
              ds.GetCoordinateSystem("coords"),
              invertClip);
 
-  auto coordsIn = ds.GetCoordinateSystem("coords").GetData();
+  auto coordsIn = ds.GetCoordinateSystem("coords").GetDataAsMultiplexer();
   vtkm::cont::ArrayHandle<Coord3D> coords = clip.ProcessPointField(coordsIn);
 
   vtkm::cont::ArrayHandle<vtkm::Float32> scalarsIn;
@@ -300,7 +297,7 @@ void TestClippingWithImplicitFunctionInverted()
              ds.GetCoordinateSystem("coords"),
              invertClip);
 
-  auto coordsIn = ds.GetCoordinateSystem("coords").GetData();
+  auto coordsIn = ds.GetCoordinateSystem("coords").GetDataAsMultiplexer();
   vtkm::cont::ArrayHandle<Coord3D> coords = clip.ProcessPointField(coordsIn);
 
   vtkm::cont::ArrayHandle<vtkm::Float32> scalarsIn;

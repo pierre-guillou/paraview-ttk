@@ -19,6 +19,7 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVConfig.h"
+#include "vtkPVLogger.h"
 #include "vtkPVProxyDefinitionIterator.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMProperty.h"
@@ -157,7 +158,7 @@ vtkSMParaViewPipelineController::~vtkSMParaViewPipelineController()
 }
 
 //----------------------------------------------------------------------------
-vtkStdString vtkSMParaViewPipelineController::GetHelperProxyGroupName(vtkSMProxy* proxy)
+std::string vtkSMParaViewPipelineController::GetHelperProxyGroupName(vtkSMProxy* proxy)
 {
   assert(proxy != NULL);
   std::ostringstream groupnamestr;
@@ -189,12 +190,16 @@ bool vtkSMParaViewPipelineController::CreateProxiesForProxyListDomains(vtkSMProx
       {
         if (vtkSMProxy* dproxy = pld->GetProxy(cc))
         {
-          // it makes sense to have all proxies in the ProxyListDomain have the
-          // same location as the proxy to which the property belongs. Note this
-          // may be different that proxy for cases where it's a property exposed
-          // from a subproxy.
+          // Ensure that the `dproxy` a location that is superset of the location for the `proxy`.
+          // Note,`parentProxy` may be different than `proxy` for cases where
+          // it's a property exposed from a subproxy.
           vtkSMProxy* parentProxy = iter->GetProperty()->GetParent();
-          dproxy->SetLocation(parentProxy->GetLocation());
+          const auto location = dproxy->GetLocation() | parentProxy->GetLocation();
+          vtkVLogIfF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), location != dproxy->GetLocation(),
+            "Location for proxy (%s) in proxy list domain for property '%s' "
+            "on proxy (%s) has been changed.",
+            proxy->GetLogNameOrDefault(), iter->GetKey(), dproxy->GetLogNameOrDefault());
+          dproxy->SetLocation(location);
           this->PreInitializeProxy(dproxy);
         }
       }
@@ -231,6 +236,9 @@ void vtkSMParaViewPipelineController::RegisterProxiesForProxyListDomains(vtkSMPr
       vtkSMProxy* plproxy = pld->GetProxy(cc);
       this->PostInitializeProxy(plproxy);
       pxm->RegisterProxy(groupname.c_str(), iter->GetKey(), plproxy);
+
+      // Handle nest proxy-list domains (ref: #19986).
+      this->RegisterProxiesForProxyListDomains(plproxy);
     }
   }
 }
@@ -974,6 +982,35 @@ bool vtkSMParaViewPipelineController::RegisterTextureProxy(vtkSMProxy* proxy, co
 }
 
 //----------------------------------------------------------------------------
+bool vtkSMParaViewPipelineController::RegisterExtractorProxy(
+  vtkSMProxy* proxy, const char* proxyname)
+{
+  if (!proxy)
+  {
+    return false;
+  }
+
+  auto pxm = proxy->GetSessionProxyManager();
+
+  this->RegisterProxiesForProxyListDomains(proxy);
+
+  const std::string groupname = this->GetHelperProxyGroupName(proxy);
+  if (auto writer = vtkSMPropertyHelper(proxy, "Writer").GetAsProxy())
+  {
+    pxm->RegisterProxy(groupname.c_str(), "Writer", writer);
+  }
+  pxm->RegisterProxy("extractors", proxyname, proxy);
+
+  // Make the proxy active.
+  vtkSMProxySelectionModel* selmodel =
+    proxy->GetSessionProxyManager()->GetSelectionModel("ActiveSources");
+  assert(selmodel != nullptr);
+  selmodel->SetCurrentProxy(proxy, vtkSMProxySelectionModel::CLEAR_AND_SELECT);
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
 void vtkSMParaViewPipelineController::UpdateSettingsProxies(vtkSMSession* session)
 {
   // Set up the settings proxies
@@ -1214,6 +1251,9 @@ bool vtkSMParaViewPipelineController::UnRegisterDependencies(vtkSMProxy* proxy)
       // Remove any animation cues for this proxy
       strcmp(consumer->GetXMLGroup(), "animation") == 0 ||
 
+      // Remove any exporters for this proxy
+      strcmp(consumer->GetXMLGroup(), "extractors") == 0 ||
+
       false)
     {
       this->UnRegisterProxy(consumer);
@@ -1260,9 +1300,8 @@ bool vtkSMParaViewPipelineController::UnRegisterProxy(vtkSMProxy* proxy)
   else
   {
     PREPARE_FOR_UNREGISTERING(proxy);
-
     const char* known_groups[] = { "lookup_tables", "piecewise_functions", "layouts",
-      "additional_lights", NULL };
+      "additional_lights", "extractors", nullptr };
     for (int cc = 0; known_groups[cc] != NULL; ++cc)
     {
       if (const char* pname = pxm->GetProxyName(known_groups[cc], proxy))

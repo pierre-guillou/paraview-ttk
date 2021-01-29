@@ -14,6 +14,7 @@
 #import "VTKViewController.h"
 
 #import <vtk/vtkActor.h>
+#import <vtk/vtkAutoInit.h>
 #import <vtk/vtkCamera.h>
 #import <vtk/vtkCommand.h>
 #import <vtk/vtkDebugLeaks.h>
@@ -22,6 +23,7 @@
 #import <vtk/vtkImageData.h>
 #import <vtk/vtkInteractorStyleMultiTouchCamera.h>
 #import <vtk/vtkNew.h>
+#import <vtk/vtkOpenGLState.h>
 #import <vtk/vtkOutlineFilter.h>
 #import <vtk/vtkPlaneWidget.h>
 #import <vtk/vtkPolyData.h>
@@ -29,13 +31,14 @@
 #import <vtk/vtkProbeFilter.h>
 #import <vtk/vtkRTAnalyticSource.h>
 #import <vtk/vtkRenderer.h>
-#import <vtk/vtkRenderingOpenGL2ObjectFactory.h>
 #import <vtk/vtkStructuredGridOutlineFilter.h>
 #import <vtk/vtkUnstructuredGrid.h>
 #import <vtk/vtkXMLImageDataReader.h>
 #import <vtk/vtkXMLRectilinearGridReader.h>
 #import <vtk/vtkXMLStructuredGridReader.h>
 #import <vtk/vtkXMLUnstructuredGridReader.h>
+
+VTK_MODULE_INIT(vtkRenderingOpenGL2);
 
 // This does the actual work: updates the probe.
 // Callback for the interaction
@@ -95,9 +98,6 @@ public:
 
 - (void)setupPipeline
 {
-  vtkRenderingOpenGL2ObjectFactory* of = vtkRenderingOpenGL2ObjectFactory::New();
-  vtkObjectFactory::RegisterFactory(of);
-
   self->RenderWindow = vtkIOSRenderWindow::New();
   self->Renderer = vtkRenderer::New();
   self->RenderWindow->AddRenderer(self->Renderer);
@@ -249,7 +249,7 @@ public:
 
   [EAGLContext setCurrentContext:self.context];
   [self resizeView];
-  self->RenderWindow->Render();
+  // self->RenderWindow->Render();
 }
 
 - (void)dealloc
@@ -303,7 +303,11 @@ public:
 
 - (void)glkView:(GLKView*)view drawInRect:(CGRect)rect
 {
+  // If you get state errors uncomment the three lines below
+  // self->RenderWindow->GetState()->Reset();
+  // self->RenderWindow->GetState()->Push();
   self->RenderWindow->Render();
+  // self->RenderWindow->GetState()->Pop();
 }
 
 //=================================================================

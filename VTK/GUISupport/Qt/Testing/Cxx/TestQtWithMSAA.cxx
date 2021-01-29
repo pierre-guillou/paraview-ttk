@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    TestQVTKOpenGLWidgetWithMSAA.cxx
+  Module:    TestQtWithMSAA.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,7 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// Tests QVTKOpenGLWidget/QVTKOpenGLNativeWidget/QVTKOpenGLWindow with MSAA
+// Tests QVTKOpenGLStereoWidget/QVTKOpenGLNativeWidget/QVTKOpenGLWindow with MSAA
 #include "TestQtCommon.h"
 #include "vtkActor.h"
 #include "vtkGenericOpenGLRenderWindow.h"
@@ -46,7 +46,7 @@ int TestQtWithMSAA(int argc, char* argv[])
   auto widgetOrWindow = detail::create_widget_or_window(type, window);
 
   vtkNew<vtkRenderer> ren;
-  ren->SetGradientBackground(1);
+  ren->SetGradientBackground(true);
   ren->SetBackground2(0.7, 0.7, 0.7);
   window->AddRenderer(ren);
 

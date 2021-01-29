@@ -225,7 +225,7 @@ int vtkPolyDataConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(reques
         if (pt >= 0)
         {
           this->Mesh->GetPointCells(pt, ncells, cells);
-          for (unsigned short j = 0; j < ncells; ++j)
+          for (vtkIdType j = 0; j < ncells; ++j)
           {
             this->Wave.push_back(cells[j]);
           }
@@ -258,7 +258,7 @@ int vtkPolyDataConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(reques
         }
       }
       this->Mesh->GetPointCells(minId, ncells, cells);
-      for (unsigned short j = 0; j < ncells; ++j)
+      for (vtkIdType j = 0; j < ncells; ++j)
       {
         this->Wave.push_back(cells[j]);
       }
@@ -502,7 +502,7 @@ void vtkPolyDataConnectivityFilter::TraverseAndMark()
   } // while wave is not empty
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPolyDataConnectivityFilter::IsScalarConnected(vtkIdType cellId)
 {
   double s;
@@ -553,7 +553,7 @@ int vtkPolyDataConnectivityFilter::IsScalarConnected(vtkIdType cellId)
   return 0;
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Obtain the number of connected regions.
 int vtkPolyDataConnectivityFilter::GetNumberOfExtractedRegions()
 {

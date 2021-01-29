@@ -10,6 +10,7 @@ KIT
   ParaView::ServerManagerKit
 IMPLEMENTS
   ParaView::RemotingServerManager
+IMPLEMENTABLE
 DEPENDS
   ParaView::RemotingCore
   ParaView::RemotingServerManager
@@ -31,6 +32,7 @@ PRIVATE_DEPENDS
   VTK::DomainsChemistryOpenGL2
   VTK::FiltersModeling
   VTK::FiltersParallel
+  VTK::FiltersParallelDIY2
   VTK::InteractionStyle
   VTK::IOImage
   VTK::IOLegacy
@@ -45,7 +47,7 @@ PRIVATE_DEPENDS
 OPTIONAL_DEPENDS
   ParaView::icet
   ParaView::nvpipe
-  VTK::AcceleratorsVTKm
+  VTK::AcceleratorsVTKmFilters
   VTK::FiltersOpenTURNS
   VTK::ParallelMPI
   VTK::RenderingRayTracing

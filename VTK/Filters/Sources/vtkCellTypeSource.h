@@ -133,7 +133,7 @@ public:
 
 protected:
   vtkCellTypeSource();
-  ~vtkCellTypeSource() override {}
+  ~vtkCellTypeSource() override = default;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
@@ -146,6 +146,8 @@ protected:
   void GenerateHexahedron(vtkUnstructuredGrid*, int extent[6]);
   void GenerateWedges(vtkUnstructuredGrid*, int extent[6]);
   void GeneratePyramids(vtkUnstructuredGrid*, int extent[6]);
+  void GeneratePentagonalPrism(vtkUnstructuredGrid*, int extent[6]);
+  void GenerateHexagonalPrism(vtkUnstructuredGrid*, int extent[6]);
   void GenerateQuadraticTetras(vtkUnstructuredGrid*, int extent[6]);
   void GenerateQuadraticHexahedron(vtkUnstructuredGrid*, int extent[6]);
   void GenerateQuadraticWedges(vtkUnstructuredGrid*, int extent[6]);

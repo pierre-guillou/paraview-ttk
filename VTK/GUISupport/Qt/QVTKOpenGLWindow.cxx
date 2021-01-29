@@ -19,7 +19,6 @@
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFunctions>
-#include <QOpenGLFunctions_3_2_Core>
 #include <QOpenGLTexture>
 #include <QPointer>
 #include <QScopedValueRollback>
@@ -66,14 +65,14 @@ QVTKOpenGLWindow::QVTKOpenGLWindow(vtkGenericOpenGLRenderWindow* renderWin,
   this->setRenderWindow(renderWin);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 QVTKOpenGLWindow::~QVTKOpenGLWindow()
 {
   this->makeCurrent();
   this->cleanupContext();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::setRenderWindow(vtkRenderWindow* win)
 {
   vtkGenericOpenGLRenderWindow* gwin = vtkGenericOpenGLRenderWindow::SafeDownCast(win);
@@ -85,7 +84,7 @@ void QVTKOpenGLWindow::setRenderWindow(vtkRenderWindow* win)
   this->setRenderWindow(gwin);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::setRenderWindow(vtkGenericOpenGLRenderWindow* win)
 {
   if (this->RenderWindow == win)
@@ -104,6 +103,7 @@ void QVTKOpenGLWindow::setRenderWindow(vtkGenericOpenGLRenderWindow* win)
   if (this->RenderWindow)
   {
     this->RenderWindow->SetReadyForRendering(false);
+    this->RenderWindow->SetFrameBlitModeToNoBlit();
 
     // if an interactor wasn't provided, we'll make one by default
     if (!this->RenderWindow->GetInteractor())
@@ -132,26 +132,26 @@ void QVTKOpenGLWindow::setRenderWindow(vtkGenericOpenGLRenderWindow* win)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkRenderWindow* QVTKOpenGLWindow::renderWindow() const
 {
   return this->RenderWindow;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 QVTKInteractor* QVTKOpenGLWindow::interactor() const
 {
   return this->RenderWindow ? QVTKInteractor::SafeDownCast(this->RenderWindow->GetInteractor())
                             : nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 QSurfaceFormat QVTKOpenGLWindow::defaultFormat(bool stereo_capable)
 {
   return QVTKRenderWindowAdapter::defaultFormat(stereo_capable);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::setEnableHiDPI(bool enable)
 {
   this->EnableHiDPI = enable;
@@ -161,7 +161,7 @@ void QVTKOpenGLWindow::setEnableHiDPI(bool enable)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::setUnscaledDPI(int dpi)
 {
   this->UnscaledDPI = dpi;
@@ -170,7 +170,6 @@ void QVTKOpenGLWindow::setUnscaledDPI(int dpi)
     this->RenderWindowAdapter->setUnscaledDPI(dpi);
   }
 }
-
 //-----------------------------------------------------------------------------
 void QVTKOpenGLWindow::setCustomDevicePixelRatio(double sf)
 {
@@ -187,7 +186,7 @@ double QVTKOpenGLWindow::effectiveDevicePixelRatio() const
   return this->CustomDevicePixelRatio > 0.0 ? this->CustomDevicePixelRatio
                                             : this->devicePixelRatioF();
 }
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::setDefaultCursor(const QCursor& cursor)
 {
   this->DefaultCursor = cursor;
@@ -197,7 +196,7 @@ void QVTKOpenGLWindow::setDefaultCursor(const QCursor& cursor)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::initializeGL()
 {
   this->Superclass::initializeGL();
@@ -215,7 +214,7 @@ void QVTKOpenGLWindow::initializeGL()
     static_cast<Qt::ConnectionType>(Qt::UniqueConnection | Qt::DirectConnection));
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::updateSize()
 {
   if (this->RenderWindowAdapter)
@@ -224,7 +223,7 @@ void QVTKOpenGLWindow::updateSize()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::resizeGL(int w, int h)
 {
   vtkLogF(TRACE, "resizeGL(%d, %d)", w, h);
@@ -232,7 +231,7 @@ void QVTKOpenGLWindow::resizeGL(int w, int h)
   this->updateSize();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::paintGL()
 {
   vtkLogF(TRACE, "paintGL");
@@ -248,26 +247,26 @@ void QVTKOpenGLWindow::paintGL()
     // before proceeding with blit-ing.
     this->makeCurrent();
 
-    QOpenGLFunctions_3_2_Core* f =
-      QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-    if (f)
+    auto ostate = this->RenderWindow->GetState();
+    ostate->Reset();
+    ostate->Push();
+
+    const QSize deviceSize = this->size() * this->devicePixelRatioF();
+    const auto fmt = this->context()->format();
+    if (fmt.stereo() && this->RenderWindow->GetStereoRender() &&
+      this->RenderWindow->GetStereoType() == VTK_STEREO_CRYSTAL_EYES)
     {
-      const QSize deviceSize = this->size() * this->devicePixelRatioF();
-      const auto fmt = this->context()->format();
-      if (fmt.stereo() && this->RenderWindow->GetStereoRender() &&
-        this->RenderWindow->GetStereoType() == VTK_STEREO_CRYSTAL_EYES)
-      {
-        this->RenderWindowAdapter->blitLeftEye(
-          this->defaultFramebufferObject(), GL_BACK_LEFT, QRect(QPoint(0, 0), deviceSize));
-        this->RenderWindowAdapter->blitRightEye(
-          this->defaultFramebufferObject(), GL_BACK_RIGHT, QRect(QPoint(0, 0), deviceSize));
-      }
-      else
-      {
-        this->RenderWindowAdapter->blit(
-          this->defaultFramebufferObject(), GL_BACK, QRect(QPoint(0, 0), deviceSize));
-      }
+      this->RenderWindowAdapter->blitLeftEye(
+        this->defaultFramebufferObject(), GL_BACK_LEFT, QRect(QPoint(0, 0), deviceSize));
+      this->RenderWindowAdapter->blitRightEye(
+        this->defaultFramebufferObject(), GL_BACK_RIGHT, QRect(QPoint(0, 0), deviceSize));
     }
+    else
+    {
+      this->RenderWindowAdapter->blit(
+        this->defaultFramebufferObject(), GL_BACK_LEFT, QRect(QPoint(0, 0), deviceSize));
+    }
+    ostate->Pop();
   }
   else
   {
@@ -278,13 +277,13 @@ void QVTKOpenGLWindow::paintGL()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::cleanupContext()
 {
   this->RenderWindowAdapter.reset(nullptr);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool QVTKOpenGLWindow::event(QEvent* evt)
 {
   // Forward event to the Widget containing this window. This is required
@@ -294,7 +293,7 @@ bool QVTKOpenGLWindow::event(QEvent* evt)
   // The containing widget should then forward back only the required events for
   // this window (such as mouse events and resize events).
   // Until this misbehavior is fixed, we have to handle forwarding of events.
-  emit this->windowEvent(evt);
+  Q_EMIT this->windowEvent(evt);
 
   if (this->RenderWindowAdapter)
   {
@@ -304,12 +303,11 @@ bool QVTKOpenGLWindow::event(QEvent* evt)
   return this->Superclass::event(evt);
 }
 
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::SetRenderWindow(vtkRenderWindow* win)
 {
   VTK_LEGACY_REPLACED_BODY(
-    QVTKOpenGLWindow::SetRenderWindow, "VTK 8.3", QVTKOpenGLWindow::setRenderWindow);
+    QVTKOpenGLWindow::SetRenderWindow, "VTK 9.0", QVTKOpenGLWindow::setRenderWindow);
   vtkGenericOpenGLRenderWindow* gwin = vtkGenericOpenGLRenderWindow::SafeDownCast(win);
   if (gwin == nullptr && win != nullptr)
   {
@@ -318,62 +316,49 @@ void QVTKOpenGLWindow::SetRenderWindow(vtkRenderWindow* win)
   }
   this->setRenderWindow(gwin);
 }
-#endif
 
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::SetRenderWindow(vtkGenericOpenGLRenderWindow* win)
 {
   VTK_LEGACY_REPLACED_BODY(
-    QVTKOpenGLWindow::SetRenderWindow, "VTK 8.3", QVTKOpenGLWindow::setRenderWindow);
+    QVTKOpenGLWindow::SetRenderWindow, "VTK 9.0", QVTKOpenGLWindow::setRenderWindow);
   this->setRenderWindow(win);
 }
-#endif
 
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
+//------------------------------------------------------------------------------
 vtkRenderWindow* QVTKOpenGLWindow::GetRenderWindow()
 {
   VTK_LEGACY_REPLACED_BODY(
-    QVTKOpenGLWindow::GetRenderWindow, "VTK 8.3", QVTKOpenGLWindow::renderWindow);
+    QVTKOpenGLWindow::GetRenderWindow, "VTK 9.0", QVTKOpenGLWindow::renderWindow);
   return this->renderWindow();
 }
-#endif
 
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
+//------------------------------------------------------------------------------
 QVTKInteractorAdapter* QVTKOpenGLWindow::GetInteractorAdapter()
 {
-  VTK_LEGACY_BODY(QVTKOpenGLWindow::GetInteractorAdapter, "VTK 8.3");
+  VTK_LEGACY_BODY(QVTKOpenGLWindow::GetInteractorAdapter, "VTK 9.0");
   return nullptr;
 }
-#endif
 
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
+//------------------------------------------------------------------------------
 QVTKInteractor* QVTKOpenGLWindow::GetInteractor()
 {
   VTK_LEGACY_REPLACED_BODY(
-    QVTKOpenGLWindow::GetInteractor, "VTK 8.3", QVTKOpenGLWindow::interactor);
+    QVTKOpenGLWindow::GetInteractor, "VTK 9.0", QVTKOpenGLWindow::interactor);
   return this->interactor();
 }
-#endif
 
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::setQVTKCursor(const QCursor& cursor)
 {
-  VTK_LEGACY_REPLACED_BODY(QVTKOpenGLWindow::setQVTKCursor, "VTK 8.3", QVTKOpenGLWindow::setCursor);
+  VTK_LEGACY_REPLACED_BODY(QVTKOpenGLWindow::setQVTKCursor, "VTK 9.0", QVTKOpenGLWindow::setCursor);
   this->setCursor(cursor);
 }
-#endif
 
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
+//------------------------------------------------------------------------------
 void QVTKOpenGLWindow::setDefaultQVTKCursor(const QCursor& cursor)
 {
   VTK_LEGACY_REPLACED_BODY(
-    QVTKOpenGLWindow::setDefaultQVTKCursor, "VTK 8.3", QVTKOpenGLWindow::setDefaultCursor);
+    QVTKOpenGLWindow::setDefaultQVTKCursor, "VTK 9.0", QVTKOpenGLWindow::setDefaultCursor);
   this->setDefaultCursor(cursor);
 }
-#endif

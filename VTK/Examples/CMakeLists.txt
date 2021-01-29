@@ -1,30 +1,36 @@
+cmake_minimum_required(VERSION 3.12...3.16 FATAL_ERROR)
 project(VTKExamples)
 
 if (VTK_BINARY_DIR)
   function (add_example dir)
-    add_test(
-      NAME    "VTKExample-${dir}"
-      COMMAND "${CMAKE_CTEST_COMMAND}"
-              --build-generator
-                "${CMAKE_GENERATOR}"
-              --build-and-test
-                "${CMAKE_CURRENT_SOURCE_DIR}/${dir}"
-                "${CMAKE_CURRENT_BINARY_DIR}/${dir}"
-              --build-options
-                "-DBUILD_TESTING=ON"
-                "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-                "-DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}"
-                "-DVTK_DIR=${vtk_cmake_build_dir}"
-                "-DQt5_DIR=${Qt5_DIR}"
-              --test-command
-                "${CMAKE_CTEST_COMMAND}"
-                  -C $<CONFIGURATION>)
-    if (WIN32)
-      set(example_path "$ENV{PATH};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-      string(REPLACE ";" "\;" example_path "${example_path}")
+    if (vtk_cmake_build_dir)
+      add_test(
+        NAME    "VTKExample-${dir}"
+        COMMAND "${CMAKE_CTEST_COMMAND}"
+                --build-generator
+                  "${CMAKE_GENERATOR}"
+                --build-and-test
+                  "${CMAKE_CURRENT_SOURCE_DIR}/${dir}"
+                  "${CMAKE_CURRENT_BINARY_DIR}/${dir}"
+                --build-options
+                  "-DBUILD_TESTING=ON"
+                  "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+                  "-DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}"
+                  "-DVTK_DIR=${vtk_cmake_build_dir}"
+                  "-DQt5_DIR=${Qt5_DIR}"
+                --test-command
+                  "${CMAKE_CTEST_COMMAND}"
+                    -C $<CONFIGURATION>)
+      if (WIN32)
+        set(example_path "$ENV{PATH};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+        string(REPLACE ";" "\;" example_path "${example_path}")
+        set_property(TEST "VTKExample-${dir}" APPEND
+          PROPERTY
+            ENVIRONMENT "PATH=${example_path}")
+      endif ()
       set_property(TEST "VTKExample-${dir}" APPEND
         PROPERTY
-          ENVIRONMENT "PATH=${example_path}")
+          SKIP_REGULAR_EXPRESSION "Skipping example")
     endif ()
   endfunction ()
 else ()
@@ -37,6 +43,13 @@ if (ANDROID)
   #add_example(Android)
 elseif (APPLE_IOS)
   #add_example(iOS)
+elseif (EMSCRIPTEN)
+  if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
+    add_example(Emscripten/Cxx/Cone)
+    add_example(Emscripten/Cxx/ConeFullScreen)
+    add_example(Emscripten/Cxx/MultiCone)
+    add_example(Emscripten/Cxx/WrappedMace)
+  endif()
 else ()
   add_example(AMR/Cxx)
   add_example(Annotation/Cxx/LabeledMesh)
@@ -46,7 +59,6 @@ else ()
   add_example(Charts/Cxx)
   add_example(DataManipulation/Cxx)
   add_example(GUI/Qt/FourPaneViewer)
-  add_example(GUI/Qt/GraphicsView)
   add_example(GUI/Qt/ImageViewer)
   add_example(GUI/Qt/SimpleView)
   add_example(GUI/Qt/TouchGestureViewer)
@@ -67,6 +79,9 @@ else ()
   #add_example(VisualizationAlgorithms/Cxx)
   #add_example(VolumeRendering/Cxx)
   #add_example(Widgets/Cxx)
+
+  add_example(Modules/UsingVTK)
+  add_example(Modules/Wrapping)
 
   if (WIN32)
     #add_example(GUI/Win32/SimpleCxx)

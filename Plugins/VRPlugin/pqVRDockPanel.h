@@ -44,19 +44,19 @@ class pqVRDockPanel : public QDockWidget
   typedef QDockWidget Superclass;
 
 public:
-  pqVRDockPanel(const QString& t, QWidget* p = 0, Qt::WindowFlags f = 0)
+  pqVRDockPanel(const QString& t, QWidget* p = nullptr, Qt::WindowFlags f = Qt::WindowFlags{})
     : Superclass(t, p, f)
   {
     this->constructor();
   }
-  pqVRDockPanel(QWidget* p = 0, Qt::WindowFlags f = 0)
+  pqVRDockPanel(QWidget* p = nullptr, Qt::WindowFlags f = Qt::WindowFlags{})
     : Superclass(p, f)
   {
     this->constructor();
   }
   virtual ~pqVRDockPanel();
 
-private slots:
+private Q_SLOTS:
   void addConnection();
   void removeConnection();
   void updateConnections();

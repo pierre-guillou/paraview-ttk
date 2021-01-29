@@ -94,6 +94,28 @@ vtkGridAxes3DActor::~vtkGridAxes3DActor()
 }
 
 //----------------------------------------------------------------------------
+void vtkGridAxes3DActor::GetActors(vtkPropCollection* props)
+{
+  if (this->GetVisibility())
+  {
+    vtkViewport* vp = nullptr;
+    if (this->NumberOfConsumers)
+    {
+      vp = vtkViewport::SafeDownCast(this->Consumers[0]);
+      if (vp)
+      {
+        this->UpdateGeometry(vp);
+      }
+    }
+  }
+
+  for (int i = 0; i < this->GridAxes2DActors.GetSize(); ++i)
+  {
+    this->GridAxes2DActors[i]->GetActors(props);
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkGridAxes3DActor::SetFaceMask(unsigned int mask)
 {
   if (this->FaceMask != mask)
@@ -146,7 +168,7 @@ vtkTextProperty* vtkGridAxes3DActor::GetTitleTextProperty(int axis)
 }
 
 //----------------------------------------------------------------------------
-void vtkGridAxes3DActor::SetTitle(int axis, const vtkStdString& title)
+void vtkGridAxes3DActor::SetTitle(int axis, const std::string& title)
 {
   if (this->GetTitle(axis) != title)
   {
@@ -159,7 +181,7 @@ void vtkGridAxes3DActor::SetTitle(int axis, const vtkStdString& title)
 }
 
 //----------------------------------------------------------------------------
-const vtkStdString& vtkGridAxes3DActor::GetTitle(int axis)
+const std::string& vtkGridAxes3DActor::GetTitle(int axis)
 {
   return this->GridAxes2DActors[0]->GetTitle(axis);
 }
@@ -395,6 +417,22 @@ int vtkGridAxes3DActor::RenderOpaqueGeometry(vtkViewport* viewport)
       : 0;
   }
   return counter;
+}
+
+//----------------------------------------------------------------------------
+void vtkGridAxes3DActor::UpdateGeometry(vtkViewport* viewport)
+{
+  vtkRenderWindow* rWin = vtkRenderWindow::SafeDownCast(viewport->GetVTKWindow());
+  if (rWin == nullptr || rWin->GetDesiredUpdateRate() < 1.0)
+  {
+    this->Update(viewport);
+  }
+
+  for (int cc = 0; cc < 6; cc++)
+  {
+    if (this->GridAxes2DActors[cc]->GetVisibility())
+      this->GridAxes2DActors[cc]->UpdateGeometry(viewport, false);
+  }
 }
 
 //----------------------------------------------------------------------------

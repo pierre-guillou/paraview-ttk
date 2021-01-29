@@ -62,7 +62,7 @@ protected:
 
   int RequestDataObject(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
-  void ReadPVTKFileInformation(istream* fp, vtkInformation* request,
+  void ReadPVTKFileInformation(istream* file, vtkInformation* request,
     vtkInformationVector** inputVector, vtkInformationVector* outputVector);
   void ReadVTKFileInformation(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector);
@@ -80,7 +80,7 @@ protected:
   vtkDataSet* CheckOutput();
   void SetNumberOfPieces(int num);
 
-  ifstream* OpenFile(const char*);
+  istream* OpenFile(const char*);
 
   int ReadXML(istream* file, char** block, char** param, char** value);
   int VTKFileFlag;

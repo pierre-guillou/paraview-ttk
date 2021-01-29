@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkChartPie.h"
 #include "vtkColorSeries.h"
 #include "vtkContextScene.h"
@@ -33,7 +36,7 @@ static int data[] = { 77938, 9109, 2070, 12806, 19514 };
 // static int data[] = {200,200,200,200,200};
 static const char* labels[] = { "Books", "New and Popular", "Periodical", "Audiobook", "Video" };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestPieChart(int, char*[])
 {
   // Set up a 2D scene, add an XY chart to it

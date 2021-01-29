@@ -115,16 +115,8 @@ public:
    * -1.
    */
   vtkIdType GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
-    vtkVector2f* location,
-#ifndef VTK_LEGACY_REMOVE
-    vtkIdType* segmentId) override;
-#else
-    vtkIdType* segmentId = nullptr) override;
-#endif // VTK_LEGACY_REMOVE
-
-#ifndef VTK_LEGACY_REMOVE
+    vtkVector2f* location, vtkIdType* segmentId) override;
   using vtkPlot::GetNearestPoint;
-#endif // VTK_LEGACY_REMOVE
 
   /**
    * Select all points in the specified rectangle.
@@ -142,7 +134,7 @@ protected:
 
   // Descript:
   // For stacked plots the Extent data must be greater than (or equal to) the
-  // base data. Insure that this is true
+  // base data. Ensure that this is true
   void FixExtent();
 
   /**

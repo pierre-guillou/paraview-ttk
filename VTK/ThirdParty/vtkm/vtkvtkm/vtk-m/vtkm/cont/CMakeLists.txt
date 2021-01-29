@@ -13,6 +13,7 @@ set(headers
   ArrayCopy.h
   ArrayGetValues.h
   ArrayHandle.h
+  ArrayHandleBasic.h
   ArrayHandleBitField.h
   ArrayHandleCartesianProduct.h
   ArrayHandleCast.h
@@ -32,14 +33,14 @@ set(headers
   ArrayHandleMultiplexer.h
   ArrayHandlePermutation.h
   ArrayHandleReverse.h
+  ArrayHandleRandomStandardNormal.h
+  ArrayHandleRandomUniformBits.h
+  ArrayHandleRandomUniformReal.h
   ArrayHandleSOA.h
-  ArrayHandleStreaming.h
   ArrayHandleSwizzle.h
   ArrayHandleTransform.h
   ArrayHandleUniformPointCoordinates.h
   ArrayHandleView.h
-  ArrayHandleVirtual.h
-  ArrayHandleVirtualCoordinates.h
   ArrayHandleZip.h
   ArrayPortal.h
   ArrayPortalToIterators.h
@@ -96,6 +97,7 @@ set(headers
   Initialize.h
   Invoker.h
   Logging.h
+  ParticleArrayCopy.h
   PartitionedDataSet.h
   PointLocator.h
   PointLocatorUniformGrid.h
@@ -103,58 +105,58 @@ set(headers
   RuntimeDeviceTracker.h
   Serialization.h
   Storage.h
-  StorageBasic.h
   StorageExtrude.h
   StorageImplicit.h
   StorageList.h
   StorageListTag.h
-  StorageVirtual.h
   Timer.h
+  Token.h
   TryExecute.h
   SerializableTypeString.h
+  UncertainArrayHandle.h
+  UnknownArrayHandle.h
   VariantArrayHandle.h
   VirtualObjectHandle.h
   )
 
 set(template_sources
   ArrayHandle.hxx
-  ArrayHandleVirtual.hxx
   ArrayRangeCompute.hxx
   CellSetExplicit.hxx
   CellSetExtrude.hxx
   CellSetStructured.hxx
   ColorTable.hxx
-  CoordinateSystem.hxx
   FieldRangeCompute.hxx
   FieldRangeGlobalCompute.hxx
-  StorageBasic.hxx
-  StorageVirtual.hxx
+  ParticleArrayCopy.hxx
   VirtualObjectHandle.hxx
   )
 
 set(sources
   ArrayHandle.cxx
+  ArrayHandleBasic.cxx
   ArrayHandleSOA.cxx
+  BitField.cxx
   ColorTablePresets.cxx
   DeviceAdapterTag.cxx
   EnvironmentTracker.cxx
   ErrorBadDevice.cxx
   ErrorBadType.cxx
-  internal/ArrayHandleBasicImpl.cxx
-  internal/ArrayManagerExecutionShareWithControl.cxx
+  internal/Buffer.cxx
+  internal/DeviceAdapterMemoryManager.cxx
+  internal/DeviceAdapterMemoryManagerShared.cxx
   internal/TransferInfo.cxx
   internal/VirtualObjectTransfer.cxx
   Initialize.cxx
   Logging.cxx
   RuntimeDeviceTracker.cxx
-  StorageBasic.cxx
+  Token.cxx
   TryExecute.cxx
   )
 
   # This list of sources has code that uses devices and so might need to be
   # compiled with a device-specific compiler (like CUDA).
   set(device_sources
-  ArrayHandleVirtual.cxx
   ArrayRangeCompute.cxx
   AssignerPartitionedDataSet.cxx
   BoundsCompute.cxx
@@ -175,7 +177,6 @@ set(sources
   DataSetBuilderExplicit.cxx
   DataSetBuilderRectilinear.cxx
   DataSetBuilderUniform.cxx
-  internal/VariantArrayHandleContainer.cxx
   Field.cxx
   FieldRangeCompute.cxx
   FieldRangeGlobalCompute.cxx
@@ -183,8 +184,59 @@ set(sources
   PointLocator.cxx
   PointLocatorUniformGrid.cxx
   RuntimeDeviceInformation.cxx
-  StorageVirtual.cxx
   Timer.cxx
+  UnknownArrayHandle.cxx
+  )
+
+if (NOT VTKm_NO_DEPRECATED_VIRTUAL)
+  set(headers ${headers}
+    ArrayHandleVirtual.h
+    ArrayHandleVirtualCoordinates.h
+    StorageVirtual.h
+    )
+
+  set(template_sources ${template_sources}
+    ArrayHandleVirtual.hxx
+    StorageVirtual.hxx
+    )
+
+  set(device_sources ${device_sources}
+    ArrayHandleVirtual.cxx
+    StorageVirtual.cxx
+    )
+endif()
+
+#-----------------------------------------------------------------------------
+# Set up default types, which can be custom configured by other build systems.
+vtkm_get_kit_name(kit_name kit_dir)
+
+# Some custom types included with VTK-m
+vtkm_option(VTKm_USE_DEFAULT_TYPES_FOR_VTK "Compile VTK-m algorithms for use with types from VTK." OFF)
+if (VTKm_USE_DEFAULT_TYPES_FOR_VTK)
+  set(VTKm_DEFAULT_TYPES_HEADER "internal/DefaultTypesVTK.h.in")
+endif()
+
+mark_as_advanced(VTKm_USE_DEFAULT_TYPES_FOR_VTK)
+
+if (VTKm_DEFAULT_TYPES_HEADER)
+  set(VTK_M_HAS_DEFAULT_TYPES_HEADER TRUE)
+  get_filename_component(VTKm_DEFAULT_TYPES_HEADER_FILENAME ${VTKm_DEFAULT_TYPES_HEADER} NAME_WE)
+  set(VTKm_DEFAULT_TYPES_HEADER_FILENAME "${VTKm_DEFAULT_TYPES_HEADER_FILENAME}.h")
+  configure_file(${VTKm_DEFAULT_TYPES_HEADER}
+    ${VTKm_BINARY_INCLUDE_DIR}/${kit_dir}/internal/${VTKm_DEFAULT_TYPES_HEADER_FILENAME}
+    @ONLY
+    )
+  vtkm_install_headers(vtkm/cont/internal
+    ${VTKm_BINARY_INCLUDE_DIR}/${kit_dir}/internal/${VTKm_DEFAULT_TYPES_HEADER_FILENAME}
+    )
+endif()
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/DefaultTypes.h.in
+  ${VTKm_BINARY_INCLUDE_DIR}/${kit_dir}/DefaultTypes.h
+  @ONLY
+  )
+vtkm_install_headers(vtkm/cont
+  ${VTKm_BINARY_INCLUDE_DIR}/${kit_dir}/DefaultTypes.h
   )
 
 #-----------------------------------------------------------------------------
@@ -201,6 +253,7 @@ add_subdirectory(serial)
 add_subdirectory(tbb)
 add_subdirectory(openmp)
 add_subdirectory(cuda)
+add_subdirectory(kokkos)
 
 set(backends )
 if(TARGET vtkm::tbb)
@@ -212,9 +265,13 @@ endif()
 if(TARGET vtkm::openmp)
   list(APPEND backends vtkm::openmp)
 endif()
+if(TARGET vtkm::kokkos)
+  list(APPEND backends vtkm::kokkos)
+endif()
 
 target_link_libraries(vtkm_cont PUBLIC vtkm_compiler_flags ${backends})
-target_link_libraries(vtkm_cont PUBLIC vtkm_taotuple vtkm_optionparser vtkm_diy vtkm_lcl)
+target_link_libraries(vtkm_cont PUBLIC Threads::Threads)
+target_link_libraries(vtkm_cont PUBLIC vtkm_optionparser vtkm_diy vtkm_lcl)
 if(TARGET vtkm_loguru)
   target_link_libraries(vtkm_cont PRIVATE vtkm_loguru)
 endif()

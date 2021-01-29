@@ -55,7 +55,7 @@ public:
 
 protected:
   vtkImagePadFilter();
-  ~vtkImagePadFilter() override {}
+  ~vtkImagePadFilter() override = default;
 
   int OutputWholeExtent[6];
   int OutputNumberOfScalarComponents;
@@ -63,7 +63,7 @@ protected:
   int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-  virtual void ComputeInputUpdateExtent(int inExt[6], int outExt[6], int wExt[6]);
+  virtual void ComputeInputUpdateExtent(int inExt[6], int outExt[6], int wholeExtent[6]);
 
 private:
   vtkImagePadFilter(const vtkImagePadFilter&) = delete;

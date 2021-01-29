@@ -23,19 +23,19 @@ PURPOSE.  See the above copyright notice for more information.
 
 vtkStandardNewMacro(vtkReaderExecutive);
 
-//----------------------------------------------------------------------------
-vtkReaderExecutive::vtkReaderExecutive() {}
+//------------------------------------------------------------------------------
+vtkReaderExecutive::vtkReaderExecutive() = default;
 
-//----------------------------------------------------------------------------
-vtkReaderExecutive::~vtkReaderExecutive() {}
+//------------------------------------------------------------------------------
+vtkReaderExecutive::~vtkReaderExecutive() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkReaderExecutive::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkReaderExecutive::CallAlgorithm(vtkInformation* request, int direction,
   vtkInformationVector** inInfo, vtkInformationVector* outInfo)
 {
@@ -111,6 +111,12 @@ int vtkReaderExecutive::CallAlgorithm(vtkInformation* request, int direction,
     if (result)
     {
       result = reader->ReadArrays(piece, npieces, nghosts, timeIndex, output);
+    }
+
+    if (!result && output != nullptr)
+    {
+      // cleanup output so we don't end up producing partial results.
+      output->Initialize();
     }
   }
   this->InAlgorithm = 0;

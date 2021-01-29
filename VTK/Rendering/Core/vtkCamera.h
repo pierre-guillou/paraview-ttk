@@ -518,12 +518,33 @@ public:
   /**@}*/
 
   /**
+   * Set/get an explicit aspect to use, rather than computing it from the renderer.
+   * Only used when UseExplicitAspect is true.
+   * @{
+   */
+  vtkSetMacro(ExplicitAspectRatio, double);
+  vtkGetMacro(ExplicitAspectRatio, double);
+  /**@}*/
+
+  /**
+   * If true, the ExplicitAspect is used for the projection
+   * transformation, rather than computing it from the renderer.
+   * Default is false.
+   * @{
+   */
+  vtkSetMacro(UseExplicitAspectRatio, bool);
+  vtkGetMacro(UseExplicitAspectRatio, bool);
+  vtkBooleanMacro(UseExplicitAspectRatio, bool);
+  /**@}*/
+
+  /**
    * Return the projection transform matrix, which converts from camera
    * coordinates to viewport coordinates.  The 'aspect' is the
    * width/height for the viewport, and the nearz and farz are the
    * Z-buffer values that map to the near and far clipping planes.
    * The viewport coordinates of a point located inside the frustum are in the
    * range ([-1,+1],[-1,+1],[nearz,farz]).
+   * aspect is ignored if UseExplicitAspectRatio is true.
    * @sa ExplicitProjectionTransformMatrix
    */
   virtual vtkMatrix4x4* GetProjectionTransformMatrix(double aspect, double nearz, double farz);
@@ -535,6 +556,7 @@ public:
    * Z-buffer values that map to the near and far clipping planes.
    * The viewport coordinates of a point located inside the frustum are in the
    * range ([-1,+1],[-1,+1],[nearz,farz]).
+   * aspect is ignored if UseExplicitAspectRatio is true.
    * @sa ExplicitProjectionTransformMatrix
    */
   virtual vtkPerspectiveTransform* GetProjectionTransformObject(
@@ -548,6 +570,7 @@ public:
    * Z-buffer values that map to the near and far clipping planes.
    * The viewport coordinates of a point located inside the frustum are in the
    * range ([-1,+1],[-1,+1],[nearz,farz]).
+   * aspect is ignored if UseExplicitAspectRatio is true.
    * @sa ExplicitProjectionTransformMatrix
    */
   virtual vtkMatrix4x4* GetCompositeProjectionTransformMatrix(
@@ -607,9 +630,30 @@ public:
    * values are (A,B,C,D) which repeats for each of the planes.
    * The planes are given in the following order: -x,+x,-y,+y,-z,+z.
    * Warning: it means left,right,bottom,top,far,near (NOT near,far)
-   * The aspect of the viewport is needed to correctly compute the planes
+   * The aspect of the viewport is needed to correctly compute the planes.
+   * aspect is ignored if UseExplicitAspectRatio is true.
    */
   virtual void GetFrustumPlanes(double aspect, double planes[24]);
+
+  //@{
+  /**
+   * The following methods are used to support view dependent methods
+   * for normalizing data (typically point coordinates). When dealing with
+   * data that can exceed floating point resolution sometimes is it best
+   * to normalize that data based on the current camera view such that
+   * what is seen will be in the sweet spot for floating point resolution.
+   * Input datasets may be double precision but the rendering engine
+   * is currently single precision which also can lead to these issues.
+   * See vtkOpenGLVertexBufferObject for related information.
+   */
+  virtual void UpdateIdealShiftScale(double aspect);
+  vtkGetVector3Macro(FocalPointShift, double);
+  vtkGetMacro(FocalPointScale, double);
+  vtkGetVector3Macro(NearPlaneShift, double);
+  vtkGetMacro(NearPlaneScale, double);
+  vtkSetMacro(ShiftScaleThreshold, double);
+  vtkGetMacro(ShiftScaleThreshold, double);
+  //@}
 
   //@{
   /**
@@ -636,6 +680,13 @@ public:
    * Update the viewport
    */
   virtual void UpdateViewport(vtkRenderer* vtkNotUsed(ren)) {}
+
+  //@{
+  /**
+   * Get the stereo setting
+   */
+  vtkGetMacro(Stereo, int);
+  //@}
 
   //@{
   /**
@@ -783,6 +834,9 @@ protected:
   vtkMatrix4x4* ExplicitProjectionTransformMatrix;
   bool UseExplicitProjectionTransformMatrix;
 
+  double ExplicitAspectRatio;
+  bool UseExplicitAspectRatio;
+
   vtkTransform* ViewTransform;
   vtkPerspectiveTransform* ProjectionTransform;
   vtkPerspectiveTransform* Transform;
@@ -792,6 +846,12 @@ protected:
 
   double FocalDisk;
   double FocalDistance;
+
+  double FocalPointShift[3];
+  double FocalPointScale;
+  double NearPlaneShift[3];
+  double NearPlaneScale;
+  double ShiftScaleThreshold;
 
   vtkCameraCallbackCommand* UserViewTransformCallbackCommand;
   friend class vtkCameraCallbackCommand;

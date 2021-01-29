@@ -8,6 +8,7 @@
 
 vtk_add_test_python(
   CellDataToPointData.py
+  CellDataToPointData2.py
   Delaunay2D.py
   Delaunay2DAlpha.py
   Delaunay2DTransform.py
@@ -18,6 +19,7 @@ vtk_add_test_python(
   StreamPolyData.py
   Test3DLinearGridCrinkleExtractor.py
   Test3DLinearGridPlaneCutter.py
+  TestBinnedDecimation.py
   TestCalculatorDataTypes.py,NO_VALID
   TestContour3DLinearGrid.py
   TestContour3DLinearGrid2.py
@@ -36,6 +38,10 @@ vtk_add_test_python(
   TestGridSynchronizedTemplates3D.py
   TestMarchingSquares.py
   TestMultiObjectMassProperties.py
+  TestOrientedFlyingEdgesPlaneCutter.py
+  TestOrientedFlyingEdgesPlaneCutter2.py
+  TestPolyDataEdgeConnectivityFilter.py
+  TestPolyDataEdgeConnectivityFilter2.py
   TestPolyDataPlaneCutter.py
   TestProbeFilterImageInput.py
   TestRectilinearGridPlaneCutter.py
@@ -47,6 +53,7 @@ vtk_add_test_python(
   TestStructuredGridPlaneCutter.py
   TestSynchronizedTemplates2D.py
   TestSynchronizedTemplates3D.py
+  TestWindowedSincPolyDataFilter.py
   TestContourGrid.py,NO_VALID
   TestContourPolyData.py,NO_VALID
   TestTensorGlyph.py,NO_RT

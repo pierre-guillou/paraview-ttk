@@ -31,7 +31,7 @@
 #define PyDescr_NAME(x) (((PyDescrObject*)(x))->d_name)
 #endif
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // C API
 
 PyObject* PyVTKMethodDescriptor_New(PyTypeObject* pytype, PyMethodDef* meth)
@@ -56,7 +56,7 @@ PyObject* PyVTKMethodDescriptor_New(PyTypeObject* pytype, PyMethodDef* meth)
   return (PyObject*)descr;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Object protocol
 
 static void PyVTKMethodDescriptor_Delete(PyObject* ob)
@@ -164,7 +164,7 @@ static PyMemberDef PyVTKMethodDescriptor_Members[] = {
   { nullptr, 0, 0, 0, nullptr }
 };
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // clang-format off
 PyTypeObject PyVTKMethodDescriptor_Type = {
   PyVarObject_HEAD_INIT(&PyType_Type, 0)
@@ -172,7 +172,14 @@ PyTypeObject PyVTKMethodDescriptor_Type = {
   sizeof(PyMethodDescrObject),             // tp_basicsize
   0,                                       // tp_itemsize
   PyVTKMethodDescriptor_Delete,            // tp_dealloc
+#if PY_VERSION_HEX >= 0x03080000
+  //Prior to Py3.8, this member was a function pointer, 
+  //but as of Py3.8 it is an integer
+  //(and therefore incompatible with nullptr).
   0,                                       // tp_vectorcall_offset
+#else
+  nullptr,                                 // tp_print
+#endif
   nullptr,                                 // tp_getattr
   nullptr,                                 // tp_setattr
   nullptr,                                 // tp_compare

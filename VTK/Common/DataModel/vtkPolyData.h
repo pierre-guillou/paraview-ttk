@@ -40,7 +40,7 @@
  * consist of a mixture of cell types. Because of the design of the class,
  * there are certain limitations on how mixed cell types are inserted into
  * the vtkPolyData, and in turn the order in which they are processed and
- * rendered. To preserve the consistency of cell ids, and to insure that
+ * rendered. To preserve the consistency of cell ids, and to ensure that
  * cells with cell data are rendered properly, users must insert mixed cells
  * in the order of vertices (vtkVertex and vtkPolyVertex), lines (vtkLine and
  * vtkPolyLine), polygons (vtkTriangle, vtkQuad, vtkPolygon), and triangle
@@ -63,6 +63,7 @@
 #define vtkPolyData_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
+#include "vtkDeprecation.h"           // for VTK_DEPRECATED_IN_9_0_0
 #include "vtkPointSet.h"
 
 #include "vtkCellArray.h"         // Needed for inline methods
@@ -85,6 +86,7 @@ class VTKCOMMONDATAMODEL_EXPORT vtkPolyData : public vtkPointSet
 {
 public:
   static vtkPolyData* New();
+  static vtkPolyData* ExtendedNew();
 
   vtkTypeMacro(vtkPolyData, vtkPointSet);
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -133,7 +135,9 @@ public:
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override;
 
   /**
-   * Compute the (X, Y, Z)  bounds of the data.
+   * Compute the (X, Y, Z)  bounds of the data. Note that the method only considers
+   * points that are used by cells (unless there are no cells, in which case all
+   * points are considered). This is done for usability and historical reasons.
    */
   void ComputeBounds() override;
 
@@ -367,10 +371,9 @@ public:
    */
   void GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkIdType*& cells)
     VTK_SIZEHINT(cells, ncells);
-#ifndef VTK_LEGACY_REMOVE
-  VTK_LEGACY(void GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells))
-  VTK_SIZEHINT(cells, ncells);
-#endif
+  VTK_DEPRECATED_IN_9_0_0("Use vtkPolyData::GetPointCells::vtkIdType, vtkIdType&, vtkIdType*&)")
+  void GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
+    VTK_SIZEHINT(cells, ncells);
   //@}
 
   /**
@@ -569,7 +572,8 @@ public:
 
   /**
    * This method will remove any cell that is marked as ghost
-   * (has the vtkDataSetAttributes::DUPLICATECELL bit set).
+   * (has the vtkDataSetAttributes::DUPLICATECELL or
+   * the vtkDataSetAttributes::HIDDENCELL bit set).
    * It does not remove unused points.
    */
   void RemoveGhostCells();
@@ -702,14 +706,12 @@ inline void vtkPolyData::GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkIdT
   cells = this->Links->GetCells(ptId);
 }
 
-#ifndef VTK_LEGACY_REMOVE
 inline void vtkPolyData::GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
 {
   VTK_LEGACY_BODY(vtkPolyData::GetPointCells, "VTK 9.0");
   ncells = static_cast<unsigned short>(this->Links->GetNcells(ptId));
   cells = this->Links->GetCells(ptId);
 }
-#endif
 
 //------------------------------------------------------------------------------
 inline vtkIdType vtkPolyData::GetNumberOfCells()

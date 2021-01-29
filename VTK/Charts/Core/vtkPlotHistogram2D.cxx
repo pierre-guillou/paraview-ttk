@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPlotHistogram2D.h"
 
 #include "vtkAxis.h"
@@ -27,16 +30,16 @@
 
 #include <algorithm>
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPlotHistogram2D);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotHistogram2D::vtkPlotHistogram2D()
 {
   this->TooltipDefaultLabelFormat = "%x,  %y:  %v";
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotHistogram2D::~vtkPlotHistogram2D() = default;
 
 void vtkPlotHistogram2D::Update()
@@ -44,7 +47,7 @@ void vtkPlotHistogram2D::Update()
   this->GenerateHistogram();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotHistogram2D::Paint(vtkContext2D* painter)
 {
   if (this->Output)
@@ -60,32 +63,32 @@ bool vtkPlotHistogram2D::Paint(vtkContext2D* painter)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotHistogram2D::SetInputData(vtkImageData* data, vtkIdType)
 {
   // FIXME: Store the z too, for slices.
   this->Input = data;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkImageData* vtkPlotHistogram2D::GetInputImageData()
 {
   return this->Input;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotHistogram2D::SetTransferFunction(vtkScalarsToColors* function)
 {
   this->TransferFunction = function;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkScalarsToColors* vtkPlotHistogram2D::GetTransferFunction()
 {
   return this->TransferFunction;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotHistogram2D::GetBounds(double bounds[4])
 {
   if (this->Input)
@@ -103,23 +106,22 @@ void vtkPlotHistogram2D::GetBounds(double bounds[4])
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotHistogram2D::SetPosition(const vtkRectf& pos)
 {
   this->Position = pos;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkRectf vtkPlotHistogram2D::GetPosition()
 {
   return this->Position;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkPlotHistogram2D::GetNearestPoint(const vtkVector2f& point,
   const vtkVector2f& tolerance, vtkVector2f* location, vtkIdType* vtkNotUsed(segmentId))
 {
-#ifndef VTK_LEGACY_REMOVE
   if (!this->LegacyRecursionFlag)
   {
     this->LegacyRecursionFlag = true;
@@ -129,13 +131,12 @@ vtkIdType vtkPlotHistogram2D::GetNearestPoint(const vtkVector2f& point,
     {
       VTK_LEGACY_REPLACED_BODY(vtkPlotHistogram2D::GetNearestPoint(const vtkVector2f& point,
                                  const vtkVector2f& tolerance, vtkVector2f* location),
-        "VTK 8.3",
+        "VTK 9.0",
         vtkPlotHistogram2D::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
           vtkVector2f* location, vtkIdType* segmentId));
       return ret;
     }
   }
-#endif // VTK_LEGACY_REMOVE
 
   if (!this->Input)
   {
@@ -168,7 +169,7 @@ vtkIdType vtkPlotHistogram2D::GetNearestPoint(const vtkVector2f& point,
   return (locX + (locY * width));
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStdString vtkPlotHistogram2D::GetTooltipLabel(
   const vtkVector2d& plotPos, vtkIdType seriesIndex, vtkIdType)
 {
@@ -247,7 +248,7 @@ vtkStdString vtkPlotHistogram2D::GetTooltipLabel(
   return tooltipLabel;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotHistogram2D::GenerateHistogram()
 {
   if (!this->Input)
@@ -272,7 +273,7 @@ void vtkPlotHistogram2D::GenerateHistogram()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotHistogram2D::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

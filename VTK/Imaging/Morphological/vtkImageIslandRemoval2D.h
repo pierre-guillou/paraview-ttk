@@ -28,13 +28,14 @@
 #include "vtkImageAlgorithm.h"
 #include "vtkImagingMorphologicalModule.h" // For export macro
 
-typedef struct
+struct vtkImage2DIslandPixel_t
 {
   void* inPtr;
   void* outPtr;
   int idx0;
   int idx1;
-} vtkImage2DIslandPixel;
+};
+using vtkImage2DIslandPixel = struct vtkImage2DIslandPixel_t;
 
 class VTKIMAGINGMORPHOLOGICAL_EXPORT vtkImageIslandRemoval2D : public vtkImageAlgorithm
 {
@@ -83,7 +84,7 @@ public:
 
 protected:
   vtkImageIslandRemoval2D();
-  ~vtkImageIslandRemoval2D() override {}
+  ~vtkImageIslandRemoval2D() override = default;
 
   int AreaThreshold;
   vtkTypeBool SquareNeighborhood;

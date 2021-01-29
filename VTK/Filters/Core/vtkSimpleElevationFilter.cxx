@@ -28,7 +28,8 @@
 
 vtkStandardNewMacro(vtkSimpleElevationFilter);
 
-namespace {
+namespace
+{
 
 // The heart of the algorithm plus interface to the SMP tools.
 template <class PointArrayT>
@@ -37,15 +38,14 @@ class vtkSimpleElevationAlgorithm
 public:
   vtkIdType NumPts;
   double Vector[3];
-  PointArrayT *PointArray;
-  float *Scalars;
+  PointArrayT* PointArray;
+  float* Scalars;
 
-  vtkSimpleElevationAlgorithm(PointArrayT* pointArray,
-                              vtkSimpleElevationFilter* filter,
-                              float* scalars)
-    : NumPts{pointArray->GetNumberOfTuples()}
-    , PointArray{pointArray}
-    , Scalars{scalars}
+  vtkSimpleElevationAlgorithm(
+    PointArrayT* pointArray, vtkSimpleElevationFilter* filter, float* scalars)
+    : NumPts{ pointArray->GetNumberOfTuples() }
+    , PointArray{ pointArray }
+    , Scalars{ scalars }
   {
     filter->GetVector(this->Vector);
   }
@@ -56,27 +56,24 @@ public:
     const double* v = this->Vector;
     float* s = this->Scalars + begin;
 
-    const auto pointRange = vtk::DataArrayTupleRange<3>(this->PointArray,
-                                                        begin, end);
+    const auto pointRange = vtk::DataArrayTupleRange<3>(this->PointArray, begin, end);
 
     for (const auto p : pointRange)
     {
-      *s = v[0]*p[0] + v[1]*p[1] + v[2]*p[2];
+      *s = v[0] * p[0] + v[1] * p[1] + v[2] * p[2];
       ++s;
     }
   }
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Templated class is glue between VTK and templated algorithms.
 struct Elevate
 {
   template <typename PointArrayT>
-  void operator()(PointArrayT* pointArray,
-                  vtkSimpleElevationFilter* filter,
-                  float* scalars)
+  void operator()(PointArrayT* pointArray, vtkSimpleElevationFilter* filter, float* scalars)
   {
-    vtkSimpleElevationAlgorithm<PointArrayT> algo{pointArray, filter, scalars};
+    vtkSimpleElevationAlgorithm<PointArrayT> algo{ pointArray, filter, scalars };
     vtkSMPTools::For(0, pointArray->GetNumberOfTuples(), algo);
   }
 };
@@ -84,7 +81,7 @@ struct Elevate
 } // end anon namespace
 
 // Okay begin the class proper
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Construct object with Vector=(0,0,1).
 vtkSimpleElevationFilter::vtkSimpleElevationFilter()
 {
@@ -93,7 +90,7 @@ vtkSimpleElevationFilter::vtkSimpleElevationFilter()
   this->Vector[2] = 1.0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Convert position along the ray into scalar value.  Example use includes
 // coloring terrain by elevation.
 //
@@ -195,7 +192,7 @@ int vtkSimpleElevationFilter::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSimpleElevationFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

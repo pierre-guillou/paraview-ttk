@@ -66,6 +66,7 @@ public:
     OpacityPointsFunction = 2,
     ColorAndOpacityPointsFunction = 3
   };
+
   //@{
   /**
    * PointsFunction controls whether the points represent the
@@ -90,6 +91,7 @@ public:
    */
   vtkIdType AddPoint(double* newPos) override;
 
+  using Superclass::RemovePoint;
   /**
    * Remove a point of the function. Returns the index of the point (0 based),
    * or -1 on error.
@@ -118,6 +120,29 @@ public:
   bool MouseButtonPressEvent(const vtkContextMouseEvent& mouse) override;
   //@}
 
+  /**
+   * Returns the total number of points, either from
+   * using the superclass implementation or the opacity function
+   * when available
+   */
+  vtkIdType GetNumberOfPoints() const override;
+
+  /**
+   * Returns the x and y coordinates as well as the midpoint and sharpness
+   * of the control point corresponding to the index.
+   * point must be a double array of size 4.
+   * The values will be recovered from the opacity function when available.
+   */
+  void GetControlPoint(vtkIdType index, double point[4]) const override;
+
+  /**
+   * Sets the x and y coordinates as well as the midpoint and sharpness,
+   * of the control point corresponding to the index, either using the superclass
+   * implementation or the opacity function when available.
+   * The provided point should be a double array of size 4.
+   */
+  void SetControlPoint(vtkIdType index, double* point) override;
+
 protected:
   vtkCompositeControlPointsItem();
   ~vtkCompositeControlPointsItem() override;
@@ -126,20 +151,17 @@ protected:
 
   vtkMTimeType GetControlPointsMTime() override;
 
-  vtkIdType GetNumberOfPoints() const override;
   void DrawPoint(vtkContext2D* painter, vtkIdType index) override;
-  void GetControlPoint(vtkIdType index, double* pos) const override;
-  void SetControlPoint(vtkIdType index, double* point) override;
   void EditPoint(float tX, float tY) override;
   virtual void EditPointCurve(vtkIdType idx);
 
   void MergeTransferFunctions();
   void SilentMergeTransferFunctions();
 
-  int PointsFunction;
-  vtkPiecewiseFunction* OpacityFunction;
-  vtkPiecewisePointHandleItem* OpacityPointHandle;
-  bool UseOpacityPointHandles;
+  int PointsFunction = vtkCompositeControlPointsItem::ColorAndOpacityPointsFunction;
+  vtkPiecewiseFunction* OpacityFunction = nullptr;
+  vtkPiecewisePointHandleItem* OpacityPointHandle = nullptr;
+  bool UseOpacityPointHandles = false;
 
 private:
   vtkCompositeControlPointsItem(const vtkCompositeControlPointsItem&) = delete;

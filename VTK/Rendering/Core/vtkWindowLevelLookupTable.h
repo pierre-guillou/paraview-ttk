@@ -50,7 +50,7 @@ public:
    * Generate lookup table as a linear ramp between MinimumTableValue
    * and MaximumTableValue.
    */
-  void Build() override;
+  void ForceBuild() override;
 
   //@{
   /**
@@ -114,7 +114,7 @@ public:
 
 protected:
   vtkWindowLevelLookupTable(int sze = 256, int ext = 256);
-  ~vtkWindowLevelLookupTable() override {}
+  ~vtkWindowLevelLookupTable() override = default;
 
   double Window;
   double Level;

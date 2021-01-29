@@ -1,40 +1,6 @@
-/*****************************************************************************
-*
-* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
-* Produced at the Lawrence Livermore National Laboratory
-* LLNL-CODE-442911
-* All rights reserved.
-*
-* This file is  part of VisIt. For  details, see https://visit.llnl.gov/.  The
-* full copyright notice is contained in the file COPYRIGHT located at the root
-* of the VisIt distribution or at http://www.llnl.gov/visit/copyright.html.
-*
-* Redistribution  and  use  in  source  and  binary  forms,  with  or  without
-* modification, are permitted provided that the following conditions are met:
-*
-*  - Redistributions of  source code must  retain the above  copyright notice,
-*    this list of conditions and the disclaimer below.
-*  - Redistributions in binary form must reproduce the above copyright notice,
-*    this  list of  conditions  and  the  disclaimer (as noted below)  in  the
-*    documentation and/or other materials provided with the distribution.
-*  - Neither the name of  the LLNS/LLNL nor the names of  its contributors may
-*    be used to endorse or promote products derived from this software without
-*    specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT  HOLDERS AND CONTRIBUTORS "AS IS"
-* AND ANY EXPRESS OR  IMPLIED WARRANTIES, INCLUDING,  BUT NOT  LIMITED TO, THE
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND  FITNESS FOR A PARTICULAR  PURPOSE
-* ARE  DISCLAIMED. IN  NO EVENT  SHALL LAWRENCE  LIVERMORE NATIONAL  SECURITY,
-* LLC, THE  U.S.  DEPARTMENT OF  ENERGY  OR  CONTRIBUTORS BE  LIABLE  FOR  ANY
-* DIRECT,  INDIRECT,   INCIDENTAL,   SPECIAL,   EXEMPLARY,  OR   CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT  LIMITED TO, PROCUREMENT OF  SUBSTITUTE GOODS OR
-* SERVICES; LOSS OF  USE, DATA, OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER
-* CAUSED  AND  ON  ANY  THEORY  OF  LIABILITY,  WHETHER  IN  CONTRACT,  STRICT
-* LIABILITY, OR TORT  (INCLUDING NEGLIGENCE OR OTHERWISE)  ARISING IN ANY  WAY
-* OUT OF THE  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-* DAMAGE.
-*
-*****************************************************************************/
+// Copyright (c) Lawrence Livermore National Security, LLC and other VisIt
+// Project developers.  See the top-level LICENSE file for dates and other
+// details.  No copyright assignment is required to contribute to VisIt.
 
 // ************************************************************************* //
 //                       avtDataRepresentation.h                             //
@@ -50,7 +16,6 @@
 
 
 class  avtWebpage;
-class  eavlDataSet;
 class  vtkDataSet;
 namespace vtkh
 {
@@ -61,7 +26,6 @@ class  DataSet;
 typedef enum
 {
     DATA_REP_TYPE_VTK,
-    DATA_REP_TYPE_EAVL,
     DATA_REP_TYPE_VTKM
 } DataRepType;
 
@@ -137,6 +101,9 @@ typedef enum
 //    Eric Brugger, Thu Dec 10 11:47:06 PST 2015
 //    Added support for VTKm.
 //
+//    Kathleen Biagas, Wed Jan 30 10:41:55 PST 2019
+//    Removed support for EAVL.
+//
 // ****************************************************************************
 
 class PIPELINE_API avtDataRepresentation
@@ -144,8 +111,6 @@ class PIPELINE_API avtDataRepresentation
   public:
                         avtDataRepresentation();
                         avtDataRepresentation(vtkDataSet *, int, std::string,
-                                              bool dontCopyData = false);
-                        avtDataRepresentation(eavlDataSet *, int, std::string,
                                               bool dontCopyData = false);
                         avtDataRepresentation(vtkh::DataSet *, int, std::string,
                                               bool dontCopyData = false);
@@ -159,7 +124,6 @@ class PIPELINE_API avtDataRepresentation
 
     DataRepType         GetDataRepType() const { return dataRepType; }
     vtkDataSet         *GetDataVTK(void);
-    eavlDataSet        *GetDataEAVL(void);
     vtkh::DataSet      *GetDataVTKm(void);
     unsigned char      *GetDataString(int &, DataSetType &);
     unsigned char      *GetCompressedDataString(int &, DataSetType &);
@@ -178,7 +142,6 @@ class PIPELINE_API avtDataRepresentation
 
   protected:
     vtkDataSet         *asVTK;
-    eavlDataSet        *asEAVL;
     vtkh::DataSet      *asVTKm;
     unsigned char      *asChar;
     int                 asCharLength;
@@ -195,7 +158,6 @@ class PIPELINE_API avtDataRepresentation
 
     static bool           initializedNullDatasets;
     static vtkDataSet    *nullVTKDataset;
-    static eavlDataSet   *nullEAVLDataset;
     static vtkh::DataSet *nullVTKmDataset;
 
     unsigned char      *GetDataString(int &, DataSetType &, bool);
@@ -205,8 +167,6 @@ class PIPELINE_API avtDataRepresentation
     static DataSetType  DatasetTypeForVTK(vtkDataSet *);
 
  private:
-    vtkDataSet*         EAVLToVTK(eavlDataSet *data);
-    eavlDataSet*        VTKToEAVL(vtkDataSet *data);
     vtkDataSet*         VTKmToVTK(vtkh::DataSet *data);
     vtkh::DataSet*      VTKToVTKm(vtkDataSet *data);
 };

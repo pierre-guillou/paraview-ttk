@@ -4,6 +4,62 @@ Major API Changes             {#MajorAPIChanges}
 This page documents major API/design changes between different versions since we
 started tracking these (starting after version 4.2).
 
+Changes in 5.9
+--------------
+
+###Representations and Ordered Compositing for Render View###
+
+We have refactored the code that manages how data redistribution is done when
+ordered compositing is needed. Ordered compositing is used for rendering
+translucent geometries or volume rendering in parallel. Previous implementation
+used `vtkDistributedDataFilter` internally which required building of
+`vtkPKdTree` for deciding how the data is distributed. The new implementation
+uses `vtkRedistributeDataSetFilter` which supports arbitrary non-intersecting
+bounding boxes. This also results is lots of code simplification. However, it
+has resulted in API changes that will impact vtkPVDataRepresentation subclasses.
+
+* `vtkPVRenderView::MarkAsRedistributable` and
+  `vtkPVRenderView::SetOrderedCompositingInformation` have been removed. Instead one
+  should use `vtkPVRenderView::SetOrderedCompositingConfiguration` which enables
+  developers to specify exactly how the representation's data products
+  participate in the data-redistribution stage.
+* For representations based on `vtkImageVolumeRepresentation`, such
+  representation no longer need to provide a `vtkExtentTranslator` subclass to
+  the render view via `vtkPVRenderView::SetOrderedCompositingInformation` to
+  enable the view to rebuild a KdTree. The view can now simply use the data
+  bounds provided either via `vtkPVRenderView::SetGeometryBounds` or
+  `vtkPVRenderView::SetOrderedCompositingInformation`.
+
+Since most custom representations are based on vtkImageVolumeRepresentation,
+vtkUnstructuredGridVolumeRepresentation or vtkGeometryRepresentation, developers
+are advised to look at the changes to those representations to get a better feel
+for how to use `vtkPVRenderView::SetOrderedCompositingInformation` instead of
+the legacy APIs.
+
+###Changes where ParaView applications settings files are stored on Windows
+
+Due to a bug prior to 5.9 on Windows only, user settings JSON files (`<application>-UserSettings.json`)
+written from ParaView-based applications were stored in the wrong directory on Windows.
+Settings file are normally stored in a directory with the name of the organization,
+but ParaView was storing them in a directory with the name of the application instead.
+In ParaView 5.9, the `<application>-UserSettings.json` file is stored in the directory named
+for the organization as expected.
+
+###Run-time selection of OpenGL Widget rendering implementation###
+
+We have enabled run-time selection of Widget rendering OpenGL implementation, by
+default it is set to _native_ mode. However, this can be changed to _Stereo_ mode
+in startup time by adding the flag `--stereo` to the _Paraview_ binary.
+
+This also makes `pqQVTKWidget` not to extend from `pqQVTKWidgetBase`, instead,
+extend from QWidget and contain (composition) either an instance of
+`QVTKOpenGLNativeWidget` or `QVTKOpenGLStereoWidget`.
+
+###Consistent font size in text source
+
+Corrected a setting that resulted in unwanted scaling of the font size from the
+*Text Source* that scaled according to the size of the *RenderView*.
+
 Changes in 5.8
 ---------------
 
@@ -653,13 +709,13 @@ XMLs to JSON.
 
 ###Changes to `pqViewFrame`###
 
-Commit [afaf6a510](https://gitlab.kitware.com/paraview/paraview/commit/afaf6a510ecb872c49461cd850022817741e1558)
+Commit [afaf6a510](https://gitlab.kitware.com/paraview/paraview/-/commit/afaf6a510ecb872c49461cd850022817741e1558)
 changes the internal widgets created in `pqViewFrame` to add a new `QFrame` named
 **CentralWidgetFrame** around the rendering viewport. While this shouldn't break any
 code, this will certainly break tests since the widgets have changed. The change to the testing
 XML is fairly simple. Just add the **CentralWidgetFrame** to the widget hierarchy at the appropriate
 location. See the original
-[merge request](https://gitlab.kitware.com/paraview/paraview/merge_requests/167)
+[merge request](https://gitlab.kitware.com/paraview/paraview/-/merge_requests/167)
 for details.
 
 ###Changes to `vtkSMProxyIterator`###

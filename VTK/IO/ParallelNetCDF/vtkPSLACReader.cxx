@@ -208,35 +208,39 @@ public:
   }
 };
 
-typedef struct
+struct midpointPositionType_t
 {
   double coord[3];
-} midpointPositionType;
+};
+using midpointPositionType = struct midpointPositionType_t;
 const vtkIdType midpointPositionSize = sizeof(midpointPositionType) / sizeof(double);
 
-typedef struct
+struct midpointTopologyType_t
 {
   vtkIdType minEdgePoint;
   vtkIdType maxEdgePoint;
   vtkIdType globalId;
-} midpointTopologyType;
+};
+using midpointTopologyType = struct midpointTopologyType_t;
 const vtkIdType midpointTopologySize = sizeof(midpointTopologyType) / sizeof(vtkIdType);
 
-typedef struct
+struct midpointListsType_t
 {
   std::vector<midpointPositionType> position;
   std::vector<midpointTopologyType> topology;
-} midpointListsType;
+};
+using midpointListsType = struct midpointListsType_t;
 
-typedef struct
+struct midpointPointersType_t
 {
   midpointPositionType* position;
   midpointTopologyType* topology;
-} midpointPointersType;
+};
+using midpointPointersType = struct midpointPointersType_t;
 typedef std::unordered_map<vtkSLACReader::EdgeEndpoints, midpointPointersType, EdgeEndpointsHash>
   MidpointsAvailableType;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Convenience function for gathering midpoint information to a process.
 static void GatherMidpoints(vtkMultiProcessController* controller,
   const midpointListsType& sendMidpoints, midpointListsType& recvMidpoints, int process)
@@ -303,7 +307,7 @@ static void GatherMidpoints(vtkMultiProcessController* controller,
 };
 using namespace vtkPSLACReaderTypes;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Simple hash function for vtkIdType.
 struct vtkPSLACReaderIdTypeHash
 {
@@ -315,7 +319,7 @@ vtkObjectFactoryNewMacro(vtkPSLACReader);
 
 vtkCxxSetObjectMacro(vtkPSLACReader, Controller, vtkMultiProcessController);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class vtkPSLACReader::vtkInternal
 {
 public:
@@ -349,7 +353,7 @@ public:
   vtkSmartPointer<vtkIdTypeArray> EdgesToSendToProcessesOffsets;
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPSLACReader::vtkPSLACReader()
 {
   this->Controller = nullptr;
@@ -385,7 +389,7 @@ void vtkPSLACReader::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::RequestInformation(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -413,7 +417,7 @@ int vtkPSLACReader::RequestInformation(
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::RequestData(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -451,7 +455,7 @@ int vtkPSLACReader::RequestData(
   return retval;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::ReadTetrahedronInteriorArray(int meshFD, vtkIdTypeArray* connectivity)
 {
   int tetInteriorVarId;
@@ -481,7 +485,7 @@ int vtkPSLACReader::ReadTetrahedronInteriorArray(int meshFD, vtkIdTypeArray* con
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::ReadTetrahedronExteriorArray(int meshFD, vtkIdTypeArray* connectivity)
 {
   int tetExteriorVarId;
@@ -511,7 +515,7 @@ int vtkPSLACReader::ReadTetrahedronExteriorArray(int meshFD, vtkIdTypeArray* con
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::CheckTetrahedraWinding(int meshFD)
 {
   // Check the file only on the first process and broadcast the result.
@@ -524,7 +528,7 @@ int vtkPSLACReader::CheckTetrahedraWinding(int meshFD)
   return winding;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::ReadConnectivity(
   int meshFD, vtkMultiBlockDataSet* surfaceOutput, vtkMultiBlockDataSet* volumeOutput)
 {
@@ -734,7 +738,7 @@ int vtkPSLACReader::ReadConnectivity(
     this->PInternal->EdgesToSendToProcessesOffsets = vtkSmartPointer<vtkIdTypeArray>::New();
     this->PInternal->EdgesToSendToProcessesOffsets->SetNumberOfTuples(this->NumberOfPieces);
 
-    std::vector<vtkSmartPointer<vtkIdTypeArray> > edgeLists(this->NumberOfPieces);
+    std::vector<vtkSmartPointer<vtkIdTypeArray>> edgeLists(this->NumberOfPieces);
     for (int process = 0; process < this->NumberOfPieces; process++)
     {
       edgeLists[process] = vtkSmartPointer<vtkIdTypeArray>::New();
@@ -778,7 +782,7 @@ int vtkPSLACReader::ReadConnectivity(
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::RestoreMeshCache(vtkMultiBlockDataSet* surfaceOutput,
   vtkMultiBlockDataSet* volumeOutput, vtkMultiBlockDataSet* compositeOutput)
 {
@@ -794,7 +798,7 @@ int vtkPSLACReader::RestoreMeshCache(vtkMultiBlockDataSet* surfaceOutput,
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPointer<vtkDataArray> vtkPSLACReader::ReadPointDataArray(int ncFD, int varId)
 {
   // Get the dimension info.  We should only need to worry about 1 or 2D arrays.
@@ -898,7 +902,7 @@ vtkSmartPointer<vtkDataArray> vtkPSLACReader::ReadPointDataArray(int ncFD, int v
   return finalDataArray;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::ReadCoordinates(int meshFD, vtkMultiBlockDataSet* output)
 {
   // The superclass reads everything correctly because it will call our
@@ -917,7 +921,7 @@ int vtkPSLACReader::ReadCoordinates(int meshFD, vtkMultiBlockDataSet* output)
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::ReadFieldData(
   const int* modeFDArray, int numModeFDs, vtkMultiBlockDataSet* output)
 {
@@ -926,7 +930,7 @@ int vtkPSLACReader::ReadFieldData(
   return this->Superclass::ReadFieldData(modeFDArray, numModeFDs, output);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::ReadMidpointCoordinates(
   int meshFD, vtkMultiBlockDataSet* vtkNotUsed(output), vtkSLACReader::MidpointCoordinateMap& map)
 {
@@ -1104,7 +1108,7 @@ int vtkPSLACReader::ReadMidpointCoordinates(
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::ReadMidpointData(
   int meshFD, vtkMultiBlockDataSet* output, vtkSLACReader::MidpointIdMap& map)
 {
@@ -1135,7 +1139,7 @@ int vtkPSLACReader::ReadMidpointData(
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPSLACReader::MeshUpToDate()
 {
   int localflag = this->Superclass::MeshUpToDate();

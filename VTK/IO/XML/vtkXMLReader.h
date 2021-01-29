@@ -25,7 +25,8 @@
 #define vtkXMLReader_h
 
 #include "vtkAlgorithm.h"
-#include "vtkIOXMLModule.h" // For export macro
+#include "vtkIOXMLModule.h"  // For export macro
+#include "vtkSmartPointer.h" // for vtkSmartPointer.
 
 #include <string> // for std::string
 #include <vector>
@@ -33,6 +34,7 @@
 class vtkAbstractArray;
 class vtkCallbackCommand;
 class vtkCommand;
+class vtkDataArray;
 class vtkDataArraySelection;
 class vtkDataSet;
 class vtkDataSetAttributes;
@@ -315,6 +317,17 @@ protected:
   // at the end of RequestData.
   virtual void SqueezeOutputArrays(vtkDataObject*) {}
 
+  /**
+   * XML files have not consistently saved out adequate meta-data in past to
+   * correctly create vtkIdTypeArray for global ids and pedigree ids. This was
+   * fixed in vtk/vtk!4819, but all older files don't recreated vtkIdTypeArray
+   * correctly. If global ids or pedigree ids are not of type vtkIdTypeArray VTK
+   * does not handle them correctly, resulting in paraview/paraview#20239. This
+   * methods "annotates" the XML for arrays that are tagged as global/pedigree
+   * ids so they are read properly.
+   */
+  void MarkIdTypeArrays(vtkXMLDataElement* da);
+
   // The vtkXMLDataParser instance used to hide XML reading details.
   vtkXMLDataParser* XMLParser;
 
@@ -341,9 +354,16 @@ protected:
   vtkStringArray* TimeDataStringArray;
 
   /**
-   * Active index of array used for time. If no time array is used, its value should be -1.
+   * Name of the field-data array used to determine the time for the dataset
+   * being read.
    */
   char* ActiveTimeDataArrayName;
+
+  /**
+   * Populated in `ReadXMLInformation` from the field data for the array chosen
+   * using ActiveTimeDataArrayName, if any. `nullptr` otherwise.
+   */
+  vtkSmartPointer<vtkDataArray> TimeDataArray;
 
   // The observer to modify this object when the array selections are
   // modified.
@@ -413,7 +433,7 @@ protected:
 
 private:
   // The stream used to read the input if it is in a file.
-  ifstream* FileStream;
+  istream* FileStream;
   // The stream used to read the input if it is in a string.
   std::istringstream* StringStream;
   int TimeStepWasReadOnce;

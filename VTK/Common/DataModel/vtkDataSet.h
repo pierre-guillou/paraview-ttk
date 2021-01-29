@@ -107,8 +107,16 @@ public:
   virtual vtkCellIterator* NewCellIterator();
 
   /**
-   * Get cell with cellId such that: 0 <= cellId < NumberOfCells.
-   * THIS METHOD IS NOT THREAD SAFE.
+   * Get cell with cellId such that: 0 <= cellId < NumberOfCells. The returned
+   * vtkCell is an object owned by this instance, hence the return value must not
+   * be deleted by the caller.
+   *
+   * @warning Repeat calls to this function for different face ids will change
+   * the data stored in the internal member object whose pointer is returned by
+   * this function.
+   *
+   * @warning THIS METHOD IS NOT THREAD SAFE. For a thread-safe version, please use
+   * void GetCell(vtkIdType cellId, vtkGenericCell* cell).
    */
   virtual vtkCell* GetCell(vtkIdType cellId) = 0;
   virtual vtkCell* GetCell(int vtkNotUsed(i), int vtkNotUsed(j), int vtkNotUsed(k))
@@ -423,13 +431,13 @@ public:
    * 0 otherwise. Blanking is supported only for vtkStructuredGrid
    * and vtkUniformGrid
    */
-  virtual bool HasAnyBlankCells() { return 0; }
+  virtual bool HasAnyBlankCells() { return false; }
   /**
    * Returns 1 if there are any blanking points
    * 0 otherwise. Blanking is supported only for vtkStructuredGrid
    * and vtkUniformGrid
    */
-  virtual bool HasAnyBlankPoints() { return 0; }
+  virtual bool HasAnyBlankPoints() { return false; }
 
   /**
    * Gets the array that defines the ghost type of each point.

@@ -217,7 +217,7 @@ void pqYoungsMaterialPropertyWidget::onNormalArraysChanged()
     if (internals.NormalArraysMap.value(key, "__NO_VALUE__") != value)
     {
       internals.NormalArraysMap[key] = value;
-      emit this->normalArraysChanged();
+      Q_EMIT this->normalArraysChanged();
     }
   }
 }
@@ -236,7 +236,7 @@ void pqYoungsMaterialPropertyWidget::onOrderingArraysChanged()
     if (internals.OrderingArraysMap.value(key, "__NO_VALUE__") != value)
     {
       internals.OrderingArraysMap[key] = value;
-      emit this->orderingArraysChanged();
+      Q_EMIT this->orderingArraysChanged();
     }
   }
 }

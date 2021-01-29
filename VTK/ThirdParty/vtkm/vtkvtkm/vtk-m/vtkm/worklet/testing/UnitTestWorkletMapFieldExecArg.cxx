@@ -20,7 +20,7 @@
 struct SimpleExecObject : vtkm::cont::ExecutionObjectBase
 {
   template <typename Device>
-  Device PrepareForExecution(Device) const
+  Device PrepareForExecution(Device, vtkm::cont::Token&) const
   {
     return Device();
   }
@@ -75,7 +75,8 @@ struct DoTestWorklet
     }
 
     vtkm::cont::ArrayHandleIndex counting(ARRAY_SIZE);
-    vtkm::cont::ArrayHandle<T> inputHandle = vtkm::cont::make_ArrayHandle(inputArray, ARRAY_SIZE);
+    vtkm::cont::ArrayHandle<T> inputHandle =
+      vtkm::cont::make_ArrayHandle(inputArray, ARRAY_SIZE, vtkm::CopyFlag::Off);
     vtkm::cont::ArrayHandle<T> outputHandle;
     vtkm::cont::ArrayHandle<T> outputFieldArray;
     outputHandle.Allocate(ARRAY_SIZE);
@@ -85,8 +86,8 @@ struct DoTestWorklet
     dispatcher.Invoke(counting, inputHandle, outputHandle, outputFieldArray, SimpleExecObject());
 
     std::cout << "Check result." << std::endl;
-    CheckPortal(outputHandle.GetPortalConstControl());
-    CheckPortal(outputFieldArray.GetPortalConstControl());
+    CheckPortal(outputHandle.ReadPortal());
+    CheckPortal(outputFieldArray.ReadPortal());
 
     std::cout << "Repeat with dynamic arrays." << std::endl;
     // Clear out output arrays.
@@ -98,8 +99,8 @@ struct DoTestWorklet
     dispatcher.Invoke(counting, inputHandle, outputHandle, outputFieldDynamic, SimpleExecObject());
 
     std::cout << "Check dynamic array result." << std::endl;
-    CheckPortal(outputHandle.GetPortalConstControl());
-    CheckPortal(outputFieldArray.GetPortalConstControl());
+    CheckPortal(outputHandle.ReadPortal());
+    CheckPortal(outputFieldArray.ReadPortal());
   }
 };
 

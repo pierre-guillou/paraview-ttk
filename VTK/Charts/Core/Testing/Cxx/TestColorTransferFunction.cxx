@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkChartXY.h"
 #include "vtkColorTransferControlPointsItem.h"
 #include "vtkColorTransferFunction.h"
@@ -27,7 +30,7 @@
 #include "vtkRenderer.h"
 #include "vtkSmartPointer.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestColorTransferFunction(int, char*[])
 {
   // Set up a 2D scene, add an XY chart to it

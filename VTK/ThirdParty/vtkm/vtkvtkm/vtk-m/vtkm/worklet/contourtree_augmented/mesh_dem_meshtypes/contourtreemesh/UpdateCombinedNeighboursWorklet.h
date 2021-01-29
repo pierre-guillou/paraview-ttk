@@ -60,8 +60,8 @@
 //  Oliver Ruebel (LBNL)
 //==============================================================================
 
-#ifndef vtkm_worklet_contourtree_augmented_contourtree_mesh_inc_update_combined_neighbours_worklet_h
-#define vtkm_worklet_contourtree_augmented_contourtree_mesh_inc_update_combined_neighbours_worklet_h
+#ifndef vtk_m_worklet_contourtree_augmented_contourtree_mesh_inc_update_combined_neighbours_worklet_h
+#define vtk_m_worklet_contourtree_augmented_contourtree_mesh_inc_update_combined_neighbours_worklet_h
 
 #include <vtkm/worklet/WorkletMapField.h>
 #include <vtkm/worklet/contourtree_augmented/Types.h>
@@ -85,7 +85,7 @@ public:
       toCombinedSortOrder, // (input) thisToCombinedSortOrder or otherToCombinedSortOrder array
     WholeArrayIn combinedFirstNeighbour, // (input) combinedFirstNeighbour array in both cases
     WholeArrayIn
-      combinedOtherStartIndex,         // (input) const 0 array of length combinedOtherStartIndex for this and combinedOtherStartIndex for other loop
+      combinedOtherStartIndex, // (input) const 0 array of length combinedOtherStartIndex for this and combinedOtherStartIndex for other loop
     WholeArrayOut combinedNeighbours); // (output) combinedNeighbours array in both cases
   typedef void ExecutionSignature(_1, InputIndex, _2, _3, _4, _5, _6);
   typedef _1 InputDomain;
@@ -122,7 +122,6 @@ public:
       This worklet implemnts the following two loops from the original OpenMP code
       The two loops are the same but the arrays required are different
 
-      #pragma omp parallel for
       for (indexVector::size_type vtx = 0; vtx < firstNeighbour.size(); ++vtx)
       {
         indexType numNeighbours = (vtx < GetNumberOfVertices() - 1) ? firstNeighbour[vtx+1] - firstNeighbour[vtx] : neighbours.size() - firstNeighbour[vtx];
@@ -133,7 +132,6 @@ public:
         }
       }
 
-      #pragma omp parallel for
       for (indexVector::size_type vtx = 0; vtx < other.firstNeighbour.size(); ++vtx)
       {
         indexType numNeighbours = (vtx < other.GetNumberOfVertices() - 1) ? other.firstNeighbour[vtx+1] - other.firstNeighbour[vtx] : other.neighbours.size() - other.firstNeighbour[vtx];

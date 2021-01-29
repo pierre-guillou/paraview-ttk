@@ -70,7 +70,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QtCore/QMap>
 #include <QtCore/QPointer>
 
-#include <fstream>
+#include <vtksys/FStream.hxx>
 
 class pqVRDockPanel::pqInternals : public Ui::VRDockPanel
 {
@@ -460,9 +460,11 @@ void pqVRDockPanel::setActiveView(pqView* view)
   this->Internals->Camera = NULL;
   if (rview)
   {
-    if (vtkSMRenderViewProxy* renPxy = rview->getRenderViewProxy())
+    vtkSMRenderViewProxy* renPxy = rview->getRenderViewProxy();
+    if (renPxy)
     {
-      if (this->Internals->Camera = renPxy->GetActiveCamera())
+      this->Internals->Camera = renPxy->GetActiveCamera();
+      if (this->Internals->Camera)
       {
         pqCoreUtilities::connect(
           this->Internals->Camera, vtkCommand::ModifiedEvent, this, SLOT(updateDebugLabel()));
@@ -502,7 +504,7 @@ void pqVRDockPanel::saveState()
 
   // Avoid temporary QByteArrays in QString --> const char * conversion:
   QByteArray filename_ba = filename.toLocal8Bit();
-  ofstream os(filename_ba.constData(), ios::out);
+  vtksys::ofstream os(filename_ba.constData(), ios::out);
   root->PrintXML(os, vtkIndent());
 }
 

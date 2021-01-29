@@ -64,18 +64,18 @@ CellSetExtrude::CellSetExtrude(const CellSetExtrude& src)
 }
 
 CellSetExtrude::CellSetExtrude(CellSetExtrude&& src) noexcept
-  : CellSet(std::forward<CellSet>(src)),
-    IsPeriodic(src.IsPeriodic),
-    NumberOfPointsPerPlane(src.NumberOfPointsPerPlane),
-    NumberOfCellsPerPlane(src.NumberOfCellsPerPlane),
-    NumberOfPlanes(src.NumberOfPlanes),
-    Connectivity(std::move(src.Connectivity)),
-    NextNode(std::move(src.NextNode)),
-    ReverseConnectivityBuilt(src.ReverseConnectivityBuilt),
-    RConnectivity(std::move(src.RConnectivity)),
-    ROffsets(std::move(src.ROffsets)),
-    RCounts(std::move(src.RCounts)),
-    PrevNode(std::move(src.PrevNode))
+  : CellSet(std::forward<CellSet>(src))
+  , IsPeriodic(src.IsPeriodic)
+  , NumberOfPointsPerPlane(src.NumberOfPointsPerPlane)
+  , NumberOfCellsPerPlane(src.NumberOfCellsPerPlane)
+  , NumberOfPlanes(src.NumberOfPlanes)
+  , Connectivity(std::move(src.Connectivity))
+  , NextNode(std::move(src.NextNode))
+  , ReverseConnectivityBuilt(src.ReverseConnectivityBuilt)
+  , RConnectivity(std::move(src.RConnectivity))
+  , ROffsets(std::move(src.ROffsets))
+  , RCounts(std::move(src.RCounts))
+  , PrevNode(std::move(src.PrevNode))
 {
 }
 
@@ -117,9 +117,7 @@ CellSetExtrude& CellSetExtrude::operator=(CellSetExtrude&& src) noexcept
   return *this;
 }
 
-CellSetExtrude::~CellSetExtrude()
-{
-}
+CellSetExtrude::~CellSetExtrude() {}
 
 vtkm::Int32 CellSetExtrude::GetNumberOfPlanes() const
 {
@@ -168,9 +166,11 @@ vtkm::IdComponent CellSetExtrude::GetNumberOfPointsInCell(vtkm::Id) const
 
 void CellSetExtrude::GetCellPointIds(vtkm::Id id, vtkm::Id* ptids) const
 {
+  vtkm::cont::Token token;
   auto conn = this->PrepareForInput(vtkm::cont::DeviceAdapterTagSerial{},
                                     vtkm::TopologyElementTagCell{},
-                                    vtkm::TopologyElementTagPoint{});
+                                    vtkm::TopologyElementTagPoint{},
+                                    token);
   auto indices = conn.GetIndices(id);
   for (int i = 0; i < 6; ++i)
   {

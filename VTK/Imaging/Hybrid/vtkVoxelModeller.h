@@ -52,7 +52,7 @@ public:
   /**
    * Compute the ModelBounds based on the input geometry.
    */
-  double ComputeModelBounds(double origin[3], double ar[3]);
+  double ComputeModelBounds(double origin[3], double spacing[3]);
 
   //@{
   /**
@@ -121,7 +121,7 @@ public:
 
 protected:
   vtkVoxelModeller();
-  ~vtkVoxelModeller() override {}
+  ~vtkVoxelModeller() override = default;
 
   int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 

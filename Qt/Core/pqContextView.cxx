@@ -256,7 +256,7 @@ void pqContextView::setSelection(vtkSelection* sel)
     }
   }
 
-  emit this->selected(opPort);
+  Q_EMIT this->selected(opPort);
 }
 
 //-----------------------------------------------------------------------------

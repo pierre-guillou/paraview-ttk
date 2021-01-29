@@ -163,9 +163,9 @@ void vtkParallelCoordinatesRepresentationBuildLinePoints(iterT* it, vtkIdTypeArr
 class vtkParallelCoordinatesRepresentation::Internals
 {
 public:
-  std::vector<vtkSmartPointer<vtkPolyData> > SelectionData;
-  std::vector<vtkSmartPointer<vtkPolyDataMapper2D> > SelectionMappers;
-  std::vector<vtkSmartPointer<vtkActor2D> > SelectionActors;
+  std::vector<vtkSmartPointer<vtkPolyData>> SelectionData;
+  std::vector<vtkSmartPointer<vtkPolyDataMapper2D>> SelectionMappers;
+  std::vector<vtkSmartPointer<vtkActor2D>> SelectionActors;
   static const double Colors[10][3];
   static const unsigned int NumberOfColors = 10;
   double* GetColor(unsigned int idx)
@@ -294,7 +294,7 @@ const char* vtkParallelCoordinatesRepresentation::GetHoverText(vtkView* view, in
   vtkRenderView* rv = vtkRenderView::SafeDownCast(view);
   if (rv && this->NumberOfAxes > 0)
   {
-    int* s = rv->GetRenderer()->GetSize();
+    const int* s = rv->GetRenderer()->GetSize();
 
     double p[2] = { 0.0, 0.0 };
     p[0] = static_cast<double>(x) / s[0];
@@ -348,7 +348,7 @@ void vtkParallelCoordinatesRepresentation::UpdateHoverHighlight(vtkView* view, i
   if (x > 0 && y > 0)
   {
     std::ostringstream str;
-    int* size = win->GetSize();
+    const int* size = win->GetSize();
     int linesFound = 0;
     vtkCellArray* lines = this->PlotData->GetLines();
 

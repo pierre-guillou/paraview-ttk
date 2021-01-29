@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPlotBag.h"
 #include "vtkBrush.h"
 #include "vtkContext2D.h"
@@ -32,12 +35,12 @@
 #include <algorithm>
 #include <sstream>
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPlotBag);
 
 vtkSetObjectImplementationMacro(vtkPlotBag, LinePen, vtkPen);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotBag::vtkPlotBag()
 {
   this->MedianPoints = vtkPoints2D::New();
@@ -53,7 +56,7 @@ vtkPlotBag::vtkPlotBag()
   this->LinePen->SetWidth(1.f);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotBag::~vtkPlotBag()
 {
   if (this->MedianPoints)
@@ -73,7 +76,7 @@ vtkPlotBag::~vtkPlotBag()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBag::Update()
 {
   if (!this->Visible)
@@ -102,7 +105,7 @@ void vtkPlotBag::Update()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class DensityVal
 {
 public:
@@ -116,7 +119,7 @@ public:
   vtkIdType Id;
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBag::UpdateTableCache(vtkDataArray* density)
 {
   this->MedianPoints->Reset();
@@ -136,7 +139,7 @@ void vtkPlotBag::UpdateTableCache(vtkDataArray* density)
   ids.reserve(nbPoints);
   for (int i = 0; i < nbPoints; i++)
   {
-    ids.push_back(DensityVal(d->GetTuple1(i), i));
+    ids.emplace_back(d->GetTuple1(i), i);
   }
   std::sort(ids.begin(), ids.end());
 
@@ -222,7 +225,7 @@ void vtkPlotBag::UpdateTableCache(vtkDataArray* density)
   this->BuildTime.Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotBag::Paint(vtkContext2D* painter)
 {
   vtkDebugMacro(<< "Paint event called in vtkPlotBag.");
@@ -273,7 +276,7 @@ bool vtkPlotBag::Paint(vtkContext2D* painter)
   return this->Superclass::Paint(painter);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotBag::PaintLegend(vtkContext2D* painter, const vtkRectf& rect, int)
 {
   painter->ApplyPen(this->LinePen);
@@ -295,7 +298,7 @@ bool vtkPlotBag::PaintLegend(vtkContext2D* painter, const vtkRectf& rect, int)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStringArray* vtkPlotBag::GetLabels()
 {
   // If the label string is empty, return the y column name
@@ -321,7 +324,7 @@ vtkStringArray* vtkPlotBag::GetLabels()
   return nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStdString vtkPlotBag::GetTooltipLabel(
   const vtkVector2d& plotPos, vtkIdType seriesIndex, vtkIdType)
 {
@@ -404,14 +407,14 @@ vtkStdString vtkPlotBag::GetTooltipLabel(
   return tooltipLabel;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBag::SetInputData(vtkTable* table)
 {
   this->Data->SetInputData(table);
   this->Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBag::SetInputData(
   vtkTable* table, const vtkStdString& yColumn, const vtkStdString& densityColumn)
 {
@@ -429,7 +432,7 @@ void vtkPlotBag::SetInputData(
   this->UseIndexForXSeries = true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBag::SetInputData(vtkTable* table, const vtkStdString& xColumn,
   const vtkStdString& yColumn, const vtkStdString& densityColumn)
 {
@@ -451,7 +454,7 @@ void vtkPlotBag::SetInputData(vtkTable* table, const vtkStdString& xColumn,
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBag::SetInputData(
   vtkTable* table, vtkIdType xColumn, vtkIdType yColumn, vtkIdType densityColumn)
 {
@@ -459,7 +462,7 @@ void vtkPlotBag::SetInputData(
     table->GetColumnName(densityColumn));
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotBag::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

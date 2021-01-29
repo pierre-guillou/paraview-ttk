@@ -17,6 +17,10 @@ arguments, respectively.
 _vtk_module_wrap_client_server_sources(<module> <sources> <classes>)
 ```
 #]==]
+
+cmake_policy(PUSH)
+cmake_policy(SET CMP0053 NEW)
+
 function (_vtk_module_wrap_client_server_sources module sources classes)
   _vtk_module_get_module_property("${module}"
     PROPERTY  "exclude_wrap"
@@ -205,7 +209,7 @@ ${_vtk_client_server_calls}}\n")
 
   set(_vtk_client_server_export)
   if (_vtk_client_server_INSTALL_EXPORT)
-    set(_vtk_client_server_export
+    list(APPEND _vtk_client_server_export
       EXPORT "${_vtk_client_server_INSTALL_EXPORT}")
   endif ()
 
@@ -284,6 +288,11 @@ function (vtk_module_wrap_client_server)
   if (NOT DEFINED _vtk_client_server_FUNCTION_NAME)
     set(_vtk_client_server_FUNCTION_NAME "${_vtk_client_server_TARGET}_initialize")
   endif ()
+
+  # Disable CMake's automoc support for these targets.
+  set(CMAKE_AUTOMOC 0)
+  set(CMAKE_AUTORCC 0)
+  set(CMAKE_AUTOUIC 0)
 
   # TODO: Install cmake properties?
 
@@ -369,7 +378,7 @@ ${_vtk_client_server_calls}}
 
     set(_vtk_client_server_export)
     if (_vtk_client_server_INSTALL_EXPORT)
-      set(_vtk_client_server_export
+      list(APPEND _vtk_client_server_export
         EXPORT "${_vtk_client_server_INSTALL_EXPORT}")
     endif ()
 
@@ -421,3 +430,5 @@ function (vtk_module_client_server_exclude)
     PROPERTY  "client_server_exclude"
     VALUE     1)
 endfunction ()
+
+cmake_policy(POP)

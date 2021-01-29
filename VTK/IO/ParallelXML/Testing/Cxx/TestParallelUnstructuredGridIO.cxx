@@ -1,16 +1,26 @@
-#include "vtkNew.h"
-#include <string>
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
+#include "vtkMPIController.h"
+#else
+#include "vtkDummyController.h"
+#endif
 
 #include "vtksys/FStream.hxx"
 #include <vtkCell.h>
+#include <vtkCellData.h>
 #include <vtkIdList.h>
 #include <vtkMultiProcessController.h>
+#include <vtkNew.h>
+#include <vtkPointData.h>
 #include <vtkPoints.h>
+#include <vtkStdString.h>
+#include <vtkStringArray.h>
 #include <vtkTestUtilities.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkXMLPUnstructuredGridReader.h>
 #include <vtkXMLPUnstructuredGridWriter.h>
 #include <vtkXMLUnstructuredGridReader.h>
+
+#include <string>
 
 using namespace std;
 
@@ -22,8 +32,18 @@ bool CompareGrids(vtkUnstructuredGrid* s, vtkUnstructuredGrid* t)
          << " != " << t->GetNumberOfCells() << endl;
     return false;
   }
+  vtkStringArray* helloArrayS =
+    vtkArrayDownCast<vtkStringArray>(s->GetCellData()->GetAbstractArray("helloArray"));
+  vtkStringArray* helloArrayT =
+    vtkArrayDownCast<vtkStringArray>(t->GetCellData()->GetAbstractArray("helloArray"));
   for (vtkIdType i = 0; i < s->GetNumberOfCells(); ++i)
   {
+    if (helloArrayS->GetValue(i) != helloArrayT->GetValue(i))
+    {
+      std::cerr << "String array does not match:" << helloArrayS->GetValue(i)
+                << " != " << helloArrayT->GetValue(i) << std::endl;
+      return false;
+    }
     if (s->GetCellType(i) != t->GetCellType(i))
     {
       cerr << "The cell type does not match: " << s->GetCellType(i) << " != " << t->GetCellType(i)
@@ -63,11 +83,33 @@ bool CompareGrids(vtkUnstructuredGrid* s, vtkUnstructuredGrid* t)
     }
   }
 
+  vtkStringArray* alphaArrayS =
+    vtkArrayDownCast<vtkStringArray>(s->GetPointData()->GetAbstractArray("alphaArray"));
+  vtkStringArray* alphaArrayT =
+    vtkArrayDownCast<vtkStringArray>(t->GetPointData()->GetAbstractArray("alphaArray"));
+  for (vtkIdType i = 0; i < s->GetNumberOfPoints(); ++i)
+  {
+    if (alphaArrayS->GetValue(i) != alphaArrayT->GetValue(i))
+    {
+      std::cerr << "String array does not match:" << alphaArrayS->GetValue(i)
+                << " != " << alphaArrayT->GetValue(i) << std::endl;
+      return false;
+    }
+  }
+
   return true;
 }
 
 int TestParallelUnstructuredGridIO(int argc, char* argv[])
 {
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
+  vtkNew<vtkMPIController> contr;
+#else
+  vtkNew<vtkDummyController> contr;
+#endif
+  contr->Initialize(&argc, &argv);
+  vtkMultiProcessController::SetGlobalController(contr);
+
   vtkNew<vtkPoints> points;
 
   points->InsertNextPoint(0, 0, 0);
@@ -188,6 +230,33 @@ int TestParallelUnstructuredGridIO(int argc, char* argv[])
   ug->InsertNextCell(
     VTK_POLYHEDRON, 5, ids.GetPointer()->GetPointer(0), 5, faces.GetPointer()->GetPointer(0));
 
+  // String array for cells
+  vtkNew<vtkStringArray> helloArray;
+  helloArray->SetNumberOfTuples(3);
+  helloArray->SetValue(0, "hello.");
+  helloArray->SetValue(1, "Hello..");
+  helloArray->SetValue(2, "HELLO...");
+  helloArray->SetName("helloArray");
+
+  ug->GetCellData()->AddArray(helloArray);
+
+  // String array for points
+  vtkNew<vtkStringArray> alphaArray;
+  alphaArray->SetNumberOfTuples(10);
+  alphaArray->SetValue(0, "alpha");
+  alphaArray->SetValue(1, "beta");
+  alphaArray->SetValue(2, "gamma");
+  alphaArray->SetValue(3, "delta");
+  alphaArray->SetValue(4, "epsilon");
+  alphaArray->SetValue(5, "zeta");
+  alphaArray->SetValue(6, "eta");
+  alphaArray->SetValue(7, "theta");
+  alphaArray->SetValue(8, "iota");
+  alphaArray->SetValue(9, "kappa");
+  alphaArray->SetName("alphaArray");
+
+  ug->GetPointData()->AddArray(alphaArray);
+
   vtkMultiProcessController* ctrl = vtkMultiProcessController::GetGlobalController();
   vtkNew<vtkXMLPUnstructuredGridWriter> w;
   w->SetController(ctrl);
@@ -230,5 +299,7 @@ int TestParallelUnstructuredGridIO(int argc, char* argv[])
   if (!CompareGrids(ug.GetPointer(), read))
     return EXIT_FAILURE;
 
+  vtkMultiProcessController::SetGlobalController(nullptr);
+  contr->Finalize();
   return EXIT_SUCCESS;
 }

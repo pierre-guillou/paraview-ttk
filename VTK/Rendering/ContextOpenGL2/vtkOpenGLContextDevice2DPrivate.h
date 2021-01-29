@@ -324,7 +324,8 @@ public:
 
       if (this->SavedDrawBuffer != GL_BACK_LEFT)
       {
-        glDrawBuffer(this->SavedDrawBuffer);
+        const GLenum bufs[1] = { static_cast<GLenum>(this->SavedDrawBuffer) };
+        ::glDrawBuffers(1, bufs);
       }
 
       ostate->vtkglClearColor(this->SavedClearColor[0], this->SavedClearColor[1],
@@ -754,7 +755,7 @@ private:
       cellIter->Delete();
     }
 
-    if (cacheItem->Lines.size() > 0)
+    if (!cacheItem->Lines.empty())
     {
       this->Device->DrawLines(&cacheItem->Lines[0], static_cast<int>(cacheItem->Lines.size() / 2),
         static_cast<unsigned char*>(cacheItem->LineColors->GetVoidPointer(0)),
@@ -862,7 +863,7 @@ private:
       cellIter->Delete();
     }
 
-    if (cacheItem->PolyTri.size() > 0)
+    if (!cacheItem->PolyTri.empty())
     {
       this->Device->CoreDrawTriangles(cacheItem->PolyTri,
         static_cast<unsigned char*>(cacheItem->PolyColors->GetVoidPointer(0)), 4);

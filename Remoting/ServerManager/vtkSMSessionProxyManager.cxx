@@ -30,7 +30,6 @@
 #include "vtkSMCoreUtilities.h"
 #include "vtkSMDeserializerProtobuf.h"
 #include "vtkSMDocumentation.h"
-#include "vtkSMExportProxyDepot.h"
 #include "vtkSMPipelineState.h"
 #include "vtkSMPropertyIterator.h"
 #include "vtkSMProxy.h"
@@ -50,12 +49,14 @@
 #include "vtkStringList.h"
 #include "vtkVersion.h"
 
+#include "vtksys/FStream.hxx"
+#include "vtksys/RegularExpression.hxx"
+
 #include <assert.h>
 #include <map>
 #include <set>
 #include <sstream>
 #include <vector>
-#include <vtksys/RegularExpression.hxx>
 
 #include "vtkSMSessionProxyManagerInternals.h"
 
@@ -158,9 +159,6 @@ vtkSMSessionProxyManager::vtkSMSessionProxyManager(vtkSMSession* session)
   this->PipelineState = vtkSMPipelineState::New();
   this->PipelineState->SetSession(this->Session);
 
-  this->ExportDepot = vtkSMExportProxyDepot::New();
-  this->ExportDepot->Session = this;
-
   // setup event forwarder so that it forwards all events fired by this class via
   // the global proxy manager.
   vtkNew<vtkSMProxyManagerForwarder> forwarder;
@@ -184,9 +182,6 @@ vtkSMSessionProxyManager::~vtkSMSessionProxyManager()
 
   this->PipelineState->Delete();
   this->PipelineState = NULL;
-
-  this->ExportDepot->Delete();
-  this->ExportDepot = nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -1261,7 +1256,7 @@ void vtkSMSessionProxyManager::LoadXMLState(
 bool vtkSMSessionProxyManager::SaveXMLState(const char* filename)
 {
   vtkPVXMLElement* rootElement = this->SaveXMLState();
-  ofstream os(filename, ios::out);
+  vtksys::ofstream os(filename, ios::out);
   if (!os.is_open())
   {
     return false;
@@ -1276,7 +1271,7 @@ vtkPVXMLElement* vtkSMSessionProxyManager::SaveXMLState()
 {
   vtkPVXMLElement* root = vtkPVXMLElement::New();
   root->SetName("GenericParaViewApplication");
-  this->AddInternalState(root);
+  root->AddNestedElement(this->GetXMLState({}));
 
   vtkSMProxyManager::LoadStateInformation info;
   info.RootElement = root;
@@ -1307,9 +1302,10 @@ void vtkSMSessionProxyManager::CollectReferredProxies(
 }
 
 //---------------------------------------------------------------------------
-vtkPVXMLElement* vtkSMSessionProxyManager::AddInternalState(vtkPVXMLElement* parentElem)
+vtkSmartPointer<vtkPVXMLElement> vtkSMSessionProxyManager::GetXMLState(
+  const std::set<vtkSMProxy*>& restrictionSet)
 {
-  vtkPVXMLElement* rootElement = vtkPVXMLElement::New();
+  vtkNew<vtkPVXMLElement> rootElement;
   rootElement->SetName("ServerManagerState");
 
   // Set version number on the state element.
@@ -1371,6 +1367,12 @@ vtkPVXMLElement* vtkSMSessionProxyManager::AddInternalState(vtkPVXMLElement* par
           // proxy has been saved.
           continue;
         }
+        if (!restrictionSet.empty() && restrictionSet.find(proxy) == restrictionSet.end())
+        {
+          // we're skipping this proxy on request.
+          continue;
+        }
+
         proxy->SaveXMLState(rootElement);
         visited_proxies.insert(proxy);
         visited_proxy_types.insert(std::make_pair(proxy->GetXMLGroup(), proxy->GetXMLName()));
@@ -1482,13 +1484,6 @@ vtkPVXMLElement* vtkSMSessionProxyManager::AddInternalState(vtkPVXMLElement* par
       }
     }
   }
-
-  if (parentElem)
-  {
-    parentElem->AddNestedElement(rootElement);
-    rootElement->FastDelete();
-  }
-
   return rootElement;
 }
 

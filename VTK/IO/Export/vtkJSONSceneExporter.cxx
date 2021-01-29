@@ -14,6 +14,7 @@
 =========================================================================*/
 #include "vtkJSONSceneExporter.h"
 
+#include "vtkArchiver.h"
 #include "vtkCamera.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataSet.h"
@@ -46,7 +47,7 @@
 
 vtkStandardNewMacro(vtkJSONSceneExporter);
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkJSONSceneExporter::vtkJSONSceneExporter()
 {
@@ -60,14 +61,14 @@ vtkJSONSceneExporter::vtkJSONSceneExporter()
   this->PolyLODsBaseUrl = nullptr;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkJSONSceneExporter::~vtkJSONSceneExporter()
 {
   delete[] this->FileName;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkJSONSceneExporter::WriteDataObject(ostream& os, vtkDataObject* dataObject, vtkActor* actor)
 {
@@ -119,7 +120,7 @@ void vtkJSONSceneExporter::WriteDataObject(ostream& os, vtkDataObject* dataObjec
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 std::string vtkJSONSceneExporter::ExtractRenderingSetup(vtkActor* actor)
 {
@@ -176,7 +177,7 @@ std::string vtkJSONSceneExporter::ExtractRenderingSetup(vtkActor* actor)
   return renderingConfig.str();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 std::string vtkJSONSceneExporter::CurrentDataSetPath() const
 {
@@ -185,7 +186,7 @@ std::string vtkJSONSceneExporter::CurrentDataSetPath() const
   return vtksys::SystemTools::ConvertToOutputPath(path.str());
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 std::string vtkJSONSceneExporter::WriteDataSet(vtkDataSet* dataset, const char* addOnMeta = nullptr)
 {
@@ -209,7 +210,7 @@ std::string vtkJSONSceneExporter::WriteDataSet(vtkDataSet* dataset, const char* 
 
   vtkNew<vtkJSONDataSetWriter> dsWriter;
   dsWriter->SetInputData(dataset);
-  dsWriter->SetFileName(dsPath.c_str());
+  dsWriter->GetArchiver()->SetArchiveName(dsPath.c_str());
   dsWriter->Write();
 
   if (!dsWriter->IsDataSetValid())
@@ -244,7 +245,7 @@ std::string vtkJSONSceneExporter::WriteDataSet(vtkDataSet* dataset, const char* 
   return meta.str();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkJSONSceneExporter::WriteLookupTable(const char* name, vtkScalarsToColors* lookupTable)
 {
@@ -294,7 +295,7 @@ void vtkJSONSceneExporter::WriteLookupTable(const char* name, vtkScalarsToColors
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkJSONSceneExporter::WriteData()
 {
@@ -391,7 +392,7 @@ void vtkJSONSceneExporter::WriteData()
 namespace
 {
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 size_t getFileSize(const std::string& path)
 {
@@ -412,7 +413,7 @@ size_t getFileSize(const std::string& path)
 
 } // end anon namespace
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 std::string vtkJSONSceneExporter::WriteTexture(vtkTexture* texture)
 {
@@ -449,7 +450,7 @@ std::string vtkJSONSceneExporter::WriteTexture(vtkTexture* texture)
   return config.str();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 std::string vtkJSONSceneExporter::WriteTextureLODSeries(vtkTexture* texture)
 {
@@ -540,7 +541,7 @@ std::string vtkJSONSceneExporter::WriteTextureLODSeries(vtkTexture* texture)
   return config.str();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkSmartPointer<vtkPolyData> vtkJSONSceneExporter::WritePolyLODSeries(
   vtkPolyData* dataset, std::string& polyLODsConfig)
@@ -591,7 +592,7 @@ vtkSmartPointer<vtkPolyData> vtkJSONSceneExporter::WritePolyLODSeries(
       "sourceLOD_" + std::to_string(this->DatasetCount) + "_" + std::to_string(++count) + ".zip";
     std::string full_path = path + name;
     dsWriter->SetInputData(polyData);
-    dsWriter->SetFileName(full_path.c_str());
+    dsWriter->GetArchiver()->SetArchiveName(full_path.c_str());
     dsWriter->Write();
     files.push_back(name);
     this->FilesToZip.push_back(full_path);
@@ -736,7 +737,7 @@ vtkSmartPointer<vtkPolyData> vtkJSONSceneExporter::WritePolyLODSeries(
   return polyData;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkJSONSceneExporter::PrintSelf(ostream& os, vtkIndent indent)
 {

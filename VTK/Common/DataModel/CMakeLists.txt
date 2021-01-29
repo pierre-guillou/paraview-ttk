@@ -14,6 +14,13 @@ set(classes
   vtkAttributesErrorMetric
   vtkBSPCuts
   vtkBSPIntersections
+  vtkBezierCurve
+  vtkBezierHexahedron
+  vtkBezierInterpolation
+  vtkBezierQuadrilateral
+  vtkBezierTetra
+  vtkBezierTriangle
+  vtkBezierWedge
   vtkBiQuadraticQuad
   vtkBiQuadraticQuadraticHexahedron
   vtkBiQuadraticQuadraticWedge
@@ -39,6 +46,7 @@ set(classes
   vtkConvexPointSet
   vtkCubicLine
   vtkCylinder
+  vtkDataAssembly
   vtkDataObject
   vtkDataObjectCollection
   vtkDataObjectTree
@@ -78,7 +86,15 @@ set(classes
   vtkHexahedron
   vtkHierarchicalBoxDataIterator
   vtkHierarchicalBoxDataSet
+  vtkHigherOrderCurve
+  vtkHigherOrderHexahedron
+  vtkHigherOrderInterpolation
+  vtkHigherOrderQuadrilateral
+  vtkHigherOrderTetra
+  vtkHigherOrderTriangle
+  vtkHigherOrderWedge
   vtkHyperTree
+  vtkHyperTreeCursor
   vtkHyperTreeGrid
   vtkHyperTreeGridEntry
   vtkHyperTreeGridGeometryEntry
@@ -115,20 +131,6 @@ set(classes
   vtkKdNode
   vtkKdTree
   vtkKdTreePointLocator
-  vtkHigherOrderCurve
-  vtkHigherOrderHexahedron
-  vtkHigherOrderInterpolation
-  vtkHigherOrderQuadrilateral
-  vtkHigherOrderTetra
-  vtkHigherOrderTriangle
-  vtkHigherOrderWedge
-  vtkBezierCurve
-  vtkBezierHexahedron
-  vtkBezierInterpolation
-  vtkBezierQuadrilateral
-  vtkBezierTetra
-  vtkBezierTriangle
-  vtkBezierWedge
   vtkLagrangeCurve
   vtkLagrangeHexahedron
   vtkLagrangeInterpolation
@@ -248,17 +250,22 @@ set(template_classes
   vtkMappedUnstructuredGrid
   vtkMappedUnstructuredGridCellIterator
   vtkPeriodicDataArray
-  vtkStaticCellLinksTemplate)
+  vtkStaticCellLinksTemplate
+  vtkStaticEdgeLocatorTemplate)
 
 set(headers
   vtkCellType.h
   vtkColor.h
   vtkCompositeDataSetRange.h
+  vtkCompositeDataSetNodeReference.h
   vtkDataArrayDispatcher.h
+  vtkDataAssemblyVisitor.h
+  vtkDataObjectTreeInternals.h
   vtkDataObjectTreeRange.h
   vtkDispatcher.h
   vtkDispatcher_Private.h
   vtkDoubleDispatcher.h
+  vtkHyperTreeGridScales.h
   vtkHyperTreeGridTools.h
   vtkIntersectionCounter.h
   vtkPolyDataInternals.h
@@ -266,7 +273,11 @@ set(headers
   vtkVector.h
   vtkVectorOperators.h)
 
+set(private_templates
+  vtkImageIterator.txx)
+
 vtk_module_add_module(VTK::CommonDataModel
   CLASSES           ${classes}
   TEMPLATE_CLASSES  ${template_classes}
-  HEADERS           ${headers})
+  HEADERS           ${headers}
+  PRIVATE_TEMPLATES ${private_templates})

@@ -13,7 +13,7 @@ following should be fixed first:
   - A better solution than `-undefined dynamic_lookup` for macOS. VTK has
     [an issue][VTK dynamic Python lookup issue] filed for this already.
 
-[VTK dynamic Python lookup issue]: https://gitlab.kitware.com/vtk/vtk/issues/17214
+[VTK dynamic Python lookup issue]: https://gitlab.kitware.com/vtk/vtk/-/issues/17214
 #]==]
 
 if (NOT DEFINED VTK_PYTHON_VERSION)
@@ -24,6 +24,10 @@ if (NOT DEFINED VTK_PYTHON_VERSION)
       STRINGS "2;3")
 endif ()
 
+# VTK only supports a single Python version at a time, so make artifact finding
+# interactive.
+set("Python${VTK_PYTHON_VERSION}_ARTIFACTS_INTERACTIVE" ON)
+
 if (VTK_PYTHON_VERSION STREQUAL "2")
   set(vtk_python_min_version "2.6")
   set(vtk_python_version_support "2.7")
@@ -33,7 +37,8 @@ if (VTK_PYTHON_VERSION STREQUAL "2")
   vtk_module_find_package(
     PACKAGE Python2
     VERSION "${vtk_python_min_version}"
-    COMPONENTS Development
+    COMPONENTS Interpreter Development.Module
+    OPTIONAL_COMPONENTS Development.Embed
     FORWARD_VERSION_REQ MINOR)
 elseif (VTK_PYTHON_VERSION STREQUAL "3")
   set(vtk_python_min_version "3.2")
@@ -44,16 +49,22 @@ elseif (VTK_PYTHON_VERSION STREQUAL "3")
   vtk_module_find_package(
     PACKAGE Python3
     VERSION "${vtk_python_min_version}"
-    COMPONENTS Development
+    COMPONENTS Interpreter Development.Module
+    OPTIONAL_COMPONENTS Development.Embed
     FORWARD_VERSION_REQ MINOR)
 else ()
   message(FATAL_ERROR
     "`VTK_PYTHON_VERSION` must either be 2 or 3.")
 endif ()
 set(vtk_python_includes "${Python${VTK_PYTHON_VERSION}_INCLUDE_DIRS}")
-set(vtk_python_target "Python${VTK_PYTHON_VERSION}::Python")
+set(vtk_python_target "Python${VTK_PYTHON_VERSION}::Module")
+set(vtk_python_embed_target "Python${VTK_PYTHON_VERSION}::Python")
 set(vtk_python_version "${Python${VTK_PYTHON_VERSION}_VERSION}")
 set(vtk_python_version_pair "${Python${VTK_PYTHON_VERSION}_VERSION_MAJOR}.${Python${VTK_PYTHON_VERSION}_VERSION_MINOR}")
+
+set_property(GLOBAL PROPERTY _vtk_python_soabi "${Python${VTK_PYTHON_VERSION}_SOABI}")
+set_property(GLOBAL PROPERTY _vtk_python_version_major "${Python${VTK_PYTHON_VERSION}_VERSION_MAJOR}")
+set_property(GLOBAL PROPERTY _vtk_python_version_minor "${Python${VTK_PYTHON_VERSION}_VERSION_MINOR}")
 
 # Check deprecated versions of Python
 if (NOT VTK_LEGACY_SILENT AND vtk_python_version VERSION_LESS vtk_python_version_support)
@@ -95,7 +106,7 @@ endif ()
 # For static builds, since vtkPythonInterpreter cannot work off the library
 # location, but instead has to use the executable location, it needs to know the
 # library dir explicitly.
-if (NOT VTK_BUILD_SHARED_LIBS)
+if (NOT BUILD_SHARED_LIBS)
   set(VTK_PYTHON_SITE_PACKAGES_SUFFIX_FIXED "${VTK_INSTALL_PYTHON_MODULES_DIR}")
 else ()
   set(VTK_PYTHON_SITE_PACKAGES_SUFFIX_FIXED "${VTK_PYTHON_SITE_PACKAGES_SUFFIX}")
@@ -126,7 +137,9 @@ add_library(PythonUsed INTERFACE)
 add_library(VTK::PythonUsed ALIAS PythonUsed)
 _vtk_module_install(PythonUsed)
 
-if (VTK_PYTHON_OPTIONAL_LINK)
+# If we want optional linking and we have a real libpython, set up the forward
+# linking.
+if (VTK_PYTHON_OPTIONAL_LINK AND TARGET "${vtk_python_embed_target}")
   # It has been observed that Ubuntu's GCC toolchain defaults require flags,
   # but are not detected here due to the confluence of the flags (basically,
   # the errors only show up in an executable that links to Python-using code,
@@ -150,33 +163,31 @@ if (VTK_PYTHON_OPTIONAL_LINK)
     # unresolved symbols in the shared libraries that are being linked to.
     "$<$<AND:${is_exe},$<PLATFORM_ID:Linux>>:LINKER:--unresolved-symbols=ignore-in-shared-libs>")
 
-  # Compilation should work with this target, so add the include interface.
-  vtk_module_include(VTK::Python SYSTEM
-    INTERFACE
-      "${vtk_python_includes}")
-  # Only when the actual Python target should be used should it be linked.
+  # Use the `PythonX::Module` target from FindPython.
   vtk_module_link(VTK::Python
     INTERFACE
-      "$<LINK_ONLY:$<${should_use}:${vtk_python_target}>>")
-  # Libraries need the platform flags if they are necessary and direct linking
-  # is not being performed.
-  vtk_module_link_options(VTK::Python
-    INTERFACE
-      "$<$<AND:${needs_flags},$<NOT:${direct_link}>>:${platform_flags}>")
+      "${vtk_python_target}")
 
   # This target is intended for use by the end-result executable with a
   # `VTK::Python` link in its total library closure. This exposes the
-  # `VTK::Python` link at the executable level with the required platform
+  # `PythonX::Python` link at the executable level with the required platform
   # flags.
   target_link_libraries(PythonUsed
     INTERFACE
-      "$<LINK_ONLY:$<${is_exe}:${vtk_python_target}>>")
+      "$<LINK_ONLY:$<${is_exe}:${vtk_python_embed_target}>>")
   target_link_options(PythonUsed
     INTERFACE
       "$<$<AND:${is_exe},${needs_flags}>:${platform_flags}>")
   _vtk_module_set_module_property(VTK::Python APPEND
     PROPERTY  "forward_link"
     VALUE     VTK::PythonUsed)
+# Otherwise, if we have the libpython and aren't doing optional linking, just
+# use libpython.
+elseif (NOT VTK_PYTHON_OPTIONAL_LINK AND TARGET "${vtk_python_embed_target}")
+  vtk_module_link(VTK::Python
+    INTERFACE
+      "${vtk_python_embed_target}")
+# Do the optional linking support.
 else ()
   vtk_module_link(VTK::Python
     INTERFACE

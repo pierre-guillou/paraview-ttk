@@ -21,9 +21,9 @@
  * to create vtk objects from the list of registered vtkObjectFactory
  * sub-classes.   The first time CreateInstance is called, all dll's or shared
  * libraries in the environment variable VTK_AUTOLOAD_PATH are loaded into
- * the current process.   The C functions vtkLoad, vtkGetFactoryCompilerUsed,
- * and vtkGetFactoryVersion are called on each dll.  To implement these
- * functions in a shared library or dll, use the macro:
+ * the current process.   The C functions vtkLoad, and vtkGetFactoryVersion are
+ * called on each dll.  To implement these functions in a shared library or
+ * dll, use the macro:
  * VTK_FACTORY_INTERFACE_IMPLEMENT.
  * VTK_AUTOLOAD_PATH is an environment variable
  * containing a colon separated (semi-colon on win32) list of paths.
@@ -40,6 +40,7 @@
 
 #include "vtkCommonCoreModule.h"  // For export macro
 #include "vtkDebugLeaksManager.h" // Must be included before singletons
+#include "vtkFeatures.h"          // For VTK_ALL_NEW_OBJECT_FACTORY
 #include "vtkObject.h"
 
 #include <string> // for std::string
@@ -261,7 +262,6 @@ private:
   // at load or register time
   void* LibraryHandle;
   char* LibraryVTKVersion;
-  char* LibraryCompilerUsed;
   char* LibraryPath;
 
 private:
@@ -298,10 +298,6 @@ static vtkObjectFactoryRegistryCleanup vtkObjectFactoryRegistryCleanupInstance;
 // and pass in the name of the factory sub-class that you want
 // the dll to create.
 #define VTK_FACTORY_INTERFACE_IMPLEMENT(factoryName)                                               \
-  extern "C" VTK_FACTORY_INTERFACE_EXPORT const char* vtkGetFactoryCompilerUsed()                  \
-  {                                                                                                \
-    return VTK_CXX_COMPILER;                                                                       \
-  }                                                                                                \
   extern "C" VTK_FACTORY_INTERFACE_EXPORT const char* vtkGetFactoryVersion()                       \
   {                                                                                                \
     return VTK_SOURCE_VERSION;                                                                     \
@@ -347,6 +343,16 @@ static vtkObjectFactoryRegistryCleanup vtkObjectFactoryRegistryCleanupInstance;
 // Macro to implement the standard form of the New() method.
 #define vtkStandardNewMacro(thisClass)                                                             \
   thisClass* thisClass::New() { VTK_STANDARD_NEW_BODY(thisClass); }
+
+// Macro to implement the ExtendedNew() to create an object in a memkind extended memory space. If
+// VTK is not compiled with VTK_USE_MEMKIND this is equivalent to New()
+#define vtkStandardExtendedNewMacro(thisClass)                                                     \
+  thisClass* thisClass::ExtendedNew()                                                              \
+  {                                                                                                \
+    auto mkhold = vtkMemkindRAII(true);                                                            \
+    (void)mkhold;                                                                                  \
+    return thisClass::New();                                                                       \
+  }
 
 // Macro to implement the object factory form of the New() method.
 #define vtkObjectFactoryNewMacro(thisClass)                                                        \

@@ -9,7 +9,6 @@
 //============================================================================
 
 #include <vtkm/cont/DataSetBuilderExplicit.h>
-#include <vtkm/cont/DataSetFieldAdd.h>
 #include <vtkm/cont/testing/Testing.h>
 #include <vtkm/filter/Tube.h>
 
@@ -30,7 +29,6 @@ void TestTubeFilters()
   using VecType = vtkm::Vec3f;
 
   vtkm::cont::DataSetBuilderExplicitIterative dsb;
-  vtkm::cont::DataSetFieldAdd dsf;
   std::vector<vtkm::Id> ids;
 
   ids.clear();
@@ -63,8 +61,8 @@ void TestTubeFilters()
   cellVar.push_back(110);
   cellVar.push_back(111);
 
-  dsf.AddPointField(ds, "pointVar", ptVar);
-  dsf.AddCellField(ds, "cellVar", cellVar);
+  ds.AddPointField("pointVar", ptVar);
+  ds.AddCellField("cellVar", cellVar);
 
   vtkm::filter::Tube tubeFilter;
   tubeFilter.SetCapping(true);
@@ -90,7 +88,7 @@ void TestTubeFilters()
 
   std::vector<vtkm::FloatDefault> ptVals = { 0,  0,  0,  0,  1,  1,  1,  2,  2,  2,  2,
                                              10, 10, 10, 10, 11, 11, 11, 12, 12, 12, 12 };
-  auto portal = ptArr.GetPortalConstControl();
+  auto portal = ptArr.ReadPortal();
   for (vtkm::Id i = 0; i < 22; i++)
     VTKM_TEST_ASSERT(portal.Get(i) == ptVals[static_cast<std::size_t>(i)],
                      "Wrong value for point field");
@@ -104,7 +102,7 @@ void TestTubeFilters()
                                                101, 101, 101, 100, 100, 100, 101, 101, 101,
                                                110, 110, 110, 110, 110, 110, 111, 111, 111,
                                                111, 111, 111, 110, 110, 110, 111, 111, 111 };
-  portal = cellArr.GetPortalConstControl();
+  portal = cellArr.ReadPortal();
   for (vtkm::Id i = 0; i < 36; i++)
     VTKM_TEST_ASSERT(portal.Get(i) == cellVals[static_cast<std::size_t>(i)],
                      "Wrong value for cell field");

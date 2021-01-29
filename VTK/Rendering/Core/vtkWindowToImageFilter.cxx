@@ -44,8 +44,8 @@ public:
   vtkCollection* Coord1s;
   vtkCollection* Coord2s;
   // Store the display coords for adjustment during tiling
-  std::vector<std::pair<int, int> > Coords1;
-  std::vector<std::pair<int, int> > Coords2;
+  std::vector<std::pair<int, int>> Coords1;
+  std::vector<std::pair<int, int>> Coords2;
   //
   vtkWTI2DHelperClass()
   {
@@ -64,7 +64,7 @@ public:
   }
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkWindowToImageFilter::vtkWindowToImageFilter()
 {
   this->Input = nullptr;
@@ -83,7 +83,7 @@ vtkWindowToImageFilter::vtkWindowToImageFilter()
   this->StoredData = new vtkWTI2DHelperClass;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkWindowToImageFilter::~vtkWindowToImageFilter()
 {
   if (this->Input)
@@ -94,13 +94,13 @@ vtkWindowToImageFilter::~vtkWindowToImageFilter()
   delete this->StoredData;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkImageData* vtkWindowToImageFilter::GetOutput()
 {
   return vtkImageData::SafeDownCast(this->GetOutputDataObject(0));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWindowToImageFilter::SetInput(vtkWindow* input)
 {
   if (input != this->Input)
@@ -118,7 +118,7 @@ void vtkWindowToImageFilter::SetInput(vtkWindow* input)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWindowToImageFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -141,7 +141,7 @@ void vtkWindowToImageFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FixBoundary: " << this->FixBoundary << endl;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWindowToImageFilter::SetViewport(double a1, double a2, double a3, double a4)
 {
   a1 = vtkMath::ClampValue(a1, 0.0, 1.0);
@@ -162,13 +162,13 @@ void vtkWindowToImageFilter::SetViewport(double a1, double a2, double a3, double
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWindowToImageFilter::SetViewport(double vp[4])
 {
   this->SetViewport(vp[0], vp[1], vp[2], vp[3]);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This method returns the largest region that can be generated.
 void vtkWindowToImageFilter::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
@@ -208,7 +208,7 @@ void vtkWindowToImageFilter::RequestInformation(vtkInformation* vtkNotUsed(reque
   }
 
   // set the extent
-  int* size = this->Input->GetSize();
+  const int* size = this->Input->GetSize();
   int wExtent[6];
   wExtent[0] = 0;
   wExtent[1] =
@@ -243,7 +243,7 @@ void vtkWindowToImageFilter::RequestInformation(vtkInformation* vtkNotUsed(reque
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTypeBool vtkWindowToImageFilter::ProcessRequest(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -264,7 +264,7 @@ vtkTypeBool vtkWindowToImageFilter::ProcessRequest(
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This function reads a region from a file.  The regions extent/axes
 // are assumed to be the same as the file extent/order.
 void vtkWindowToImageFilter::RequestData(vtkInformation* vtkNotUsed(request),
@@ -467,10 +467,6 @@ void vtkWindowToImageFilter::RequestData(vtkInformation* vtkNotUsed(request),
       this->Input->MakeCurrent();
 
       int buffer = this->ReadFrontBuffer;
-      if (!this->Input->GetDoubleBuffer())
-      {
-        buffer = 1;
-      }
       if (this->InputBufferType == VTK_RGB || this->InputBufferType == VTK_RGBA)
       {
         unsigned char *pixels, *pixels1, *outPtr;
@@ -578,7 +574,7 @@ void vtkWindowToImageFilter::RequestData(vtkInformation* vtkNotUsed(request),
   // this->Restore2DActors();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // On each tile we must subtract the origin of each actor to ensure
 // it appears in the corrrect relative location
 void vtkWindowToImageFilter::Restore2DActors()
@@ -608,7 +604,7 @@ void vtkWindowToImageFilter::Restore2DActors()
   this->StoredData->StoredActors->RemoveAllItems();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWindowToImageFilter::Rescale2DActors()
 {
   vtkActor2D* actor;
@@ -660,10 +656,8 @@ void vtkWindowToImageFilter::Rescale2DActors()
           d2[0] = p2[0] * this->Scale[0];
           d2[1] = p2[1] * this->Scale[1];
           d2[2] = 0.0;
-          this->StoredData->Coords1.push_back(
-            std::pair<int, int>(static_cast<int>(d1[0]), static_cast<int>(d1[1])));
-          this->StoredData->Coords2.push_back(
-            std::pair<int, int>(static_cast<int>(d2[0]), static_cast<int>(d2[1])));
+          this->StoredData->Coords1.emplace_back(static_cast<int>(d1[0]), static_cast<int>(d1[1]));
+          this->StoredData->Coords2.emplace_back(static_cast<int>(d2[0]), static_cast<int>(d2[1]));
           // Make sure they have no dodgy offsets
           n1->SetCoordinateSystemToDisplay();
           n2->SetCoordinateSystemToDisplay();
@@ -677,7 +671,7 @@ void vtkWindowToImageFilter::Rescale2DActors()
     }
   }
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // On each tile we must subtract the origin of each actor to ensure
 // it appears in the correct relative location
 void vtkWindowToImageFilter::Shift2DActors(int x, int y)
@@ -703,14 +697,14 @@ void vtkWindowToImageFilter::Shift2DActors(int x, int y)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkWindowToImageFilter::FillOutputPortInformation(int vtkNotUsed(port), vtkInformation* info)
 {
   // now add our info
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkImageData");
   return 1;
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkWindowToImageFilter::Render()
 {
   if (vtkRenderWindow* renWin = vtkRenderWindow::SafeDownCast(this->Input))

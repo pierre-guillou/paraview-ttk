@@ -277,7 +277,7 @@ pqTransferFunctionWidget::pqTransferFunctionWidget(QWidget* parentObject)
   // whenever the rendering timer times out, we render the widget.
   QObject::connect(&this->Internals->Timer, &QTimer::timeout, [this]() {
     auto renWin = this->Internals->ContextView->GetRenderWindow();
-    if (this->isVisible() && renWin->IsDrawable())
+    if (this->isVisible())
     {
       renWin->Render();
     }
@@ -442,9 +442,9 @@ void pqTransferFunctionWidget::initialize(
     QObject::connect(&this->Internals->RangeTimer, &QTimer::timeout, [pwf, this]() {
       if (this->Internals->ChartXY->SetTFRange(vtkVector2d(pwf->GetRange())))
       {
-        // The range have actually been changed, rerender and emit the signal
+        // The range have actually been changed, rerender and Q_EMIT the signal
         this->render();
-        emit this->chartRangeModified();
+        Q_EMIT this->chartRangeModified();
       }
     });
     this->Internals->ChartXY->SetTFRange(vtkVector2d(pwf->GetRange()));
@@ -458,9 +458,9 @@ void pqTransferFunctionWidget::initialize(
     QObject::connect(&this->Internals->RangeTimer, &QTimer::timeout, [ctf, this]() {
       if (this->Internals->ChartXY->SetTFRange(vtkVector2d(ctf->GetRange())))
       {
-        // The range has actually been changed, rerender and emit the signal
+        // The range has actually been changed, rerender and Q_EMIT the signal
         this->render();
-        emit this->chartRangeModified();
+        Q_EMIT this->chartRangeModified();
       }
     });
     this->Internals->ChartXY->SetTFRange(vtkVector2d(ctf->GetRange()));
@@ -500,7 +500,7 @@ void pqTransferFunctionWidget::onCurrentPointEditEvent()
     xrgbms[3] = color.blueF();
     ctf->SetNodeValue(currentIdx, xrgbms);
 
-    emit this->controlPointsModified();
+    Q_EMIT this->controlPointsModified();
   }
 }
 
@@ -509,7 +509,7 @@ void pqTransferFunctionWidget::onCurrentChangedEvent()
 {
   if (this->Internals->ControlPointsItem)
   {
-    emit this->currentPointChanged(this->Internals->ControlPointsItem->GetCurrentPoint());
+    Q_EMIT this->currentPointChanged(this->Internals->ControlPointsItem->GetCurrentPoint());
   }
 }
 
@@ -543,6 +543,20 @@ vtkIdType pqTransferFunctionWidget::numberOfControlPoints() const
   return this->Internals->ControlPointsItem
     ? this->Internals->ControlPointsItem->GetNumberOfPoints()
     : 0;
+}
+
+//-----------------------------------------------------------------------------
+void pqTransferFunctionWidget::SetControlPointsFreehandDrawing(bool use)
+{
+  this->Internals->ControlPointsItem->SetDrawPoints(!use);
+  this->Internals->ControlPointsItem->SetStrokeMode(use);
+  this->render();
+}
+
+//-----------------------------------------------------------------------------
+bool pqTransferFunctionWidget::GetControlPointsFreehandDrawing() const
+{
+  return this->Internals->ControlPointsItem->GetStrokeMode();
 }
 
 //-----------------------------------------------------------------------------
@@ -609,7 +623,7 @@ void pqTransferFunctionWidget::onRangeHandlesRangeChanged()
   {
     double range[2];
     this->Internals->RangeHandlesItem->GetHandlesRange(range);
-    emit this->rangeHandlesRangeChanged(range[0], range[1]);
+    Q_EMIT this->rangeHandlesRangeChanged(range[0], range[1]);
   }
 }
 

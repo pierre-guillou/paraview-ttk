@@ -64,6 +64,7 @@ class vtkMultiProcessStream;
 class vtkOutputWindow;
 class vtkProcessGroup;
 class vtkProcess;
+class vtkDataArraySelection;
 
 // The type of function that gets called when new processes are initiated.
 typedef void (*vtkProcessFunctionType)(vtkMultiProcessController* controller, void* userData);
@@ -624,8 +625,23 @@ public:
    * @param[in] destProcessId - process id to gather on.
    * @return - 1 on success, 0 on failure.
    */
-  int Gather(vtkDataObject* sendBuffer, std::vector<vtkSmartPointer<vtkDataObject> >& recvBuffer,
+  int Gather(vtkDataObject* sendBuffer, std::vector<vtkSmartPointer<vtkDataObject>>& recvBuffer,
     int destProcessId)
+  {
+    return this->Communicator->Gather(sendBuffer, recvBuffer, destProcessId);
+  }
+
+  /**
+   * Gathers vtkMultiProcessStream (\c sendBuffer) from all ranks to the \c
+   * destProcessId.
+   * @param[in]  sendBuffer - vtkMultiProcessStream to send from local process.
+   * @param[out] recvBuffer - vector of vtkMultiProcessStream instances recevied
+   *             on the receiving rank (identified by \c destProcessId).
+   * @param[in]  destProcessId - process id to gather on.
+   * @return     1 on success, 0 on failure.
+   */
+  int Gather(const vtkMultiProcessStream& sendBuffer,
+    std::vector<vtkMultiProcessStream>& recvBuffer, int destProcessId)
   {
     return this->Communicator->Gather(sendBuffer, recvBuffer, destProcessId);
   }
@@ -973,6 +989,19 @@ public:
     return this->Communicator->AllGather(sendBuffer, recvBuffer);
   }
   //@}
+
+  /**
+   * Gathers vtkMultiProcessStream (\c sendBuffer) from all ranks to the \c
+   * destProcessId.
+   * @param[in]  sendBuffer - vtkMultiProcessStream to send from local process.
+   * @param[out] recvBuffer - vector of vtkMultiProcessStream instances * received.
+   * @return     1 on success, 0 on failure.
+   */
+  int AllGather(
+    const vtkMultiProcessStream& sendBuffer, std::vector<vtkMultiProcessStream>& recvBuffer)
+  {
+    return this->Communicator->AllGather(sendBuffer, recvBuffer);
+  }
 
   //@{
   /**
@@ -1360,6 +1389,15 @@ public:
    */
   int Reduce(const vtkBoundingBox& sendBuffer, vtkBoundingBox& recvBuffer, int destProcessId);
   int AllReduce(const vtkBoundingBox& sendBuffer, vtkBoundingBox& recvBuffer);
+  //@}
+
+  //@{
+  /**
+   * Convenience methods to reduce vtkDataArraySelection.
+   */
+  int Reduce(
+    vtkDataArraySelection* sendBuffer, vtkDataArraySelection* recvBuffer, int destProcessId);
+  int AllReduce(vtkDataArraySelection* sendBuffer, vtkDataArraySelection* recvBuffer);
   //@}
 
   // Internally implemented RMI to break the process loop.

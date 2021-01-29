@@ -55,6 +55,11 @@ int vtkMultiThreader::GetGlobalMaximumNumberOfThreads()
   return vtkMultiThreaderGlobalMaximumNumberOfThreads;
 }
 
+int vtkMultiThreader::GetGlobalStaticMaximumNumberOfThreads()
+{
+  return VTK_MAX_THREADS;
+}
+
 // 0 => Not initialized.
 static int vtkMultiThreaderGlobalDefaultNumberOfThreads = 0;
 
@@ -152,7 +157,7 @@ vtkMultiThreader::~vtkMultiThreader()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkMultiThreader::GetNumberOfThreads()
 {
   int num = this->NumberOfThreads;
@@ -336,7 +341,7 @@ void vtkMultiThreader::MultipleMethodExecute()
 
   for (thread_loop = 0; thread_loop < this->NumberOfThreads; thread_loop++)
   {
-    if (this->MultipleMethod[thread_loop] == (vtkThreadFunctionType)nullptr)
+    if (this->MultipleMethod[thread_loop] == (vtkThreadFunctionType) nullptr)
     {
       vtkErrorMacro(<< "No multiple method set for: " << thread_loop);
       return;
@@ -447,7 +452,7 @@ int vtkMultiThreader::SpawnThread(vtkThreadFunctionType f, void* userdata)
     {
       this->SpawnedThreadActiveFlagLock[id] = new std::mutex;
     }
-    std::lock_guard<std::mutex>(*this->SpawnedThreadActiveFlagLock[id]);
+    std::lock_guard<std::mutex> lockGuard(*this->SpawnedThreadActiveFlagLock[id]);
     if (this->SpawnedThreadActiveFlag[id] == 0)
     {
       // We've got a usable thread id, so grab it
@@ -507,17 +512,17 @@ int vtkMultiThreader::SpawnThread(vtkThreadFunctionType f, void* userdata)
   return id;
 }
 
-void vtkMultiThreader::TerminateThread(int threadID)
+void vtkMultiThreader::TerminateThread(int threadId)
 {
-  // check if the threadID argument is in range
-  if (threadID >= VTK_MAX_THREADS)
+  // check if the threadId argument is in range
+  if (threadId >= VTK_MAX_THREADS)
   {
-    vtkErrorMacro("ThreadID is out of range. Must be less that " << VTK_MAX_THREADS);
+    vtkErrorMacro("threadId is out of range. Must be less that " << VTK_MAX_THREADS);
     return;
   }
 
   // If we don't have a lock, then this thread is definitely not active
-  if (!this->SpawnedThreadActiveFlag[threadID])
+  if (!this->SpawnedThreadActiveFlag[threadId])
   {
     return;
   }
@@ -525,8 +530,8 @@ void vtkMultiThreader::TerminateThread(int threadID)
   // If we do have a lock, use it and find out the status of the active flag
   int val = 0;
   {
-    std::lock_guard<std::mutex>(*this->SpawnedThreadActiveFlagLock[threadID]);
-    val = this->SpawnedThreadActiveFlag[threadID];
+    std::lock_guard<std::mutex> lockGuard(*this->SpawnedThreadActiveFlagLock[threadId]);
+    val = this->SpawnedThreadActiveFlag[threadId];
   }
 
   // If the active flag is 0, return since this thread is not active
@@ -538,17 +543,17 @@ void vtkMultiThreader::TerminateThread(int threadID)
   // OK - now we know we have an active thread - set the active flag to 0
   // to indicate to the thread that it should terminate itself
   {
-    std::lock_guard<std::mutex>(*this->SpawnedThreadActiveFlagLock[threadID]);
-    this->SpawnedThreadActiveFlag[threadID] = 0;
+    std::lock_guard<std::mutex> lockGuard(*this->SpawnedThreadActiveFlagLock[threadId]);
+    this->SpawnedThreadActiveFlag[threadId] = 0;
   }
 
 #ifdef VTK_USE_WIN32_THREADS
-  WaitForSingleObject(this->SpawnedThreadProcessID[threadID], INFINITE);
-  CloseHandle(this->SpawnedThreadProcessID[threadID]);
+  WaitForSingleObject(this->SpawnedThreadProcessID[threadId], INFINITE);
+  CloseHandle(this->SpawnedThreadProcessID[threadId]);
 #endif
 
 #ifdef VTK_USE_PTHREADS
-  pthread_join(this->SpawnedThreadProcessID[threadID], nullptr);
+  pthread_join(this->SpawnedThreadProcessID[threadId], nullptr);
 #endif
 
 #ifndef VTK_USE_WIN32_THREADS
@@ -559,11 +564,11 @@ void vtkMultiThreader::TerminateThread(int threadID)
 #endif
 #endif
 
-  delete this->SpawnedThreadActiveFlagLock[threadID];
-  this->SpawnedThreadActiveFlagLock[threadID] = nullptr;
+  delete this->SpawnedThreadActiveFlagLock[threadId];
+  this->SpawnedThreadActiveFlagLock[threadId] = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMultiThreaderIDType vtkMultiThreader::GetCurrentThreadID()
 {
 #if defined(VTK_USE_PTHREADS)
@@ -577,17 +582,17 @@ vtkMultiThreaderIDType vtkMultiThreader::GetCurrentThreadID()
 #endif
 }
 
-vtkTypeBool vtkMultiThreader::IsThreadActive(int threadID)
+vtkTypeBool vtkMultiThreader::IsThreadActive(int threadId)
 {
-  // check if the threadID argument is in range
-  if (threadID >= VTK_MAX_THREADS)
+  // check if the threadId argument is in range
+  if (threadId >= VTK_MAX_THREADS)
   {
-    vtkErrorMacro("ThreadID is out of range. Must be less that " << VTK_MAX_THREADS);
+    vtkErrorMacro("threadId is out of range. Must be less that " << VTK_MAX_THREADS);
     return 0;
   }
 
   // If we don't have a lock, then this thread is not active
-  if (this->SpawnedThreadActiveFlagLock[threadID] == nullptr)
+  if (this->SpawnedThreadActiveFlagLock[threadId] == nullptr)
   {
     return 0;
   }
@@ -595,15 +600,15 @@ vtkTypeBool vtkMultiThreader::IsThreadActive(int threadID)
   // We have a lock - use it to get the active flag value
   int val = 0;
   {
-    std::lock_guard<std::mutex>(*this->SpawnedThreadActiveFlagLock[threadID]);
-    val = this->SpawnedThreadActiveFlag[threadID];
+    std::lock_guard<std::mutex> lockGuard(*this->SpawnedThreadActiveFlagLock[threadId]);
+    val = this->SpawnedThreadActiveFlag[threadId];
   }
 
   // now return that value
   return val;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTypeBool vtkMultiThreader::ThreadsEqual(vtkMultiThreaderIDType t1, vtkMultiThreaderIDType t2)
 {
 #if defined(VTK_USE_PTHREADS)

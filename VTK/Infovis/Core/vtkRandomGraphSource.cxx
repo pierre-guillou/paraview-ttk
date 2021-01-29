@@ -37,7 +37,7 @@
 
 vtkStandardNewMacro(vtkRandomGraphSource);
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkRandomGraphSource::vtkRandomGraphSource()
 {
@@ -45,9 +45,9 @@ vtkRandomGraphSource::vtkRandomGraphSource()
   this->NumberOfEdges = 10;
   this->EdgeProbability = 0.5;
   this->IncludeEdgeWeights = false;
-  this->Directed = 0;
-  this->UseEdgeProbability = 0;
-  this->StartWithTree = 0;
+  this->Directed = false;
+  this->UseEdgeProbability = false;
+  this->StartWithTree = false;
   this->AllowSelfLoops = false;
   this->AllowParallelEdges = false;
   this->GeneratePedigreeIds = true;
@@ -62,7 +62,7 @@ vtkRandomGraphSource::vtkRandomGraphSource()
   this->SetNumberOfOutputPorts(1);
 }
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 vtkRandomGraphSource::~vtkRandomGraphSource()
 {
@@ -71,7 +71,7 @@ vtkRandomGraphSource::~vtkRandomGraphSource()
   this->SetEdgeWeightArrayName(nullptr);
 }
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkRandomGraphSource::PrintSelf(ostream& os, vtkIndent indent)
 {
@@ -95,7 +95,7 @@ void vtkRandomGraphSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Seed: " << this->Seed << endl;
 }
 
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 int vtkRandomGraphSource::RequestData(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
@@ -163,7 +163,7 @@ int vtkRandomGraphSource::RequestData(
   else
   {
     // Don't duplicate edges.
-    std::set<std::pair<vtkIdType, vtkIdType> > existingEdges;
+    std::set<std::pair<vtkIdType, vtkIdType>> existingEdges;
 
     vtkIdType MaxEdges;
     if (this->AllowParallelEdges)
@@ -296,7 +296,7 @@ int vtkRandomGraphSource::RequestData(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkRandomGraphSource::RequestDataObject(
   vtkInformation*, vtkInformationVector**, vtkInformationVector*)
 {

@@ -16,7 +16,6 @@
 
 #include <vtkm/filter/PointAverage.h>
 #include <vtkm/filter/PointAverage.hxx>
-#include <vtkm/filter/PolicyExtrude.h>
 
 namespace
 {
@@ -30,8 +29,9 @@ struct CopyTopo : public vtkm::worklet::WorkletVisitCellsWithPoints
 {
   typedef void ControlSignature(CellSetIn, FieldOutCell);
   typedef _2 ExecutionSignature(CellShape, PointIndices);
+
   template <typename T>
-  T&& operator()(vtkm::CellShapeTagWedge, T&& t) const
+  VTKM_EXEC T&& operator()(vtkm::CellShapeTagWedge, T&& t) const
   {
     return std::forward<T>(t);
   }
@@ -43,7 +43,9 @@ struct CopyReverseCellCount : public vtkm::worklet::WorkletVisitPointsWithCells
   typedef _2 ExecutionSignature(CellShape, CellCount, CellIndices);
 
   template <typename T>
-  vtkm::Int32 operator()(vtkm::CellShapeTagVertex shape, vtkm::IdComponent count, T&& t) const
+  VTKM_EXEC vtkm::Int32 operator()(vtkm::CellShapeTagVertex shape,
+                                   vtkm::IdComponent count,
+                                   T&& t) const
   {
     if (shape.Id == vtkm::CELL_SHAPE_VERTEX)
     {
@@ -61,7 +63,7 @@ struct CopyReverseCellCount : public vtkm::worklet::WorkletVisitPointsWithCells
 template <typename T, typename S>
 void verify_topo(vtkm::cont::ArrayHandle<vtkm::Vec<T, 6>, S> const& handle, vtkm::Id expectedLen)
 {
-  auto portal = handle.GetPortalConstControl();
+  auto portal = handle.ReadPortal();
   VTKM_TEST_ASSERT(portal.GetNumberOfValues() == expectedLen, "topology portal size is incorrect");
 
   for (vtkm::Id i = 0; i < expectedLen - 1; ++i)
@@ -130,21 +132,21 @@ int TestCellSetExtrude()
 
   // verify that a constant value point field can be accessed
   std::vector<float> pvalues(static_cast<size_t>(coords.GetNumberOfValues()), 42.0f);
-  vtkm::cont::Field pfield(
-    "pfield", vtkm::cont::Field::Association::POINTS, vtkm::cont::make_ArrayHandle(pvalues));
+  vtkm::cont::Field pfield = vtkm::cont::make_Field(
+    "pfield", vtkm::cont::Field::Association::POINTS, pvalues, vtkm::CopyFlag::Off);
   dataset.AddField(pfield);
 
   // verify that a constant cell value can be accessed
   std::vector<float> cvalues(static_cast<size_t>(cells.GetNumberOfCells()), 42.0f);
-  vtkm::cont::Field cfield =
-    vtkm::cont::make_FieldCell("cfield", vtkm::cont::make_ArrayHandle(cvalues));
+  vtkm::cont::Field cfield = vtkm::cont::make_Field(
+    "cfield", vtkm::cont::Field::Association::CELL_SET, cvalues, vtkm::CopyFlag::Off);
   dataset.AddField(cfield);
 
   vtkm::filter::PointAverage avg;
   try
   {
     avg.SetActiveField("cfield");
-    auto result = avg.Execute(dataset, vtkm::filter::PolicyExtrude{});
+    auto result = avg.Execute(dataset);
     VTKM_TEST_ASSERT(result.HasPointField("cfield"), "filter resulting dataset should be valid");
   }
   catch (const vtkm::cont::Error& err)

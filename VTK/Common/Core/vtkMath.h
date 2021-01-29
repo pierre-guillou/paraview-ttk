@@ -40,6 +40,8 @@
 #define vtkMath_h
 
 #include "vtkCommonCoreModule.h" // For export macro
+#include "vtkMathPrivate.hxx"    // For Matrix meta-class helpers
+#include "vtkMatrixUtilities.h"  // For Matrix wrapping / mapping
 #include "vtkObject.h"
 #include "vtkSmartPointer.h" // For vtkSmartPointer.
 #include "vtkTypeTraits.h"   // For type traits
@@ -308,6 +310,16 @@ public:
   static double Gaussian(double mean, double std);
 
   /**
+   * Assign values to a 3-vector (double version). Result is stored in b according to b = a.
+   */
+  static void Assign(const double a[3], double b[3])
+  {
+    b[0] = a[0];
+    b[1] = a[1];
+    b[2] = a[2];
+  }
+
+  /**
    * Addition of two 3-vectors (float version). Result is stored in c according to c = a + b.
    */
   static void Add(const float a[3], const float b[3], float c[3])
@@ -416,6 +428,30 @@ public:
   }
 
   /**
+   * Compute dot product between two points p1 and p2.
+   * This version allows for custom range and iterator types to be used. These
+   * types must implement `operator[]`, and at least one of them must have
+   * a `value_type` typedef.
+   *
+   * The first template parameter `ReturnTypeT` sets the return type of this method.
+   * By default, it is set to `double`, but it can be overridden.
+   *
+   * The `EnableT` template parameter is used to make sure that this version
+   * doesn't capture the `float*`, `float[]`, `double*`, `double[]` as
+   * those should go to the other `Distance2BetweenPoints` functions.
+   *
+   * @warning This method assumes that both parameters have 3 components.
+   */
+  template <typename ReturnTypeT = double, typename TupleRangeT1, typename TupleRangeT2,
+    typename EnableT = typename std::conditional<!std::is_pointer<TupleRangeT1>::value &&
+        !std::is_array<TupleRangeT1>::value,
+      TupleRangeT1, TupleRangeT2>::type::value_type>
+  static ReturnTypeT Dot(const TupleRangeT1& a, const TupleRangeT2& b)
+  {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  }
+
+  /**
    * Outer product of two 3-vectors (float version).
    */
   static void Outer(const float a[3], const float b[3], float c[3][3])
@@ -477,6 +513,21 @@ public:
   }
 
   /**
+   * Compute the squared norm of a 3-vector.
+   *
+   * The first template parameter `ReturnTypeT` sets the return type of this method.
+   * By default, it is set to `double`, but it can be overridden.
+   *
+   * The parameter of this function must be a container, and array, or a range of 3
+   * components implementing `operator[]`.
+   */
+  template <typename ReturnTypeT = double, typename TupleRangeT>
+  static ReturnTypeT SquaredNorm(const TupleRangeT& v)
+  {
+    return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+  }
+
+  /**
    * Normalize (in place) a 3-vector. Returns norm of vector.
    * (float version)
    */
@@ -520,6 +571,27 @@ public:
   static bool ProjectVector2D(const float a[2], const float b[2], float projection[2]);
   static bool ProjectVector2D(const double a[2], const double b[2], double projection[2]);
   //@}
+
+  /**
+   * Compute distance squared between two points p1 and p2.
+   * This version allows for custom range and iterator types to be used. These
+   * types must implement `operator[]`, and at least one of them must have
+   * a `value_type` typedef.
+   *
+   * The first template parameter `ReturnTypeT` sets the return type of this method.
+   * By default, it is set to `double`, but it can be overridden.
+   *
+   * The `EnableT` template parameter is used to make sure that this version
+   * doesn't capture the `float*`, `float[]`, `double*`, `double[]` as
+   * those should go to the other `Distance2BetweenPoints` functions.
+   *
+   * @warning This method assumes that both parameters have 3 components.
+   */
+  template <typename ReturnTypeT = double, typename TupleRangeT1, typename TupleRangeT2,
+    typename EnableT = typename std::conditional<!std::is_pointer<TupleRangeT1>::value &&
+        !std::is_array<TupleRangeT1>::value,
+      TupleRangeT1, TupleRangeT2>::type::value_type>
+  static ReturnTypeT Distance2BetweenPoints(const TupleRangeT1& p1, const TupleRangeT2& p2);
 
   /**
    * Compute distance squared between two points p1 and p2.
@@ -674,8 +746,8 @@ public:
   /**
    * Multiply a vector by a 3x3 matrix.  The result is placed in out.
    */
-  static void Multiply3x3(const float A[3][3], const float in[3], float out[3]);
-  static void Multiply3x3(const double A[3][3], const double in[3], double out[3]);
+  static void Multiply3x3(const float A[3][3], const float v[3], float u[3]);
+  static void Multiply3x3(const double A[3][3], const double v[3], double u[3]);
   //@}
 
   //@{
@@ -685,6 +757,166 @@ public:
   static void Multiply3x3(const float A[3][3], const float B[3][3], float C[3][3]);
   static void Multiply3x3(const double A[3][3], const double B[3][3], double C[3][3]);
   //@}
+
+  /**
+   * Multiply matrices such that M3 = M1 x M2.
+   * M3 must already be allocated.
+   *
+   * LayoutT1 (resp. LayoutT2) allow to perform basic matrix reindexing for M1 (resp. M2).
+   * It should be set to a component of MatrixLayout.
+   *
+   * Matrices are assumed to be a 1D array implementing `operator[]`. The matrices
+   * are indexed row by row. Let us develop the effect of LayoutT1 on M1 (the
+   * same is true for LayoutT2 on M2).
+   * If LayoutT1 == vtkMatrixUtilities::Layout::Identity (default), then M1 indexing is untouched.
+   * If LayoutT1 == vtkMatrixUtilities::Layout::Transpose, then M1 is read column-wise.
+   * If LayoutT1 == vtkMatrixUtilities::Layout::Diag, then M1 is considered to be composed
+   * of non zero elements of a diagonal matrix.
+   *
+   * @note M3 components indexing can be entirely controlled by swapping M1, M2,
+   * and turning on or off the appropriate transposition flag. Remember that
+   * M3^T = (M1 x M2)^T = M2^T x M1^T
+   *
+   * @warning If both M1 and M2 are used with both layout being diagonal, then
+   * M3 will be diagonal as well (i.e. there won't be allocated memory for
+   * elements outsize of the diagonal).
+   */
+  template <int RowsT, int MidDimT, int ColsT,
+    class LayoutT1 = vtkMatrixUtilities::Layout::Identity,
+    class LayoutT2 = vtkMatrixUtilities::Layout::Identity, class MatrixT1, class MatrixT2,
+    class MatrixT3>
+  static void MultiplyMatrix(const MatrixT1& M1, const MatrixT2& M2, MatrixT3&& M3)
+  {
+    vtkMathPrivate::MultiplyMatrix<RowsT, MidDimT, ColsT, LayoutT1, LayoutT2>::Compute(M1, M2, M3);
+  }
+
+  /**
+   * Multiply matrix M with vector Y such that Y = M x X.
+   * Y must be allocated.
+   *
+   * LayoutT allow to perform basic matrix reindexing. It should be set to a component
+   * of MatrixLayout.
+   *
+   * Matrix M is assumed to be a 1D array implementing `operator[]`. The matrix
+   * is indexed row by row. If the input array is indexed columns by colums.
+   * If LayoutT == vtkMatrixUtilities::Layout::Identity (default), then M indexing is untouched.
+   * If LayoutT == vtkMatrixUtilities::Layout::Transpose, then M is read column-wise.
+   * If LayoutT == vtkMatrixUtilities::Layout::Diag, then M is considered to be composed
+   * of non zero elements of a diagonal matrix.
+   *
+   * VectorT1 and VectorT2 are arrays of size RowsT, and must implement
+   * `operator[]`.
+   *
+   * @warning In the particular case where M1 and M2 BOTH have layout
+   * vtkMatrixUtilities::Layout::Diag, RowsT, MidDimT and ColsT MUST match.
+   */
+  template <int RowsT, int ColsT, class LayoutT = vtkMatrixUtilities::Layout::Identity,
+    class MatrixT, class VectorT1, class VectorT2>
+  static void MultiplyMatrixWithVector(const MatrixT& M, const VectorT1& X, VectorT2&& Y)
+  {
+    vtkMathPrivate::MultiplyMatrix<RowsT, ColsT, 1, LayoutT>::Compute(M, X, Y);
+  }
+
+  /**
+   * Computes the dot product between 2 vectors x and y.
+   * VectorT1 and VectorT2 are arrays of size SizeT, and must implement
+   * `operator[]`.
+   */
+  template <class ScalarT, int SizeT, class VectorT1, class VectorT2>
+  static ScalarT Dot(const VectorT1& x, const VectorT2& y)
+  {
+    return vtkMathPrivate::ContractRowWithCol<ScalarT, 1, SizeT, 1, 0, 0,
+      vtkMatrixUtilities::Layout::Identity, vtkMatrixUtilities::Layout::Transpose>::Compute(x, y);
+  }
+
+  /**
+   * Computes the determinant of input square SizeT x SizeT matrix M.
+   * The return type is the same as the underlying scalar type of MatrixT.
+   *
+   * LayoutT allow to perform basic matrix reindexing. It should be set to a component
+   * of MatrixLayout.
+   *
+   * Matrix M is assumed to be a 1D array implementing `operator[]`. The matrix
+   * is indexed row by row. If the input array is indexed columns by colums.
+   * If LayoutT == vtkMatrixUtilities::Layout::Identity (default), then M indexing is untouched.
+   * If LayoutT == vtkMatrixUtilities::Layout::Transpose, then M is read column-wise.
+   * If LayoutT == vtkMatrixUtilities::Layout::Diag, then M is considered to be composed
+   * of non zero elements of a diagonal matrix.
+   *
+   * This method is currently implemented for SizeT lower or equal to 3.
+   */
+  template <int SizeT, class LayoutT = vtkMatrixUtilities::Layout::Identity, class MatrixT>
+  static typename vtkMatrixUtilities::ScalarTypeExtractor<MatrixT>::value_type Determinant(
+    const MatrixT& M)
+  {
+    return vtkMathPrivate::Determinant<SizeT, LayoutT>::Compute(M);
+  }
+
+  /**
+   * Computes the inverse of input matrix M1 into M2.
+   *
+   * LayoutT allow to perform basic matrix reindexing of M1. It should be set to a component
+   * of MatrixLayout.
+   *
+   * Matrix M is assumed to be a 1D array implementing `operator[]`. The matrix
+   * is indexed row by row. If the input array is indexed columns by colums.
+   * If LayoutT == vtkMatrixUtilities::Layout::Identity (default), then M indexing is untouched.
+   * If LayoutT == vtkMatrixUtilities::Layout::Transpose, then M is read column-wise.
+   * If LayoutT == vtkMatrixUtilities::Layout::Diag, then M is considered to be composed
+   * of non zero elements of a diagonal matrix.
+   *
+   * This method is currently implemented for SizeT lower or equal to 3.
+   */
+  template <int SizeT, class LayoutT = vtkMatrixUtilities::Layout::Identity, class MatrixT1,
+    class MatrixT2>
+  static void InvertMatrix(const MatrixT1& M1, MatrixT2&& M2)
+  {
+    vtkMathPrivate::InvertMatrix<SizeT, LayoutT>::Compute(M1, M2);
+  }
+
+  /**
+   * This method solves linear systems M * x = y.
+   *
+   * LayoutT allow to perform basic matrix reindexing of M1. It should be set to a component
+   * of MatrixLayout.
+   *
+   * Matrix M is assumed to be a 1D array implementing `operator[]`. The matrix
+   * is indexed row by row. If the input array is indexed columns by colums.
+   * If LayoutT == vtkMatrixUtilities::Layout::Identity (default), then M indexing is untouched.
+   * If LayoutT == vtkMatrixUtilities::Layout::Transpose, then M is read column-wise.
+   * If LayoutT == vtkMatrixUtilities::Layout::Diag, then M is considered to be composed
+   * of non zero elements of a diagonal matrix.
+   */
+  template <int RowsT, int ColsT, class LayoutT = vtkMatrixUtilities::Layout::Identity,
+    class MatrixT, class VectorT1, class VectorT2>
+  static void LinearSolve(const MatrixT& M, const VectorT1& x, VectorT2& y)
+  {
+    vtkMathPrivate::LinearSolve<RowsT, ColsT, LayoutT>::Compute(M, x, y);
+  }
+
+  /**
+   * Computes the dot product x^T M y, where x and y are vectors and M is a
+   * metric matrix.
+   *
+   * VectorT1 and VectorT2 are arrays of size SizeT, and must implement
+   * `operator[]`.
+   *
+   * Matrix M is assumed to be a 1D array implementing `operator[]`. The matrix
+   * is indexed row by row. If the input array is indexed columns by colums.
+   * If LayoutT == vtkMatrixUtilities::Layout::Identity (default), then M indexing is untouched.
+   * If LayoutT == vtkMatrixUtilities::Layout::Transpose, then M is read column-wise.
+   * If LayoutT == vtkMatrixUtilities::Layout::Diag, then M is considered to be composed
+   * of non zero elements of a diagonal matrix.
+   */
+  template <class ScalarT, int SizeT, class LayoutT = vtkMatrixUtilities::Layout::Identity,
+    class VectorT1, class MatrixT, class VectorT2>
+  static ScalarT Dot(const VectorT1& x, const MatrixT& M, const VectorT2& y)
+  {
+    ScalarT tmp[SizeT];
+    vtkMathPrivate::MultiplyMatrix<SizeT, SizeT, 1, LayoutT>::Compute(M, y, tmp);
+    return vtkMathPrivate::ContractRowWithCol<ScalarT, 1, SizeT, 1, 0, 0,
+      vtkMatrixUtilities::Layout::Identity, vtkMatrixUtilities::Layout::Transpose>::Compute(x, tmp);
+  }
 
   /**
    * General matrix multiplication.  You must allocate output storage.
@@ -1259,8 +1491,8 @@ public:
   static int QuadraticRoot(double a, double b, double c, double min, double max, double* u);
 
 protected:
-  vtkMath() {}
-  ~vtkMath() override {}
+  vtkMath() = default;
+  ~vtkMath() override = default;
 
   static vtkSmartPointer<vtkMathInternal> Internal;
 
@@ -1437,6 +1669,14 @@ inline double vtkMath::Distance2BetweenPoints(const double p1[3], const double p
 }
 
 //----------------------------------------------------------------------------
+template <typename ReturnTypeT, typename TupleRangeT1, typename TupleRangeT2, typename EnableT>
+inline ReturnTypeT vtkMath::Distance2BetweenPoints(const TupleRangeT1& p1, const TupleRangeT2& p2)
+{
+  return ((p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1] - p2[1]) +
+    (p1[2] - p2[2]) * (p1[2] - p2[2]));
+}
+
+//----------------------------------------------------------------------------
 // Cross product of two 3-vectors. Result (a x b) is stored in c[3].
 inline void vtkMath::Cross(const float a[3], const float b[3], float c[3])
 {
@@ -1574,10 +1814,15 @@ namespace vtk_detail
 template <typename OutT>
 void RoundDoubleToIntegralIfNecessary(double val, OutT* ret)
 { // OutT is integral -- clamp and round
-  double min = static_cast<double>(vtkTypeTraits<OutT>::Min());
-  double max = static_cast<double>(vtkTypeTraits<OutT>::Max());
-  val = vtkMath::ClampValue(val, min, max);
-  *ret = static_cast<OutT>((val >= 0.0) ? (val + 0.5) : (val - 0.5));
+  if (!vtkMath::IsNan(val))
+  {
+    double min = static_cast<double>(vtkTypeTraits<OutT>::Min());
+    double max = static_cast<double>(vtkTypeTraits<OutT>::Max());
+    val = vtkMath::ClampValue(val, min, max);
+    *ret = static_cast<OutT>((val >= 0.0) ? (val + 0.5) : (val - 0.5));
+  }
+  else
+    *ret = 0;
 }
 template <>
 inline void RoundDoubleToIntegralIfNecessary(double val, double* retVal)
@@ -1587,10 +1832,15 @@ inline void RoundDoubleToIntegralIfNecessary(double val, double* retVal)
 template <>
 inline void RoundDoubleToIntegralIfNecessary(double val, float* retVal)
 { // OutT is float -- just clamp (as doubles, then the cast to float is well-defined.)
-  double min = static_cast<double>(vtkTypeTraits<float>::Min());
-  double max = static_cast<double>(vtkTypeTraits<float>::Max());
-  val = vtkMath::ClampValue(val, min, max);
-  *retVal = static_cast<float>(val);
+  if (!vtkMath::IsNan(val))
+  {
+    double min = static_cast<double>(vtkTypeTraits<float>::Min());
+    double max = static_cast<double>(vtkTypeTraits<float>::Max());
+    val = vtkMath::ClampValue(val, min, max);
+    *retVal = static_cast<float>(val);
+  }
+  else
+    *retVal = val;
 }
 } // end namespace vtk_detail
 

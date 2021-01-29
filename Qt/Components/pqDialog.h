@@ -56,14 +56,14 @@ class PQCOMPONENTS_EXPORT pqDialog : public QDialog
   typedef QDialog Superclass;
 
 public:
-  pqDialog(QWidget* parent = 0, Qt::WindowFlags f = 0);
+  pqDialog(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags{});
   ~pqDialog() override;
 
   /**
   * Set the label used for undo command.
   */
   void setUndoLabel(const QString& label) { this->UndoLabel = label; }
-signals:
+Q_SIGNALS:
   /**
   * Fired when dialog begins undo-able changes.
   * Should be connected to undo-redo stack builder.

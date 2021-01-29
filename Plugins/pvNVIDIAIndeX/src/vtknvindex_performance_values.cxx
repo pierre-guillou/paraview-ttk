@@ -25,15 +25,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <fstream>
 #include <iomanip>
 #include <iostream>
 
+#include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include "vtknvindex_forwarding_logger.h"
 #include "vtknvindex_instance.h"
 #include "vtknvindex_performance_values.h"
+
+#include <nv/index/version.h>
 
 //-------------------------------------------------------------------------------------------------
 vtknvindex_performance_values::vtknvindex_performance_values()
@@ -56,7 +58,7 @@ void vtknvindex_performance_values::print_perf_values(
   // Prints only a subset of the full performance values that NVIDIA IndeX provides.
   // Additional fields can be added as and when required.
 
-  std::ofstream file_handler;
+  vtksys::ofstream file_handler;
   file_handler.open(m_performance_log_file.c_str(), std::ios::out | std::ios::app);
   std::ostringstream s;
   const std::streamsize ssize_time(10);
@@ -99,12 +101,15 @@ void vtknvindex_performance_values::print_perf_values(
                   "--------------------------------------------------------------------------------"
                << "\n";
 
-    header_str << "NVIDIA IndeX ParaView plug-in version : " << index_instance->get_version()
+    header_str << "NVIDIA IndeX ParaView plugin version : " << index_instance->get_version()
                << "\n";
 
     const mi::base::Handle<nv::index::IIndex>& index = index_instance->get_interface();
 
-    header_str << "NVIDIA IndeX version                  : " << index->get_version() << ", "
+    header_str << "NVIDIA IndeX header file version:     : "
+               << NVIDIA_INDEX_LIBRARY_VERSION_QUALIFIED_STRING << ", "
+               << NVIDIA_INDEX_LIBRARY_REVISION_STRING << "\n";
+    header_str << "NVIDIA IndeX library build version    : " << index->get_version() << ", "
                << index->get_revision() << "\n";
     header_str << "DiCE library API interface version    : " << index->get_dice_interface_version()
                << "\n";

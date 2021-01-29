@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqApplicationCore.h"
 #include "pqObjectBuilder.h"
-#include "pqQVTKWidgetBase.h"
+#include "pqQVTKWidget.h"
 #include "pqSMAdaptor.h"
 #include "pqServer.h"
 #include "vtkAxis.h"
@@ -63,7 +63,7 @@ public:
   pqInternal(pqMultiSliceAxisWidget& object)
     : Widget_ptr(&object)
   {
-    this->View = new pqQVTKWidgetBase(Widget_ptr);
+    this->View = new pqQVTKWidget(Widget_ptr);
     this->View->setObjectName("1QVTKWidget0");
     this->Range[0] = -10.;
     this->Range[1] = +10.;
@@ -95,7 +95,7 @@ public:
 
   vtkNew<vtkContextView> ContextView;
   vtkNew<vtkMultiSliceContextItem> SliceItem;
-  QPointer<pqQVTKWidgetBase> View;
+  QPointer<pqQVTKWidget> View;
   double Range[2];
   pqMultiSliceAxisWidget* Widget_ptr;
 };
@@ -141,7 +141,7 @@ QWidget* pqMultiSliceAxisWidget::getVTKWidget()
 void pqMultiSliceAxisWidget::setTitle(const QString& newTitle)
 {
   this->Internal->SliceItem->GetAxis()->SetTitle(newTitle.toLocal8Bit().data());
-  emit this->titleChanged(newTitle);
+  Q_EMIT this->titleChanged(newTitle);
 }
 
 // ----------------------------------------------------------------------------
@@ -159,14 +159,7 @@ vtkContextScene* pqMultiSliceAxisWidget::scene() const
 // ----------------------------------------------------------------------------
 void pqMultiSliceAxisWidget::renderView()
 {
-  // bug 0013947
-  // on Mac OSX don't render into invalid drawable, all subsequent
-  // OpenGL calls fail with invalid framebuffer operation.
   vtkRenderWindow* renWin = this->Internal->View->renderWindow();
-  if (!renWin->IsDrawable())
-  {
-    return;
-  }
 
   renWin->Render();
 }
@@ -192,15 +185,15 @@ void pqMultiSliceAxisWidget::invalidateCallback(vtkObject*, unsigned long eventi
   switch (eventid)
   {
     case vtkMultiSliceContextItem::AddSliceEvent:
-      emit this->sliceAdded(index);
+      Q_EMIT this->sliceAdded(index);
       break;
 
     case vtkMultiSliceContextItem::RemoveSliceEvent:
-      emit this->sliceRemoved(index);
+      Q_EMIT this->sliceRemoved(index);
       break;
 
     case vtkMultiSliceContextItem::ModifySliceEvent:
-      emit this->sliceModified(index);
+      Q_EMIT this->sliceModified(index);
       break;
   }
 }
@@ -245,6 +238,6 @@ void pqMultiSliceAxisWidget::onMarkClicked(vtkObject* src, unsigned long eventId
     int button = array[0];
     int modifier = array[1];
     double value = item->GetSliceValue(array[2]);
-    emit markClicked(button, modifier, value);
+    Q_EMIT markClicked(button, modifier, value);
   }
 }

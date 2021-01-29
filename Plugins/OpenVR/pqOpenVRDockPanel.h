@@ -33,12 +33,12 @@ class pqOpenVRDockPanel : public QDockWidget
   typedef QDockWidget Superclass;
 
 public:
-  pqOpenVRDockPanel(const QString& t, QWidget* p = 0, Qt::WindowFlags f = 0)
+  pqOpenVRDockPanel(const QString& t, QWidget* p = nullptr, Qt::WindowFlags f = Qt::WindowFlags{})
     : Superclass(t, p, f)
   {
     this->constructor();
   }
-  pqOpenVRDockPanel(QWidget* p = 0, Qt::WindowFlags f = 0)
+  pqOpenVRDockPanel(QWidget* p = nullptr, Qt::WindowFlags f = Qt::WindowFlags{})
     : Superclass(p, f)
   {
     this->constructor();
@@ -50,7 +50,7 @@ protected:
   vtkPVOpenVRHelper* Helper;
   pqOpenVRControls* OpenVRControls;
 
-protected slots:
+protected Q_SLOTS:
   void sendToOpenVR();
 
   void exportLocationsAsSkyboxes();

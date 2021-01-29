@@ -91,7 +91,15 @@ public:
   vtkPiecewiseFunction* piecewiseFunction() const;
   //@}
 
-public slots:
+  //@{
+  /**
+   * Set/Get the use of freehand drawing for the control points.
+   */
+  void SetControlPointsFreehandDrawing(bool use);
+  bool GetControlPointsFreehandDrawing() const;
+  //@}
+
+public Q_SLOTS:
   /**
   * Set the current point. Set to -1 clear the current point.
   */
@@ -116,7 +124,7 @@ public slots:
    */
   void setHistogramTable(vtkTable* table);
 
-signals:
+Q_SIGNALS:
   /**
   * signal fired when the \c current selected control point changes.
   */
@@ -143,7 +151,7 @@ signals:
    */
   void rangeHandlesDoubleClicked();
 
-protected slots:
+protected Q_SLOTS:
   /**
   * slot called when the internal vtkControlPointsItem fires
   * vtkControlPointsItem::CurrentPointChangedEvent

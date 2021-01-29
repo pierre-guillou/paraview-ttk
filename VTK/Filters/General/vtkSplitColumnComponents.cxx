@@ -1,3 +1,4 @@
+
 /*=========================================================================
 
   Program:   Visualization Toolkit
@@ -15,6 +16,7 @@
 #include "vtkSplitColumnComponents.h"
 
 #include "vtkAbstractArray.h"
+#include "vtkDataArrayRange.h"
 #include "vtkFieldData.h"
 #include "vtkInformation.h"
 #include "vtkInformationIntegerKey.h"
@@ -24,6 +26,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
+#include "vtkVariantArray.h"
 
 #include <cmath>
 #include <sstream>
@@ -31,7 +34,7 @@
 vtkStandardNewMacro(vtkSplitColumnComponents);
 vtkInformationKeyMacro(vtkSplitColumnComponents, ORIGINAL_ARRAY_NAME, String);
 vtkInformationKeyMacro(vtkSplitColumnComponents, ORIGINAL_COMPONENT_NUMBER, Integer);
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSplitColumnComponents::vtkSplitColumnComponents()
   : CalculateMagnitudes(true)
   , NamingMode(vtkSplitColumnComponents::NUMBERS_WITH_PARENS)
@@ -40,41 +43,10 @@ vtkSplitColumnComponents::vtkSplitColumnComponents()
   this->SetNumberOfOutputPorts(1);
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSplitColumnComponents::~vtkSplitColumnComponents() = default;
 
-//---------------------------------------------------------------------------
-// Templated function in an anonymous namespace to copy the data from the
-// specified component in one column to a single component column
-namespace
-{
-
-template <typename T>
-void CopyArrayData(T* source, T* destination, int components, int c, unsigned int length)
-{
-  for (unsigned int i = 0; i < length; ++i)
-  {
-    destination[i] = source[i * components + c];
-  }
-}
-
-template <typename T>
-void CalculateMagnitude(T* source, T* destination, int components, unsigned int length)
-{
-  for (unsigned int i = 0; i < length; ++i)
-  {
-    double tmp = 0.0;
-    for (int j = 0; j < components; ++j)
-    {
-      tmp += static_cast<double>(source[i * components + j] * source[i * components + j]);
-    }
-    destination[i] = static_cast<T>(sqrt(tmp));
-  }
-}
-
-} // End of anonymous namespace
-
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkSplitColumnComponents::RequestData(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -117,10 +89,36 @@ int vtkSplitColumnComponents::RequestData(
           newCol->SetComponentName(0, col->GetComponentName(j));
         }
         // Now copy the components into their new columns
-        switch (col->GetDataType())
+        if (col->IsA("vtkDataArray"))
         {
-          vtkExtraExtendedTemplateMacro(CopyArrayData(static_cast<VTK_TT*>(col->GetVoidPointer(0)),
-            static_cast<VTK_TT*>(newCol->GetVoidPointer(0)), components, j, colSize));
+          // Handle numeric array types
+          vtkDataArray* srcDataArray = vtkDataArray::SafeDownCast(col);
+          vtkDataArray* dstDataArray = vtkDataArray::SafeDownCast(newCol);
+          dstDataArray->CopyComponent(0, srcDataArray, j);
+        }
+        else if (col->GetDataType() == VTK_STRING)
+        {
+          vtkStringArray* srcArray = vtkStringArray::SafeDownCast(col);
+          vtkStringArray* dstArray = vtkStringArray::SafeDownCast(newCol);
+          int numSrcComponents = srcArray->GetNumberOfComponents();
+          for (vtkIdType id = 0; id < srcArray->GetNumberOfTuples(); ++id)
+          {
+            dstArray->SetValue(id, srcArray->GetValue(id * numSrcComponents + j));
+          }
+        }
+        else if (col->GetDataType() == VTK_VARIANT)
+        {
+          vtkVariantArray* srcArray = vtkVariantArray::SafeDownCast(col);
+          vtkVariantArray* dstArray = vtkVariantArray::SafeDownCast(newCol);
+          int numSrcComponents = srcArray->GetNumberOfComponents();
+          for (vtkIdType id = 0; id < srcArray->GetNumberOfTuples(); ++id)
+          {
+            dstArray->SetValue(id, srcArray->GetValue(id * numSrcComponents + j));
+          }
+        }
+        else
+        {
+          vtkErrorMacro("Unsupported array type " << col->GetClassName());
         }
         if (auto info = newCol->GetInformation())
         {
@@ -138,11 +136,26 @@ int vtkSplitColumnComponents::RequestData(
         newCol->SetName(component_label.c_str());
         newCol->SetNumberOfTuples(colSize);
         // Now calculate the magnitude column
-        switch (col->GetDataType())
+        vtkDataArray* srcDataArray = vtkDataArray::SafeDownCast(col);
+        vtkDataArray* dstDataArray = vtkDataArray::SafeDownCast(newCol);
+
+        const auto srcRange = vtk::DataArrayTupleRange(srcDataArray);
+        auto dstRange = vtk::DataArrayValueRange<1>(dstDataArray);
+        auto dstIter = dstRange.begin();
+
+        for (const auto tuple : srcRange)
         {
-          vtkTemplateMacro(CalculateMagnitude(static_cast<VTK_TT*>(col->GetVoidPointer(0)),
-            static_cast<VTK_TT*>(newCol->GetVoidPointer(0)), components, colSize));
+          double mag = 0.0;
+          for (const auto component : tuple)
+          {
+            auto x = static_cast<double>(component);
+            mag += x * x;
+          }
+          (*dstIter) = std::sqrt(mag);
+
+          ++dstIter;
         }
+
         if (auto info = newCol->GetInformation())
         {
           info->Set(ORIGINAL_ARRAY_NAME(), col->GetName());
@@ -158,7 +171,7 @@ int vtkSplitColumnComponents::RequestData(
 
 namespace
 {
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::string vtkDefaultComponentName(int componentNumber, int componentCount)
 {
   if (componentCount <= 1)
@@ -198,7 +211,7 @@ std::string vtkGetComponentName(vtkAbstractArray* array, int component_no)
 }
 };
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::string vtkSplitColumnComponents::GetComponentLabel(vtkAbstractArray* array, int component_no)
 {
   std::ostringstream stream;
@@ -240,7 +253,7 @@ std::string vtkSplitColumnComponents::GetComponentLabel(vtkAbstractArray* array,
   return stream.str();
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSplitColumnComponents::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

@@ -25,7 +25,6 @@
 #include "vtkMath.h"
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
-#include "vtkPointData.h"
 #include "vtkUniformHyperTreeGrid.h"
 #include "vtkUnsignedCharArray.h"
 
@@ -77,7 +76,7 @@ static const int HTGGCG_DATA_EXCHANGE_TAG = 5099;
 static const int HTGGCG_DATA2_EXCHANGE_TAG = 5100;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridGhostCellsGenerator::vtkHyperTreeGridGhostCellsGenerator()
 {
   this->AppropriateOutput = true;
@@ -85,26 +84,26 @@ vtkHyperTreeGridGhostCellsGenerator::vtkHyperTreeGridGhostCellsGenerator()
   this->Internals->Controller = vtkMultiProcessController::GetGlobalController();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridGhostCellsGenerator::~vtkHyperTreeGridGhostCellsGenerator()
 {
   delete this->Internals;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridGhostCellsGenerator::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridGhostCellsGenerator::FillOutputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkHyperTreeGrid");
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
   vtkHyperTreeGrid* input, vtkDataObject* outputDO)
 {
@@ -156,7 +155,7 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
     output->InitializeNonOrientedCursor(outCursor, inTreeIndex, true);
     outCursor->SetGlobalIndexStart(numberOfValues);
     this->CopyInputTreeToOutput(
-      inCursor, outCursor, input->GetPointData(), output->GetPointData(), inputMask, outputMask);
+      inCursor, outCursor, input->GetCellData(), output->GetCellData(), inputMask, outputMask);
     numberOfValues += outCursor->GetTree()->GetNumberOfVertices();
   }
 
@@ -490,7 +489,7 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
           auto&& sendTreeBuffer = sendTreeBufferPair.second;
           if (sendTreeBuffer.count)
           {
-            vtkPointData* pd = input->GetPointData();
+            vtkCellData* pd = input->GetCellData();
             int nbArray = pd->GetNumberOfArrays();
             len += sendTreeBuffer.count * nbArray;
             buf.resize(len);
@@ -521,7 +520,7 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
           unsigned long len = 0;
           for (auto&& recvTreeBufferPair : recvTreeMap)
           {
-            vtkPointData* pd = output->GetPointData();
+            vtkCellData* pd = output->GetCellData();
             int nbArray = pd->GetNumberOfArrays();
             len += recvTreeBufferPair.second.count * nbArray;
           }
@@ -533,7 +532,7 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
           for (auto&& recvTreeBufferPair : recvTreeMap)
           {
             auto&& recvTreeBuffer = recvTreeBufferPair.second;
-            vtkPointData* pd = output->GetPointData();
+            vtkCellData* pd = output->GetCellData();
             int nbArray = pd->GetNumberOfArrays();
             double* arr = buf.data() + cpt;
 
@@ -568,7 +567,7 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
     {
       scalars->InsertValue(ii, 1);
     }
-    output->GetPointData()->AddArray(scalars);
+    output->GetCellData()->AddArray(scalars);
     output->SetMask(outputMask);
   }
 
@@ -576,7 +575,7 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridGhostCellsGenerator::ExtractInterface(
   vtkHyperTreeGridNonOrientedCursor* inCursor, vtkBitArray* isParent,
   std::vector<vtkIdType>& indices, vtkHyperTreeGrid* grid, unsigned int mask, vtkIdType& pos)
@@ -605,7 +604,7 @@ void vtkHyperTreeGridGhostCellsGenerator::ExtractInterface(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkHyperTreeGridGhostCellsGenerator::CreateGhostTree(
   vtkHyperTreeGridNonOrientedCursor* outCursor, vtkBitArray* isParent, vtkIdType* indices,
   vtkIdType&& pos)
@@ -624,13 +623,13 @@ vtkIdType vtkHyperTreeGridGhostCellsGenerator::CreateGhostTree(
   return pos;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridGhostCellsGenerator::CopyInputTreeToOutput(
   vtkHyperTreeGridNonOrientedCursor* inCursor, vtkHyperTreeGridNonOrientedCursor* outCursor,
-  vtkPointData* inPointData, vtkPointData* outPointData, vtkBitArray* inMask, vtkBitArray* outMask)
+  vtkCellData* inCellData, vtkCellData* outCellData, vtkBitArray* inMask, vtkBitArray* outMask)
 {
   vtkIdType outIdx = outCursor->GetGlobalNodeIndex(), inIdx = inCursor->GetGlobalNodeIndex();
-  outPointData->InsertTuple(outIdx, inIdx, inPointData);
+  outCellData->InsertTuple(outIdx, inIdx, inCellData);
   if (inMask)
   {
     outMask->InsertTuple1(outIdx, inMask->GetValue(inIdx));
@@ -642,7 +641,7 @@ void vtkHyperTreeGridGhostCellsGenerator::CopyInputTreeToOutput(
     {
       outCursor->ToChild(ichild);
       inCursor->ToChild(ichild);
-      this->CopyInputTreeToOutput(inCursor, outCursor, inPointData, outPointData, inMask, outMask);
+      this->CopyInputTreeToOutput(inCursor, outCursor, inCellData, outCellData, inMask, outMask);
       outCursor->ToParent();
       inCursor->ToParent();
     }

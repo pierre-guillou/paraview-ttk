@@ -156,6 +156,9 @@ protected:
   //method setups the number of timesteps that the file has
   void SetupTemporalInformation(vtkInformation *outInfo);
 
+  //method seupts the ghost cells/points information
+  void SetupGhostInformation(vtkInformation *outInfo);
+
   //this method is used to get the current time step from the pipeline
   unsigned int GetCurrentTimeStep(vtkInformation *outInfo);
 

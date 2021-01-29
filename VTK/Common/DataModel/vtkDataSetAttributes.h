@@ -39,6 +39,13 @@
  * Finally this class provides a mechanism to determine which attributes a
  * group of sources have in common, and to copy tuples from a source into
  * the destination, for only those attributes that are held by all.
+ *
+ * @warning
+ * vtkDataSetAttributes is not in general thread safe due to the use of its
+ * vtkFieldData::BasicIterator RequiredArrays data member. The class
+ * vtkArrayListTemplate augments vtkDataSetAttributes for thread safety.
+ *
+ * @sa vtkArrayListTemplate
  */
 
 #ifndef vtkDataSetAttributes_h
@@ -57,6 +64,7 @@ public:
    * Construct object with copying turned on for all data.
    */
   static vtkDataSetAttributes* New();
+  static vtkDataSetAttributes* ExtendedNew();
 
   vtkTypeMacro(vtkDataSetAttributes, vtkFieldData);
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -641,8 +649,8 @@ protected:
   int AttributeIndices[NUM_ATTRIBUTES];            // index to attribute array in field data
   int CopyAttributeFlags[ALLCOPY][NUM_ATTRIBUTES]; // copy flag for attribute data
 
+  friend struct ArrayList; // Friend to base class in vtkArrayListTemplate
   vtkFieldData::BasicIterator RequiredArrays;
-
   int* TargetIndices;
 
   static const int NumberOfAttributeComponents[NUM_ATTRIBUTES];

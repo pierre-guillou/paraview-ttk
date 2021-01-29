@@ -1,3 +1,29 @@
+/*=========================================================================
+
+  Program:   Visualization Toolkit
+
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  All rights reserved.
+  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+
+     This software is distributed WITHOUT ANY WARRANTY; without even
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+     PURPOSE.  See the above copyright notice for more information.
+
+=========================================================================*/
+
+#ifndef vtkCompositeMapperHelper2_h
+#define vtkCompositeMapperHelper2_h
+
+#ifndef __VTK_WRAP__
+
+#include "vtkColor.h"
+#include "vtkOpenGLPolyDataMapper.h"
+#include "vtkRenderingOpenGL2Module.h"
+
+class vtkPolyData;
+class vtkCompositePolyDataMapper2;
+
 // this class encapsulates values tied to a
 // polydata
 class vtkCompositeMapperHelperData
@@ -12,6 +38,8 @@ public:
   bool OverridesColor;
   vtkColor3d AmbientColor;
   vtkColor3d DiffuseColor;
+  vtkColor3d SelectionColor;
+  double SelectionOpacity;
 
   bool Marked;
 
@@ -38,8 +66,9 @@ public:
 
   vtkCompositeMapperHelperData* AddData(vtkPolyData* pd, unsigned int flatIndex);
 
-  // Description:
-  // Implemented by sub classes. Actual rendering is done here.
+  /**
+   * Implemented by sub classes. Actual rendering is done here.
+   */
   void RenderPiece(vtkRenderer* ren, vtkActor* act) override;
 
   // keep track of what data is being used as the multiblock
@@ -70,6 +99,9 @@ protected:
 
   bool Marked;
 
+  // handle updating shift scale based on pose changes
+  void UpdateCameraShiftScale(vtkRenderer* ren, vtkActor* actor) override;
+
   vtkCompositeMapperHelper2() { this->Parent = nullptr; };
   ~vtkCompositeMapperHelper2() override;
 
@@ -83,25 +115,34 @@ protected:
    * Make sure appropriate shaders are defined, compiled and bound.  This method
    * orchistrates the process, much of the work is done in other methods
    */
-  virtual void UpdateShaders(vtkOpenGLHelper& cellBO, vtkRenderer* ren, vtkActor* act) override;
+  void UpdateShaders(vtkOpenGLHelper& cellBO, vtkRenderer* ren, vtkActor* act) override;
 
-  // Description:
-  // Perform string replacements on the shader templates, called from
-  // ReplaceShaderValues
+  /**
+   * Perform string replacements on the shader templates, called from
+   * ReplaceShaderValues
+   */
   void ReplaceShaderColor(
     std::map<vtkShader::Type, vtkShader*> shaders, vtkRenderer* ren, vtkActor* act) override;
 
-  // Description:
-  // Build the VBO/IBO, called by UpdateBufferObjects
+  /**
+   * Build the VBO/IBO, called by UpdateBufferObjects
+   */
   void BuildBufferObjects(vtkRenderer* ren, vtkActor* act) override;
   virtual void AppendOneBufferObject(vtkRenderer* ren, vtkActor* act,
     vtkCompositeMapperHelperData* hdata, vtkIdType& flat_index, std::vector<unsigned char>& colors,
     std::vector<float>& norms);
 
-  // Description:
-  // Returns if we can use texture maps for scalar coloring. Note this doesn't
-  // say we "will" use scalar coloring. It says, if we do use scalar coloring,
-  // we will use a texture. Always off for this mapper.
+  /**
+   * Build the selection IBOs, called by UpdateBufferObjects
+   */
+  void BuildSelectionIBO(
+    vtkPolyData* poly, std::vector<unsigned int> (&indices)[4], vtkIdType offset) override;
+
+  /**
+   * Returns if we can use texture maps for scalar coloring. Note this doesn't
+   * say we "will" use scalar coloring. It says, if we do use scalar coloring,
+   * we will use a texture. Always off for this mapper.
+   */
   int CanUseTextureMapForColoring(vtkDataObject*) override;
 
   std::vector<unsigned int> VertexOffsets;
@@ -120,7 +161,7 @@ protected:
   std::vector<vtkPolyData*> RenderedList;
 
   // used by the hardware selector
-  std::vector<std::vector<unsigned int> > PickPixels;
+  std::vector<std::vector<unsigned int>> PickPixels;
 
   std::map<vtkAbstractArray*, vtkDataArray*> ColorArrayMap;
 
@@ -128,4 +169,8 @@ private:
   vtkCompositeMapperHelper2(const vtkCompositeMapperHelper2&) = delete;
   void operator=(const vtkCompositeMapperHelper2&) = delete;
 };
+
+#endif
+
+#endif
 // VTK-HeaderTest-Exclude: vtkCompositePolyDataMapper2Internal.h

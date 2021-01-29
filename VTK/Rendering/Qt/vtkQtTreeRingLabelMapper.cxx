@@ -133,7 +133,7 @@ vtkQtTreeRingLabelMapper::~vtkQtTreeRingLabelMapper()
   delete this->QtImage;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQtTreeRingLabelMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* actor)
 {
   vtkRenderer* ren = vtkRenderer::SafeDownCast(viewport);
@@ -144,7 +144,7 @@ void vtkQtTreeRingLabelMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* 
   this->polyDataMapper->RenderOverlay(viewport, actor);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQtTreeRingLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkActor2D* actor)
 {
   if (!QApplication::instance())
@@ -193,7 +193,7 @@ void vtkQtTreeRingLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAc
   {
     vtkDebugMacro(<< "Rebuilding labels");
 
-    int* size = renderer->GetSize();
+    const int* size = renderer->GetSize();
     this->WindowSize[0] = size[0];
     this->WindowSize[1] = size[1];
 
@@ -518,7 +518,7 @@ bool vtkQtTreeRingLabelMapper::PointInWindow(
 
   // Get the window extents
   vtkWindow* win = viewport->GetVTKWindow();
-  int* winSize = win->GetSize();
+  const int* winSize = win->GetSize();
 
   bool return_value = true;
   if (dc[0] < 0 || dc[0] > winSize[0])
@@ -551,7 +551,7 @@ bool vtkQtTreeRingLabelMapper::PointInWindow(
   return return_value;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkQtTreeRingLabelMapper::SetSectorsArrayName(const char* name)
 {
   this->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_VERTICES, name);
@@ -660,7 +660,7 @@ vtkMTimeType vtkQtTreeRingLabelMapper::GetMTime()
       vtkMTimeType renWindMTime = rw->GetMTime();
       if (renWindMTime > filterMTime)
       {
-        int* rwSize = rw->GetSize();
+        const int* rwSize = rw->GetSize();
         if (rwSize[0] != this->WindowSize[0] || rwSize[1] != this->WindowSize[1])
         {
           return renWindMTime;

@@ -73,9 +73,10 @@ int TestOSPRayWindow(int argc, char* argv[])
   //
   ren1->AddActor(sphereActor);
   ren1->SetBackground(.2, .3, .4);
+  ren1->SetEnvironmentalBG(.2, .3, .4);
 
   // render the image
-  renWin->SetWindowName("VTK - Scalar Bar options");
+  renWin->SetWindowName("VTK");
   renWin->SetSize(600, 500);
 
   vtkNew<vtkOSPRayWindowNode> owindow;
@@ -83,7 +84,7 @@ int TestOSPRayWindow(int argc, char* argv[])
   owindow->TraverseAllPasses();
 
   // now get the result and display it
-  int* size = owindow->GetSize();
+  const int* size = owindow->GetSize();
   vtkNew<vtkImageData> image;
   image->SetDimensions(size[0], size[1], 1);
   image->GetPointData()->SetScalars(owindow->GetColorBuffer());

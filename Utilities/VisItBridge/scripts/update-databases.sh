@@ -8,73 +8,73 @@ readonly name="visit-databases"
 readonly ownership="VisIt Upstream <kwrobot@kitware.com>"
 readonly subtree="databases/readers"
 readonly repo="https://gitlab.kitware.com/third-party/visit.git"
-readonly tag="for/paraview-20191122-trunk-r34006"
+readonly tag="for/paraview-20200403-g756b0aa4ee"
 
 readonly paths="
-COPYRIGHT
+LICENSE
 .gitattributes
 README.kitware.md
 
-databases/ANSYS
-databases/AUXFile
-databases/BOV
-databases/Boxlib3D
-databases/CEAucd
-databases/CMAT
-databases/CTRL
-databases/Chombo
-databases/Claw
-databases/Curve2D
-databases/DDCMD
-databases/Dyna3D
-databases/Enzo
-databases/ExtrudedVol
-databases/FLASH
-databases/Fluent
-databases/GGCM
-databases/GTC
-databases/GULP
-databases/Gadget
-databases/H5Nimrod
-databases/Image
-databases/LAMMPS
-databases/Lines
-databases/M3D
-databases/M3DC1
-databases/MFIX
-databases/MFIXCDF
-databases/MM5
-databases/Mili
-databases/Miranda
-databases/NASTRAN
-databases/NETCDF
-databases/Nek5000
-databases/OVERFLOW
-databases/OpenFOAM
-databases/PATRAN
-databases/PFLOTRAN
-databases/PLOT3D
-databases/Pixie
-databases/Point3D
-databases/ProteinDataBank
-databases/RAW
-databases/SAMRAI
-databases/SAR
-databases/SAS
-databases/Silo
-databases/Spheral
-databases/TFT
-databases/TSurf
-databases/Tecplot
-databases/Tetrad
-databases/UNIC
-databases/VASP
-databases/Velodyne
-databases/Vs
-databases/XYZ
-databases/Xmdv
-databases/paraDIS
-databases/paraDIS_tecplot
+src/databases/ANSYS
+src/databases/AUXFile
+src/databases/BOV
+src/databases/Boxlib3D
+src/databases/CEAucd
+src/databases/CMAT
+src/databases/CTRL
+src/databases/Chombo
+src/databases/Claw
+src/databases/Curve2D
+src/databases/DDCMD
+src/databases/Dyna3D
+src/databases/Enzo
+src/databases/ExtrudedVol
+src/databases/FLASH
+src/databases/Fluent
+src/databases/GGCM
+src/databases/GTC
+src/databases/GULP
+src/databases/Gadget
+src/databases/H5Nimrod
+src/databases/Image
+src/databases/LAMMPS
+src/databases/Lines
+src/databases/M3D
+src/databases/M3DC1
+src/databases/MFIX
+src/databases/MFIXCDF
+src/databases/MM5
+src/databases/Mili
+src/databases/Miranda
+src/databases/NASTRAN
+src/databases/NETCDF
+src/databases/Nek5000
+src/databases/OVERFLOW
+src/databases/OpenFOAM
+src/databases/PATRAN
+src/databases/PFLOTRAN
+src/databases/PLOT3D
+src/databases/Pixie
+src/databases/Point3D
+src/databases/ProteinDataBank
+src/databases/RAW
+src/databases/SAMRAI
+src/databases/SAR
+src/databases/SAS
+src/databases/Silo
+src/databases/Spheral
+src/databases/TFT
+src/databases/TSurf
+src/databases/Tecplot
+src/databases/Tetrad
+src/databases/UNIC
+src/databases/VASP
+src/databases/Velodyne
+src/databases/Vs
+src/databases/XYZ
+src/databases/Xmdv
+src/databases/paraDIS
+src/databases/paraDIS_tecplot
 "
 
 database_cleanup () {
@@ -156,13 +156,13 @@ cleanup_paraDIS_tecplot () {
 extract_source () {
     git_archive
     pushd "$extractdir/$name-reduced"
-    mv --target-directory=. databases/*
+    mv --target-directory=. src/databases/*
     find . -name "*.code" -delete
     find . -name "*.xml" -delete
     for reader in *; do
         [ -d "$reader" ] || continue
         pushd "$reader"
-        mv "CMakeLists.paraview.txt" "CMakeLists.txt"
+        mv -v "CMakeLists.paraview.txt" "CMakeLists.txt"
         database_cleanup "$reader"
         if type "cleanup_$reader" >/dev/null 2>/dev/null; then
             "cleanup_$reader"

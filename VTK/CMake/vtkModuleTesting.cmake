@@ -306,9 +306,17 @@ function (vtk_add_test_cxx exename _tests)
       set(_V -V "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/${test_name}.png,:}")
     endif ()
 
+    if (VTK_USE_MPI AND
+        VTK_SERIAL_TESTS_USE_MPIEXEC)
+      set(_vtk_test_cxx_pre_args
+        "${MPIEXEC_EXECUTABLE}"
+        "${MPIEXEC_NUMPROC_FLAG}" "1"
+        ${MPIEXEC_PREFLAGS})
+    endif()
+
     ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
       NAME    "${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}"
-      COMMAND "${exename}"
+      COMMAND "${_vtk_test_cxx_pre_args}" "$<TARGET_FILE:${exename}>"
               "${test_file}"
               ${args}
               ${${_vtk_build_test}_ARGS}
@@ -603,6 +611,14 @@ function (vtk_add_test_python)
       set(_vtk_build_TEST_FILE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     endif()
 
+    if (VTK_USE_MPI AND
+        VTK_SERIAL_TESTS_USE_MPIEXEC AND
+        NOT DEFINED _vtk_test_python_pre_args)
+      set(_vtk_test_python_pre_args
+        "${MPIEXEC_EXECUTABLE}"
+        "${MPIEXEC_NUMPROC_FLAG}" "1"
+        ${MPIEXEC_PREFLAGS})
+    endif()
     set(testArgs NAME "${_vtk_build_test}Python${_vtk_test_python_suffix}-${vtk_test_prefix}${test_name}"
                  COMMAND ${_vtk_test_python_pre_args}
                          "${_vtk_testing_python_exe}" ${_vtk_test_python_args} --enable-bt
@@ -626,6 +642,12 @@ function (vtk_add_test_python)
         # This must match the skip() function in vtk/test/Testing.py"
         SKIP_RETURN_CODE 125
       )
+
+    if (numprocs)
+      set_tests_properties("${_vtk_build_test}Python${_vtk_test_python_suffix}-${vtk_test_prefix}${test_name}"
+        PROPERTIES
+          PROCESSORS "${numprocs}")
+    endif ()
   endforeach ()
 endfunction ()
 

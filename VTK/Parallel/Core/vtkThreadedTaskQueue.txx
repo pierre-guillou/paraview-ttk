@@ -67,8 +67,8 @@ public:
   bool Pop(std::uint64_t& task_id, std::function<R()>& task)
   {
     std::unique_lock<std::mutex> lk(this->TasksMutex);
-    this->TasksCV.wait(lk, [this] { return this->Done || this->Tasks.size() > 0; });
-    if (this->Tasks.size() > 0)
+    this->TasksCV.wait(lk, [this] { return this->Done || !this->Tasks.empty(); });
+    if (!this->Tasks.empty())
     {
       auto task_pair = this->Tasks.front();
       // vtkLogF(TRACE, "popping-task %d", (int)task_pair.first);
@@ -87,7 +87,7 @@ private:
   std::atomic_bool Done;
   int BufferSize;
   std::atomic<std::uint64_t> NextTaskId;
-  std::queue<std::pair<std::uint64_t, std::function<R()> > > Tasks;
+  std::queue<std::pair<std::uint64_t, std::function<R()>>> Tasks;
   std::mutex TasksMutex;
   std::condition_variable TasksCV;
 };
@@ -157,8 +157,8 @@ private:
   {
     bool operator()(const T& left, const T& right) const { return left.first > right.first; }
   };
-  std::priority_queue<std::pair<std::uint64_t, R>, std::vector<std::pair<std::uint64_t, R> >,
-    Comparator<std::pair<std::uint64_t, R> > >
+  std::priority_queue<std::pair<std::uint64_t, R>, std::vector<std::pair<std::uint64_t, R>>,
+    Comparator<std::pair<std::uint64_t, R>>>
     Results;
   std::mutex ResultsMutex;
   std::condition_variable ResultsCV;

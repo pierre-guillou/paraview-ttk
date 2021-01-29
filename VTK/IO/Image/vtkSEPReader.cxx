@@ -10,6 +10,7 @@
 =========================================================================*/
 #include "vtkSEPReader.h"
 
+#include "vtkEndian.h"
 #include "vtkInformation.h"
 #include "vtkInformationStringKey.h"
 #include "vtkInformationVector.h"
@@ -26,7 +27,7 @@ vtkStandardNewMacro(vtkSEPReader);
 
 namespace
 {
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void TrimString(std::string& s)
 {
   // trim trailing spaces
@@ -44,21 +45,21 @@ void TrimString(std::string& s)
 }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSEPReader::vtkSEPReader()
 {
   this->SetNumberOfInputPorts(0);
   this->SetFileLowerLeft(1);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkSEPReader::CanReadFile(const char* filename)
 {
   std::string extension = vtksys::SystemTools::GetFilenameLastExtension(filename);
   return (extension == ".H") ? 1 : 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkSEPReader::RequestInformation(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -70,14 +71,14 @@ int vtkSEPReader::RequestInformation(
   return this->Superclass::RequestInformation(request, inputVector, outputVector);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSEPReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << "DataFile: " << this->DataFile << std::endl;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkSEPReader::RequestData(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -98,7 +99,7 @@ int vtkSEPReader::RequestData(
   return res;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkSEPReader::ReadHeader()
 {
   if (!this->FileName)
@@ -124,7 +125,7 @@ int vtkSEPReader::ReadHeader()
   std::string line;
   while (vtksys::SystemTools::GetLineFromStream(file, line))
   {
-    auto splittedLine = vtksys::SystemTools::SplitString(line.c_str(), '=');
+    auto splittedLine = vtksys::SystemTools::SplitString(line, '=');
     if (splittedLine.size() == 2)
     {
       std::string key = splittedLine[0];

@@ -1,14 +1,9 @@
-# The TDx support has not been moved, this header is here to define nothing,
-# and so allow classes in other modules to safely include it and keep going.
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/vtkTDxConfigure.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/vtkTDxConfigure.h")
-
 set(classes
   vtkCameraPass
   vtkClearRGBPass
   vtkClearZPass
   vtkCompositePolyDataMapper2
+  vtkDataTransferHelper
   vtkDefaultPass
   vtkDepthImageProcessingPass
   vtkDepthOfFieldPass
@@ -72,6 +67,7 @@ set(classes
   vtkOpenGLVertexBufferObjectCache
   vtkOpenGLVertexBufferObjectGroup
   vtkOrderIndependentTranslucentPass
+  vtkOutlineGlowPass
   vtkOverlayPass
   vtkPanoramicProjectionPass
   vtkPixelBufferObject
@@ -99,17 +95,18 @@ set(classes
   vtkValuePass
   vtkVolumetricPass)
 
-if (NOT DEFINED OPENGL_ES_VERSION)
-  list(APPEND classes
-    vtkDataTransferHelper)
-endif()
-
 set(headers
-  vtkOpenGL.h
-  vtkStateStorage.h
-  "${CMAKE_CURRENT_BINARY_DIR}/vtkTDxConfigure.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkOpenGLError.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkRenderingOpenGLConfigure.h")
+
+set(nowrap_headers
+  vtkCompositePolyDataMapper2Internal.h
+)
+
+if (NOT VTK_LEGACY_REMOVE)
+  list(APPEND nowrap_headers
+    vtkOpenGL.h)
+endif ()
 
 # add opengl support test execulatble on windows
 if (WIN32 AND (NOT CMAKE_CROSSCOMPILING OR DEFINED CMAKE_CROSSCOMPILING_EMULATOR))
@@ -144,6 +141,9 @@ set(shader_files
   glsl/vtkGaussianBlurPassVS.glsl
   glsl/vtkGlyph3DVS.glsl
   glsl/vtkOrderIndependentTranslucentPassFinalFS.glsl
+  glsl/vtkOutlineGlowBlurPassFS.glsl
+  glsl/vtkOutlineGlowUpscalePassFS.glsl
+  glsl/vtkPBRFunctions.glsl
   glsl/vtkPointFillPassFS.glsl
   glsl/vtkPointGaussianVS.glsl
   glsl/vtkPointGaussianGS.glsl
@@ -162,7 +162,7 @@ set(shader_files
   glsl/vtkTextureObjectFS.glsl
   glsl/vtkTextureObjectVS.glsl)
 unset(shader_h_files)
-foreach(file ${shader_files})
+foreach(file IN LISTS shader_files)
   vtk_encode_string(
     INPUT         "${file}"
     EXPORT_SYMBOL "VTKRENDERINGOPENGL2_EXPORT"
@@ -230,54 +230,37 @@ if (VTK_USE_X)
   # Add some custom overrides
   if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
     vtk_object_factory_declare(
-      BASE vtkRenderWindowInteractor
-      OVERRIDE vtkXRenderWindowInteractor)
-    vtk_object_factory_declare(
       BASE vtkRenderWindow
       OVERRIDE vtkXOpenGLRenderWindow)
     set(has_vtkRenderWindow_override 1)
   endif ()
-  list(APPEND classes
-    vtkXRenderWindowInteractor
-    vtkXOpenGLRenderWindow)
+  list(APPEND classes vtkXOpenGLRenderWindow)
 elseif (WIN32)
   # Add some custom overrides
   if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindowInteractor
-      OVERRIDE vtkWin32RenderWindowInteractor)
     vtk_object_factory_declare(
       BASE vtkRenderWindow
       OVERRIDE vtkWin32OpenGLRenderWindow)
     set(has_vtkRenderWindow_override 1)
   endif ()
-  list(APPEND classes
-    vtkWin32RenderWindowInteractor
-    vtkWin32OpenGLRenderWindow)
+  list(APPEND classes vtkWin32OpenGLRenderWindow)
 elseif (VTK_USE_COCOA)
   # Add some custom overrides
   if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindowInteractor
-      OVERRIDE vtkCocoaRenderWindowInteractor)
     vtk_object_factory_declare(
       BASE vtkRenderWindow
       OVERRIDE vtkCocoaRenderWindow)
     set(has_vtkRenderWindow_override 1)
   endif ()
   list(APPEND sources
-    vtkCocoaRenderWindowInteractor.mm
     vtkCocoaRenderWindow.mm
     vtkCocoaGLView.mm)
   list(APPEND headers
-    vtkCocoaRenderWindowInteractor.h
     vtkCocoaRenderWindow.h
-    vtkCocoaGLView.h
-    vtkCocoaMacOSXSDKCompatibility.h)
+    vtkCocoaGLView.h)
   # Set specified Objective-C++ flags, if any.
   if (VTK_REQUIRED_OBJCXX_FLAGS)
     set_source_files_properties(
-      vtkCocoaRenderWindowInteractor.mm
       vtkCocoaRenderWindow.mm
       vtkCocoaGLView.mm
       PROPERTIES
@@ -286,34 +269,21 @@ elseif (VTK_USE_COCOA)
 elseif (ANDROID)
   # Add some custom overrides
   vtk_object_factory_declare(
-    BASE vtkRenderWindowInteractor
-    OVERRIDE vtkAndroidRenderWindowInteractor)
-  vtk_object_factory_declare(
     BASE vtkRenderWindow
     OVERRIDE vtkEGLRenderWindow)
   set(has_vtkRenderWindow_override 1)
-  list(APPEND classes
-    vtkAndroidRenderWindowInteractor)
   include_directories("${CMAKE_ANDROID_NDK}/sources/android/native_app_glue")
 elseif (APPLE_IOS)
   # Add some custom overrides
   vtk_object_factory_declare(
-    BASE vtkRenderWindowInteractor
-    OVERRIDE vtkIOSRenderWindowInteractor)
-  vtk_object_factory_declare(
     BASE vtkRenderWindow
     OVERRIDE vtkIOSRenderWindow)
   set(has_vtkRenderWindow_override 1)
-  list(APPEND sources
-    vtkIOSRenderWindowInteractor.mm
-    vtkIOSRenderWindow.mm)
-  list(APPEND headers
-    vtkIOSRenderWindowInteractor.h
-    vtkIOSRenderWindow.h)
+  list(APPEND sources vtkIOSRenderWindow.mm)
+  list(APPEND headers vtkIOSRenderWindow.h)
   # Set specified Objective-C++ flags, if any.
   if (VTK_REQUIRED_OBJCXX_FLAGS)
     set_source_files_properties(
-      vtkIOSRenderWindowInteractor.mm
       vtkIOSRenderWindow.mm
       PROPERTIES
         COMPILE_FLAGS "${VTK_REQUIRED_OBJCXX_FLAGS}")
@@ -346,8 +316,8 @@ cmake_dependent_option(VTK_REPORT_OPENGL_ERRORS_IN_RELEASE_BUILDS
 mark_as_advanced(VTK_REPORT_OPENGL_ERRORS)
 mark_as_advanced(VTK_REPORT_OPENGL_ERRORS_IN_RELEASE_BUILDS)
 configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/vtkOpenGLError.h.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/vtkOpenGLError.h")
+  "${CMAKE_CURRENT_SOURCE_DIR}/vtkOpenGLError.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkOpenGLError.h")
 
 # Add OpenGL command stream annotations via
 # vtkOpenGLRenderUtilities::MarkDebugEvent when enabled:
@@ -362,19 +332,37 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtkRenderingOpenGLConfigure.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkRenderingOpenGLConfigure.h")
 
+if (VTK_USE_SDL2)
+  list(APPEND classes vtkSDL2OpenGLRenderWindow)
+endif ()
+
 vtk_module_add_module(VTK::RenderingOpenGL2
   CLASSES ${classes}
   SOURCES ${sources} ${vtk_object_factory_source}
   HEADERS ${headers}
+  NOWRAP_HEADERS ${nowrap_headers}
   PRIVATE_HEADERS ${private_headers} ${vtk_object_factory_header})
 
+if (VTK_USE_SDL2)
+vtk_module_find_package(PACKAGE SDL2)
+vtk_module_link(VTK::RenderingOpenGL2
+    PUBLIC SDL2::SDL2)
+endif ()
+
 if (VTK_USE_X)
-  vtk_module_find_package(
-    PACKAGE X11 COMPONENTS Xt)
-  vtk_module_link(VTK::RenderingOpenGL2
-    PUBLIC
-      X11::X11
-      X11::Xt)
+  vtk_module_find_package(PACKAGE X11)
+  vtk_module_link(VTK::RenderingOpenGL2 PUBLIC X11::X11)
+  if (X11_Xcursor_FOUND)
+    vtk_module_link(VTK::RenderingOpenGL2 PRIVATE X11::Xcursor)
+    set(_have_xcursor 1)
+  else()
+    message(WARNING "X11::Xcursor not found; custom cursors will be ignored.")
+    set(_have_xcursor 0)
+  endif()
+  set_property(SOURCE vtkXOpenGLRenderWindow.cxx APPEND
+    PROPERTY
+      COMPILE_DEFINITIONS "VTK_HAVE_XCURSOR=${_have_xcursor}"
+  )
 elseif (VTK_USE_COCOA)
   vtk_module_link(VTK::RenderingOpenGL2 PUBLIC "-framework Cocoa")
 endif ()

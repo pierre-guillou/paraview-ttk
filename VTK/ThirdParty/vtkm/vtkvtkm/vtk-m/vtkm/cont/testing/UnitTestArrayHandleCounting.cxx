@@ -79,7 +79,9 @@ struct TemplatedTests
 
   using ArrayHandleType2 = vtkm::cont::ArrayHandle<ValueType, vtkm::cont::StorageTagCounting>;
 
-  using PortalType = typename ArrayHandleType::PortalConstControl;
+  using PortalType =
+    typename vtkm::cont::internal::Storage<ValueType,
+                                           typename ArrayHandleType::StorageTag>::PortalConstType;
 
   void operator()(const ValueType& startingValue, const ValueType& step)
   {
@@ -100,14 +102,17 @@ struct TemplatedTests
                      "Counting array using raw array handle + tag has wrong size.");
 
     ValueType properValue = startingValue;
+    auto arrayConstPortal = arrayConst.ReadPortal();
+    auto arrayMakePortal = arrayMake.ReadPortal();
+    auto arrayHandlePortal = arrayHandle.ReadPortal();
     for (vtkm::Id index = 0; index < ARRAY_SIZE; index++)
     {
-      VTKM_TEST_ASSERT(arrayConst.GetPortalConstControl().Get(index) == properValue,
+      VTKM_TEST_ASSERT(arrayConstPortal.Get(index) == properValue,
                        "Counting array using constructor has unexpected value.");
-      VTKM_TEST_ASSERT(arrayMake.GetPortalConstControl().Get(index) == properValue,
+      VTKM_TEST_ASSERT(arrayMakePortal.Get(index) == properValue,
                        "Counting array using make has unexpected value.");
 
-      VTKM_TEST_ASSERT(arrayHandle.GetPortalConstControl().Get(index) == properValue,
+      VTKM_TEST_ASSERT(arrayHandlePortal.Get(index) == properValue,
                        "Counting array using raw array handle + tag has unexpected value.");
       properValue = properValue + step;
     }
@@ -125,6 +130,7 @@ void TestArrayHandleCounting()
   TemplatedTests<StringInt>()(StringInt(0), StringInt(1));
   TemplatedTests<StringInt>()(StringInt(10), StringInt(2));
 }
+
 
 } // namespace UnitTestArrayHandleCountingNamespace
 

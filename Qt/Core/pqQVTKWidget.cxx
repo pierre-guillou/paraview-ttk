@@ -31,8 +31,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ========================================================================*/
 #include "pqQVTKWidget.h"
 
+#include <QApplication>
 #include <QResizeEvent>
+#include <QVBoxLayout>
 
+#include "QVTKOpenGLNativeWidget.h"
 #include "pqApplicationCore.h"
 #include "pqEventDispatcher.h"
 #include "pqOptions.h"
@@ -49,19 +52,58 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 pqQVTKWidget::pqQVTKWidget(QWidget* parentObject, Qt::WindowFlags f)
+  : pqQVTKWidget(
+      parentObject, f, pqApplicationCore::instance()->getOptions()->GetUseStereoRendering())
+{
+}
+
+//----------------------------------------------------------------------------
+pqQVTKWidget::pqQVTKWidget(QWidget* parentObject, Qt::WindowFlags f, bool isStereo)
   : Superclass(parentObject, f)
   , SizePropertyName("ViewSize")
+  , useStereo(isStereo)
 {
+  auto options = pqApplicationCore::instance()->getOptions();
+  auto* layout = new QVBoxLayout();
+  layout->setMargin(0);
+
+  if (useStereo)
+  {
+    auto ptr = new pqQVTKWidgetBase(parentObject, f);
+    baseClass.setValue(ptr);
+    layout->addWidget(ptr);
+
+    vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "Using stereo-capable context.");
+  }
+  else
+  {
+    auto ptr = new QVTKOpenGLNativeWidget(parentObject, f);
+    baseClass.setValue(ptr);
+    layout->addWidget(ptr);
+
+    vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "Using native-capable context.");
+  }
+
+  this->setLayout(layout);
+
   // disable HiDPI if we are running tests
-  this->setEnableHiDPI(vtksys::SystemTools::GetEnv("DASHBOARD_TEST_FROM_CTEST") ? false : true);
+  if (this->useStereo)
+  {
+    baseClass.value<pqQVTKWidgetBase*>()->setEnableHiDPI(
+      vtksys::SystemTools::GetEnv("DASHBOARD_TEST_FROM_CTEST") ? false : true);
+  }
+  else
+  {
+    baseClass.value<QVTKOpenGLNativeWidget*>()->setEnableHiDPI(
+      vtksys::SystemTools::GetEnv("DASHBOARD_TEST_FROM_CTEST") ? false : true);
+  }
 
   // if active stereo requested, then we need to request appropriate context.
-  auto options = pqApplicationCore::instance()->getOptions();
   if (options->GetStereoType() && strcmp(options->GetStereoType(), "Crystal Eyes") == 0)
   {
-#if PARAVIEW_USING_QVTKOPENGLWIDGET
-    auto fmt = this->defaultFormat(/*supports_stereo =*/true);
-    this->setFormat(fmt);
+#if PARAVIEW_USING_QVTKOPENGLSTEREOWIDGET
+    auto fmt = baseClass.value<pqQVTKWidgetBase*>()->defaultFormat(/*supports_stereo =*/true);
+    baseClass.value<pqQVTKWidgetBase*>()->setFormat(fmt);
     vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "requesting stereo-capable context.");
 #else
     vtkLogF(WARNING,
@@ -134,7 +176,7 @@ vtkTypeUInt32 pqQVTKWidget::getProxyId()
 }
 
 //----------------------------------------------------------------------------
-#if PARAVIEW_USING_QVTKOPENGLWIDGET
+#if PARAVIEW_USING_QVTKOPENGLSTEREOWIDGET
 void pqQVTKWidget::resizeEvent(QResizeEvent* evt)
 {
   this->Superclass::resizeEvent(evt);
@@ -167,7 +209,18 @@ void pqQVTKWidget::prepareContextForRendering()
   }
 
   auto start = std::chrono::system_clock::now();
-  while (!this->isValid())
+  bool ret = false;
+
+  if (this->useStereo)
+  {
+    ret = baseClass.value<pqQVTKWidgetBase*>()->isValid();
+  }
+  else
+  {
+    ret = baseClass.value<QVTKOpenGLNativeWidget*>()->isValid();
+  }
+
+  while (!ret)
   {
     pqEventDispatcher::processEventsAndWait(10);
     auto end = std::chrono::system_clock::now();
@@ -176,9 +229,27 @@ void pqQVTKWidget::prepareContextForRendering()
     {
       break;
     }
+
+    if (this->useStereo)
+    {
+      ret = baseClass.value<pqQVTKWidgetBase*>()->isValid();
+    }
+    else
+    {
+      ret = baseClass.value<QVTKOpenGLNativeWidget*>()->isValid();
+    }
   }
 
-  if (!this->isValid())
+  if (this->useStereo)
+  {
+    ret = baseClass.value<pqQVTKWidgetBase*>()->isValid();
+  }
+  else
+  {
+    ret = baseClass.value<QVTKOpenGLNativeWidget*>()->isValid();
+  }
+
+  if (!ret)
   {
     qCritical("Failed to create a valid OpenGL context for 5 seconds....giving up!");
   }
@@ -190,4 +261,134 @@ void pqQVTKWidget::paintMousePointer(int xLocation, int yLocation)
   Q_UNUSED(xLocation);
   Q_UNUSED(yLocation);
   // TODO: need to add support to paint collaboration mouse pointer in Qt 5.
+}
+
+//----------------------------------------------------------------------------
+void pqQVTKWidget::setRenderWindow(vtkRenderWindow* win)
+{
+  if (this->useStereo)
+  {
+    baseClass.value<pqQVTKWidgetBase*>()->setUnscaledDPI(win->GetDPI());
+    baseClass.value<pqQVTKWidgetBase*>()->setRenderWindow(win);
+  }
+  else
+  {
+    baseClass.value<QVTKOpenGLNativeWidget*>()->setUnscaledDPI(win->GetDPI());
+    baseClass.value<QVTKOpenGLNativeWidget*>()->setRenderWindow(win);
+  }
+}
+
+//----------------------------------------------------------------------------
+QVTKInteractor* pqQVTKWidget::interactor() const
+{
+  if (this->useStereo)
+  {
+    return baseClass.value<pqQVTKWidgetBase*>()->interactor();
+  }
+  else
+  {
+    return baseClass.value<QVTKOpenGLNativeWidget*>()->interactor();
+  }
+}
+
+//----------------------------------------------------------------------------
+bool pqQVTKWidget::isValid()
+{
+  if (this->useStereo)
+  {
+    return baseClass.value<pqQVTKWidgetBase*>()->isValid();
+  }
+  else
+  {
+    return baseClass.value<QVTKOpenGLNativeWidget*>()->isValid();
+  }
+}
+
+//----------------------------------------------------------------------------
+vtkRenderWindow* pqQVTKWidget::renderWindow() const
+{
+  if (this->useStereo)
+  {
+    return baseClass.value<pqQVTKWidgetBase*>()->renderWindow();
+  }
+  else
+  {
+    return baseClass.value<QVTKOpenGLNativeWidget*>()->renderWindow();
+  }
+}
+
+//----------------------------------------------------------------------------
+void pqQVTKWidget::notifyQApplication(QMouseEvent* e)
+{
+  if (this->useStereo)
+  {
+// Due to QTBUG-61836 (see QVTKOpenGLStereoWidget::testingEvent()), events should
+// be propagated back to the internal QVTKOpenGLWindow when being fired
+// explicitly on the widget instance. We have to use a custom event
+// callback in this case to ensure that events are passed to the window.
+
+#if defined(__APPLE__)
+    qApp->notify(baseClass.value<QVTKOpenGLNativeWidget*>(), e);
+#else
+    qApp->notify(baseClass.value<pqQVTKWidgetBase*>()->embeddedOpenGLWindow(), e);
+#endif
+  }
+  else
+  {
+    qApp->notify(baseClass.value<QVTKOpenGLNativeWidget*>(), e);
+  }
+}
+//----------------------------------------------------------------------------
+void pqQVTKWidget::setEnableHiDPI(bool flag)
+{
+  // disable HiDPI if we are running tests
+  if (this->useStereo)
+  {
+    baseClass.value<pqQVTKWidgetBase*>()->setEnableHiDPI(flag);
+  }
+  else
+  {
+    baseClass.value<QVTKOpenGLNativeWidget*>()->setEnableHiDPI(flag);
+  }
+}
+//----------------------------------------------------------------------------
+void pqQVTKWidget::setCustomDevicePixelRatio(double cdpr)
+{
+  // disable HiDPI if we are running tests
+  if (this->useStereo)
+  {
+    baseClass.value<pqQVTKWidgetBase*>()->setCustomDevicePixelRatio(cdpr);
+  }
+  else
+  {
+    baseClass.value<QVTKOpenGLNativeWidget*>()->setCustomDevicePixelRatio(cdpr);
+  }
+}
+//----------------------------------------------------------------------------
+double pqQVTKWidget::effectiveDevicePixelRatio() const
+{
+  // disable HiDPI if we are running tests
+  if (this->useStereo)
+  {
+    return baseClass.value<pqQVTKWidgetBase*>()->effectiveDevicePixelRatio();
+  }
+  else
+  {
+    return baseClass.value<QVTKOpenGLNativeWidget*>()->effectiveDevicePixelRatio();
+  }
+}
+//----------------------------------------------------------------------------
+void pqQVTKWidget::setViewSize(int width, int height)
+{
+  if (this->ViewProxy)
+  {
+    int targetSize[2] = { width, height };
+    int currentSize[2];
+    vtkSMPropertyHelper(this->ViewProxy, "ViewSize").Get(currentSize, 2);
+    if (currentSize[0] != targetSize[0] || currentSize[1] != targetSize[1])
+    {
+      vtkSMPropertyHelper(this->ViewProxy, "ViewSize").Set(targetSize, 2);
+      this->ViewProxy->UpdateVTKObjects();
+    }
+  }
 }

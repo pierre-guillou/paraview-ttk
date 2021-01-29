@@ -112,7 +112,7 @@ public:
 
 protected:
   vtkImageThreshold();
-  ~vtkImageThreshold() override {}
+  ~vtkImageThreshold() override = default;
 
   double UpperThreshold;
   double LowerThreshold;
@@ -127,7 +127,7 @@ protected:
 
   void ThreadedRequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector, vtkImageData*** inData, vtkImageData** outData,
-    int extent[6], int id) override;
+    int outExt[6], int id) override;
 
 private:
   vtkImageThreshold(const vtkImageThreshold&) = delete;

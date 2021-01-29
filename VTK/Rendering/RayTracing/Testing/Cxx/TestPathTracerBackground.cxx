@@ -12,7 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// This test verifies that background options work with path tracer
+// This test verifies that environmental background options work with path tracer
 //
 // The command line arguments are:
 // -I        => run in interactive mode; unless this is used, the program will
@@ -49,6 +49,7 @@ int TestPathTracerBackground(int argc, char* argv[])
   iren->SetRenderWindow(renWin);
   vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
   renWin->AddRenderer(renderer);
+  vtkOSPRayRendererNode::SetBackgroundMode(2, renderer);
   vtkOSPRayRendererNode::SetSamplesPerPixel(16, renderer);
 
   vtkSmartPointer<vtkLight> l = vtkSmartPointer<vtkLight>::New();
@@ -84,28 +85,27 @@ int TestPathTracerBackground(int argc, char* argv[])
     }
   }
 
-  renderer->SetBackground(0.1, 0.1, 1.0);
+  // default orientation
+  renderer->SetEnvironmentUp(1.0, 0.0, 0.0);
+  renderer->SetEnvironmentRight(0.0, 1.0, 0.0);
+
+  renderer->SetEnvironmentalBG(0.1, 0.1, 1.0);
   renWin->Render();
   renWin->Render(); // should cache
 
-  renderer->SetBackground(0.0, 0.0, 0.0);
-  renderer->SetBackground2(0.8, 0.8, 1.0);
-  renderer->GradientBackgroundOn();
+  renderer->SetEnvironmentalBG(0.0, 0.0, 0.0);
+  renderer->SetEnvironmentalBG2(0.8, 0.8, 1.0);
+  renderer->GradientEnvironmentalBGOn();
   renWin->Render(); // should invalidate and remake using default up
   renWin->Render(); // should cache
 
   // default view with this data is x to right, z toward camera and y up
-  double up[3] = { 0., 1., 0. };
-  vtkOSPRayRendererNode::SetNorthPole(up, renderer);
-  double east[3] = { 1., 0., 0. };
-  vtkOSPRayRendererNode::SetEastPole(east, renderer);
+  renderer->SetEnvironmentUp(0.0, 1.0, 0.0);
+  renderer->SetEnvironmentRight(1.0, 0.0, 0.0);
   // spin up around x axis
   for (double i = 0.; i < 6.28; i += 1.)
   {
-    up[0] = 0.0;
-    up[1] = cos(i);
-    up[2] = sin(i);
-    vtkOSPRayRendererNode::SetNorthPole(up, renderer);
+    renderer->SetEnvironmentUp(0.0, cos(i), sin(i));
     renWin->Render();
   }
 
@@ -118,30 +118,22 @@ int TestPathTracerBackground(int argc, char* argv[])
   delete[] fname;
   imgReader->Update();
   textr->SetInputConnection(imgReader->GetOutputPort(0));
-  renderer->TexturedBackgroundOn();
+  renderer->UseImageBasedLightingOn();
   renWin->Render(); // shouldn't crash
-  renderer->SetBackgroundTexture(textr);
+  renderer->SetEnvironmentTexture(textr);
   renWin->Render(); // should invalidate and remake
   renWin->Render(); // should cache
   // spin up around x axis
-  vtkOSPRayRendererNode::SetNorthPole(up, renderer);
   for (double i = 0.; i < 6.28; i += 1.)
   {
-    up[0] = 0.0;
-    up[1] = cos(i);
-    up[2] = sin(i);
-    vtkOSPRayRendererNode::SetNorthPole(up, renderer);
+    renderer->SetEnvironmentUp(0.0, cos(i), sin(i));
     renWin->Render();
   }
 
   // spin east around y axis
-  vtkOSPRayRendererNode::SetNorthPole(up, renderer);
   for (double i = 0.; i < 6.28; i += 1.)
   {
-    east[0] = cos(i);
-    east[1] = 0.0;
-    east[2] = sin(i);
-    vtkOSPRayRendererNode::SetEastPole(east, renderer);
+    renderer->SetEnvironmentRight(cos(i), 0.0, sin(i));
     renWin->Render();
   }
 

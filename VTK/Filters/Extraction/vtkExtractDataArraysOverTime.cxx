@@ -126,13 +126,14 @@ private:
   // change.
   vtkSmartPointer<vtkDoubleArray> TimeArray;
 
-  void AddTimeStepInternal(unsigned int cid, int ts_index, double time, vtkDataObject* data);
+  void AddTimeStepInternal(
+    unsigned int composite_index, int ts_index, double time, vtkDataObject* input);
 
   /**
    * Runs stats filters to summarize the data and return
    * a new dataobject with the summary.
    */
-  vtkSmartPointer<vtkDataObject> Summarize(vtkDataObject* data);
+  vtkSmartPointer<vtkDataObject> Summarize(vtkDataObject* input);
 
   vtkValue* GetOutput(const vtkKey& key, vtkDataSetAttributes* inDSA, bool using_gid);
 
@@ -291,7 +292,7 @@ public:
   }
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExtractDataArraysOverTime::vtkInternal::AddTimeStep(
   int ts_index, double time, vtkDataObject* data)
 {
@@ -322,7 +323,7 @@ void vtkExtractDataArraysOverTime::vtkInternal::AddTimeStep(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 static void vtkExtractArraysAssignUniqueCoordNames(
   vtkDataSetAttributes* statInDSA, vtkDataArray* px, vtkDataArray* py, vtkDataArray* pz)
 {
@@ -403,12 +404,12 @@ vtkSmartPointer<vtkDataObject> vtkExtractDataArraysOverTime::vtkInternal::Summar
   vtkNew<vtkSplitColumnComponents> splitColumns;
   auto descrStats = this->Self->NewDescriptiveStatistics();
   auto orderStats = this->Self->NewOrderStatistics();
-  descrStats->SetLearnOption(1);
-  descrStats->SetDeriveOption(1);
-  descrStats->SetAssessOption(0);
-  orderStats->SetLearnOption(1);
-  orderStats->SetDeriveOption(1);
-  orderStats->SetAssessOption(0);
+  descrStats->SetLearnOption(true);
+  descrStats->SetDeriveOption(true);
+  descrStats->SetAssessOption(false);
+  orderStats->SetLearnOption(true);
+  orderStats->SetDeriveOption(true);
+  orderStats->SetAssessOption(false);
 
   vtkDataSetAttributes* statInDSA = statInput->GetRowData();
   statInDSA->ShallowCopy(inFD);
@@ -433,7 +434,7 @@ vtkSmartPointer<vtkDataObject> vtkExtractDataArraysOverTime::vtkInternal::Summar
     vtkExtractArraysAssignUniqueCoordNames(statInDSA, pX[0], pX[1], pX[2]);
   }
   splitColumns->SetInputDataObject(0, statInput);
-  splitColumns->SetCalculateMagnitudes(1);
+  splitColumns->SetCalculateMagnitudes(true);
   splitColumns->Update();
   vtkTable* splits = splitColumns->GetOutput();
   descrStats->SetInputConnection(splitColumns->GetOutputPort());
@@ -500,7 +501,7 @@ vtkSmartPointer<vtkDataObject> vtkExtractDataArraysOverTime::vtkInternal::Summar
   return table;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExtractDataArraysOverTime::vtkInternal::AddTimeStepInternal(
   unsigned int composite_index, int ts_index, double vtkNotUsed(time), vtkDataObject* input)
 {
@@ -581,7 +582,7 @@ void vtkExtractDataArraysOverTime::vtkInternal::AddTimeStepInternal(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExtractDataArraysOverTime::vtkInternal::vtkValue*
 vtkExtractDataArraysOverTime::vtkInternal::GetOutput(
   const vtkKey& key, vtkDataSetAttributes* inDSA, bool using_gid)
@@ -659,7 +660,7 @@ vtkExtractDataArraysOverTime::vtkInternal::GetOutput(
 
 //****************************************************************************
 vtkStandardNewMacro(vtkExtractDataArraysOverTime);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExtractDataArraysOverTime::vtkExtractDataArraysOverTime()
   : CurrentTimeIndex(0)
   , NumberOfTimeSteps(0)
@@ -675,13 +676,13 @@ vtkExtractDataArraysOverTime::vtkExtractDataArraysOverTime()
   this->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_NONE, "-invalid-array-");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExtractDataArraysOverTime::~vtkExtractDataArraysOverTime()
 {
   delete this->Internal;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExtractDataArraysOverTime::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -691,7 +692,7 @@ void vtkExtractDataArraysOverTime::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NumberOfTimeSteps: " << this->NumberOfTimeSteps << endl;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExtractDataArraysOverTime::FillInputPortInformation(int, vtkInformation* info)
 {
   // We can handle composite datasets.
@@ -699,7 +700,7 @@ int vtkExtractDataArraysOverTime::FillInputPortInformation(int, vtkInformation* 
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExtractDataArraysOverTime::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -723,7 +724,7 @@ int vtkExtractDataArraysOverTime::RequestInformation(vtkInformation* vtkNotUsed(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExtractDataArraysOverTime::RequestUpdateExtent(vtkInformation*,
   vtkInformationVector** inputVector, vtkInformationVector* vtkNotUsed(outputVector))
 {
@@ -741,7 +742,7 @@ int vtkExtractDataArraysOverTime::RequestUpdateExtent(vtkInformation*,
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExtractDataArraysOverTime::RequestData(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -789,7 +790,7 @@ int vtkExtractDataArraysOverTime::RequestData(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExtractDataArraysOverTime::PostExecute(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -800,13 +801,13 @@ void vtkExtractDataArraysOverTime::PostExecute(
     vtkDataObject::GetData(inputVector[0], 0), vtkMultiBlockDataSet::GetData(outputVector, 0));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPointer<vtkDescriptiveStatistics> vtkExtractDataArraysOverTime::NewDescriptiveStatistics()
 {
   return vtkSmartPointer<vtkDescriptiveStatistics>::New();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPointer<vtkOrderStatistics> vtkExtractDataArraysOverTime::NewOrderStatistics()
 {
   return vtkSmartPointer<vtkOrderStatistics>::New();

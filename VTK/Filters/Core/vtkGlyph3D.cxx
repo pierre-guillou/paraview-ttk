@@ -36,7 +36,7 @@
 vtkStandardNewMacro(vtkGlyph3D);
 vtkCxxSetObjectMacro(vtkGlyph3D, SourceTransform, vtkTransform);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Construct object with scaling on, scaling mode is by scalar value,
 // scale factor = 1.0, the range is (0,1), orient geometry is on, and
 // orientation is by vector. Clamping and indexing are turned off. No
@@ -51,6 +51,11 @@ vtkGlyph3D::vtkGlyph3D()
   this->Range[1] = 1.0;
   this->Orient = 1;
   this->VectorMode = VTK_USE_VECTOR;
+  this->FollowedCameraPosition[0] = this->FollowedCameraPosition[1] =
+    this->FollowedCameraPosition[2] = 0.0;
+  this->FollowedCameraViewUp[0] = 0.0;
+  this->FollowedCameraViewUp[1] = 1.0;
+  this->FollowedCameraViewUp[2] = 0.0;
   this->Clamping = 0;
   this->IndexMode = VTK_INDEXING_OFF;
   this->GeneratePointIds = 0;
@@ -75,14 +80,14 @@ vtkGlyph3D::vtkGlyph3D()
     3, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, vtkDataSetAttributes::SCALARS);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGlyph3D::~vtkGlyph3D()
 {
   delete[] PointIdsName;
   this->SetSourceTransform(nullptr);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMTimeType vtkGlyph3D::GetMTime()
 {
   vtkMTimeType mTime = this->Superclass::GetMTime();
@@ -95,7 +100,7 @@ vtkMTimeType vtkGlyph3D::GetMTime()
   return mTime;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGlyph3D::RequestData(vtkInformation* vtkNotUsed(request), vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
@@ -106,7 +111,7 @@ int vtkGlyph3D::RequestData(vtkInformation* vtkNotUsed(request), vtkInformationV
   return this->Execute(input, inputVector[1], output) ? 1 : 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, vtkPolyData* output)
 {
   vtkDataArray* inSScalars = this->GetInputArrayToProcess(0, input);
@@ -114,7 +119,7 @@ bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, 
   return this->Execute(input, sourceVector, output, inSScalars, inVectors);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, vtkPolyData* output,
   vtkDataArray* inSScalars, vtkDataArray* inVectors)
 {
@@ -193,7 +198,7 @@ bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, 
     vtkDebugMacro(<< "No points to glyph!");
     pts->Delete();
     trans->Delete();
-    return 1;
+    return true;
   }
 
   // Check input for consistency
@@ -202,9 +207,10 @@ bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, 
   {
     den = 1.0;
   }
-  if (this->VectorMode != VTK_VECTOR_ROTATION_OFF &&
-    ((this->VectorMode == VTK_USE_VECTOR && inVectors != nullptr) ||
-      (this->VectorMode == VTK_USE_NORMAL && inNormals != nullptr)))
+  if (this->VectorMode == VTK_FOLLOW_CAMERA_DIRECTION ||
+    (this->VectorMode != VTK_VECTOR_ROTATION_OFF &&
+      ((this->VectorMode == VTK_USE_VECTOR && inVectors != nullptr) ||
+        (this->VectorMode == VTK_USE_NORMAL && inNormals != nullptr))))
   {
     haveVectors = 1;
   }
@@ -309,6 +315,7 @@ bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, 
     outputPD->CopyAllocate(pd, numPts * numSourcePts);
     if (this->FillCellData)
     {
+      outputCD->CopyGlobalIdsOn();
       outputCD->CopyAllocate(pd, numPts * numSourceCells);
     }
   }
@@ -424,37 +431,45 @@ bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, 
 
     if (haveVectors)
     {
-      vtkDataArray* array3D = this->VectorMode == VTK_USE_NORMAL ? inNormals : inVectors;
-      if (array3D->GetNumberOfComponents() > 3)
+      if (this->VectorMode == VTK_FOLLOW_CAMERA_DIRECTION)
       {
-        vtkErrorMacro(<< "vtkDataArray " << array3D->GetName() << " has more than 3 components.\n");
-        pts->Delete();
-        trans->Delete();
-        if (newPts)
-        {
-          newPts->Delete();
-        }
-        if (newVectors)
-        {
-          newVectors->Delete();
-        }
-        return false;
+        vMag = 1.0; // v will be set later
       }
+      else
+      {
+        vtkDataArray* array3D = this->VectorMode == VTK_USE_NORMAL ? inNormals : inVectors;
+        if (array3D->GetNumberOfComponents() > 3)
+        {
+          vtkErrorMacro(<< "vtkDataArray " << array3D->GetName()
+                        << " has more than 3 components.\n");
+          pts->Delete();
+          trans->Delete();
+          if (newPts)
+          {
+            newPts->Delete();
+          }
+          if (newVectors)
+          {
+            newVectors->Delete();
+          }
+          return false;
+        }
 
-      v[0] = 0;
-      v[1] = 0;
-      v[2] = 0;
-      array3D->GetTuple(inPtId, v);
-      vMag = vtkMath::Norm(v);
-      if (this->ScaleMode == VTK_SCALE_BY_VECTORCOMPONENTS)
-      {
-        scalex = v[0];
-        scaley = v[1];
-        scalez = v[2];
-      }
-      else if (this->ScaleMode == VTK_SCALE_BY_VECTOR)
-      {
-        scalex = scaley = scalez = vMag;
+        v[0] = 0;
+        v[1] = 0;
+        v[2] = 0;
+        array3D->GetTuple(inPtId, v);
+        vMag = vtkMath::Norm(v);
+        if (this->ScaleMode == VTK_SCALE_BY_VECTORCOMPONENTS)
+        {
+          scalex = v[0];
+          scaley = v[1];
+          scalez = v[2];
+        }
+        else if (this->ScaleMode == VTK_SCALE_BY_VECTOR)
+        {
+          scalex = scaley = scalez = vMag;
+        }
       }
     }
 
@@ -550,22 +565,44 @@ bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, 
       {
         newVectors->InsertTuple(i + ptIncr, v);
       }
-      if (this->Orient && (vMag > 0.0))
+      if (this->Orient)
       {
-        // if there is no y or z component
-        if (v[1] == 0.0 && v[2] == 0.0)
+        if (this->VectorMode == VTK_FOLLOW_CAMERA_DIRECTION)
         {
-          if (v[0] < 0) // just flip x if we need to
-          {
-            trans->RotateWXYZ(180.0, 0, 1, 0);
-          }
+          // v = glyphNormal_World (glyph normal direction in World coordinate system)
+          v[0] = this->FollowedCameraPosition[0] - x[0];
+          v[1] = this->FollowedCameraPosition[1] - x[1];
+          v[2] = this->FollowedCameraPosition[2] - x[2];
+          vtkMath::Normalize(v);
+          double glyphRight_World[3]; // glyph right direction in World coordinate system
+          vtkMath::Cross(this->FollowedCameraViewUp, v, glyphRight_World);
+          // glyph up direction in World coordinate system
+          // (approximately the same as this->FollowedCameraViewUp, but slightly adjusted to be
+          // orthogonal to the normal direction)
+          double glyphUp_World[3];
+          vtkMath::Cross(v, glyphRight_World, glyphUp_World);
+          double glyphToWorld[16] = { glyphRight_World[0], glyphUp_World[0], v[0], 0.0,
+            glyphRight_World[1], glyphUp_World[1], v[1], 0.0, glyphRight_World[2], glyphUp_World[2],
+            v[2], 0.0, 0.0, 0.0, 0.0, 1.0 };
+          trans->Concatenate(glyphToWorld);
         }
-        else
+        else if (vMag > 0.0)
         {
-          vNew[0] = (v[0] + vMag) / 2.0;
-          vNew[1] = v[1] / 2.0;
-          vNew[2] = v[2] / 2.0;
-          trans->RotateWXYZ(180.0, vNew[0], vNew[1], vNew[2]);
+          // if there is no y or z component
+          if (v[1] == 0.0 && v[2] == 0.0)
+          {
+            if (v[0] < 0) // just flip x if we need to
+            {
+              trans->RotateWXYZ(180.0, 0, 1, 0);
+            }
+          }
+          else
+          {
+            vNew[0] = (v[0] + vMag) / 2.0;
+            vNew[1] = v[1] / 2.0;
+            vNew[2] = v[2] / 2.0;
+            trans->RotateWXYZ(180.0, vNew[0], vNew[1], vNew[2]);
+          }
         }
       }
     }
@@ -719,7 +756,7 @@ bool vtkGlyph3D::Execute(vtkDataSet* input, vtkInformationVector* sourceVector, 
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Specify a source object at a specified table location.
 void vtkGlyph3D::SetSourceConnection(int id, vtkAlgorithmOutput* algOutput)
 {
@@ -747,7 +784,7 @@ void vtkGlyph3D::SetSourceConnection(int id, vtkAlgorithmOutput* algOutput)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Specify a source object at a specified table location.
 void vtkGlyph3D::SetSourceData(int id, vtkPolyData* pd)
 {
@@ -788,7 +825,7 @@ void vtkGlyph3D::SetSourceData(int id, vtkPolyData* pd)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get a pointer to a source object at a specified table location.
 vtkPolyData* vtkGlyph3D::GetSource(int id)
 {
@@ -800,7 +837,7 @@ vtkPolyData* vtkGlyph3D::GetSource(int id)
   return vtkPolyData::SafeDownCast(this->GetExecutive()->GetInputData(1, id));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGlyph3D::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -850,8 +887,7 @@ void vtkGlyph3D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Clamping: " << (this->Clamping ? "On\n" : "Off\n");
   os << indent << "Range: (" << this->Range[0] << ", " << this->Range[1] << ")\n";
   os << indent << "Orient: " << (this->Orient ? "On\n" : "Off\n");
-  os << indent << "Orient Mode: "
-     << (this->VectorMode == VTK_USE_VECTOR ? "Orient by vector\n" : "Orient by normal\n");
+  os << indent << "Orient Mode: " << this->GetVectorModeAsString() << endl;
   os << indent << "Index Mode: ";
   if (this->IndexMode == VTK_INDEXING_BY_SCALAR)
   {
@@ -905,7 +941,7 @@ int vtkGlyph3D::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPolyData* vtkGlyph3D::GetSource(int idx, vtkInformationVector* sourceInfo)
 {
   vtkInformation* info = sourceInfo->GetInformationObject(idx);
@@ -916,7 +952,7 @@ vtkPolyData* vtkGlyph3D::GetSource(int idx, vtkInformationVector* sourceInfo)
   return vtkPolyData::SafeDownCast(info->Get(vtkDataObject::DATA_OBJECT()));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGlyph3D::FillInputPortInformation(int port, vtkInformation* info)
 {
   if (port == 0)

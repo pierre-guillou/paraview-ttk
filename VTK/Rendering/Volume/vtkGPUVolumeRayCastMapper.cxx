@@ -16,6 +16,7 @@
 #include <cassert>
 
 #include "vtkMatrix3x3.h"
+#include "vtkUniformGrid.h"
 #include <vtkCamera.h>
 #include <vtkCellData.h>
 #include <vtkCommand.h>
@@ -30,6 +31,7 @@
 #include <vtkMultiVolume.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
+#include <vtkRectilinearGrid.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
 #include <vtkRendererCollection.h>
@@ -107,7 +109,7 @@ vtkGPUVolumeRayCastMapper::vtkGPUVolumeRayCastMapper()
   this->SetNumberOfInputPorts(10);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGPUVolumeRayCastMapper::~vtkGPUVolumeRayCastMapper()
 {
   this->SetMaskInput(nullptr);
@@ -126,7 +128,7 @@ vtkGPUVolumeRayCastMapper::~vtkGPUVolumeRayCastMapper()
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // The render method that is called from the volume. If this is a canonical
 // view render, a specialized version of this method will be called instead.
 // Otherwise we will
@@ -136,7 +138,7 @@ vtkGPUVolumeRayCastMapper::~vtkGPUVolumeRayCastMapper()
 //   - Render
 //   - Stop the timer and record results
 //   - Invoke an end event
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::Render(vtkRenderer* ren, vtkVolume* vol)
 {
   // Catch renders that are happening due to a canonical view render and
@@ -184,10 +186,10 @@ void vtkGPUVolumeRayCastMapper::Render(vtkRenderer* ren, vtkVolume* vol)
   this->InvokeEvent(vtkCommand::VolumeMapperRenderEndEvent, nullptr);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Special version for rendering a canonical view - we don't do things like
 // invoke start or end events, and we don't capture the render time.
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::CanonicalViewRender(vtkRenderer* ren, vtkVolume* vol)
 {
   // Make sure everything about this render is OK
@@ -198,7 +200,7 @@ void vtkGPUVolumeRayCastMapper::CanonicalViewRender(vtkRenderer* ren, vtkVolume*
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This method us used by the render method to validate everything before
 // attempting to render. This method returns 0 if something is not right -
 // such as missing input, a null renderer or a null volume, no scalars, etc.
@@ -206,7 +208,7 @@ void vtkGPUVolumeRayCastMapper::CanonicalViewRender(vtkRenderer* ren, vtkVolume*
 // (for example, in the case of cropping planes that define a region with
 // a volume or 0 or less) it will fail silently. If everything is OK, it will
 // return with a value of 1.
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGPUVolumeRayCastMapper::ValidateRender(vtkRenderer* ren, vtkVolume* vol)
 {
   // Check that we have everything we need to render.
@@ -255,7 +257,7 @@ int vtkGPUVolumeRayCastMapper::ValidateRender(vtkRenderer* ren, vtkVolume* vol)
   return (success ? 1 : 0);
 }
 
-vtkImageData* vtkGPUVolumeRayCastMapper::FindData(int port, DataMap& container)
+vtkDataSet* vtkGPUVolumeRayCastMapper::FindData(int port, DataMap& container)
 {
   const auto it = container.find(port);
   if (it == container.cend())
@@ -269,19 +271,37 @@ void vtkGPUVolumeRayCastMapper::CloneInputs()
 {
   for (const auto& port : this->Ports)
   {
-    vtkImageData* input = this->GetInput(port);
+    vtkDataSet* input = this->GetInput(port);
     this->CloneInput(input, port);
   }
 }
 
-void vtkGPUVolumeRayCastMapper::CloneInput(vtkImageData* input, const int port)
+void vtkGPUVolumeRayCastMapper::CloneInput(vtkDataSet* input, const int port)
 {
   // Clone input into a transformed input
-  vtkImageData* clone;
-  vtkImageData* currentData = this->FindData(port, this->TransformedInputs);
+  vtkDataSet* clone;
+  vtkDataSet* currentData = this->FindData(port, this->TransformedInputs);
   if (!currentData)
   {
-    clone = vtkImageData::New();
+    if (vtkImageData::SafeDownCast(input))
+    {
+      if (vtkUniformGrid::SafeDownCast(input))
+      {
+        clone = vtkUniformGrid::New();
+      }
+      else
+      {
+        clone = vtkImageData::New();
+      }
+    }
+    else if (vtkRectilinearGrid::SafeDownCast(input))
+    {
+      clone = vtkRectilinearGrid::New();
+    }
+    else
+    {
+      clone = nullptr;
+    }
     clone->Register(this);
     this->TransformedInputs[port] = clone;
     clone->Delete();
@@ -294,7 +314,8 @@ void vtkGPUVolumeRayCastMapper::CloneInput(vtkImageData* input, const int port)
   }
 
   // If we have a timestamp change or data change then create a new clone
-  if (input != this->LastInputs[port] || input->GetMTime() > clone->GetMTime())
+  if (input != this->LastInputs[port] ||
+    (input != nullptr && input->GetMTime() > clone->GetMTime()))
   {
     this->LastInputs[port] = input;
     this->TransformInput(port);
@@ -303,7 +324,7 @@ void vtkGPUVolumeRayCastMapper::CloneInput(vtkImageData* input, const int port)
 
 int vtkGPUVolumeRayCastMapper::ValidateInput(vtkVolumeProperty* property, const int port)
 {
-  vtkImageData* input = this->GetInput(port);
+  vtkDataSet* input = this->GetInput(port);
 
   vtkTypeBool goodSoFar = 1;
   if (input == nullptr)
@@ -429,7 +450,7 @@ int vtkGPUVolumeRayCastMapper::ValidateInput(vtkVolumeProperty* property, const 
   return goodSoFar;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Called by the AMR Volume Mapper.
 // Set the flag that tells if the scalars are on point data (0) or
@@ -439,7 +460,7 @@ void vtkGPUVolumeRayCastMapper::SetCellFlag(int cellFlag)
   this->CellFlag = cellFlag;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::CreateCanonicalView(vtkRenderer* ren, vtkVolume* volume,
   vtkImageData* image, int vtkNotUsed(blend_mode), double viewDirection[3], double viewUp[3])
 {
@@ -449,7 +470,7 @@ void vtkGPUVolumeRayCastMapper::CreateCanonicalView(vtkRenderer* ren, vtkVolume*
 
   int dim[3];
   image->GetDimensions(dim);
-  int* size = ren->GetRenderWindow()->GetSize();
+  const int* size = ren->GetRenderWindow()->GetSize();
 
   vtkImageData* bigImage = vtkImageData::New();
   bigImage->SetDimensions(size[0], size[1], 1);
@@ -574,7 +595,7 @@ void vtkGPUVolumeRayCastMapper::CreateCanonicalView(vtkRenderer* ren, vtkVolume*
   this->GeneratingCanonicalView = 0;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Print method for vtkGPUVolumeRayCastMapper
 void vtkGPUVolumeRayCastMapper::PrintSelf(ostream& os, vtkIndent indent)
 {
@@ -595,7 +616,7 @@ void vtkGPUVolumeRayCastMapper::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ReportProgress: " << this->ReportProgress << endl;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Compute the cropping planes clipped by the bounds of the volume.
 // The result is put into this->ClippedCroppingRegionPlanes.
@@ -653,19 +674,19 @@ void vtkGPUVolumeRayCastMapper::ClipCroppingRegionPlanes()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::SetMaskTypeToBinary()
 {
   this->MaskType = vtkGPUVolumeRayCastMapper::BinaryMaskType;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::SetMaskTypeToLabelMap()
 {
   this->MaskType = vtkGPUVolumeRayCastMapper::LabelMapMaskType;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkContourValues* vtkGPUVolumeRayCastMapper::GetDepthPassContourValues()
 {
   if (!this->DepthPassContourValues)
@@ -676,25 +697,25 @@ vtkContourValues* vtkGPUVolumeRayCastMapper::GetDepthPassContourValues()
   return this->DepthPassContourValues;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::SetDepthImageScalarTypeToUnsignedChar()
 {
   this->SetDepthImageScalarType(VTK_UNSIGNED_CHAR);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::SetDepthImageScalarTypeToUnsignedShort()
 {
   this->SetDepthImageScalarType(VTK_UNSIGNED_SHORT);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::SetDepthImageScalarTypeToFloat()
 {
   this->SetDepthImageScalarType(VTK_FLOAT);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGPUVolumeRayCastMapper::FillInputPortInformation(int port, vtkInformation* info)
 {
   if (port > 0)
@@ -705,48 +726,78 @@ int vtkGPUVolumeRayCastMapper::FillInputPortInformation(int port, vtkInformation
   return this->Superclass::FillInputPortInformation(port, info);
 }
 
-//----------------------------------------------------------------------------
-vtkImageData* vtkGPUVolumeRayCastMapper::GetInput(const int port)
+//------------------------------------------------------------------------------
+vtkDataSet* vtkGPUVolumeRayCastMapper::GetInput(const int port)
 {
-  return static_cast<vtkImageData*>(this->GetInputDataObject(port, 0));
+  return static_cast<vtkDataSet*>(this->GetInputDataObject(port, 0));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGPUVolumeRayCastMapper::TransformInput(const int port)
 {
-  vtkImageData* clone = this->TransformedInputs[port];
-  clone->ShallowCopy(this->GetInput(port));
-
-  // Get the current extents.
-  int extents[6], real_extents[6];
-  clone->GetExtent(extents);
-  clone->GetExtent(real_extents);
-
-  // Get the current origin and spacing.
-  double origin[3], spacing[3];
-  clone->GetOrigin(origin);
-  clone->GetSpacing(spacing);
-  double* direction = clone->GetDirectionMatrix()->GetData();
-
-  // find the location of the min extent
-  double blockOrigin[3];
-  vtkImageData::TransformContinuousIndexToPhysicalPoint(
-    extents[0], extents[2], extents[4], origin, spacing, direction, blockOrigin);
-
-  // make it so that the clone starts with extent 0,0,0
-  for (int cc = 0; cc < 3; cc++)
+  vtkDataSet* dataset = this->TransformedInputs[port];
+  if (vtkImageData* clone = vtkImageData::SafeDownCast(dataset))
   {
-    // Transform the origin and the extents.
-    origin[cc] = blockOrigin[cc];
-    extents[2 * cc + 1] -= extents[2 * cc];
-    extents[2 * cc] = 0;
-  }
+    if (!dataset)
+    {
+      clone->SetExtent(0, -1, 0, -1, 0, -1);
+      return;
+    }
 
-  clone->SetOrigin(origin);
-  clone->SetExtent(extents);
+    clone->ShallowCopy(this->GetInput(port));
+
+    // Get the current extents.
+    int extents[6];
+    clone->GetExtent(extents);
+
+    // Get the current origin and spacing.
+    double origin[3], spacing[3];
+    clone->GetOrigin(origin);
+    clone->GetSpacing(spacing);
+    double* direction = clone->GetDirectionMatrix()->GetData();
+
+    // find the location of the min extent
+    double blockOrigin[3];
+    vtkImageData::TransformContinuousIndexToPhysicalPoint(
+      extents[0], extents[2], extents[4], origin, spacing, direction, blockOrigin);
+
+    // make it so that the clone starts with extent 0,0,0
+    for (int cc = 0; cc < 3; cc++)
+    {
+      // Transform the origin and the extents.
+      origin[cc] = blockOrigin[cc];
+      extents[2 * cc + 1] -= extents[2 * cc];
+      extents[2 * cc] = 0;
+    }
+
+    clone->SetOrigin(origin);
+    clone->SetExtent(extents);
+  }
+  else if (vtkRectilinearGrid* cloneRGrid = vtkRectilinearGrid::SafeDownCast(dataset))
+  {
+    if (!dataset)
+    {
+      cloneRGrid->SetExtent(0, -1, 0, -1, 0, -1);
+      return;
+    }
+
+    cloneRGrid->ShallowCopy(this->GetInput(port));
+
+    // Get the current extents.
+    int extents[6];
+    cloneRGrid->GetExtent(extents);
+
+    // Transform the current extent so that it starts at 0, 0, 0
+    for (int cc = 0; cc < 3; cc++)
+    {
+      extents[2 * cc + 1] -= extents[2 * cc];
+      extents[2 * cc] = 0;
+    }
+    cloneRGrid->SetExtent(extents);
+  }
 }
 
-vtkImageData* vtkGPUVolumeRayCastMapper::GetTransformedInput(const int port)
+vtkDataSet* vtkGPUVolumeRayCastMapper::GetTransformedInput(const int port)
 {
   const auto data = this->FindData(port, this->TransformedInputs);
   return data;

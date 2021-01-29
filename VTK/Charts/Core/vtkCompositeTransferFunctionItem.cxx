@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkCompositeTransferFunctionItem.h"
 #include "vtkAxis.h"
 #include "vtkCallbackCommand.h"
@@ -30,17 +33,17 @@
 #include <cassert>
 #include <vector>
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkCompositeTransferFunctionItem);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeTransferFunctionItem::vtkCompositeTransferFunctionItem()
 {
   this->PolyLinePen->SetLineType(vtkPen::SOLID_LINE);
   this->OpacityFunction = nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCompositeTransferFunctionItem::~vtkCompositeTransferFunctionItem()
 {
   if (this->OpacityFunction)
@@ -51,7 +54,7 @@ vtkCompositeTransferFunctionItem::~vtkCompositeTransferFunctionItem()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeTransferFunctionItem::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -67,7 +70,7 @@ void vtkCompositeTransferFunctionItem::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeTransferFunctionItem::ComputeBounds(double* bounds)
 {
   this->Superclass::ComputeBounds(bounds);
@@ -81,7 +84,7 @@ void vtkCompositeTransferFunctionItem::ComputeBounds(double* bounds)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeTransferFunctionItem::SetOpacityFunction(vtkPiecewiseFunction* opacity)
 {
   if (opacity == this->OpacityFunction)
@@ -100,7 +103,7 @@ void vtkCompositeTransferFunctionItem::SetOpacityFunction(vtkPiecewiseFunction* 
   this->ScalarsToColorsModified(this->OpacityFunction, vtkCommand::ModifiedEvent, nullptr);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCompositeTransferFunctionItem::ComputeTexture()
 {
   this->Superclass::ComputeTexture();

@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkMultiBlockDataSet.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkCompositeDataPipeline.h"
+#include "vtkCompositeDataIterator.h"
 #include "vtkSmartPointer.h"
 #include "vtkCompositeDataSet.h"
 
@@ -592,6 +593,44 @@ unsigned int vtkAvtFileFormatAlgorithm::GetCurrentTimeStep(vtkInformation *outIn
       }
     }
   return TimeIndex;
+}
+
+//-----------------------------------------------------------------------------
+void vtkAvtFileFormatAlgorithm::SetupGhostInformation(vtkInformation* outInfo)
+{
+  vtkDataObject* obj = outInfo->Get(vtkDataObject::DATA_OBJECT());
+
+  auto renameGhostArray = [](vtkDataSetAttributes* fieldData) {
+    if (!fieldData)
+    {
+      return;
+    }
+    auto ghostArray = fieldData->GetArray("avtGhostZones");
+    if (!ghostArray)
+    {
+      ghostArray = fieldData->GetArray("avtGhostNodes");
+    }
+    if (ghostArray)
+    {
+      ghostArray->SetName(vtkDataSetAttributes::GhostArrayName());
+    }
+  };
+
+  if (auto cDs = vtkCompositeDataSet::SafeDownCast(obj))
+  {
+    vtkSmartPointer<vtkCompositeDataIterator> iter;
+    iter.TakeReference(cDs->NewIterator());
+    for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
+    {
+      if (auto childDs = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject()))
+      {
+        // Cell ghost data
+        renameGhostArray(childDs->GetCellData());
+        // Point ghost data
+        renameGhostArray(childDs->GetPointData());
+      }
+    }
+  }
 }
 
 //-----------------------------------------------------------------------------

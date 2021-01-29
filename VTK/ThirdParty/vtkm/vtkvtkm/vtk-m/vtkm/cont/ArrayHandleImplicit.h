@@ -32,6 +32,7 @@ struct ArrayHandleImplicitTraits
   using ValueType = decltype(FunctorType{}(vtkm::Id{}));
   using StorageTag = vtkm::cont::StorageTagImplicit<ArrayPortalImplicit<FunctorType>>;
   using Superclass = vtkm::cont::ArrayHandle<ValueType, StorageTag>;
+  using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
 };
 
 /// \brief An array portal that returns the result of a functor
@@ -50,6 +51,7 @@ public:
   using ValueType = typename ArrayHandleImplicitTraits<FunctorType_>::ValueType;
   using FunctorType = FunctorType_;
 
+  VTKM_SUPPRESS_EXEC_WARNINGS
   VTKM_EXEC_CONT
   ArrayPortalImplicit()
     : Functor()
@@ -57,6 +59,7 @@ public:
   {
   }
 
+  VTKM_SUPPRESS_EXEC_WARNINGS
   VTKM_EXEC_CONT
   ArrayPortalImplicit(FunctorType f, vtkm::Id numValues)
     : Functor(f)
@@ -102,7 +105,7 @@ public:
 
   VTKM_CONT
   ArrayHandleImplicit(FunctorType functor, vtkm::Id length)
-    : Superclass(typename Superclass::PortalConstControl(functor, length))
+    : Superclass(typename ArrayTraits::StorageType::PortalType(functor, length))
   {
   }
 };
@@ -162,7 +165,7 @@ public:
   static VTKM_CONT void save(BinaryBuffer& bb, const BaseType& obj)
   {
     vtkmdiy::save(bb, obj.GetNumberOfValues());
-    vtkmdiy::save(bb, obj.GetPortalConstControl().GetFunctor());
+    vtkmdiy::save(bb, obj.ReadPortal().GetFunctor());
   }
 
   static VTKM_CONT void load(BinaryBuffer& bb, BaseType& obj)

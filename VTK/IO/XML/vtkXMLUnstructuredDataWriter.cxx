@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkXMLUnstructuredDataWriter.h"
 
 #include "vtkCellArray.h"
@@ -40,7 +44,7 @@
 #include <cassert>
 #include <utility>
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkXMLUnstructuredDataWriter::vtkXMLUnstructuredDataWriter()
 {
   this->NumberOfPieces = 1;
@@ -59,7 +63,7 @@ vtkXMLUnstructuredDataWriter::vtkXMLUnstructuredDataWriter()
   this->FaceOffsets->SetName("faceoffsets");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkXMLUnstructuredDataWriter::~vtkXMLUnstructuredDataWriter()
 {
   this->Faces->Delete();
@@ -70,7 +74,7 @@ vtkXMLUnstructuredDataWriter::~vtkXMLUnstructuredDataWriter()
   delete this->CellDataOM;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -79,13 +83,13 @@ void vtkXMLUnstructuredDataWriter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "GhostLevel: " << this->GhostLevel << "\n";
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPointSet* vtkXMLUnstructuredDataWriter::GetInputAsPointSet()
 {
   return static_cast<vtkPointSet*>(this->Superclass::GetInput());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTypeBool vtkXMLUnstructuredDataWriter::ProcessRequest(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -245,7 +249,7 @@ vtkTypeBool vtkXMLUnstructuredDataWriter::ProcessRequest(
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::AllocatePositionArrays()
 {
   this->NumberOfPointsPositions = new vtkTypeInt64[this->NumberOfPieces];
@@ -255,14 +259,14 @@ void vtkXMLUnstructuredDataWriter::AllocatePositionArrays()
   this->CellDataOM->Allocate(this->NumberOfPieces);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::DeletePositionArrays()
 {
   delete[] this->NumberOfPointsPositions;
   this->NumberOfPointsPositions = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLUnstructuredDataWriter::WriteHeader()
 {
   vtkIndent indent = vtkIndent().GetNextIndent();
@@ -401,7 +405,7 @@ void CreateFaceStream(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLUnstructuredDataWriter::WriteAPiece()
 {
   vtkIndent indent = vtkIndent().GetNextIndent();
@@ -425,7 +429,7 @@ int vtkXMLUnstructuredDataWriter::WriteAPiece()
   return result;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLUnstructuredDataWriter::WriteFooter()
 {
   vtkIndent indent = vtkIndent().GetNextIndent();
@@ -451,7 +455,7 @@ int vtkXMLUnstructuredDataWriter::WriteFooter()
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLUnstructuredDataWriter::WriteInlineMode(vtkIndent indent)
 {
   ostream& os = *(this->Stream);
@@ -478,14 +482,14 @@ int vtkXMLUnstructuredDataWriter::WriteInlineMode(vtkIndent indent)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteInlinePieceAttributes()
 {
   vtkPointSet* input = this->GetInputAsPointSet();
   this->WriteScalarAttribute("NumberOfPoints", input->GetNumberOfPoints());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteInlinePiece(vtkIndent indent)
 {
   vtkPointSet* input = this->GetInputAsPointSet();
@@ -523,13 +527,13 @@ void vtkXMLUnstructuredDataWriter::WriteInlinePiece(vtkIndent indent)
   this->WritePointsInline(input->GetPoints(), indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteAppendedPieceAttributes(int index)
 {
   this->NumberOfPointsPositions[index] = this->ReserveAttributeSpace("NumberOfPoints");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteAppendedPiece(int index, vtkIndent indent)
 {
   vtkPointSet* input = this->GetInputAsPointSet();
@@ -549,7 +553,7 @@ void vtkXMLUnstructuredDataWriter::WriteAppendedPiece(int index, vtkIndent inden
   this->WritePointsAppended(input->GetPoints(), indent, &this->PointsOM->GetPiece(index));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteAppendedPieceData(int index)
 {
   ostream& os = *(this->Stream);
@@ -602,7 +606,7 @@ void vtkXMLUnstructuredDataWriter::WriteAppendedPieceData(int index)
     input->GetPoints(), this->CurrentTimeIndex, &this->PointsOM->GetPiece(index));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsInline(const char* name, vtkCellIterator* cellIter,
   vtkIdType numCells, vtkIdType cellSizeEstimate, vtkIndent indent)
 {
@@ -636,14 +640,14 @@ void vtkXMLUnstructuredDataWriter::WriteCellsInline(const char* name, vtkCellIte
   this->WriteCellsInlineWorker(name, types.GetPointer(), indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsInline(
   const char* name, vtkCellArray* cells, vtkDataArray* types, vtkIndent indent)
 {
   this->WriteCellsInline(name, cells, types, nullptr, nullptr, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsInline(const char* name, vtkCellArray* cells,
   vtkDataArray* types, vtkIdTypeArray* faces, vtkIdTypeArray* faceOffsets, vtkIndent indent)
 {
@@ -656,7 +660,7 @@ void vtkXMLUnstructuredDataWriter::WriteCellsInline(const char* name, vtkCellArr
   this->WriteCellsInlineWorker(name, types, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsInlineWorker(
   const char* name, vtkDataArray* types, vtkIndent indent)
 {
@@ -736,14 +740,14 @@ void vtkXMLUnstructuredDataWriter::WriteCellsInlineWorker(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsAppended(
   const char* name, vtkDataArray* types, vtkIndent indent, OffsetsManagerGroup* cellsManager)
 {
   this->WriteCellsAppended(name, types, nullptr, nullptr, indent, cellsManager);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsAppended(const char* name, vtkDataArray* types,
   vtkIdTypeArray* faces, vtkIdTypeArray* faceOffsets, vtkIndent indent,
   OffsetsManagerGroup* cellsManager)
@@ -785,7 +789,7 @@ void vtkXMLUnstructuredDataWriter::WriteCellsAppended(const char* name, vtkDataA
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsAppended(const char* name, vtkCellIterator* cellIter,
   vtkIdType numCells, vtkIndent indent, OffsetsManagerGroup* cellsManager)
 {
@@ -816,14 +820,14 @@ void vtkXMLUnstructuredDataWriter::WriteCellsAppended(const char* name, vtkCellI
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsAppendedData(
   vtkCellArray* cells, vtkDataArray* types, int timestep, OffsetsManagerGroup* cellsManager)
 {
   this->WriteCellsAppendedData(cells, types, nullptr, nullptr, timestep, cellsManager);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsAppendedData(vtkCellIterator* cellIter,
   vtkIdType numCells, vtkIdType cellSizeEstimate, int timestep, OffsetsManagerGroup* cellsManager)
 {
@@ -859,7 +863,7 @@ void vtkXMLUnstructuredDataWriter::WriteCellsAppendedData(vtkCellIterator* cellI
   this->WriteCellsAppendedDataWorker(types.GetPointer(), timestep, cellsManager);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsAppendedData(vtkCellArray* cells, vtkDataArray* types,
   vtkIdTypeArray* faces, vtkIdTypeArray* faceOffsets, int timestep,
   OffsetsManagerGroup* cellsManager)
@@ -873,7 +877,7 @@ void vtkXMLUnstructuredDataWriter::WriteCellsAppendedData(vtkCellArray* cells, v
   this->WriteCellsAppendedDataWorker(types, timestep, cellsManager);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::WriteCellsAppendedDataWorker(
   vtkDataArray* types, int timestep, OffsetsManagerGroup* cellsManager)
 {
@@ -926,12 +930,12 @@ void vtkXMLUnstructuredDataWriter::WriteCellsAppendedDataWorker(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::ConvertCells(
   vtkCellIterator* cellIter, vtkIdType numCells, vtkIdType cellSizeEstimate)
 {
-  vtkNew<vtkAOSDataArrayTemplate<vtkIdType> > conn;
-  vtkNew<vtkAOSDataArrayTemplate<vtkIdType> > offsets;
+  vtkNew<vtkAOSDataArrayTemplate<vtkIdType>> conn;
+  vtkNew<vtkAOSDataArrayTemplate<vtkIdType>> offsets;
 
   conn->SetName("connectivity");
   offsets->SetName("offsets");
@@ -1000,7 +1004,7 @@ struct ConvertCellsVisitor
 
 } // end anon namespace
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::ConvertCells(vtkCellArray* cells)
 {
   ConvertCellsVisitor visitor;
@@ -1009,7 +1013,7 @@ void vtkXMLUnstructuredDataWriter::ConvertCells(vtkCellArray* cells)
   this->CellOffsets = std::move(visitor.Offsets);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::ConvertFaces(vtkIdTypeArray* faces, vtkIdTypeArray* faceOffsets)
 {
   if (!faces || !faces->GetNumberOfTuples() || !faceOffsets || !faceOffsets->GetNumberOfTuples())
@@ -1068,7 +1072,7 @@ void vtkXMLUnstructuredDataWriter::ConvertFaces(vtkIdTypeArray* faces, vtkIdType
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkXMLUnstructuredDataWriter::GetNumberOfInputPoints()
 {
   vtkPointSet* input = this->GetInputAsPointSet();
@@ -1076,7 +1080,7 @@ vtkIdType vtkXMLUnstructuredDataWriter::GetNumberOfInputPoints()
   return points ? points->GetNumberOfPoints() : 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::CalculateDataFractions(float* fractions)
 {
   // Calculate the fraction of point/cell data and point
@@ -1097,7 +1101,7 @@ void vtkXMLUnstructuredDataWriter::CalculateDataFractions(float* fractions)
   fractions[3] = 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::CalculateCellFractions(float* fractions, vtkIdType typesSize)
 {
   // Calculate the fraction of cell specification data contributed by
@@ -1119,7 +1123,7 @@ void vtkXMLUnstructuredDataWriter::CalculateCellFractions(float* fractions, vtkI
   fractions[5] = 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLUnstructuredDataWriter::SetInputUpdateExtent(int piece, int numPieces, int ghostLevel)
 {
   vtkInformation* inInfo = this->GetExecutive()->GetInputInformation(0, 0);

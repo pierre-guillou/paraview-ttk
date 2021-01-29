@@ -72,8 +72,6 @@ public:
    * for all blocks to true.
    */
   void RemoveBlockVisibilities();
-  // This method is deprecated and will be removed in VTK 8.2. It is misspelled.
-  VTK_LEGACY(void RemoveBlockVisibilites());
 
   /**
    * Returns true if any block has any block pickability is set.
@@ -205,7 +203,7 @@ public:
    * parent_obj. Traverses the entire hierarchy recursively.
    */
   static vtkDataObject* DataObjectFromIndex(
-    const unsigned int flat_index, vtkDataObject* parent_obj, unsigned int& current_flat_index);
+    const unsigned int flat_index, vtkDataObject* parent_obj, unsigned int current_flat_index = 0);
 
   void VisitVisibilities(std::function<bool(vtkDataObject*, bool)> visitor)
   {

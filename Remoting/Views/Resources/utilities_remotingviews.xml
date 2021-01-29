@@ -248,6 +248,258 @@
         </Hints>
       </IntVectorProperty>
 
+      <!-- Tone Mapping -->
+      <IntVectorProperty name="ToneMappingType"
+                         number_of_elements="1"
+                         default_values="3"
+                         panel_visibility="advanced">
+        <Documentation>
+          Specify tone mapping type. Clamp, Reinhard and Exponential are simpler than the GenericFilmic
+          operator which can be fully parameterized to configure the shadows as well as the highlights.
+        </Documentation>
+        <EnumerationDomain name="enum">
+          <Entry text="Clamp" value="0" />
+          <Entry text="Reinhard" value="1" />
+          <Entry text="Exponential" value="2" />
+          <Entry text="GenericFilmic" value="3" />
+        </EnumerationDomain>
+      </IntVectorProperty>
+      <IntVectorProperty name="GenericFilmicPresets"
+                         number_of_elements="1"
+                         default_values="1"
+                         panel_visibility="advanced">
+        <Documentation>
+          Use predefined presets for Generic Filmic. Using the default parameters it approximates the Academy Color Encoding System (ACES).
+          To use the popular "Uncharted 2" filmic tone mapping curve instead, set the property to Uncharted2.
+          Set this property to Custom to set custom parameters.
+        </Documentation>
+        <EnumerationDomain name="enum">
+          <Entry text="Custom" value="0" />
+          <Entry text="DefaultPresets" value="1" />
+          <Entry text="Uncharted2" value="2" />
+        </EnumerationDomain>
+        <Hints>
+          <!-- Visible if Generic Filmic -->
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="ToneMappingType"
+                                       value="3"/>
+        </Hints>
+      </IntVectorProperty>
+      <DoubleVectorProperty name="Contrast"
+                            label="Contrast"
+                            default_values="1.6773"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <DoubleRangeDomain name="range" min="0.0" max="10.0" />
+        <Documentation>
+          Adjust the toe of the curve. Typically in [1-2].
+        </Documentation>
+        <Hints>
+          <!-- Visible if Generic Filmic AND GenericFilmicPresets set to Custom-->
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="ToneMappingType"
+                                       value="3" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="GenericFilmicPresets"
+                                       value="0" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty name="Shoulder"
+                            label="Shoulder"
+                            default_values="0.9714"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <DoubleRangeDomain name="range" min="0.0" max="10.0" />
+        <Documentation>
+          Limit the output in the shoulder region of the curve.
+          Typically in [0.9-1].
+        </Documentation>
+        <Hints>
+          <!-- Visible if Generic Filmic AND GenericFilmicPresets set to Custom-->
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="ToneMappingType"
+                                       value="3" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="GenericFilmicPresets"
+                                       value="0" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty name="MidIn"
+                            label="MidIn"
+                            default_values="0.18"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <DoubleRangeDomain name="range" min="0.0" max="1.0" />
+        <Documentation>
+          Mid level anchor input in percent gray.
+        </Documentation>
+        <Hints>
+          <!-- Visible if Generic Filmic AND GenericFilmicPresets set to Custom-->
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="ToneMappingType"
+                                       value="3" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="GenericFilmicPresets"
+                                       value="0" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty name="MidOut"
+                            label="MidOut"
+                            default_values="0.18"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <DoubleRangeDomain name="range" min="0.0" max="1.0" />
+        <Documentation>
+          Mid level anchor output in percent gray.
+        </Documentation>
+        <Hints>
+          <!-- Visible if Generic Filmic AND GenericFilmicPresets set to Custom-->
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="ToneMappingType"
+                                       value="3" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="GenericFilmicPresets"
+                                       value="0" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty name="HdrMax"
+                            label="HdrMax"
+                            default_values="11.0785"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <DoubleRangeDomain name="range" min="1.0" max="10000.0" />
+        <Documentation>
+          Maximum HDR input that is not clipped.
+        </Documentation>
+        <Hints>
+          <!-- Visible if Generic Filmic AND GenericFilmicPresets set to Custom-->
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="ToneMappingType"
+                                       value="3" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="GenericFilmicPresets"
+                                       value="0" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </DoubleVectorProperty>
+      <IntVectorProperty name="UseACES"
+                         default_values="1"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Enable the Academy Color Encoding System (ACES).
+        </Documentation>
+        <Hints>
+          <!-- Visible if Generic Filmic AND GenericFilmicPresets set to Custom-->
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="ToneMappingType"
+                                       value="3" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="GenericFilmicPresets"
+                                       value="0" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </IntVectorProperty>
+
+      <!-- SSAO -->
+      <IntVectorProperty name="UseSSAODefaultPresets"
+                            label="Use Default Presets"
+                            default_values="1"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          If enabled, the SSAO radius and bias will be calculated depending on
+          the size of the bounding box of the geometry. Disable to manually specify the radius and bias.
+        </Documentation>
+      </IntVectorProperty>
+      <DoubleVectorProperty name="Radius"
+                         default_values="0.5"
+                         label="SSAO hemisphere radius"
+                         panel_visibility="advanced"
+                         number_of_elements="1">
+        <Documentation>
+          Set the SSAO hemisphere radius.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="UseSSAODefaultPresets"
+                                       value="0"/>
+        </Hints>
+        <DoubleRangeDomain name="range" min="0.0" max="5.0" />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty name="Bias"
+                            default_values="0.01"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <DoubleRangeDomain name="range" min="0.0" max="1.0" />
+        <Documentation>
+          Set the SSAO bias when comparing samples.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="UseSSAODefaultPresets"
+                                       value="0"/>
+        </Hints>
+      </DoubleVectorProperty>
+      <IntVectorProperty name="KernelSize"
+                            default_values="32"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <IntRangeDomain name="range" min="0" max="1024" />
+        <Documentation>
+          Set the SSAO number of samples.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty name="Blur"
+                            default_values="0"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Enable or disable the blurring of the ambient occlusion.
+          Blurring can help to improve the result if samples number is low.
+        </Documentation>
+      </IntVectorProperty>
+
       <DoubleVectorProperty name="LODThreshold"
         label="LOD Threshold"
         default_values="20.0"
@@ -269,7 +521,7 @@
         <Documentation>
           Set the factor used to compute the decimated geometry when employed.
           This affects the size of the grid used for
-          quadric clustering, for example. 1.0 implies maximum resolution while 0
+          quadric clustering. For example, 1.0 implies maximum resolution while 0
           implies minimum resolution.
         </Documentation>
         <Hints>
@@ -357,9 +609,9 @@
         command="SetOutlineThreshold">
         <IntRangeDomain name="range" min="0" max="500" />
         <Documentation>
-          When opening a dataset or creating a new filters, use Outline representation,
-          if possible, when showing datasets with number of cells greater than thus
-          threshold (in millions).
+          When opening a dataset or creating a new filter that has a number of
+          cells greater than this threshold (in millions), use the Outline
+          representation by default.
         </Documentation>
       </IntVectorProperty>
 
@@ -417,6 +669,20 @@
         </Hints>
       </IntVectorProperty>
 
+      <IntVectorProperty name="EnableFastPreselection"
+                         label="Enable fast preselection"
+                         command="SetEnableFastPreselection"
+                         default_values="0"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Enable fast preselection. When enabled, the preselection is computed using
+          the visible geometry. This dramatically improves performance of preselection
+          highlighting, especially for big datasets.
+        </Documentation>
+      </IntVectorProperty>
+
       <PropertyGroup label="Geometry Mapper Options">
         <Property name="ResolveCoincidentTopology" />
         <Property name="PolygonOffsetParameters" />
@@ -436,6 +702,25 @@
         <Property name="FXAASubpixelContrastThreshold" />
         <Property name="FXAAUseHighQualityEndpoints" />
         <Property name="FXAAEndpointSearchIterations" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Tone Mapping Options">
+        <Property name="ToneMappingType" />
+        <Property name="GenericFilmicPresets" />
+        <Property name="Contrast" />
+        <Property name="Shoulder" />
+        <Property name="MidIn" />
+        <Property name="MidOut" />
+        <Property name="HdrMax" />
+        <Property name="UseACES" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Ambient Occlusion Options">
+        <Property name="UseSSAODefaultPresets" />
+        <Property name="Radius" />
+        <Property name="KernelSize" />
+        <Property name="Bias" />
+        <Property name="Blur" />
       </PropertyGroup>
 
       <PropertyGroup label="Interactive Rendering Options">
@@ -787,7 +1072,6 @@
         </Documentation>
       </IntVectorProperty>
 
-
       <IntVectorProperty name="EnableOpacityMapping"
                          command="SetEnableOpacityMapping"
                          number_of_elements="1"
@@ -827,6 +1111,14 @@
                          name="UseLogScale"
                          number_of_elements="1">
         <BooleanDomain name="bool" />
+      </IntVectorProperty>
+      <IntVectorProperty
+                         default_values="0"
+                         name="UseOpacityControlPointsFreehandDrawing"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation> Proxy only property used by the ColorOpacityWidget to know if freehand drawing should be used
+        </Documentation>
       </IntVectorProperty>
       <IntVectorProperty default_values="0"
                          name="ShowDataHistogram"
@@ -1065,6 +1357,7 @@
         <Property name="RGBPoints" function="XRGBPoints" />
         <Property name="ScalarOpacityFunction" function="ScalarOpacityFunction" />
         <Property name="UseLogScale" function="UseLogScale" />
+        <Property name="UseOpacityControlPointsFreehandDrawing" function="UseOpacityControlPointsFreehandDrawing" />
         <Property name="ShowDataHistogram" function="ShowDataHistogram" />
         <Property name="AutomaticDataHistogramComputation" function="AutomaticDataHistogramComputation" />
         <Property name="DataHistogramNumberOfBins" function="DataHistogramNumberOfBins" />
@@ -2448,6 +2741,7 @@
           <Entry text="Interlaced" value="3" />
           <Entry text="Left Eye Only" value="4" />
           <Entry text="Right Eye Only" value="5" />
+          <Entry text="Both Eyes" value="11" />
           <Entry text="Dresden" value="6" />
           <Entry text="Anaglyph" value="7" />
           <Entry text="Checkerboard" value="8" />
@@ -2527,10 +2821,17 @@
     </Documentation>
 
     <!-- ================================================================== -->
-    <Proxy name="PNG" class="vtkPNGWriter" processes="client">
+    <Proxy name="PNG" class="vtkPNGWriter" processes="client|dataserver">
       <Documentation>
         Writer for saving screenshots as PNG files.
       </Documentation>
+
+      <StringVectorProperty name="FileName" command="SetFileName"
+        number_of_elements="1"
+        default_values=""
+        panel_visibility="never">
+      </StringVectorProperty>
+
       <IntVectorProperty name="CompressionLevel"
         command="SetCompressionLevel"
         number_of_elements="1"
@@ -2559,10 +2860,17 @@
     </Proxy>
 
     <!-- ================================================================== -->
-    <Proxy name="JPEG" class="vtkJPEGWriter" processes="client">
+    <Proxy name="JPEG" class="vtkJPEGWriter" processes="client|dataserver">
       <Documentation>
         Writer for saving screenshots as JPEG files.
       </Documentation>
+
+      <StringVectorProperty name="FileName" command="SetFileName"
+        number_of_elements="1"
+        default_values=""
+        panel_visibility="never">
+      </StringVectorProperty>
+
       <IntVectorProperty name="Quality"
         command="SetQuality"
         number_of_elements="1"
@@ -2589,10 +2897,17 @@
     </Proxy>
 
     <!-- ================================================================== -->
-    <Proxy name="TIFF" class="vtkTIFFWriter" processes="client">
+    <Proxy name="TIFF" class="vtkTIFFWriter" processes="client|dataserver">
       <Documentation>
         Writer for saving screenshots as TIFF files.
       </Documentation>
+
+      <StringVectorProperty name="FileName" command="SetFileName"
+        number_of_elements="1"
+        default_values=""
+        panel_visibility="never">
+      </StringVectorProperty>
+
       <IntVectorProperty name="Compression"
         command="SetCompression"
         number_of_elements="1"
@@ -2619,10 +2934,17 @@
     </Proxy>
 
     <!-- ================================================================== -->
-    <Proxy name="BMP" class="vtkBMPWriter" processes="client">
+    <Proxy name="BMP" class="vtkBMPWriter" processes="client|dataserver">
       <Documentation>
         Writer for saving screenshots as BMP files.
       </Documentation>
+
+      <StringVectorProperty name="FileName" command="SetFileName"
+        number_of_elements="1"
+        default_values=""
+        panel_visibility="never">
+      </StringVectorProperty>
+
       <Hints>
         <FormatOptions extensions="bmp"
           file_description="Bitmap images" />
@@ -2630,61 +2952,5 @@
     </Proxy>
 
     <!-- end of "screenshot_writers" -->
-  </ProxyGroup>
-
-  <!-- ==================================================================== -->
-  <ProxyGroup name="insitu2_writer_parameters">
-
-    <!-- ================================================================== -->
-    <SaveScreenshotProxy base_proxygroup="misc" base_proxyname="SaveScreenshotBase"
-        name="SaveScreenshot" processes="client">
-      <Documentation>
-        Variation with catalyst specific extensions.
-      </Documentation>
-
-      <ProxyProperty name="Format">
-        <ProxyListDomain name="proxy_list">
-          <Group name="screenshot_writers" />
-          <Group name="insitu2_misc" />
-        </ProxyListDomain>
-        <Hints>
-          <ProxySelectionWidget enabled="0" />
-        </Hints>
-      </ProxyProperty>
-
-      <PropertyGroup label="Size and Scaling">
-        <Property name="SaveAllViews" />
-        <Property name="ImageResolution" />
-        <Property name="FontScaling" />
-      </PropertyGroup>
-
-      <PropertyGroup label="Separator Options" >
-        <Property name="SeparatorWidth" />
-        <Property name="SeparatorColor" />
-      </PropertyGroup>
-
-      <PropertyGroup label="Coloring">
-        <Property name="OverrideColorPalette" />
-        <Property name="StereoMode" />
-        <Property name="TransparentBackground" />
-      </PropertyGroup>
-
-      <PropertyGroup label="Image Options">
-        <Property name="Format" />
-      </PropertyGroup>
-
-      <SubProxy>
-        <Proxy name="CatalystOptions" proxygroup="misc" proxyname="CatalystOptions"></Proxy>
-        <ExposedProperties>
-           <PropertyGroup label="Catalyst Options">
-             <Property name="WriteFrequency" />
-             <Property name="CatalystFilePattern" />
-             <Property name="CatalystFitToScreen" />
-           </PropertyGroup>
-        </ExposedProperties>
-      </SubProxy>
-    </SaveScreenshotProxy>
-
-    <!-- end of "insitu2_writer_parameters" -->
   </ProxyGroup>
 </ServerManagerConfiguration>

@@ -263,6 +263,14 @@ void vtkInitializationHelper::Initialize(int argc, char** argv, int type, vtkPVO
                                     "\"AtomicNumbers\": \"BlueObeliskElements\" "
                                     "} }",
     0.0);
+
+  // until we replace PARAVIEW_SMTESTDRIVER with something cleaner, we have
+  // to print this greeting out when the process is launched from
+  // smTestDriver
+  if (vtksys::SystemTools::HasEnv("PARAVIEW_SMTESTDRIVER"))
+  {
+    cout << "Process started" << endl;
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -383,7 +391,6 @@ void vtkInitializationHelper::LoadSettings()
 std::string vtkInitializationHelper::GetUserSettingsDirectory()
 {
   std::string organizationName(vtkInitializationHelper::GetOrganizationName());
-  std::string applicationName(vtkInitializationHelper::GetApplicationName());
 #if defined(_WIN32)
   const char* appData = vtksys::SystemTools::GetEnv("APPDATA");
   if (!appData)
@@ -396,7 +403,7 @@ std::string vtkInitializationHelper::GetUserSettingsDirectory()
   {
     directoryPath.append(separator);
   }
-  directoryPath += applicationName + separator;
+  directoryPath += organizationName + separator;
 #else
   std::string directoryPath;
   std::string separator("/");

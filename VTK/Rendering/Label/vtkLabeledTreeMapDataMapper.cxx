@@ -125,13 +125,13 @@ vtkLabeledTreeMapDataMapper::~vtkLabeledTreeMapDataMapper()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLabeledTreeMapDataMapper::SetRectanglesArrayName(const char* name)
 {
   this->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_VERTICES, name);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Release any graphics resources that are being consumed by this mapper.
 void vtkLabeledTreeMapDataMapper::ReleaseGraphicsResources(vtkWindow* win)
 {
@@ -224,10 +224,10 @@ int vtkLabeledTreeMapDataMapper::UpdateWindowInfo(vtkViewport* viewport)
 
   // Get the window extents
   vtkWindow* win = viewport->GetVTKWindow();
-  int* winPos = win->GetPosition();
+  const int* winPos = win->GetPosition();
   this->WindowLimits[0][0] = winPos[0];
   this->WindowLimits[1][0] = winPos[1];
-  int* winSize = win->GetSize();
+  const int* winSize = win->GetSize();
   this->WindowLimits[0][1] = this->WindowLimits[0][0] + winSize[0];
   this->WindowLimits[1][1] = this->WindowLimits[1][0] + winSize[1];
 
@@ -299,7 +299,7 @@ void vtkLabeledTreeMapDataMapper::GetVertexLabel(vtkIdType vertex, vtkDataArray*
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLabeledTreeMapDataMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* actor)
 {
   int i;
@@ -313,7 +313,7 @@ void vtkLabeledTreeMapDataMapper::RenderOverlay(vtkViewport* viewport, vtkActor2
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLabeledTreeMapDataMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkActor2D* actor)
 {
   int i, numComp = 0, pointIdLabels, activeComp = 0;

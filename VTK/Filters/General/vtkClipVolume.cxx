@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkClipVolume.h"
 
 #include "vtkCellArray.h"
@@ -272,7 +276,7 @@ int vtkClipVolume::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Interior voxels (i.e., inside the clip region) are tetrahedralized using
   // 5 tetrahedra. This requires swapping the face diagonals on alternating
-  // voxels to insure compatibility. Loop over i-j-k directions so that we
+  // voxels to ensure compatibility. Loop over i-j-k directions so that we
   // can control the direction of face diagonals on voxels (i.e., the flip
   // variable). The flip variable also controls the generation of tetrahedra
   // in boundary voxels in ClipTets() and the ordered Delaunay triangulation
@@ -683,7 +687,7 @@ void vtkClipVolume::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Mixed 3D Cell Type: " << (this->Mixed3DCellGeneration ? "On\n" : "Off\n");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkClipVolume::ReportReferences(vtkGarbageCollector* collector)
 {
   this->Superclass::ReportReferences(collector);

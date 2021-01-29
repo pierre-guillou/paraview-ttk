@@ -21,13 +21,13 @@
 #pragma warning(disable : 4127)
 #endif
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPyObject::vtkSmartPyObject(PyObject* obj)
   : Object(obj)
 {
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPyObject::vtkSmartPyObject(const vtkSmartPyObject& other)
   : Object(other.Object)
 {
@@ -35,7 +35,7 @@ vtkSmartPyObject::vtkSmartPyObject(const vtkSmartPyObject& other)
   Py_XINCREF(this->Object);
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPyObject::~vtkSmartPyObject()
 {
   if (Py_IsInitialized())
@@ -45,9 +45,14 @@ vtkSmartPyObject::~vtkSmartPyObject()
   }
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPyObject& vtkSmartPyObject::operator=(const vtkSmartPyObject& other)
 {
+  if (this == &other)
+  {
+    return *this;
+  }
+
   vtkPythonScopeGilEnsurer gilEnsurer;
   Py_XDECREF(this->Object);
   this->Object = other.Object;
@@ -55,7 +60,7 @@ vtkSmartPyObject& vtkSmartPyObject::operator=(const vtkSmartPyObject& other)
   return *this;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPyObject& vtkSmartPyObject::operator=(PyObject* obj)
 {
   vtkPythonScopeGilEnsurer gilEnsurer;
@@ -65,7 +70,7 @@ vtkSmartPyObject& vtkSmartPyObject::operator=(PyObject* obj)
   return *this;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSmartPyObject::TakeReference(PyObject* obj)
 {
   vtkPythonScopeGilEnsurer gilEnsurer;
@@ -73,25 +78,25 @@ void vtkSmartPyObject::TakeReference(PyObject* obj)
   this->Object = obj;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 PyObject* vtkSmartPyObject::operator->() const
 {
   return this->Object;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPyObject::operator PyObject*() const
 {
   return this->Object;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSmartPyObject::operator bool() const
 {
   return this->Object != nullptr;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 PyObject* vtkSmartPyObject::ReleaseReference()
 {
   PyObject* tmp = this->Object;
@@ -99,13 +104,13 @@ PyObject* vtkSmartPyObject::ReleaseReference()
   return tmp;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 PyObject* vtkSmartPyObject::GetPointer() const
 {
   return this->Object;
 }
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 PyObject* vtkSmartPyObject::GetAndIncreaseReferenceCount()
 {
   vtkPythonScopeGilEnsurer gilEnsurer;

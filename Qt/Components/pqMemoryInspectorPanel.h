@@ -38,7 +38,7 @@ class PQCOMPONENTS_EXPORT pqMemoryInspectorPanel : public QWidget
 {
   Q_OBJECT
 public:
-  pqMemoryInspectorPanel(QWidget* parent = 0, Qt::WindowFlags f = 0);
+  pqMemoryInspectorPanel(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags{});
   ~pqMemoryInspectorPanel() override;
 
   // Description:
@@ -50,7 +50,7 @@ protected:
   // Update when the panel is made visible.
   void showEvent(QShowEvent* event) override;
 
-protected slots:
+protected Q_SLOTS:
 
   // Description:
   // Configure the UI based on conneccted servers.

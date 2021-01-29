@@ -112,7 +112,7 @@ int vtkDataSetReader::ReadMetaDataSimple(const std::string& fname, vtkInformatio
     reader->SetReadFromInputString(this->GetReadFromInputString());
     reader->SetInputArray(this->GetInputArray());
     reader->SetInputString(this->GetInputString());
-    retVal = reader->ReadMetaDataSimple(fname.c_str(), metadata);
+    retVal = reader->ReadMetaDataSimple(fname, metadata);
     reader->Delete();
     return retVal;
   }
@@ -324,7 +324,7 @@ int vtkDataSetReader::ReadOutputType()
     return -1;
   }
 
-  if (!strncmp(this->LowerCase(line), "dataset", (unsigned long)7))
+  if (!strncmp(this->LowerCase(line), "dataset", 7))
   {
     // See if type is recognized.
     //

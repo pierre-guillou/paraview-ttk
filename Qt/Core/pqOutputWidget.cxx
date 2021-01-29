@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkObjectFactory.h"
 #include "vtkOutputWindow.h"
 
+#include <QClipboard>
 #include <QMutexLocker>
 #include <QPointer>
 #include <QScopedValueRollback>
@@ -128,12 +129,12 @@ void MessageHandler::handler(QtMsgType type, const QMessageLogContext& cntxt, co
 {
   QString formattedMsg = qFormatLogMessage(type, cntxt, msg);
   formattedMsg += "\n";
-  emit instance()->message(type, formattedMsg);
+  Q_EMIT instance()->message(type, formattedMsg);
 }
 
 void MessageHandler::handlerVTK(QtMsgType type, const QString& msg)
 {
-  emit instance()->showMessage(msg, type);
+  Q_EMIT instance()->showMessage(msg, type);
 }
 
 MessageHandler* MessageHandler::instance()
@@ -206,26 +207,33 @@ public:
     this->VTKOutputWindow->SetWidget(self);
 
     // this list needs to be reevaluated. For now, leaving it untouched.
-    this->SuppressedStrings
-      << "QEventDispatcherUNIX::unregisterTimer"
-      << "looking for 'HistogramView"
-      << "(looking for 'XYPlot"
-      << "Unrecognised OpenGL version"
-      /* Skip DBusMenuExporterPrivate errors. These, I suspect, are due to
-       * repeated menu actions in the menus. */
-      << "DBusMenuExporterPrivate"
-      << "DBusMenuExporterDBus"
-      /* This error appears in Qt 5.6 on Mac OS X 10.11.1 (and maybe others) */
-      << "QNSView mouseDragged: Internal mouse button tracking invalid"
-      << "Unrecognised OpenGL version"
-      /* Skip DBusMenuExporterPrivate errors. These, I suspect, are due to
-       * repeated menu actions in the menus. */
-      << "DBusMenuExporterPrivate"
-      << "DBusMenuExporterDBus"
-      /* Skip XCB errors coming from Qt 5 tests. */
-      << "QXcbConnection: XCB"
-      /* This error message appears on some HDPi screens with not clear reasons */
-      << "QWindowsWindow::setGeometry: Unable to set geometry";
+    this->SuppressedStrings << "QEventDispatcherUNIX::unregisterTimer"
+                            << "looking for 'HistogramView"
+                            << "(looking for 'XYPlot"
+                            << "Unrecognised OpenGL version"
+                            /* Skip DBusMenuExporterPrivate errors. These, I suspect, are due to
+                             * repeated menu actions in the menus. */
+                            << "DBusMenuExporterPrivate"
+                            << "DBusMenuExporterDBus"
+                            /* This error appears in Qt 5.6 on Mac OS X 10.11.1 (and maybe others)
+                               */
+                            << "QNSView mouseDragged: Internal mouse button tracking invalid"
+                            << "Unrecognised OpenGL version"
+                            /* Skip DBusMenuExporterPrivate errors. These, I suspect, are due to
+                             * repeated menu actions in the menus. */
+                            << "DBusMenuExporterPrivate"
+                            << "DBusMenuExporterDBus"
+                            /* Skip XCB errors coming from Qt 5 tests. */
+                            << "QXcbConnection: XCB"
+                            /* This error message appears on some HDPi screens with not clear
+                               reasons */
+                            << "QWindowsWindow::setGeometry: Unable to set geometry"
+                            /* Skip qt.qpa.xcb errors */
+                            << "qt.qpa.xcb: internal error"
+                            /* suppress "warning: internal error:  void
+                               QXcbWindow::setNetWmStateOnUnmappedWindow() called on mapped window"
+                               */
+                            << "QXcbWindow::setNetWmStateOnUnmappedWindow";
   }
 
   void displayMessageInConsole(const QString& message, QtMsgType type)
@@ -399,11 +407,15 @@ pqOutputWidget::pqOutputWidget(QWidget* parentObject, Qt::WindowFlags f)
   : Superclass(parentObject, f)
   , Internals(new pqOutputWidget::pqInternals(this))
 {
+  // Setup Qt message pattern
+  qSetMessagePattern("%{type}: In %{file}, line %{line}\n%{type}: %{message}");
+
   pqInternals& internals = (*this->Internals);
 
   this->connect(
     internals.Ui.showFullMessagesCheckBox, SIGNAL(toggled(bool)), SLOT(showFullMessages(bool)));
   this->connect(internals.Ui.saveButton, SIGNAL(clicked()), SLOT(saveToFile()));
+  this->connect(internals.Ui.copyButton, SIGNAL(clicked()), SLOT(copyToClipboard()));
 
   // Tell VTK to forward all messages.
   vtkOutputWindow::SetInstance(internals.VTKOutputWindow.Get());
@@ -454,6 +466,13 @@ void pqOutputWidget::saveToFile()
 }
 
 //-----------------------------------------------------------------------------
+void pqOutputWidget::copyToClipboard()
+{
+  QClipboard* clipboard = QGuiApplication::clipboard();
+  clipboard->setText(this->Internals->Ui.consoleWidget->text());
+}
+
+//-----------------------------------------------------------------------------
 void pqOutputWidget::clear()
 {
   pqInternals& internals = (*this->Internals);
@@ -470,7 +489,7 @@ bool pqOutputWidget::displayMessage(const QString& message, QtMsgType type)
     QString summary = this->extractSummary(tmessage, type);
     this->Internals->addMessageToTree(message, type, summary);
 
-    emit this->messageDisplayed(message, type);
+    Q_EMIT this->messageDisplayed(message, type);
     return true;
   }
   return false;

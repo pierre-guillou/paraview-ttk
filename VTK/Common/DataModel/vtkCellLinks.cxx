@@ -19,19 +19,20 @@
 #include "vtkGenericCell.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
+#include "vtkSMPTools.h"
 
 #include <vector>
 
 vtkStandardNewMacro(vtkCellLinks);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCellLinks::~vtkCellLinks()
 {
   this->Type = vtkAbstractCellLinks::CELL_LINKS;
   this->Initialize();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCellLinks::Initialize()
 {
   if (this->Array != nullptr)
@@ -44,9 +45,11 @@ void vtkCellLinks::Initialize()
     delete[] this->Array;
     this->Array = nullptr;
   }
+  this->NumberOfPoints = 0;
+  this->NumberOfCells = 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCellLinks::Allocate(vtkIdType sz, vtkIdType ext)
 {
   static vtkCellLinks::Link linkInit = { 0, nullptr };
@@ -63,7 +66,7 @@ void vtkCellLinks::Allocate(vtkIdType sz, vtkIdType ext)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Allocate memory for the list of lists of cell ids.
 void vtkCellLinks::AllocateLinks(vtkIdType n)
 {
@@ -73,20 +76,20 @@ void vtkCellLinks::AllocateLinks(vtkIdType n)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Reclaim any unused memory.
 void vtkCellLinks::Squeeze()
 {
   this->Resize(this->MaxId + 1);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCellLinks::Reset()
 {
   this->MaxId = -1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Private function does "reallocate"
 //
@@ -125,12 +128,12 @@ vtkCellLinks::Link* vtkCellLinks::Resize(vtkIdType sz)
   return this->Array;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Build the link list array.
 void vtkCellLinks::BuildLinks(vtkDataSet* data)
 {
-  vtkIdType numPts = data->GetNumberOfPoints();
-  vtkIdType numCells = data->GetNumberOfCells();
+  vtkIdType numPts = this->NumberOfPoints = data->GetNumberOfPoints();
+  vtkIdType numCells = this->NumberOfCells = data->GetNumberOfCells();
   int j;
   vtkIdType cellId;
 
@@ -202,7 +205,7 @@ void vtkCellLinks::BuildLinks(vtkDataSet* data)
   } // end else
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Insert a new point into the cell-links data structure. The size parameter
 // is the initial size of the list.
 vtkIdType vtkCellLinks::InsertNextPoint(int numLinks)
@@ -215,7 +218,29 @@ vtkIdType vtkCellLinks::InsertNextPoint(int numLinks)
   return this->MaxId;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Mark cells with one or more points whose degree lies in the range indicated.
+void vtkCellLinks::SelectCells(vtkIdType minMaxDegree[2], unsigned char* cellSelection)
+{
+  std::fill_n(cellSelection, this->NumberOfCells, 0);
+  vtkSMPTools::For(0, this->NumberOfPoints,
+    [this, minMaxDegree, cellSelection](vtkIdType ptId, vtkIdType endPtId) {
+      for (; ptId < endPtId; ++ptId)
+      {
+        vtkIdType degree = this->GetNcells(0);
+        if (degree >= minMaxDegree[0] && degree < minMaxDegree[1])
+        {
+          vtkIdType* cells = this->GetCells(ptId);
+          for (auto i = 0; i < degree; ++i)
+          {
+            cellSelection[cells[i]] = 1;
+          }
+        }
+      } // for all points in this batch
+    }); // end lambda
+}
+
+//------------------------------------------------------------------------------
 unsigned long vtkCellLinks::GetActualMemorySize()
 {
   vtkIdType size = 0;
@@ -232,7 +257,7 @@ unsigned long vtkCellLinks::GetActualMemorySize()
   return static_cast<unsigned long>(ceil(size / 1024.0)); // kibibytes
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCellLinks::DeepCopy(vtkAbstractCellLinks* src)
 {
   vtkCellLinks* clinks = static_cast<vtkCellLinks*>(src);
@@ -241,7 +266,7 @@ void vtkCellLinks::DeepCopy(vtkAbstractCellLinks* src)
   this->MaxId = clinks->MaxId;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCellLinks::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

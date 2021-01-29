@@ -335,6 +335,7 @@ void pqQueryClauseWidget::populateSelectionCondition()
 #ifndef REMOVE_COLLECTIVE_CLAUSES
       this->Internals->condition->addItem("is min", pqQueryClauseWidget::SINGLE_VALUE_MIN);
       this->Internals->condition->addItem("is max", pqQueryClauseWidget::SINGLE_VALUE_MAX);
+      this->Internals->condition->addItem("is NaN", pqQueryClauseWidget::SINGLE_VALUE_NAN);
       this->Internals->condition->addItem(
         "is less than mean", pqQueryClauseWidget::SINGLE_VALUE_LE_MEAN);
       this->Internals->condition->addItem(
@@ -385,6 +386,7 @@ void pqQueryClauseWidget::updateValueWidget()
   {
     case SINGLE_VALUE_MIN:
     case SINGLE_VALUE_MAX:
+    case SINGLE_VALUE_NAN:
     case SINGLE_VALUE_LE_MEAN:
     case SINGLE_VALUE_GE_MEAN:
       this->Internals->valueStackedWidget->setCurrentIndex(4);
@@ -548,9 +550,11 @@ void pqQueryClauseWidget::addSelectionQualifiers(vtkSMProxy* selSource)
       fieldName = "id";
       break;
     case GLOBALID:
-      fieldName = this->MultiQueryWidget->getChosenAttributeInfo()
-                    ->GetAttributeInformation(vtkDataSetAttributes::GLOBALIDS)
-                    ->GetName();
+      fieldName = vtkSMCoreUtilities::SanitizeName(
+                    this->MultiQueryWidget->getChosenAttributeInfo()
+                      ->GetAttributeInformation(vtkDataSetAttributes::GLOBALIDS)
+                      ->GetName())
+                    .c_str();
       break;
     case THRESHOLD:
       pqInternals::ArrayInfo info =
@@ -716,6 +720,12 @@ void pqQueryClauseWidget::addSelectionQualifiers(vtkSMProxy* selSource)
       query = query.arg(fieldName);
       ok_no_value = true;
       break;
+    case SINGLE_VALUE_NAN:
+      if (query.isEmpty())
+        query = "isnan(%1)";
+      query = query.arg(fieldName);
+      ok_no_value = true;
+      break;
     case SINGLE_VALUE_LE_MEAN:
       if (query.isEmpty())
         query = "%1  <= mean(%1)";
@@ -748,11 +758,6 @@ void pqQueryClauseWidget::addSelectionQualifiers(vtkSMProxy* selSource)
 
   switch (criteria_type)
   {
-    case QUERY:
-      vtkSMPropertyHelper(selSource, "QueryString")
-        .Set(values[0].toString().toLocal8Bit().constData());
-      break;
-
     case BLOCK:
       if (this->AsQualifier)
       {
@@ -761,6 +766,10 @@ void pqQueryClauseWidget::addSelectionQualifiers(vtkSMProxy* selSource)
       }
       VTK_FALLTHROUGH;
     // break; -- don't break
+
+    case QUERY:
+      query = this->Internals->value->text();
+      VTK_FALLTHROUGH;
 
     case INDEX:
     case GLOBALID:

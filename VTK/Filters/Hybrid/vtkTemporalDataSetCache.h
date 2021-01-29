@@ -34,7 +34,8 @@
 #include "vtkFiltersHybridModule.h" // For export macro
 
 #include "vtkAlgorithm.h"
-#include <map> // used for the cache
+#include <map>    // used for the cache
+#include <vector> // used for the timestep records
 
 class VTKFILTERSHYBRID_EXPORT vtkTemporalDataSetCache : public vtkAlgorithm
 {
@@ -52,15 +53,35 @@ public:
   vtkGetMacro(CacheSize, int);
   //@}
 
+  //@{
+  /**
+   * Tells the filter that it should store the dataobjects it holds in memkind
+   * extended memory space rather than in normal memory space.
+   */
+  vtkSetMacro(CacheInMemkind, bool);
+  vtkGetMacro(CacheInMemkind, bool);
+  vtkBooleanMacro(CacheInMemkind, bool);
+  //@}
+
+  //@{
+  /**
+   * Tells the filter that needs to act as a pipeline source rather than a midpipline filter. In
+   * that situation it needs to react differently in a few cases.
+   */
+  vtkSetMacro(IsASource, bool);
+  vtkGetMacro(IsASource, bool);
+  vtkBooleanMacro(IsASource, bool);
+  //@}
+
 protected:
   vtkTemporalDataSetCache();
   ~vtkTemporalDataSetCache() override;
 
   int CacheSize;
 
-  typedef std::map<double, std::pair<unsigned long, vtkDataObject*> > CacheType;
+  typedef std::map<double, std::pair<unsigned long, vtkDataObject*>> CacheType;
   CacheType Cache;
-
+  std::vector<double> TimeStepValues;
   /**
    * see vtkAlgorithm for details
    */
@@ -69,6 +90,10 @@ protected:
 
   int FillInputPortInformation(int port, vtkInformation* info) override;
   int FillOutputPortInformation(int vtkNotUsed(port), vtkInformation* info) override;
+
+  virtual int RequestInformation(
+    vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector);
+
   virtual int RequestDataObject(
     vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector);
 
@@ -79,6 +104,15 @@ protected:
 private:
   vtkTemporalDataSetCache(const vtkTemporalDataSetCache&) = delete;
   void operator=(const vtkTemporalDataSetCache&) = delete;
+
+  void ReplaceCacheItem(vtkDataObject* input, double inTime, vtkMTimeType outputUpdateTime);
+  bool CacheInMemkind;
+  bool IsASource;
+
+  // a helper to deal with eviction smoothly. In effect we are an N+1 cache.
+  void SetEjected(vtkDataObject*);
+  vtkGetObjectMacro(Ejected, vtkDataObject);
+  vtkDataObject* Ejected;
 };
 
 #endif

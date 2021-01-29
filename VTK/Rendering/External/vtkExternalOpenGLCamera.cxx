@@ -16,7 +16,6 @@
 
 #include "vtkMatrix4x4.h"
 #include "vtkObjectFactory.h"
-#include "vtkOpenGL.h"
 #include "vtkOpenGLError.h"
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenGLState.h"
@@ -29,13 +28,13 @@
 
 vtkStandardNewMacro(vtkExternalOpenGLCamera);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExternalOpenGLCamera::vtkExternalOpenGLCamera()
 {
   this->UserProvidedViewTransform = false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLCamera::SetViewTransformMatrix(const double elements[16])
 {
   if (!elements)
@@ -52,7 +51,7 @@ void vtkExternalOpenGLCamera::SetViewTransformMatrix(const double elements[16])
   matrix->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLCamera::SetProjectionTransformMatrix(const double elements[16])
 {
   if (!elements)
@@ -69,7 +68,7 @@ void vtkExternalOpenGLCamera::SetProjectionTransformMatrix(const double elements
   matrix->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLCamera::ComputeViewTransform()
 {
   if (this->UserProvidedViewTransform)
@@ -83,7 +82,7 @@ void vtkExternalOpenGLCamera::ComputeViewTransform()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExternalOpenGLCamera::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

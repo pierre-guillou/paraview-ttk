@@ -60,7 +60,7 @@ template <typename DistanceMap>
 class my_distance_recorder : public default_bfs_visitor
 {
 public:
-  my_distance_recorder() {}
+  my_distance_recorder() = default;
   my_distance_recorder(DistanceMap dist, vtkIdType* far)
     : d(dist)
     , far_vertex(far)
@@ -331,7 +331,7 @@ void vtkBoostBreadthFirstSearch::PrintSelf(ostream& os, vtkIndent indent)
      << (this->OutputSelectionType ? this->OutputSelectionType : "(none)") << endl;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBoostBreadthFirstSearch::FillInputPortInformation(int port, vtkInformation* info)
 {
   // now add our info
@@ -347,7 +347,7 @@ int vtkBoostBreadthFirstSearch::FillInputPortInformation(int port, vtkInformatio
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkBoostBreadthFirstSearch::FillOutputPortInformation(int port, vtkInformation* info)
 {
   // now add our info

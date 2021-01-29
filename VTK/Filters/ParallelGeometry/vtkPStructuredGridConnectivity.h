@@ -115,7 +115,7 @@ public:
    * Creates ghost layers on the grids owned by this process using data from
    * both local and remote block neighbors.
    */
-  virtual void CreateGhostLayers(const int N = 1) override;
+  void CreateGhostLayers(const int N = 1) override;
 
 protected:
   vtkPStructuredGridConnectivity();
@@ -131,17 +131,17 @@ protected:
   // Data structures to store the remote ghost data of each grid for each one
   // of its neighbors. The first index is the global grid index. The second
   // is the neighbor index.
-  std::vector<std::vector<vtkPoints*> > RemotePoints;
-  std::vector<std::vector<vtkPointData*> > RemotePointData;
-  std::vector<std::vector<vtkCellData*> > RemoteCellData;
+  std::vector<std::vector<vtkPoints*>> RemotePoints;
+  std::vector<std::vector<vtkPointData*>> RemotePointData;
+  std::vector<std::vector<vtkCellData*>> RemoteCellData;
 
   // Data structures to store the send/receive buffer sizes and corresponding
   // persistent buffers. The first index is the global grid index. The second
   // index is the neighbor index for the given grid.
-  std::vector<std::vector<unsigned int> > SendBufferSizes;
-  std::vector<std::vector<unsigned int> > RcvBufferSizes;
-  std::vector<std::vector<unsigned char*> > SendBuffers;
-  std::vector<std::vector<unsigned char*> > RcvBuffers;
+  std::vector<std::vector<unsigned int>> SendBufferSizes;
+  std::vector<std::vector<unsigned int>> RcvBufferSizes;
+  std::vector<std::vector<unsigned char*>> SendBuffers;
+  std::vector<std::vector<unsigned char*>> RcvBuffers;
 
   int TotalNumberOfSends;
   int TotalNumberOfRcvs;
@@ -204,7 +204,7 @@ protected:
    * extents from the neighboring grids of the grid corresponding to the given
    * gridID.
    */
-  virtual void TransferGhostDataFromNeighbors(const int gridID) override;
+  void TransferGhostDataFromNeighbors(const int gridID) override;
 
   /**
    * Helper method to pack all the ghost data into send buffers.

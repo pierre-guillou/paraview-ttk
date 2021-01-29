@@ -18,16 +18,17 @@
 #include "vtkColorTransferFunction.h"
 #include "vtkCommand.h"
 #include "vtkDataSet.h"
+#include "vtkDataSetAttributes.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
 #include "vtkMatrix4x4.h"
+#include "vtkMultiBlockVolumeMapper.h"
 #include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOutlineSource.h"
-#include "vtkPExtentTranslator.h"
 #include "vtkPVGeometryFilter.h"
 #include "vtkPVLODVolume.h"
 #include "vtkPVRenderView.h"
@@ -35,7 +36,9 @@
 #include "vtkProjectedTetrahedraMapper.h"
 #include "vtkRenderer.h"
 #include "vtkResampleToImage.h"
+#include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
+#include "vtkSmartVolumeMapper.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkVolumeProperty.h"
@@ -55,55 +58,25 @@ public:
 vtkStandardNewMacro(vtkUnstructuredGridVolumeRepresentation);
 //----------------------------------------------------------------------------
 vtkUnstructuredGridVolumeRepresentation::vtkUnstructuredGridVolumeRepresentation()
+  : Superclass()
 {
   this->Internals = new vtkInternals();
 
-  this->Preprocessor = vtkVolumeRepresentationPreprocessor::New();
   this->Preprocessor->SetTetrahedraOnly(1);
 
-  this->ResampleToImageFilter = vtkResampleToImage::New();
   this->ResampleToImageFilter->SetSamplingDimensions(128, 128, 128);
-  this->DataSize = 0;
-  this->PExtentTranslator = vtkPExtentTranslator::New();
-  this->Origin[0] = this->Origin[1] = this->Origin[2] = 0.0;
-  this->Spacing[0] = this->Spacing[1] = this->Spacing[2] = 0.0;
-  this->WholeExtent[0] = this->WholeExtent[2] = this->WholeExtent[4] = 0;
-  this->WholeExtent[1] = this->WholeExtent[3] = this->WholeExtent[5] = -1;
-  this->OutlineSource = vtkOutlineSource::New();
 
-  this->DefaultMapper = vtkProjectedTetrahedraMapper::New();
-  this->Property = vtkVolumeProperty::New();
-  this->Actor = vtkPVLODVolume::New();
-
-  this->LODGeometryFilter = vtkPVGeometryFilter::New();
   this->LODGeometryFilter->SetUseOutline(0);
 
-  this->LODMapper = vtkPolyDataMapper::New();
-
-  this->Actor->SetProperty(this->Property);
   this->Actor->SetMapper(this->DefaultMapper);
   this->Actor->SetLODMapper(this->LODMapper);
-  vtkMath::UninitializeBounds(this->DataBounds);
-  this->UseDataPartitions = false;
 }
 
 //----------------------------------------------------------------------------
 vtkUnstructuredGridVolumeRepresentation::~vtkUnstructuredGridVolumeRepresentation()
 {
-  this->Preprocessor->Delete();
-  this->DefaultMapper->Delete();
-  this->Property->Delete();
-  this->Actor->Delete();
-
-  this->ResampleToImageFilter->Delete();
-  this->PExtentTranslator->Delete();
-  this->OutlineSource->Delete();
-
-  this->LODGeometryFilter->Delete();
-  this->LODMapper->Delete();
-
   delete this->Internals;
-  this->Internals = 0;
+  this->Internals = nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -176,6 +149,11 @@ int vtkUnstructuredGridVolumeRepresentation::RequestData(
     {
       ds->GetBounds(this->DataBounds);
     }
+
+    if (this->UseSeparateOpacityArray)
+    {
+      this->AppendOpacityComponent(ds);
+    }
   }
   else
   {
@@ -210,21 +188,27 @@ int vtkUnstructuredGridVolumeRepresentation::ProcessViewRequest(
 
     if (this->UseDataPartitions == true)
     {
-      // Pass partitioning information to the render view.
-      vtkPVRenderView::SetOrderedCompositingInformation(inInfo, this->DataBounds);
+      // We want to use this representation's data bounds to redistribute all other data in the
+      // scene if ordered compositing is needed.
+      vtkPVRenderView::SetOrderedCompositingConfiguration(
+        inInfo, this, vtkPVRenderView::USE_BOUNDS_FOR_REDISTRIBUTION);
     }
     else
     {
-      vtkPVRenderView::MarkAsRedistributable(inInfo, this);
+      // We want to let vtkPVRenderView do redistribution of data as necessary,
+      // and use this representations data for determining a load balanced distribution
+      // if ordered is needed.
+      vtkPVRenderView::SetOrderedCompositingConfiguration(inInfo, this,
+        vtkPVRenderView::DATA_IS_REDISTRIBUTABLE | vtkPVRenderView::USE_DATA_FOR_LOAD_BALANCING);
     }
-
+    vtkPVRenderView::SetRedistributionModeToUniquelyAssignBoundaryCells(inInfo, this);
     vtkPVRenderView::SetRequiresDistributedRendering(inInfo, this, true);
 
     vtkNew<vtkMatrix4x4> matrix;
     this->Actor->GetMatrix(matrix.GetPointer());
     vtkPVRenderView::SetGeometryBounds(inInfo, this, this->DataBounds, matrix.GetPointer());
 
-    this->Actor->SetMapper(NULL);
+    this->Actor->SetMapper(nullptr);
   }
   else if (request_type == vtkPVView::REQUEST_UPDATE_LOD())
   {
@@ -256,7 +240,7 @@ int vtkUnstructuredGridVolumeRepresentation::ProcessViewRequest(
     }
     else
     {
-      this->Actor->SetMapper(NULL);
+      this->Actor->SetMapper(nullptr);
     }
     this->LODMapper->SetInputConnection(producerPortLOD);
   }
@@ -292,7 +276,7 @@ bool vtkUnstructuredGridVolumeRepresentation::RemoveFromView(vtkView* view)
 void vtkUnstructuredGridVolumeRepresentation::UpdateMapperParameters()
 {
   vtkAbstractVolumeMapper* activeMapper = this->GetActiveVolumeMapper();
-  const char* colorArrayName = NULL;
+  const char* colorArrayName = nullptr;
   int fieldAssociation = vtkDataObject::FIELD_ASSOCIATION_POINTS;
 
   vtkInformation* info = this->GetInputArrayInformation(0);
@@ -311,16 +295,38 @@ void vtkUnstructuredGridVolumeRepresentation::UpdateMapperParameters()
     }
   }
 
-  activeMapper->SelectScalarArray(colorArrayName);
-  if (colorArrayName && colorArrayName[0])
+  if (this->UseSeparateOpacityArray)
   {
-    this->LODMapper->SetScalarVisibility(1);
-    this->LODMapper->SelectColorArray(colorArrayName);
+    // See AppendOpacityComponent() for the construction of this array.
+    std::string combinedName(colorArrayName);
+    combinedName += "_and_opacity";
+    activeMapper->SelectScalarArray(combinedName.c_str());
+
+    if (colorArrayName && colorArrayName[0])
+    {
+      this->LODMapper->SetScalarVisibility(1);
+      this->LODMapper->SelectColorArray(combinedName.c_str());
+    }
+    else
+    {
+      this->LODMapper->SetScalarVisibility(0);
+      this->LODMapper->SelectColorArray(static_cast<const char*>(nullptr));
+    }
   }
   else
   {
-    this->LODMapper->SetScalarVisibility(0);
-    this->LODMapper->SelectColorArray(static_cast<const char*>(NULL));
+    activeMapper->SelectScalarArray(colorArrayName);
+
+    if (colorArrayName && colorArrayName[0])
+    {
+      this->LODMapper->SetScalarVisibility(1);
+      this->LODMapper->SelectColorArray(colorArrayName);
+    }
+    else
+    {
+      this->LODMapper->SetScalarVisibility(0);
+      this->LODMapper->SelectColorArray(static_cast<const char*>(nullptr));
+    }
   }
 
   switch (fieldAssociation)
@@ -340,6 +346,44 @@ void vtkUnstructuredGridVolumeRepresentation::UpdateMapperParameters()
       activeMapper->SetScalarMode(VTK_SCALAR_MODE_USE_POINT_FIELD_DATA);
       this->LODMapper->SetScalarMode(VTK_SCALAR_MODE_USE_POINT_FIELD_DATA);
       break;
+  }
+
+  if (this->Property)
+  {
+    if (this->MapScalars)
+    {
+      if (this->MultiComponentsMapping || this->UseSeparateOpacityArray)
+      {
+        this->Property->SetIndependentComponents(false);
+      }
+      else
+      {
+        this->Property->SetIndependentComponents(true);
+      }
+    }
+    else
+    {
+      this->Property->SetIndependentComponents(false);
+    }
+
+    // Update the mapper's vector mode
+    vtkColorTransferFunction* ctf = this->Property->GetRGBTransferFunction(0);
+
+    // Logic borrowed from vtkImageVolumeRepresentation::UpdateMapperParameters()
+    int const indep = this->Property->GetIndependentComponents();
+    int const mode = indep ? ctf->GetVectorMode() : vtkScalarsToColors::COMPONENT;
+    int const comp = indep ? ctf->GetVectorComponent() : 0;
+
+    if (auto smartVolumeMapper = vtkSmartVolumeMapper::SafeDownCast(activeMapper))
+    {
+      smartVolumeMapper->SetVectorMode(mode);
+      smartVolumeMapper->SetVectorComponent(comp);
+    }
+    else if (auto mbMapper = vtkMultiBlockVolumeMapper::SafeDownCast(activeMapper))
+    {
+      mbMapper->SetVectorMode(mode);
+      mbMapper->SetVectorComponent(comp);
+    }
   }
 
   this->Actor->SetMapper(activeMapper);
@@ -377,68 +421,6 @@ void vtkUnstructuredGridVolumeRepresentation::SetSamplingDimensions(int xdim, in
 // Forwarded to Actor.
 
 //----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetOrientation(double x, double y, double z)
-{
-  this->Actor->SetOrientation(x, y, z);
-}
-
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetOrigin(double x, double y, double z)
-{
-  this->Actor->SetOrigin(x, y, z);
-}
-
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetPickable(int val)
-{
-  this->Actor->SetPickable(val);
-}
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetPosition(double x, double y, double z)
-{
-  this->Actor->SetPosition(x, y, z);
-}
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetScale(double x, double y, double z)
-{
-  this->Actor->SetScale(x, y, z);
-}
-
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetVisibility(bool val)
-{
-  this->Actor->SetVisibility(val ? 1 : 0);
-  this->Superclass::SetVisibility(val);
-}
-
-//***************************************************************************
-// Forwarded to vtkVolumeProperty.
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetInterpolationType(int val)
-{
-  this->Property->SetInterpolationType(val);
-}
-
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetColor(vtkColorTransferFunction* lut)
-{
-  this->Property->SetColor(lut);
-  this->LODMapper->SetLookupTable(lut);
-}
-
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetScalarOpacity(vtkPiecewiseFunction* pwf)
-{
-  this->Property->SetScalarOpacity(pwf);
-}
-
-//----------------------------------------------------------------------------
-void vtkUnstructuredGridVolumeRepresentation::SetScalarOpacityUnitDistance(double val)
-{
-  this->Property->SetScalarOpacityUnitDistance(val);
-}
-
-//----------------------------------------------------------------------------
 int vtkUnstructuredGridVolumeRepresentation::ProcessViewRequestResampleToImage(
   vtkInformationRequestKey* request_type, vtkInformation* inInfo, vtkInformation* outInfo)
 {
@@ -455,11 +437,10 @@ int vtkUnstructuredGridVolumeRepresentation::ProcessViewRequestResampleToImage(
     vtkPVRenderView::SetGeometryBounds(inInfo, this, this->DataBounds);
 
     // Pass partitioning information to the render view.
-    vtkPVRenderView::SetOrderedCompositingInformation(
-      inInfo, this, this->PExtentTranslator, this->WholeExtent, this->Origin, this->Spacing);
-
+    vtkPVRenderView::SetOrderedCompositingConfiguration(
+      inInfo, this, vtkPVRenderView::USE_BOUNDS_FOR_REDISTRIBUTION);
     vtkPVRenderView::SetRequiresDistributedRendering(inInfo, this, true);
-    this->Actor->SetMapper(NULL);
+    this->Actor->SetMapper(nullptr);
   }
   else if (request_type == vtkPVView::REQUEST_UPDATE_LOD())
   {
@@ -484,10 +465,6 @@ int vtkUnstructuredGridVolumeRepresentation::RequestDataResampleToImage(
 {
   vtkMath::UninitializeBounds(this->DataBounds);
   this->DataSize = 0;
-  this->Origin[0] = this->Origin[1] = this->Origin[2] = 0;
-  this->Spacing[0] = this->Spacing[1] = this->Spacing[2] = 0;
-  this->WholeExtent[0] = this->WholeExtent[2] = this->WholeExtent[4] = 0;
-  this->WholeExtent[1] = this->WholeExtent[3] = this->WholeExtent[5] = -1;
 
   vtkAbstractVolumeMapper* volumeMapper = this->GetActiveVolumeMapper();
   if (inputVector[0]->GetNumberOfInformationObjects() == 1)
@@ -497,23 +474,24 @@ int vtkUnstructuredGridVolumeRepresentation::RequestDataResampleToImage(
     this->ResampleToImageFilter->Update();
 
     this->Actor->SetEnableLOD(0);
-    volumeMapper->SetInputConnection(this->ResampleToImageFilter->GetOutputPort());
 
-    vtkImageData* output =
-      vtkImageData::SafeDownCast(this->ResampleToImageFilter->GetOutputDataObject(0));
+    auto resampleOutput = this->ResampleToImageFilter->GetOutput();
+    vtkSmartPointer<vtkDataSet> ds;
+    ds.TakeReference(resampleOutput->NewInstance());
+    ds->ShallowCopy(resampleOutput);
+    if (this->UseSeparateOpacityArray)
+    {
+      this->AppendOpacityComponent(ds);
+    }
+
+    volumeMapper->SetInputDataObject(ds);
+
+    vtkImageData* output = vtkImageData::SafeDownCast(resampleOutput);
     this->OutlineSource->SetBounds(output->GetBounds());
     this->OutlineSource->GetBounds(this->DataBounds);
     this->OutlineSource->Update();
 
     this->DataSize = output->GetActualMemorySize();
-
-    // Collect information about volume that is needed for data redistribution
-    // later.
-    this->PExtentTranslator->GatherExtents(output);
-    output->GetOrigin(this->Origin);
-    output->GetSpacing(this->Spacing);
-    vtkStreamingDemandDrivenPipeline::GetWholeExtent(
-      this->ResampleToImageFilter->GetOutputInformation(0), this->WholeExtent);
   }
   else
   {

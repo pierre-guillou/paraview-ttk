@@ -1,7 +1,7 @@
 # Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
 # file Copyright.txt or https://cmake.org/licensing for details.
 
-# See https://gitlab.kitware.com/cmake/cmake/merge_requests/2575
+# See https://gitlab.kitware.com/cmake/cmake/-/merge_requests/2575
 
 #[=======================================================================[.rst:
 FindHDF5
@@ -195,9 +195,7 @@ macro(_HDF5_remove_duplicates_from_beginning _list_name)
   endif()
 endmacro()
 
-
 # Test first if the current compilers automatically wrap HDF5
-
 function(_HDF5_test_regular_compiler_C success version is_parallel)
   set(scratch_directory
     ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/hdf5)
@@ -791,7 +789,7 @@ if( NOT HDF5_FOUND )
             if(HDF5_USE_STATIC_LIBRARIES)
                 # According to bug 1643 on the CMake bug tracker, this is the
                 # preferred method for searching for a static library.
-                # See https://gitlab.kitware.com/cmake/cmake/issues/1643.  We search
+                # See https://gitlab.kitware.com/cmake/cmake/-/issues/1643.  We search
                 # first for the full static library name, but fall back to a
                 # generic search on the name if the static search fails.
                 set( THIS_LIBRARY_SEARCH_DEBUG
@@ -831,7 +829,7 @@ if( NOT HDF5_FOUND )
                 if(HDF5_USE_STATIC_LIBRARIES)
                     # According to bug 1643 on the CMake bug tracker, this is the
                     # preferred method for searching for a static library.
-                    # See https://gitlab.kitware.com/cmake/cmake/issues/1643.  We search
+                    # See https://gitlab.kitware.com/cmake/cmake/-/issues/1643.  We search
                     # first for the full static library name, but fall back to a
                     # generic search on the name if the static search fails.
                     set( THIS_LIBRARY_SEARCH_DEBUG
@@ -967,12 +965,12 @@ if (HDF5_FOUND)
           INTERFACE_INCLUDE_DIRECTORIES "${HDF5_${hdf5_lang}_INCLUDE_DIRS}"
           INTERFACE_COMPILE_DEFINITIONS "${_hdf5_definitions}")
       else()
-        if (DEFINED "HDF5_${hdf5_lang}_LIBRARY_${hdf5_target_name}")
-          set(_hdf5_location "${HDF5_${hdf5_lang}_LIBRARY_${hdf5_target_name}}")
-        elseif (DEFINED "HDF5_${hdf5_target_name}_LIBRARY")
+        if (DEFINED "HDF5_${hdf5_target_name}_LIBRARY")
           set(_hdf5_location "${HDF5_${hdf5_target_name}_LIBRARY}")
         elseif (DEFINED "HDF5_${hdf5_lang}_LIBRARY")
           set(_hdf5_location "${HDF5_${hdf5_lang}_LIBRARY}")
+        elseif (DEFINED "HDF5_${hdf5_lang}_LIBRARY_${hdf5_target_name}")
+          set(_hdf5_location "${HDF5_${hdf5_lang}_LIBRARY_${hdf5_target_name}}")
         else ()
           # Error if we still don't have the location.
           message(SEND_ERROR
@@ -1027,12 +1025,12 @@ if (HDF5_FOUND)
           INTERFACE_INCLUDE_DIRECTORIES "${HDF5_${hdf5_lang}_HL_INCLUDE_DIRS}"
           INTERFACE_COMPILE_DEFINITIONS "${_hdf5_definitions}")
       else()
-        if (DEFINED "HDF5_${hdf5_lang}_LIBRARY_${hdf5_target_name}")
-          set(_hdf5_location "${HDF5_${hdf5_lang}_LIBRARY_${hdf5_target_name}}")
-        elseif (DEFINED "HDF5_${hdf5_target_name}_LIBRARY")
+        if (DEFINED "HDF5_${hdf5_target_name}_LIBRARY")
           set(_hdf5_location "${HDF5_${hdf5_target_name}_LIBRARY}")
-        elseif (DEFINED "HDF5_${hdf5_lang}_LIBRARY")
-          set(_hdf5_location "${HDF5_${hdf5_lang}_LIBRARY}")
+        elseif (DEFINED "HDF5_${hdf5_lang}_HL_LIBRARY")
+          set(_hdf5_location "${HDF5_${hdf5_lang}_HL_LIBRARY}")
+        elseif (DEFINED "HDF5_${hdf5_lang}_LIBRARY_${hdf5_target_name}")
+          set(_hdf5_location "${HDF5_${hdf5_lang}_LIBRARY_${hdf5_target_name}}")
         else ()
           # Error if we still don't have the location.
           message(SEND_ERROR

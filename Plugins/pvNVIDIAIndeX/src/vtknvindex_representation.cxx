@@ -26,6 +26,7 @@
 */
 
 #ifdef _WIN32
+#define NOMINMAX
 #include <windows.h>
 #endif // _WIN32
 
@@ -40,10 +41,10 @@
 #include "vtkMPIMoveData.h"
 #include "vtkObjectFactory.h"
 #include "vtkOutlineSource.h"
-#include "vtkPExtentTranslator.h"
 #include "vtkPVGeneralSettings.h"
 #include "vtkPVLODVolume.h"
 #include "vtkPVRenderView.h"
+#include "vtkPVRenderViewDataDeliveryManager.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkProcessModule.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
@@ -58,79 +59,27 @@
 #include "vtknvindex_utilities.h"
 #include "vtknvindex_volumemapper.h"
 
+// Enable ghosting in VTK to provide border data for regular volumes
+// #define VTKNVINDEX_REGULAR_VOLUME_FORCE_VTK_GHOSTING
+
 vtknvindex_representation_initializer::vtknvindex_representation_initializer()
 {
+#ifdef VTKNVINDEX_REGULAR_VOLUME_FORCE_VTK_GHOSTING
+  // Force creation of ghost arrays for structured data (i.e. regular volumes) whenever this plugin
+  // is loaded. Setting this globally can be more efficient than requesting it later in
+  // vtknvindex_representation::RequestUpdateExtent().
   static unsigned int counter = 0;
   if (counter == 0)
   {
     vtkProcessModule::SetDefaultMinimumGhostLevelsToRequestForStructuredPipelines(2);
     ++counter;
   }
+#endif // VTKNVINDEX_REGULAR_VOLUME_FORCE_VTK_GHOSTING
 }
 
 vtknvindex_representation_initializer::~vtknvindex_representation_initializer()
 {
 }
-
-namespace
-{
-//----------------------------------------------------------------------------
-void vtkGetNonGhostExtent(int* resultExtent, vtkImageData* dataSet)
-{
-  // Only meant for topologically structured grids.
-  dataSet->GetExtent(resultExtent);
-
-  if (vtkUnsignedCharArray* ghostArray = vtkUnsignedCharArray::SafeDownCast(
-        dataSet->GetCellData()->GetArray(vtkDataSetAttributes::GhostArrayName())))
-  {
-    // We have a ghost array. We need to iterate over the array to prune ghost
-    // extents.
-
-    int pntExtent[6];
-    std::copy(resultExtent, resultExtent + 6, pntExtent);
-
-    int validCellExtent[6];
-    vtkStructuredData::GetCellExtentFromPointExtent(pntExtent, validCellExtent);
-
-    // The start extent is the location of the first cell with ghost value 0.
-    for (vtkIdType cc = 0, numTuples = ghostArray->GetNumberOfTuples(); cc < numTuples; ++cc)
-    {
-      if (ghostArray->GetValue(cc) == 0)
-      {
-        int ijk[3];
-        vtkStructuredData::ComputeCellStructuredCoordsForExtent(cc, pntExtent, ijk);
-        validCellExtent[0] = ijk[0];
-        validCellExtent[2] = ijk[1];
-        validCellExtent[4] = ijk[2];
-        break;
-      }
-    }
-
-    // The end extent is the  location of the last cell with ghost value 0.
-    for (vtkIdType cc = (ghostArray->GetNumberOfTuples() - 1); cc >= 0; --cc)
-    {
-      if (ghostArray->GetValue(cc) == 0)
-      {
-        int ijk[3];
-        vtkStructuredData::ComputeCellStructuredCoordsForExtent(cc, pntExtent, ijk);
-        validCellExtent[1] = ijk[0];
-        validCellExtent[3] = ijk[1];
-        validCellExtent[5] = ijk[2];
-        break;
-      }
-    }
-
-    // Convert cell-extents to pt extents.
-    resultExtent[0] = validCellExtent[0];
-    resultExtent[2] = validCellExtent[2];
-    resultExtent[4] = validCellExtent[4];
-
-    resultExtent[1] = std::min(validCellExtent[1] + 1, resultExtent[1]);
-    resultExtent[3] = std::min(validCellExtent[3] + 1, resultExtent[3]);
-    resultExtent[5] = std::min(validCellExtent[5] + 1, resultExtent[5]);
-  }
-}
-} // namespace
 
 vtkStandardNewMacro(vtknvindex_representation);
 
@@ -139,12 +88,6 @@ vtknvindex_cached_bounds::vtknvindex_cached_bounds()
 {
   for (mi::Uint32 i = 0; i < 6; i++)
     data_bounds[i] = 0.0;
-
-  for (mi::Uint32 i = 0; i < 6; i++)
-    whole_extent[i] = 0;
-
-  for (mi::Uint32 i = 0; i < 3; i++)
-    origin[i] = spacing[i] = 0.0;
 }
 
 //----------------------------------------------------------------------------
@@ -152,31 +95,12 @@ vtknvindex_cached_bounds::vtknvindex_cached_bounds(const vtknvindex_cached_bound
 {
   for (mi::Uint32 i = 0; i < 6; i++)
     data_bounds[i] = cached_bound.data_bounds[i];
-
-  for (mi::Uint32 i = 0; i < 6; i++)
-    whole_extent[i] = cached_bound.whole_extent[i];
-
-  for (mi::Uint32 i = 0; i < 3; i++)
-    origin[i] = cached_bound.origin[i];
-
-  for (mi::Uint32 i = 0; i < 3; i++)
-    spacing[i] = cached_bound.spacing[i];
 }
 
-vtknvindex_cached_bounds::vtknvindex_cached_bounds(const double _data_bounds[6],
-  const int _whole_extent[6], const double _origin[3], const double _spacing[3])
+vtknvindex_cached_bounds::vtknvindex_cached_bounds(const double _data_bounds[6])
 {
   for (mi::Uint32 i = 0; i < 6; i++)
     data_bounds[i] = _data_bounds[i];
-
-  for (mi::Uint32 i = 0; i < 6; i++)
-    whole_extent[i] = _whole_extent[i];
-
-  for (mi::Uint32 i = 0; i < 3; i++)
-    origin[i] = _origin[i];
-
-  for (mi::Uint32 i = 0; i < 3; i++)
-    spacing[i] = _spacing[i];
 }
 
 //----------------------------------------------------------------------------
@@ -214,23 +138,19 @@ vtknvindex_representation::vtknvindex_representation()
 {
   m_controller = vtkMultiProcessController::GetGlobalController();
 
-  // Init IndeX and ARC
-  vtknvindex_instance::get()->init_index();
-
   // Replace default volume mapper with vtknvindex_volumemapper.
-  this->VolumeMapper->Delete();
-  this->VolumeMapper = vtknvindex_volumemapper::New();
+  this->VolumeMapper.TakeReference(vtknvindex_volumemapper::New());
 
   // Replace default Actor.
-  this->Actor->Delete();
-  this->Actor = vtknvindex_lod_volume::New();
+  this->Actor = nullptr;
+  this->Actor.TakeReference(vtknvindex_lod_volume::New());
   this->Actor->SetProperty(this->Property);
   this->Actor->SetLODMapper(this->OutlineMapper);
 
-  m_cluster_properties = new vtknvindex_cluster_properties();
+  m_cluster_properties = new vtknvindex_cluster_properties(false);
   m_app_config_settings = m_cluster_properties->get_config_settings();
 
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())
     ->set_cluster_properties(m_cluster_properties);
 
   // TODO: These values should be communicated by ParaView.
@@ -251,7 +171,7 @@ vtknvindex_representation::vtknvindex_representation()
 //----------------------------------------------------------------------------
 vtknvindex_representation::~vtknvindex_representation()
 {
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->shutdown();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->shutdown();
 
   delete m_cluster_properties;
 }
@@ -274,7 +194,7 @@ int vtknvindex_representation::ProcessViewRequest(
   {
     // Check if a dataset has time steps.
     // Restore cached bounds if available.
-
+    // Note: This call prevents generation of RawCuts.
     vtkPVRenderView::SetForceDataDistributionMode(inInfo, vtkMPIMoveData::COLLECT);
 
     if (m_has_time_steps)
@@ -284,15 +204,6 @@ int vtknvindex_representation::ProcessViewRequest(
       {
         for (mi::Uint32 i = 0; i < 6; i++)
           this->DataBounds[i] = cached_bounds->data_bounds[i];
-
-        for (mi::Uint32 i = 0; i < 6; i++)
-          this->WholeExtent[i] = cached_bounds->whole_extent[i];
-
-        for (mi::Uint32 i = 0; i < 3; i++)
-          this->Origin[i] = cached_bounds->origin[i];
-
-        for (mi::Uint32 i = 0; i < 3; i++)
-          this->Spacing[i] = cached_bounds->spacing[i];
       }
     }
 
@@ -303,9 +214,8 @@ int vtknvindex_representation::ProcessViewRequest(
     vtkPVRenderView::SetGeometryBounds(inInfo, this, this->DataBounds);
 
     // Pass partitioning information to the render view.
-    vtkPVRenderView::SetOrderedCompositingInformation(inInfo, this,
-      this->PExtentTranslator.GetPointer(), this->WholeExtent, this->Origin, this->Spacing);
-
+    vtkPVRenderView::SetOrderedCompositingConfiguration(
+      inInfo, this, vtkPVRenderView::USE_BOUNDS_FOR_REDISTRIBUTION);
     vtkPVRenderView::SetRequiresDistributedRendering(inInfo, this, true);
   }
   else if (request_type == vtkPVView::REQUEST_UPDATE_LOD())
@@ -320,14 +230,24 @@ int vtknvindex_representation::ProcessViewRequest(
     if (producerPort)
     {
       vtkAlgorithm* producer = producerPort->GetProducer();
+
+      int has_time_steps = 0;
+      int nb_time_steps = 0;
+      int cur_time_step = 0;
+
       vtkPolyData* polyData =
         vtkPolyData::SafeDownCast(producer->GetOutputDataObject(producerPort->GetIndex()));
-      vtkDataArray* index_animation_params =
-        polyData->GetFieldData()->GetArray("index_animation_params");
-
-      const int has_time_steps = index_animation_params->GetComponent(0, 0);
-      const int nb_time_steps = index_animation_params->GetComponent(0, 1);
-      const int cur_time_step = index_animation_params->GetComponent(0, 2);
+      if (polyData)
+      {
+        vtkDataArray* index_animation_params =
+          polyData->GetFieldData()->GetArray("index_animation_params");
+        if (index_animation_params)
+        {
+          has_time_steps = index_animation_params->GetComponent(0, 0);
+          nb_time_steps = index_animation_params->GetComponent(0, 1);
+          cur_time_step = index_animation_params->GetComponent(0, 2);
+        }
+      }
 
       vtknvindex_regular_volume_properties* volume_properties =
         m_cluster_properties->get_regular_volume_properties();
@@ -374,20 +294,18 @@ int vtknvindex_representation::RequestDataBase(
 {
   vtkMath::UninitializeBounds(this->DataBounds);
   this->DataSize = 0;
-  this->Origin[0] = this->Origin[1] = this->Origin[2] = 0;
-  this->Spacing[0] = this->Spacing[1] = this->Spacing[2] = 0;
-  this->WholeExtent[0] = this->WholeExtent[2] = this->WholeExtent[4] = 0;
-  this->WholeExtent[1] = this->WholeExtent[3] = this->WholeExtent[5] = -1;
-
   this->OutlineGeometry = vtkSmartPointer<vtkPolyData>::New();
 
   if (inputVector[0]->GetNumberOfInformationObjects() == 1)
   {
     vtkImageData* input = vtkImageData::GetData(inputVector[0], 0);
-    this->Cache->ShallowCopy(input);
+
+    vtkNew<vtkImageData> cache;
+    cache->ShallowCopy(input);
+    this->Cache = cache.GetPointer();
 
     this->Actor->SetEnableLOD(0);
-    this->VolumeMapper->SetInputData(this->Cache);
+    this->VolumeMapper->SetInputData(cache);
 
     vtkImageData* output = vtkImageData::SafeDownCast(this->Cache);
 
@@ -412,31 +330,6 @@ int vtknvindex_representation::RequestDataBase(
     this->OutlineGeometry->ShallowCopy(this->OutlineSource->GetOutputDataObject(0));
 
     this->DataSize = output->GetActualMemorySize();
-
-    // Collect information about volume that is needed for data redistribution
-    // later.
-
-    // Since the KdTree generator is not expecting ghost cells, we need to pass
-    // it extents without ghost cells.
-    if (output->HasAnyGhostCells())
-    {
-      vtkNew<vtkImageData> dummy;
-      int ext[6];
-      vtkGetNonGhostExtent(ext, output);
-      dummy->SetExtent(ext);
-      dummy->SetOrigin(output->GetOrigin());
-      dummy->SetSpacing(output->GetSpacing());
-      this->PExtentTranslator->GatherExtents(dummy.Get());
-    }
-    else
-    {
-      this->PExtentTranslator->GatherExtents(output);
-    }
-
-    output->GetOrigin(this->Origin);
-    output->GetSpacing(this->Spacing);
-    vtkStreamingDemandDrivenPipeline::GetWholeExtent(
-      inputVector[0]->GetInformationObject(0), this->WholeExtent);
   }
   else
   {
@@ -524,8 +417,8 @@ int vtknvindex_representation::RequestData(
 
   bool using_cache = (cached_bounds != NULL); // this->CacheKeeper->GetCachingEnabled();
 
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->is_caching(using_cache);
-  static_cast<vtknvindex_lod_volume*>(this->Actor)->set_caching_pass(using_cache);
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->is_caching(using_cache);
+  static_cast<vtknvindex_lod_volume*>(this->Actor.GetPointer())->set_caching_pass(using_cache);
 
   vtkDataSet* ds = vtkDataSet::SafeDownCast(this->Cache);
   if (ds)
@@ -594,7 +487,8 @@ int vtknvindex_representation::RequestData(
         volume_bounds.insert(subset_bounds);
       }
 
-      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->set_whole_bounds(volume_bounds);
+      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())
+        ->set_whole_bounds(volume_bounds);
 
       mi::math::Vector<mi::Float64, 3> scaling(
         (volume_extents.max.x - volume_extents.min.x) / (volume_bounds.max.x - volume_bounds.min.x),
@@ -610,13 +504,20 @@ int vtknvindex_representation::RequestData(
       mi::math::Vector<mi::Float32, 3> scaling_flt(static_cast<mi::Float32>(1. / scaling.x),
         static_cast<mi::Float32>(1. / scaling.y), static_cast<mi::Float32>(1. / scaling.z));
 
-      m_cluster_properties->get_regular_volume_properties()->set_volume_extents(volume_extents);
-      m_cluster_properties->get_regular_volume_properties()->set_volume_translation(
-        translation_flt);
-      m_cluster_properties->get_regular_volume_properties()->set_volume_scaling(scaling_flt);
+      vtknvindex_regular_volume_properties* volume_properties =
+        m_cluster_properties->get_regular_volume_properties();
+
+      volume_properties->set_volume_extents(volume_extents);
+      volume_properties->set_volume_translation(translation_flt);
+      volume_properties->set_volume_scaling(scaling_flt);
 
       // volume size
-      m_cluster_properties->get_regular_volume_properties()->set_volume_size(m_volume_size);
+      volume_properties->set_volume_size(m_volume_size);
+
+      // store the current VTK ghost levels (these are distinct from IndeX borders size settings)
+      const int ghost_levels =
+        inInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
+      volume_properties->set_ghost_levels(ghost_levels);
 
       delete[] all_rank_bounds;
 
@@ -643,6 +544,7 @@ int vtknvindex_representation::RequestUpdateExtent(
 {
   this->Superclass::RequestUpdateExtent(request, inputVector, outputVector);
 
+#ifdef VTKNVINDEX_REGULAR_VOLUME_FORCE_VTK_GHOSTING
   if (inputVector[0]->GetNumberOfInformationObjects() < 1)
   {
     return 1;
@@ -652,10 +554,15 @@ int vtknvindex_representation::RequestUpdateExtent(
 
   int ghost_levels = inInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
 
-  // ParaView's ghost cells must be equal to NVIDIA IndeX's border size.
+  // Request ParaView's ghost level to match NVIDIA IndeX border size.
+  //
+  // When the requested level is larger than the level of the source data (which may be influenced
+  // by vtknvindex_representation_initializer() above), the data will be gerated on the fly (an
+  // expensive operation).
   ghost_levels += m_app_config_settings->get_subcube_border();
 
   inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), ghost_levels);
+#endif // VTKNVINDEX_REGULAR_VOLUME_FORCE_VTK_GHOSTING
 
   return 1;
 }
@@ -696,7 +603,7 @@ void vtknvindex_representation::SetInputArrayToProcess(
 //-------------------------------------------------------------------------------------------------
 void vtknvindex_representation::SetVisibility(bool val)
 {
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->set_visibility(val);
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->set_visibility(val);
   update_index_roi();
 
   this->Superclass::SetVisibility(val);
@@ -705,7 +612,7 @@ void vtknvindex_representation::SetVisibility(bool val)
 //----------------------------------------------------------------------------
 void vtknvindex_representation::SetScalarOpacityUnitDistance(double val)
 {
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->opacity_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->opacity_changed();
   this->Property->SetScalarOpacityUnitDistance(val);
 }
 
@@ -723,8 +630,7 @@ vtknvindex_cached_bounds* vtknvindex_representation::get_cached_bounds(mi::Sint3
 //-------------------------------------------------------------------------------------------------
 void vtknvindex_representation::set_cached_bounds(mi::Sint32 time)
 {
-  vtknvindex_cached_bounds cached_bounds(
-    this->DataBounds, this->WholeExtent, this->Origin, this->Spacing);
+  vtknvindex_cached_bounds cached_bounds(this->DataBounds);
 
   m_time_to_cached_bounds.insert(
     std::pair<mi::Sint32, vtknvindex_cached_bounds>(time, cached_bounds));
@@ -750,48 +656,72 @@ void vtknvindex_representation::set_subcube_size(unsigned x, unsigned y, unsigne
 {
   mi::math::Vector_struct<mi::Uint32, 3> subcube_size = { x, y, z };
   m_app_config_settings->set_subcube_size(subcube_size);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_subcube_border(int border)
 {
   m_app_config_settings->set_subcube_border(border);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_filter_mode(int filter_mode)
 {
-  m_app_config_settings->set_filter_mode(filter_mode);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  nv::index::Sparse_volume_filter_mode filter_mode_index =
+    nv::index::SPARSE_VOLUME_FILTER_TRILINEAR_POST;
+
+  // Map numerical values to IndeX filter mode (the values were chosen for historical reasons, they
+  // don't match directly).
+  switch (filter_mode)
+  {
+    case 0:
+      filter_mode_index = nv::index::SPARSE_VOLUME_FILTER_NEAREST;
+      break;
+    case 1:
+      filter_mode_index = nv::index::SPARSE_VOLUME_FILTER_TRILINEAR_POST;
+      break;
+    case 5:
+      filter_mode_index = nv::index::SPARSE_VOLUME_FILTER_TRICUBIC_CATMULL_POST;
+      break;
+    case 7:
+      filter_mode_index = nv::index::SPARSE_VOLUME_FILTER_TRICUBIC_BSPLINE_POST;
+      break;
+    default:
+      ERROR_LOG << "Invalid volume filter mode " << filter_mode << " requested.";
+      return;
+  }
+
+  m_app_config_settings->set_filter_mode(filter_mode_index);
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_preintegration(bool enable_preint)
 {
   m_app_config_settings->set_preintegration(enable_preint);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 }
 
 void vtknvindex_representation::set_volume_step_size(double step_size)
 {
   m_app_config_settings->set_step_size(static_cast<mi::Float32>(step_size));
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_opacity_reference_mode(int opacity_reference_mode)
 {
   m_app_config_settings->set_opacity_mode(opacity_reference_mode);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->opacity_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->opacity_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_opacity_reference(double opacity_reference)
 {
   m_app_config_settings->set_opacity_reference(opacity_reference);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->opacity_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->opacity_changed();
 }
 
 //----------------------------------------------------------------------------
@@ -808,7 +738,7 @@ void vtknvindex_representation::update_index_roi()
   roi.max.z = (m_volume_size.z - 1) * m_roi_gui.max.z;
 
   m_app_config_settings->set_region_of_interest(roi);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 }
 
 //----------------------------------------------------------------------------
@@ -857,21 +787,21 @@ void vtknvindex_representation::set_roi_maxK(double val)
 void vtknvindex_representation::set_log_performance(bool is_log)
 {
   m_app_config_settings->set_log_performance(is_log);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_dump_internal_state(bool is_dump)
 {
   m_app_config_settings->set_dump_internal_state(is_dump);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::show_volume(bool enable)
 {
   m_app_config_settings->enable_volume(enable);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
@@ -883,63 +813,63 @@ void vtknvindex_representation::set_selected_slice(int /*selected_slice*/)
 void vtknvindex_representation::enable_slice1(bool enable)
 {
   m_app_config_settings->enable_slice(0, enable);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_slice_mode1(int slice_mode)
 {
   m_app_config_settings->set_slice_mode(0, slice_mode);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_slice_pos1(double pos)
 {
   m_app_config_settings->set_slice_displace(0, pos / 100.0);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::enable_slice2(bool enable)
 {
   m_app_config_settings->enable_slice(1, enable);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_slice_mode2(int slice_mode)
 {
   m_app_config_settings->set_slice_mode(1, slice_mode);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_slice_pos2(double pos)
 {
   m_app_config_settings->set_slice_displace(1, pos / 100.0);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::enable_slice3(bool enable)
 {
   m_app_config_settings->enable_slice(2, enable);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_slice_mode3(int slice_mode)
 {
   m_app_config_settings->set_slice_mode(2, slice_mode);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
 void vtknvindex_representation::set_slice_pos3(double pos)
 {
   m_app_config_settings->set_slice_displace(2, pos / 100.0);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->slices_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->slices_changed();
 }
 
 //----------------------------------------------------------------------------
@@ -948,38 +878,38 @@ void vtknvindex_representation::update_current_kernel()
   switch (m_app_config_settings->get_rtc_kernel())
   {
     case RTC_KERNELS_ISOSURFACE:
-      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)
+      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())
         ->rtc_kernel_changed(RTC_KERNELS_ISOSURFACE, KERNEL_ISOSURFACE_STRING,
           reinterpret_cast<void*>(&m_isosurface_params), sizeof(m_isosurface_params));
       break;
 
     case RTC_KERNELS_DEPTH_ENHANCEMENT:
-      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)
+      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())
         ->rtc_kernel_changed(RTC_KERNELS_DEPTH_ENHANCEMENT, KERNEL_DEPTH_ENHANCEMENT_STRING,
           reinterpret_cast<void*>(&m_depth_enhancement_params), sizeof(m_depth_enhancement_params));
       break;
 
     case RTC_KERNELS_EDGE_ENHANCEMENT:
-      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)
+      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())
         ->rtc_kernel_changed(RTC_KERNELS_EDGE_ENHANCEMENT, KERNEL_EDGE_ENHANCEMENT_STRING,
           reinterpret_cast<void*>(&m_edge_enhancement_params), sizeof(m_edge_enhancement_params));
       break;
 
     case RTC_KERNELS_GRADIENT:
-      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)
+      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())
         ->rtc_kernel_changed(RTC_KERNELS_GRADIENT, KERNEL_GRADIENT_STRING,
           reinterpret_cast<void*>(&m_gradient_params), sizeof(m_gradient_params));
       break;
 
     case RTC_KERNELS_CUSTOM:
-      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)
+      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())
         ->rtc_kernel_changed(RTC_KERNELS_CUSTOM, m_custom_kernel_program,
           reinterpret_cast<void*>(&m_custom_params), sizeof(m_custom_params));
       break;
 
     case RTC_KERNELS_NONE:
     default:
-      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)
+      static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())
         ->rtc_kernel_changed(RTC_KERNELS_NONE, "", 0, 0);
       break;
   }
@@ -991,7 +921,7 @@ void vtknvindex_representation::set_volume_filter(int filter)
   vtknvindex_rtc_kernels kernel = static_cast<vtknvindex_rtc_kernels>(filter);
 
   m_app_config_settings->set_rtc_kernel(kernel);
-  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper)->config_settings_changed();
+  static_cast<vtknvindex_volumemapper*>(this->VolumeMapper.GetPointer())->config_settings_changed();
 
   update_current_kernel();
 }

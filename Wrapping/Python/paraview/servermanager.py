@@ -264,6 +264,7 @@ class Proxy(object):
         self.add_attribute('_Proxy__Properties', {})
         self.add_attribute('_Proxy__LastAttrName', None)
         self.add_attribute('SMProxy', None)
+        self.add_attribute('IgnoreUnknownSetRequests', False)
         if 'port' in args:
             self.add_attribute('Port', args['port'])
             del args['port']
@@ -458,33 +459,42 @@ class Proxy(object):
                 return result
             return newfunc
 
+        # Camera eventually inherit from Object
         class _camera_wrapper(object):
             def __getattribute__(self, s):
+                return _camera_sync(camera.__getattribute__(s))
+
+            # Calls to __dir__ bypass the __getattribute__ function, so override it here
+            # to delegate it to the vtkCameara class
+            def __dir__(self):
                 try:
-                    return super(_camera_wrapper, self).__getattribute__(s)
-                except AttributeError:
-                    return _camera_sync(camera.__getattribute__(s))
+                    return camera.__dir__()
+                except:
+                    return []
 
         return _camera_wrapper()
 
     def __setattr__(self, name, value):
         try:
             setter = getattr(self.__class__, name)
-            paraview.print_debug_info("No attribute %s" % name)
             setter = setter.__set__
         except AttributeError:
+            paraview.print_debug_info("No attribute %s" % name)
             # Let the backwards compatibility helper try to handle this
             try:
                 _bc.setattr(self, name, value)
             except _bc.Continue:
                 pass
             except AttributeError:
-                raise AttributeError("Attribute %s does not exist. " % name +
-                    " This class does not allow addition of new attributes to avoid " +
-                    "mistakes due to typos. Use add_attribute() if you really want " +
-                    "to add this attribute.")
+                if self.IgnoreUnknownSetRequests:
+                    pass
+                else:
+                    raise AttributeError("Attribute %s does not exist. " % name +
+                        " This class does not allow addition of new attributes to avoid " +
+                        "mistakes due to typos. Use add_attribute() if you really want " +
+                        "to add this attribute.")
         else:
-            paraview.print_debug_info(name)
+            paraview.print_debug_info("Setting '%s' as '%s'", name, value)
             try:
                 setter(self, value)
             except ValueError:
@@ -620,6 +630,16 @@ class ExodusIIReaderProxy(SourceProxy):
                 'ElementVariables', 'GlobalVariables'):
                 f = getattr(self, prop)
                 f.DeselectAll()
+
+class MultiplexerSourceProxy(SourceProxy):
+    def UpdateDynamicProperties(self):
+        """Update the instance to add properties of newly exposed
+        SMProperties. The current limitation is that help() still
+        doesn't work as one would expect."""
+        exclude = frozenset([p for p in dir(self.__class__) if isinstance(getattr(self.__class__, p), property)])
+        cdict = _createClassProperties(self, exclude)
+        for key, val in cdict.items():
+            self.add_attribute(key, val)
 
 class ViewLayoutProxy(Proxy):
     """Special class to define convenience methods for View Layout"""
@@ -760,14 +780,13 @@ class GenericIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self.index >= len(self.Object):
             raise StopIteration
 
         idx = self.index
         self.index += 1
         return self.Object[idx]
-    __next__ = next # Python 3.X compatibility
 
 class VectorProperty(Property):
     """A VectorProperty provides access to one or more values. You can use
@@ -894,6 +913,19 @@ class DoubleMapProperty(Property):
     def keys(self):
         """Returns the keys."""
         return self.GetData().keys()
+
+    def items(self):
+        """Iterates over the (key, value) pairs."""
+        return self.GetData().items()
+
+    def values(self):
+        """Returns the values"""
+        return self.GetData().values()
+
+    def get(self, key, default_value=None):
+        """Returns value of the given key, or the default_value if the key is not found
+        in the map."""
+        return self.GetData().get(key, default_value)
 
     def GetData(self):
         """Returns all the elements as a dictionary"""
@@ -1561,7 +1593,7 @@ class FieldDataInformationIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self.index >= self.FieldDataInformation.GetNumberOfArrays():
             raise StopIteration
 
@@ -1571,7 +1603,6 @@ class FieldDataInformationIterator(object):
             return (ai.GetName(), ai)
         else:
             return ai
-    __next__ = next # Python 3.X compatibility
 
 class FieldDataInformation(object):
     """Meta-data for a field of an output object (point data, cell data etc...).
@@ -1883,7 +1914,7 @@ class PropertyIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if not self.SMIterator:
             raise StopIteration
 
@@ -1894,20 +1925,19 @@ class PropertyIterator(object):
         self.PropertyLabel = self.SMIterator.GetPropertyLabel()
         self.SMIterator.Next()
         return self.Proxy.GetProperty(self.Key)
-    __next__ = next # Python 3.X compatibility
 
     def GetProxy(self):
         """Returns the proxy for the property last returned by the call to
-        'next()'"""
+        '__next__()'"""
         return self.Proxy
 
     def GetKey(self):
         """Returns the key for the property last returned by the call to
-        'next()' """
+        '__next__()' """
         return self.Key
 
     def GetProperty(self):
-        """Returns the property last returned by the call to 'next()' """
+        """Returns the property last returned by the call to '__next__()' """
         return self.Proxy.GetProperty(self.Key)
 
     def __getattr__(self, name):
@@ -1930,7 +1960,7 @@ class ProxyDefinitionIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self.SMIterator.IsDoneWithTraversal():
             self.Group = None
             self.Key = None
@@ -1939,16 +1969,15 @@ class ProxyDefinitionIterator(object):
         self.Key = self.SMIterator.GetProxyName()
         self.SMIterator.GoToNextItem()
         return {"group": self.Group, "key":self.Key }
-    __next__ = next # Python 3.X compatibility
 
     def GetProxyName(self):
         """Returns the key for the proxy definition last returned by the call
-        to 'next()' """
+        to '__next__()' """
         return self.Key
 
     def GetGroup(self):
         """Returns the group for the proxy definition last returned by the
-        call to 'next()' """
+        call to '__next__()' """
         return self.Group
 
     def __getattr__(self, name):
@@ -1972,7 +2001,7 @@ class ProxyIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self.SMIterator.IsAtEnd():
             self.AProxy = None
             self.Group = None
@@ -1984,20 +2013,19 @@ class ProxyIterator(object):
         self.Key = self.SMIterator.GetKey()
         self.SMIterator.Next()
         return self.AProxy
-    __next__ = next # Python 3.X compatibility
 
     def GetProxy(self):
-        """Returns the proxy last returned by the call to 'next()'"""
+        """Returns the proxy last returned by the call to '__next__()'"""
         return self.AProxy
 
     def GetKey(self):
         """Returns the key for the proxy last returned by the call to
-        'next()' """
+        '__next__()' """
         return self.Key
 
     def GetGroup(self):
         """Returns the group for the proxy last returned by the call to
-        'next()' """
+        '__next__()' """
         return self.Group
 
     def __getattr__(self, name):
@@ -2157,6 +2185,25 @@ def Connect(ds_host=None, ds_port=11111, rs_host=None, rs_port=22221, timeout=60
     else:
       return None
 
+def ConnectToCatalyst(ds_host='localhost', ds_port=22222):
+    """
+    Use this function to create a new catalyst session.
+    """
+    # Create an InsituLink
+    insituLink = CreateProxy('coprocessing', 'LiveInsituLink')
+    insituLink.GetProperty('InsituPort').SetElement(0, ds_port)
+    insituLink.GetProperty('Hostname').SetElement(0, ds_host)
+    # set process type to Visualization
+    insituLink.GetProperty('ProcessType').SetElement(0, 0)
+    insituLink.UpdateVTKObjects()
+
+    # Create dummy session
+    id = vtkSMSession.ConnectToCatalyst()
+    connection = GetConnectionFromId(id)
+    insituLink.SetInsituProxyManager(connection.Session.GetSessionProxyManager())
+
+    return insituLink
+
 def ReverseConnect(port=11111):
     """
     Use this function call to create a new session. On success,
@@ -2297,64 +2344,29 @@ def CreateRepresentation(aProxy, view, **extraArgs):
     view.Representations.append(proxy)
     return proxy
 
-if sys.version_info < (3, 3):
-    class ParaViewMetaPathFinder(object):
-        def find_module(self, fullname, path=None):
-            if vtkPVPythonModule.HasModule(fullname):
-                return self
-            return None
+import importlib, importlib.abc
+class ParaViewMetaPathFinder(importlib.abc.MetaPathFinder):
+    def __init__(self):
+        self._loader = ParaViewLoader()
 
-        def load_module(self, fullname):
-            try:
-                return sys.modules[fullname]
-            except KeyError:
-                pass
-
-            info = vtkPVPythonModule.GetModule(fullname)
-            if not info:
-                raise ImportError
-
-            import imp
-            module = imp.new_module(fullname)
-            module.__file__ = "<%s>" % fullname
-            module.__loader__ = self
+    def find_spec(self, fullname, path, target=None):
+        info = vtkPVPythonModule.GetModule(fullname)
+        if info:
+            package = None
             if info.GetIsPackage():
-                module.__path__ = []
-                module.__package__ = fullname
-            else:
-                module.__package__ = fullname.rpartition('.')[0]
+                package = fullname
+            return importlib.machinery.ModuleSpec(fullname, self._loader, is_package=package)
+        return None
 
-            sys.modules[fullname] = module
-            try:
-                exec(info.GetSource(), module.__dict__)
-            except:
-                del sys.modules[fullname]
-                raise
-            return module
-else:
-    import importlib, importlib.abc
-    class ParaViewMetaPathFinder(importlib.abc.MetaPathFinder):
-        def __init__(self):
-            self._loader = ParaViewLoader()
+class ParaViewLoader(importlib.abc.InspectLoader):
+    def _info(self, fullname):
+        return vtkPVPythonModule.GetModule(fullname)
 
-        def find_spec(self, fullname, path, target=None):
-            info = vtkPVPythonModule.GetModule(fullname)
-            if info:
-                package = None
-                if info.GetIsPackage():
-                    package = fullname
-                return importlib.machinery.ModuleSpec(fullname, self._loader, is_package=package)
-            return None
+    def is_package(self, fullname):
+        return self._info(fullname).GetIsPackage()
 
-    class ParaViewLoader(importlib.abc.InspectLoader):
-        def _info(self, fullname):
-            return vtkPVPythonModule.GetModule(fullname)
-
-        def is_package(self, fullname):
-            return self._info(fullname).GetIsPackage()
-
-        def get_source(self, fullname):
-            return self._info(fullname).GetSource()
+    def get_source(self, fullname):
+        return self._info(fullname).GetSource()
 
 def LoadXML(xmlstring):
     """DEPRECATED. Given a server manager XML as a string, parse and process it."""
@@ -2363,7 +2375,10 @@ def LoadXML(xmlstring):
 def LoadPlugin(filename,  remote=True, connection=None):
     """ Given a filename and a session (optional, otherwise uses
     ActiveConnection), loads a plugin. It then updates the sources,
-    filters and rendering modules."""
+    filters and rendering modules.
+
+    remote=True has no effect when the connection is not remote.
+    """
 
     if not connection:
         connection = ActiveConnection
@@ -2371,7 +2386,7 @@ def LoadPlugin(filename,  remote=True, connection=None):
         raise RuntimeError ("Cannot load a plugin without a connection.")
     plm = vtkSMProxyManager.GetProxyManager().GetPluginManager()
 
-    if remote:
+    if remote and connection.IsRemote():
         status = plm.LoadRemotePlugin(filename, connection.Session)
     else:
         status = plm.LoadLocalPlugin(filename)
@@ -2557,9 +2572,10 @@ def _getPyProxy(smproxy, outputPort=0):
     if isinstance(smproxy, Proxy):
         # if already a pyproxy, do nothing.
         return smproxy
-
     if not smproxy:
         return None
+    if smproxy.IsA("vtkSMOutputPort"):
+        return _getPyProxy(smproxy.GetSourceProxy(), smproxy.GetPortIndex())
     try:
         # is argument is already a Proxy instance, this takes care of it.
         return _getPyProxy(smproxy.SMProxy, outputPort)
@@ -2732,6 +2748,35 @@ class PVModule(object):
 def _make_name_valid(name):
     return paraview.make_name_valid(name)
 
+def _createClassProperties(proto, excludeset=frozenset()):
+    """Builds a dict of properties for all SMProperties on the `proto` proxy.
+    If excludeset is not empty, then it is expected to be names of properties
+    to exclude."""
+    cdict = {}
+    iter = PropertyIterator(proto)
+    # Add all properties as python properties.
+    for prop in iter:
+        propName = iter.GetKey()
+        if paraview.compatibility.GetVersion() >= 3.5:
+            if (prop.GetInformationOnly() and propName != "TimestepValues" \
+              and prop.GetPanelVisibility() == "never") or prop.GetIsInternal():
+                continue
+        names = [propName]
+        if paraview.compatibility.GetVersion() >= 3.5:
+            names = [iter.PropertyLabel]
+
+        propDoc = None
+        if prop.GetDocumentation():
+            propDoc = prop.GetDocumentation().GetDescription()
+        for name in names:
+            name = _make_name_valid(name)
+            if name and name not in excludeset:
+                cdict[name] = property(_createGetProperty(propName),
+                                       _createSetProperty(propName),
+                                       None,
+                                       propDoc)
+    return cdict
+
 def _createClass(groupName, proxyName, apxm=None, prototype=None):
     """Defines a new class type for the proxy."""
     if prototype is None:
@@ -2751,28 +2796,8 @@ def _createClass(groupName, proxyName, apxm=None, prototype=None):
     cdict = {}
     # Create an Initialize() method for this sub-class.
     cdict['Initialize'] = _createInitialize(groupName, proxyName)
-    iter = PropertyIterator(proto)
-    # Add all properties as python properties.
-    for prop in iter:
-        propName = iter.GetKey()
-        if paraview.compatibility.GetVersion() >= 3.5:
-            if (prop.GetInformationOnly() and propName != "TimestepValues" \
-              and prop.GetPanelVisibility() == "never") or prop.GetIsInternal():
-                continue
-        names = [propName]
-        if paraview.compatibility.GetVersion() >= 3.5:
-            names = [iter.PropertyLabel]
+    cdict.update(_createClassProperties(proto))
 
-        propDoc = None
-        if prop.GetDocumentation():
-            propDoc = prop.GetDocumentation().GetDescription()
-        for name in names:
-            name = _make_name_valid(name)
-            if name:
-                cdict[name] = property(_createGetProperty(propName),
-                                       _createSetProperty(propName),
-                                       None,
-                                       propDoc)
     # Add the documentation as the class __doc__
     if proto.GetDocumentation() and \
        proto.GetDocumentation().GetDescription():
@@ -2783,6 +2808,8 @@ def _createClass(groupName, proxyName, apxm=None, prototype=None):
     # Create the new type
     if proto.GetXMLName() == "ExodusIIReader":
         superclasses = (ExodusIIReaderProxy,)
+    elif proto.IsA("vtkSMMultiplexerSourceProxy"):
+        superclasses = (MultiplexerSourceProxy,)
     elif proto.IsA("vtkSMSourceProxy"):
         superclasses = (SourceProxy,)
     elif proto.IsA("vtkSMViewLayoutProxy"):

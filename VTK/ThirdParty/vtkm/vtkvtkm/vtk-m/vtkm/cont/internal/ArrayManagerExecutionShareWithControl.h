@@ -53,7 +53,7 @@ public:
   /// Returns the constant portal from the storage.
   ///
   VTKM_CONT
-  PortalConstType PrepareForInput(bool vtkmNotUsed(uploadData)) const
+  PortalConstType PrepareForInput(bool vtkmNotUsed(uploadData), vtkm::cont::Token&) const
   {
     return this->Storage->GetPortalConst();
   }
@@ -61,12 +61,15 @@ public:
   /// Returns the read-write portal from the storage.
   ///
   VTKM_CONT
-  PortalType PrepareForInPlace(bool vtkmNotUsed(uploadData)) { return this->Storage->GetPortal(); }
+  PortalType PrepareForInPlace(bool vtkmNotUsed(uploadData), vtkm::cont::Token&)
+  {
+    return this->Storage->GetPortal();
+  }
 
   /// Allocates data in the storage and return the portal to that.
   ///
   VTKM_CONT
-  PortalType PrepareForOutput(vtkm::Id numberOfValues)
+  PortalType PrepareForOutput(vtkm::Id numberOfValues, vtkm::cont::Token&)
   {
     this->Storage->Allocate(numberOfValues);
     return this->Storage->GetPortal();
@@ -99,52 +102,6 @@ private:
   void operator=(ArrayManagerExecutionShareWithControl<T, StorageTag>&) = delete;
 
   StorageType* Storage;
-};
-
-// Specializations for basic storage:
-template <typename T>
-struct ExecutionPortalFactoryBasicShareWithControl
-{
-  using ValueType = T;
-  using PortalType = ArrayPortalFromIterators<ValueType*>;
-  using PortalConstType = ArrayPortalFromIterators<const ValueType*>;
-
-  VTKM_CONT
-  static PortalType CreatePortal(ValueType* start, ValueType* end)
-  {
-    return PortalType(start, end);
-  }
-
-  VTKM_CONT
-  static PortalConstType CreatePortalConst(const ValueType* start, const ValueType* end)
-  {
-    return PortalConstType(start, end);
-  }
-};
-
-struct VTKM_CONT_EXPORT ExecutionArrayInterfaceBasicShareWithControl
-  : public ExecutionArrayInterfaceBasicBase
-{
-  //inherit our parents constructor
-  using ExecutionArrayInterfaceBasicBase::ExecutionArrayInterfaceBasicBase;
-
-  VTKM_CONT void Allocate(TypelessExecutionArray& execArray,
-                          vtkm::Id numberOfValues,
-                          vtkm::UInt64 sizeOfValue) const final;
-  VTKM_CONT void Free(TypelessExecutionArray& execArray) const final;
-
-  VTKM_CONT void CopyFromControl(const void* src, void* dst, vtkm::UInt64 bytes) const final;
-  VTKM_CONT void CopyToControl(const void* src, void* dst, vtkm::UInt64 bytes) const final;
-
-  VTKM_CONT void UsingForRead(const void* controlPtr,
-                              const void* executionPtr,
-                              vtkm::UInt64 numBytes) const final;
-  VTKM_CONT void UsingForWrite(const void* controlPtr,
-                               const void* executionPtr,
-                               vtkm::UInt64 numBytes) const final;
-  VTKM_CONT void UsingForReadWrite(const void* controlPtr,
-                                   const void* executionPtr,
-                                   vtkm::UInt64 numBytes) const final;
 };
 }
 }

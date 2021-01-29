@@ -9,11 +9,9 @@
 ##============================================================================
 
 set(unit_tests
-  UnitTestCudaAlgorithms.cu
   UnitTestCudaArrayHandle.cu
   UnitTestCudaArrayHandleFancy.cu
   UnitTestCudaArrayHandleMultiplexer.cu
-  UnitTestCudaArrayHandleVirtualCoordinates.cu
   UnitTestCudaBitField.cu
   UnitTestCudaCellLocatorRectilinearGrid.cu
   UnitTestCudaCellLocatorUniformBins.cu
@@ -23,10 +21,9 @@ set(unit_tests
   UnitTestCudaDataSetExplicit.cu
   UnitTestCudaDataSetSingleType.cu
   UnitTestCudaDeviceAdapter.cu
-  UnitTestCudaGeometry.cu
   UnitTestCudaImplicitFunction.cu
   UnitTestCudaIterators.cu
-  UnitTestCudaMath.cu
+  UnitTestCudaMathEdgeCases.cu
   UnitTestCudaShareUserProvidedManagedMemory.cu
   UnitTestCudaPointLocatorUniformGrid.cu
   UnitTestCudaVirtualObjectHandle.cu

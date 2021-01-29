@@ -104,9 +104,7 @@ public:
   {
     vtkm::cont::ArrayHandle<vtkm::Id> connectivity;
     connectivity.Allocate(connectivityLength);
-    const auto offsetsTrim =
-      vtkm::cont::make_ArrayHandleView(offsets, 0, offsets.GetNumberOfValues() - 1);
-    auto connWrap = vtkm::cont::make_ArrayHandleGroupVecVariable(connectivity, offsetsTrim);
+    auto connWrap = vtkm::cont::make_ArrayHandleGroupVecVariable(connectivity, offsets);
     vtkm::cont::Invoker{ Device{} }(WriteConnectivity{}, cs, connWrap);
     return connectivity;
   }
@@ -174,9 +172,8 @@ private:
 
 
 public:
-  using ConnectivityArrays = vtkm::cont::internal::RConnBuilderInputData<ConnectivityStorageTag,
-                                                                         OffsetsStorageTag,
-                                                                         NumIndicesStorageTag>;
+  using ConnectivityArrays = vtkm::cont::internal::
+    RConnBuilderInputData<ConnectivityStorageTag, OffsetsStorageTag, NumIndicesStorageTag>;
 
   template <typename Device>
   static ConnectivityArrays Get(const CellSetPermutationType& cellset, Device)
@@ -351,19 +348,26 @@ public:
   VTKM_CONT
   vtkm::IdComponent GetNumberOfPointsInCell(vtkm::Id cellIndex) const override
   {
+    // Looping over GetNumberOfPointsInCell is a performance bug.
     return this->FullCellSet.GetNumberOfPointsInCell(
-      this->ValidCellIds.GetPortalConstControl().Get(cellIndex));
+      this->ValidCellIds.ReadPortal().Get(cellIndex));
   }
 
+  VTKM_DEPRECATED(1.6,
+                  "Calling GetCellShape(cellid) is a performance bug. Call ShapesReadPortal() "
+                  "and loop over the Get.")
   vtkm::UInt8 GetCellShape(vtkm::Id id) const override
   {
-    return this->FullCellSet.GetCellShape(this->ValidCellIds.GetPortalConstControl().Get(id));
+    // Looping over GetCellShape is a performance bug.
+    VTKM_DEPRECATED_SUPPRESS_BEGIN
+    return this->FullCellSet.GetCellShape(this->ValidCellIds.ReadPortal().Get(id));
+    VTKM_DEPRECATED_SUPPRESS_END
   }
 
   void GetCellPointIds(vtkm::Id id, vtkm::Id* ptids) const override
   {
-    return this->FullCellSet.GetCellPointIds(this->ValidCellIds.GetPortalConstControl().Get(id),
-                                             ptids);
+    // Looping over GetCellPointsIdx is a performance bug.
+    return this->FullCellSet.GetCellPointIds(this->ValidCellIds.ReadPortal().Get(id), ptids);
   }
 
   std::shared_ptr<CellSet> NewInstance() const override
@@ -442,21 +446,26 @@ public:
                                     vtkm::TopologyElementTagCell,
                                     vtkm::TopologyElementTagPoint>::ExecObjectType
   PrepareForInput(Device device,
-                  vtkm::TopologyElementTagCell from,
-                  vtkm::TopologyElementTagPoint to) const
+                  vtkm::TopologyElementTagCell visitTopology,
+                  vtkm::TopologyElementTagPoint incidentTopology,
+                  vtkm::cont::Token& token) const
   {
     using ConnectivityType = typename ExecutionTypes<Device,
                                                      vtkm::TopologyElementTagCell,
                                                      vtkm::TopologyElementTagPoint>::ExecObjectType;
-    return ConnectivityType(this->ValidCellIds.PrepareForInput(device),
-                            this->FullCellSet.PrepareForInput(device, from, to));
+    return ConnectivityType(
+      this->ValidCellIds.PrepareForInput(device, token),
+      this->FullCellSet.PrepareForInput(device, visitTopology, incidentTopology, token));
   }
 
   template <typename Device>
   VTKM_CONT typename ExecutionTypes<Device,
                                     vtkm::TopologyElementTagPoint,
                                     vtkm::TopologyElementTagCell>::ExecObjectType
-  PrepareForInput(Device device, vtkm::TopologyElementTagPoint, vtkm::TopologyElementTagCell) const
+  PrepareForInput(Device device,
+                  vtkm::TopologyElementTagPoint,
+                  vtkm::TopologyElementTagCell,
+                  vtkm::cont::Token& token) const
   {
     if (!this->VisitPointsWithCells.ElementsValid)
     {
@@ -468,8 +477,17 @@ public:
     using ConnectivityType = typename ExecutionTypes<Device,
                                                      vtkm::TopologyElementTagPoint,
                                                      vtkm::TopologyElementTagCell>::ExecObjectType;
-    return ConnectivityType(this->VisitPointsWithCells.Connectivity.PrepareForInput(device),
-                            this->VisitPointsWithCells.Offsets.PrepareForInput(device));
+    return ConnectivityType(this->VisitPointsWithCells.Connectivity.PrepareForInput(device, token),
+                            this->VisitPointsWithCells.Offsets.PrepareForInput(device, token));
+  }
+
+  template <typename Device, typename VisitTopology, typename IncidentTopology>
+  VTKM_CONT VTKM_DEPRECATED(1.6, "Provide a vtkm::cont::Token object when calling PrepareForInput.")
+    typename ExecutionTypes<Device, VisitTopology, IncidentTopology>::ExecObjectType
+    PrepareForInput(Device device, VisitTopology visitTopology, IncidentTopology incidentTopology)
+  {
+    vtkm::cont::Token token;
+    return this->PrepareForInput(device, visitTopology, incidentTopology, token);
   }
 
   VTKM_CONT

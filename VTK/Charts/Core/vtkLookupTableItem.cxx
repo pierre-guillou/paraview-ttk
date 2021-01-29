@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkLookupTableItem.h"
 #include "vtkCallbackCommand.h"
 #include "vtkImageData.h"
@@ -23,17 +26,17 @@
 
 #include <cassert>
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkLookupTableItem);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLookupTableItem::vtkLookupTableItem()
 {
   this->Interpolate = false;
   this->LookupTable = nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLookupTableItem::~vtkLookupTableItem()
 {
   if (this->LookupTable)
@@ -43,7 +46,7 @@ vtkLookupTableItem::~vtkLookupTableItem()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLookupTableItem::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -59,7 +62,7 @@ void vtkLookupTableItem::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLookupTableItem::ComputeBounds(double* bounds)
 {
   this->Superclass::ComputeBounds(bounds);
@@ -71,7 +74,7 @@ void vtkLookupTableItem::ComputeBounds(double* bounds)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLookupTableItem::SetLookupTable(vtkLookupTable* t)
 {
   if (t == this->LookupTable)
@@ -90,7 +93,7 @@ void vtkLookupTableItem::SetLookupTable(vtkLookupTable* t)
   this->ScalarsToColorsModified(this->LookupTable, vtkCommand::ModifiedEvent, nullptr);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLookupTableItem::ComputeTexture()
 {
   double bounds[4];

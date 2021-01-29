@@ -214,7 +214,7 @@ public:
 
 protected:
   vtkImageMathematics();
-  ~vtkImageMathematics() override {}
+  ~vtkImageMathematics() override = default;
 
   int Operation;
   double ConstantK;
@@ -225,7 +225,7 @@ protected:
 
   void ThreadedRequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector, vtkImageData*** inData, vtkImageData** outData,
-    int extent[6], int threadId) override;
+    int outExt[6], int threadId) override;
 
   int FillInputPortInformation(int port, vtkInformation* info) override;
 

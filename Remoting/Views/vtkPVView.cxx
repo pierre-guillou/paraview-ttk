@@ -76,8 +76,6 @@ public:
       this->SetOwnContext(0);
     }
   }
-  vtkOpenGLRenderWindow* GetContext() { return this->Context; }
-
   void MakeCurrent() override
   {
     if (this->Context)
@@ -127,8 +125,8 @@ protected:
   vtkOffscreenOpenGLRenderWindow()
   {
     this->SetReadyForRendering(false);
-    this->Superclass::SetShowWindow(false);
     this->Superclass::SetUseOffScreenBuffers(true);
+    this->Superclass::SetShowWindow(false);
   }
   ~vtkOffscreenOpenGLRenderWindow()
   {
@@ -222,7 +220,7 @@ vtkPVView::vtkPVView(bool create_render_window)
 
   this->Size[1] = this->Size[0] = 300;
   this->Position[0] = this->Position[1] = 0;
-  this->PPI = 96;
+  this->PPI = 72;
 
   this->InCaptureScreenshot = false;
 

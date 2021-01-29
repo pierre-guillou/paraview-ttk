@@ -333,19 +333,19 @@ void addmarkerscalarfield_(char* fname, int* len, int* numberAdded, float* data)
   vtkUnstructuredGrid* ugrid = vtkUnstructuredGrid::SafeDownCast(mgrid->GetBlock(0));
 
   // Get the data array for this variable
-  std::string varName(fname, *len);
-  vtkFloatArray* dataArray =
-    vtkFloatArray::SafeDownCast(ugrid->GetPointData()->GetArray(varName.c_str()));
+  vtkStdString varName(fname, *len);
+  vtkFloatArray* dataArray = vtkFloatArray::SafeDownCast(ugrid->GetPointData()->GetArray(varName));
+
   // If it doesn't exist, create and size, and refetch
   if (dataArray == nullptr)
   {
     vtkFloatArray* arr = vtkFloatArray::New();
-    arr->SetName(varName.c_str());
+    arr->SetName(varName);
     arr->SetNumberOfComponents(1);
     arr->Allocate(numberOfMarkers);
     ugrid->GetPointData()->AddArray(arr);
     arr->Delete();
-    dataArray = vtkFloatArray::SafeDownCast(ugrid->GetPointData()->GetArray(varName.c_str()));
+    dataArray = vtkFloatArray::SafeDownCast(ugrid->GetPointData()->GetArray(varName));
   }
 
   // Fill with field data

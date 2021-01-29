@@ -8,15 +8,9 @@
 ##  PURPOSE.  See the above copyright notice for more information.
 ##============================================================================
 
-# If you want CUDA support, you will need to have CMake 3.9 on Linux/OSX.
-# We require CMake 3.11 with the MSVC generator as the $<COMPILE_LANGUAGE:>
-# generator expression is not supported on older versions.
-cmake_minimum_required(VERSION 3.8...3.15 FATAL_ERROR)
+# If you want CUDA support, you will need to have CMake 3.13 on Linux/OSX.
+cmake_minimum_required(VERSION 3.12...3.15 FATAL_ERROR)
 project (VTKm)
-
-if(${CMAKE_GENERATOR} MATCHES "Visual Studio")
-  cmake_minimum_required(VERSION 3.11...3.15 FATAL_ERROR)
-endif()
 
 # Update module path
 set(VTKm_CMAKE_MODULE_PATH ${VTKm_SOURCE_DIR}/CMake)
@@ -81,6 +75,7 @@ endmacro ()
 vtkm_option(VTKm_ENABLE_CUDA "Enable Cuda support" OFF)
 vtkm_option(VTKm_ENABLE_TBB "Enable TBB support" OFF)
 vtkm_option(VTKm_ENABLE_OPENMP "Enable OpenMP support" OFF)
+vtkm_option(VTKm_ENABLE_KOKKOS "Enable Kokkos support" OFF)
 vtkm_option(VTKm_ENABLE_RENDERING "Enable rendering library" ON)
 vtkm_option(VTKm_ENABLE_BENCHMARKS "Enable VTKm Benchmarking" OFF)
 vtkm_option(VTKm_ENABLE_MPI "Enable MPI support" OFF)
@@ -108,6 +103,11 @@ vtkm_option(VTKm_ENABLE_LOGGING "Enable VTKm Logging" ON)
 # performance.
 vtkm_option(VTKm_NO_ASSERT "Disable assertions in debugging builds." OFF)
 
+# The CUDA compiler (as of CUDA 11) takes a surprising long time to compile
+# kernels with assert in them. By default we turn off asserts when compiling
+# for CUDA devices.
+vtkm_option(VTKm_NO_ASSERT_CUDA "Disable assertions for CUDA devices." ON)
+
 # When VTK-m is embedded into larger projects that wish to make end user
 # applications they want to only install libraries and don't want CMake/headers
 # installed.
@@ -118,7 +118,7 @@ vtkm_option(VTKm_INSTALL_ONLY_LIBRARIES "install only vtk-m libraries and no hea
 # rather than exporting all symbols. This flag is added so that consumers
 # which require static builds can force all symbols on, which is something
 # VTK does.
-vtkm_option(VTKm_USE_DEFAULT_SYMBOL_VISIBILITY "Don't explicitly hide symbols from libraries." OFF)
+vtkm_option(VTKm_HIDE_PRIVATE_SYMBOLS "Hide symbols from libraries." ON)
 
 vtkm_option(BUILD_SHARED_LIBS "Build VTK-m with shared libraries" OFF)
 set(VTKm_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
@@ -128,12 +128,26 @@ set(VTKm_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 # and the warnings are too strict for the parent project.
 vtkm_option(VTKm_ENABLE_DEVELOPER_FLAGS "Enable compiler flags that are useful while developing VTK-m" ON)
 
+# By default VTK-m would install its README.md and LICENSE.md.
+# Some application might need not to install those, hence this option.
+vtkm_option(VTKm_NO_INSTALL_README_LICENSE "disable the installation of README and LICENSE files" OFF)
+
+# We are in the process of deprecating the use of virtual methods because they
+# are not well supported on many accelerators. Turn this option on to remove
+# the code entirely. Note that the deprecation of virtual methods is work in
+# progress, so not all use of virtual methods may be done. In VTK-m 2.0
+# virtual methods should be removed entirely and this option will be removed.
+vtkm_option(VTKm_NO_DEPRECATED_VIRTUAL "Do not compile support of deprecated virtual methods" OFF)
+
 mark_as_advanced(
   VTKm_ENABLE_LOGGING
   VTKm_NO_ASSERT
+  VTKm_NO_ASSERT_CUDA
   VTKm_INSTALL_ONLY_LIBRARIES
-  VTKm_USE_DEFAULT_SYMBOL_VISIBILITY
+  VTKm_HIDE_PRIVATE_SYMBOLS
   VTKm_ENABLE_DEVELOPER_FLAGS
+  VTKm_NO_INSTALL_README_LICENSE
+  VTKm_NO_DEPRECATED_VIRTUAL
   )
 
 #-----------------------------------------------------------------------------
@@ -154,6 +168,18 @@ include(VTKmCompilerFlags)
 
 
 #-----------------------------------------------------------------------------
+# We need to check and see if git lfs is installed so that test data will
+# be available for use
+if (VTKm_ENABLE_TESTING)
+  file(STRINGS "${VTKm_SOURCE_DIR}/data/data/sentinel-data" sentinel_data LIMIT_COUNT 1)
+  if (NOT sentinel_data STREQUAL "-- DO NOT MODIFY THIS LINE --")
+    message(WARNING
+      "Testing is enabled, but the data is not available. Use git lfs in order "
+      "to obtain the testing data.")
+    set(VTKm_ENABLE_TESTING off)
+  endif()
+endif()
+
 # We include the wrappers unconditionally as VTK-m expects the function to
 # always exist (and early terminate when testing is disabled).
 include(testing/VTKmTestWrappers)
@@ -175,17 +201,16 @@ if (VTKm_ENABLE_TESTING)
 
   #-----------------------------------------------------------------------------
   # Find the Python interpreter, which we will use during the build process
-  find_package(PythonInterp QUIET)
+  find_package(Python QUIET COMPONENTS Interpreter)
 
   #-----------------------------------------------------------------------------
   # Find Pyexpander in case somebody wants to update the auto generated
   # faux variadic template code
   find_package(Pyexpander QUIET)
 
-  #-----------------------------------------------------------------------------
   # Setup compiler flags for dynamic analysis if needed
-  include(VTKmCompilerDynamicAnalysisFlags)
-  vtkm_check_sanitizer_build()
+  include(testing/VTKmCompilerDynamicAnalysisFlags)
+
 endif (VTKm_ENABLE_TESTING)
 
 #-----------------------------------------------------------------------------
@@ -197,6 +222,7 @@ check_type_size("long long" VTKm_SIZE_LONG_LONG BUILTIN_TYPES_ONLY)
 
 #-----------------------------------------------------------------------------
 # Add subdirectories
+add_subdirectory(vtkmstd)
 add_subdirectory(vtkm)
 
 #-----------------------------------------------------------------------------
@@ -226,6 +252,18 @@ write_basic_package_version_file(
   VERSION ${VTKm_VERSION}
   COMPATIBILITY ExactVersion )
 
+# Install the readme and license files.
+if (NOT VTKm_NO_INSTALL_README_LICENSE)
+install(FILES ${VTKm_SOURCE_DIR}/README.md
+  DESTINATION ${VTKm_INSTALL_SHARE_DIR}
+  RENAME VTKmREADME.md
+  )
+install(FILES ${VTKm_SOURCE_DIR}/LICENSE.txt
+  DESTINATION ${VTKm_INSTALL_SHARE_DIR}
+  RENAME VTKmLICENSE.txt
+  )
+endif()
+
 if(NOT VTKm_INSTALL_ONLY_LIBRARIES)
   install(
     FILES
@@ -234,22 +272,12 @@ if(NOT VTKm_INSTALL_ONLY_LIBRARIES)
     DESTINATION ${VTKm_INSTALL_CONFIG_DIR}
     )
 
-  # Install the readme and license files.
-  install(FILES ${VTKm_SOURCE_DIR}/README.md
-    DESTINATION ${VTKm_INSTALL_SHARE_DIR}
-    RENAME VTKmREADME.md
-    )
-  install(FILES ${VTKm_SOURCE_DIR}/LICENSE.txt
-    DESTINATION ${VTKm_INSTALL_SHARE_DIR}
-    RENAME VTKmLICENSE.txt
-    )
-
   # Install helper configure files.
   install(
     FILES
+      ${VTKm_SOURCE_DIR}/CMake/VTKmCMakeBackports.cmake
       ${VTKm_SOURCE_DIR}/CMake/FindTBB.cmake
-      ${VTKm_SOURCE_DIR}/CMake/FindMPI.cmake
-      ${VTKm_SOURCE_DIR}/CMake/FindOpenGL.cmake
+      ${VTKm_SOURCE_DIR}/CMake/patches/3.15/FindMPI.cmake
     DESTINATION ${VTKm_INSTALL_CMAKE_MODULE_DIR}
     )
 
@@ -259,8 +287,8 @@ if(NOT VTKm_INSTALL_ONLY_LIBRARIES)
       ${VTKm_SOURCE_DIR}/CMake/VTKmCPUVectorization.cmake
       ${VTKm_SOURCE_DIR}/CMake/VTKmDetectCUDAVersion.cu
       ${VTKm_SOURCE_DIR}/CMake/VTKmDeviceAdapters.cmake
+      ${VTKm_SOURCE_DIR}/CMake/VTKmDIYUtils.cmake
       ${VTKm_SOURCE_DIR}/CMake/VTKmExportHeaderTemplate.h.in
-      ${VTKm_SOURCE_DIR}/CMake/VTKmMPI.cmake
       ${VTKm_SOURCE_DIR}/CMake/VTKmRenderingContexts.cmake
       ${VTKm_SOURCE_DIR}/CMake/VTKmWrappers.cmake
     DESTINATION ${VTKm_INSTALL_CMAKE_MODULE_DIR}
@@ -294,7 +322,7 @@ endif ()
 #-----------------------------------------------------------------------------
 #add the benchmarking folder
 if(VTKm_ENABLE_BENCHMARKS)
-    add_subdirectory(benchmarking)
+  add_subdirectory(benchmarking)
 endif()
 
 #-----------------------------------------------------------------------------
@@ -319,6 +347,8 @@ if (VTKm_ENABLE_TESTING)
   # installed version of VTK-m.
   include(testing/VTKmTestInstall)
   vtkm_test_install()
+else ()
+  set(CTEST_USE_LAUNCHERS off)
 endif()
 
 #-----------------------------------------------------------------------------

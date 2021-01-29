@@ -70,7 +70,7 @@ public:
 
 protected:
   vtkImageNonMaximumSuppression();
-  ~vtkImageNonMaximumSuppression() override {}
+  ~vtkImageNonMaximumSuppression() override = default;
 
   vtkTypeBool HandleBoundaries;
   int Dimensionality;
@@ -81,7 +81,7 @@ protected:
 
   void ThreadedRequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector, vtkImageData*** inData, vtkImageData** outData,
-    int extent[6], int threadId) override;
+    int outExt[6], int threadId) override;
 
 private:
   vtkImageNonMaximumSuppression(const vtkImageNonMaximumSuppression&) = delete;

@@ -26,6 +26,7 @@
 
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkThreads.h" // for VTK_USE_PTHREADS and VTK_USE_WIN32_THREADS
 
 #if defined(VTK_USE_PTHREADS)
 #include <pthread.h> // Needed for PTHREAD implementation of mutex
@@ -95,7 +96,7 @@ protected:
   friend class vtkConditionVariable; // needs to get at SimpleMutexLock.
 
   vtkSimpleMutexLock SimpleMutexLock;
-  vtkMutexLock() {}
+  vtkMutexLock() = default;
 
 private:
   vtkMutexLock(const vtkMutexLock&) = delete;

@@ -206,7 +206,7 @@ protected:
    * Fills the ghost array for the nodes
    */
   void FillNodesGhostArray(const int gridID, const int dataDescription, int GridExtent[6],
-    int RealExtent[6], vtkUnsignedCharArray* nodeArray);
+    int RealExtent[6], vtkUnsignedCharArray* nodesArray);
 
   /**
    * Fills the ghost array for the grid cells
@@ -392,7 +392,8 @@ protected:
    * VTK_NODE_OVERLAP    1
    * VTK_PARTIAL_OVERLAP 3
    */
-  int PartialOverlap(int A[2], const int CofA, int B[2], const int CofB, int overlap[2]);
+  int PartialOverlap(
+    int A[2], const int CardinalityOfA, int B[2], const int CardinalityOfB, int overlap[2]);
 
   /**
    * Establishes the neighboring information between the two grids
@@ -554,7 +555,7 @@ protected:
   /**
    * This method transfers the fields
    */
-  void TransferLocalNeighborData(const int gridID, const vtkStructuredNeighbor& Neighor);
+  void TransferLocalNeighborData(const int gridID, const vtkStructuredNeighbor& Neighbor);
 
   /**
    * Copies the coordinates from the source points to the target points.
@@ -590,7 +591,7 @@ protected:
   std::vector<int> GridExtents;
   std::vector<int> GhostedExtents;
   std::vector<unsigned char> BlockTopology;
-  std::vector<std::vector<vtkStructuredNeighbor> > Neighbors;
+  std::vector<std::vector<vtkStructuredNeighbor>> Neighbors;
   std::map<std::pair<int, int>, int> NeighborPair2NeighborListIndex;
 
 private:
@@ -669,7 +670,7 @@ inline void vtkStructuredGridConnectivity::GetGhostedGridExtent(const int gridID
   assert("pre: gridID out-of-bounds!" &&
     (gridID >= 0 && gridID < static_cast<int>(this->NumberOfGrids)));
 
-  if (this->GhostedExtents.size() == 0)
+  if (this->GhostedExtents.empty())
   {
     ext[0] = ext[2] = ext[4] = -1;
     ext[1] = ext[3] = ext[5] = 0;

@@ -29,6 +29,7 @@
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkObject.h"
 
+class vtkImageData;
 class vtkUnsignedCharArray;
 
 class VTKCOMMONCORE_EXPORT vtkWindow : public vtkObject
@@ -42,34 +43,50 @@ public:
    * These are window system independent methods that are used
    * to help interface vtkWindow to native windowing systems.
    */
-  virtual void SetDisplayId(void*) = 0;
-  virtual void SetWindowId(void*) = 0;
-  virtual void SetParentId(void*) = 0;
-  virtual void* GetGenericDisplayId() = 0;
-  virtual void* GetGenericWindowId() = 0;
-  virtual void* GetGenericParentId() = 0;
-  virtual void* GetGenericContext() = 0;
-  virtual void* GetGenericDrawable() = 0;
-  virtual void SetWindowInfo(const char*) = 0;
-  virtual void SetParentInfo(const char*) = 0;
+  virtual void SetDisplayId(void*) {}
+  virtual void SetWindowId(void*) {}
+  virtual void SetParentId(void*) {}
+  virtual void* GetGenericDisplayId() { return nullptr; }
+  virtual void* GetGenericWindowId() { return nullptr; }
+  virtual void* GetGenericParentId() { return nullptr; }
+  virtual void* GetGenericContext() { return nullptr; }
+  virtual void* GetGenericDrawable() { return nullptr; }
+  virtual void SetWindowInfo(const char*) {}
+  virtual void SetParentInfo(const char*) {}
   //@}
 
   //@{
   /**
-   * Set/Get the position in screen coordinates of the rendering window.
-   * Measured in pixels.
+   * Get the position (x and y) of the rendering window in
+   * screen coordinates (in pixels).
    */
   virtual int* GetPosition() VTK_SIZEHINT(2);
-  virtual void SetPosition(int, int);
+
+  /**
+   * Set the position (x and y) of the rendering window in
+   * screen coordinates (in pixels). This resizes the operating
+   * system's view/window and redraws it.
+   */
+  virtual void SetPosition(int x, int y);
   virtual void SetPosition(int a[2]);
   //@}
 
   //@{
   /**
-   * Set/Get the size of the window in screen coordinates in pixels.
+   * Get the size (width and height) of the rendering window in
+   * screen coordinates (in pixels).
    */
   virtual int* GetSize() VTK_SIZEHINT(2);
-  virtual void SetSize(int, int);
+
+  /**
+   * Set the size (width and height) of the rendering window in
+   * screen coordinates (in pixels). This resizes the operating
+   * system's view/window and redraws it.
+   *
+   * If the size has changed, this method will fire
+   * vtkCommand::WindowResizeEvent.
+   */
+  virtual void SetSize(int width, int height);
   virtual void SetSize(int a[2]);
   //@}
 
@@ -82,7 +99,7 @@ public:
   /**
    * Get the current size of the screen in pixels.
    */
-  virtual int* GetScreenSize() VTK_SIZEHINT(2) = 0;
+  virtual int* GetScreenSize() VTK_SIZEHINT(2) { return nullptr; }
 
   //@{
   /**
@@ -141,10 +158,16 @@ public:
   //@}
 
   /**
+   * Set the icon used in title bar and task bar.
+   * Currently implemented for OpenGL windows on Windows and Linux.
+   */
+  virtual void SetIcon(vtkImageData*) {}
+
+  /**
    * Ask each viewport owned by this Window to render its image and
    * synchronize this process.
    */
-  virtual void Render() = 0;
+  virtual void Render() {}
 
   /**
    * Release any graphics resources that are being consumed by this texture.
@@ -166,9 +189,16 @@ public:
    * (x,y) is any corner of the rectangle. (x2,y2) is its opposite corner on
    * the diagonal.
    */
-  virtual unsigned char* GetPixelData(int x, int y, int x2, int y2, int front, int right = 0) = 0;
-  virtual int GetPixelData(
-    int x, int y, int x2, int y2, int front, vtkUnsignedCharArray* data, int right = 0) = 0;
+  virtual unsigned char* GetPixelData(
+    int /*x*/, int /*y*/, int /*x2*/, int /*y2*/, int /*front*/, int /*right*/ = 0)
+  {
+    return nullptr;
+  }
+  virtual int GetPixelData(int /*x*/, int /*y*/, int /*x2*/, int /*y2*/, int /*front*/,
+    vtkUnsignedCharArray* /*data*/, int /*right*/ = 0)
+  {
+    return 0;
+  }
   //@}
 
   //@{

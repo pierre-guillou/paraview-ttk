@@ -49,9 +49,9 @@ int TestPathTracerMaterialLibrary(int argc, char* argv[])
     return VTK_ERROR;
   }
   cout << "Found Water material." << endl;
-  if (lib->LookupImplName("Water") != "Glass")
+  if (lib->LookupImplName("Water") != "glass")
   {
-    cerr << "Problem, expected Water to be implemented by the Glass material." << endl;
+    cerr << "Problem, expected Water to be implemented by the glass material." << endl;
     return VTK_ERROR;
   }
   cout << "Water is the right type." << endl;
@@ -85,6 +85,14 @@ int TestPathTracerMaterialLibrary(int argc, char* argv[])
     cout << *it << endl;
     ++it;
   }
+
+  auto ks = lib->GetDoubleShaderVariable("mat1", "Ks");
+  if (ks[2] != 0.882353)
+  {
+    cerr << "Problem, could not find expected material mat1 ks component." << endl;
+    return VTK_ERROR;
+  }
+
   if (mats.find("mat2") == mats.end())
   {
     cerr << "Problem, could not find expected material named mat2." << endl;
@@ -123,9 +131,9 @@ int TestPathTracerMaterialLibrary(int argc, char* argv[])
     cerr << "Problem, could not find expected material named mat3." << endl;
     return VTK_ERROR;
   }
-  if (lib->LookupImplName("mat3") != "Metal")
+  if (lib->LookupImplName("mat3") != "metal")
   {
-    cerr << "Problem, expected mat3 to be implemented by the Metal material." << endl;
+    cerr << "Problem, expected mat3 to be implemented by the metal material." << endl;
     return VTK_ERROR;
   }
   cout << "mat3 is the right type." << endl;

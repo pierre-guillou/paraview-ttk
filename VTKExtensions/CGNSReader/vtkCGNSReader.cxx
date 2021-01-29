@@ -24,10 +24,11 @@
 #include "vtkCGNSReader.h"
 #include "vtkCGNSReaderInternal.h" // For parsing information request
 
-#include "vtkCallbackCommand.h"
+#include "vtkAssume.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCharArray.h"
+#include "vtkCommand.h"
 #include "vtkDataArraySelection.h"
 #include "vtkDoubleArray.h"
 #include "vtkErrorCode.h"
@@ -72,6 +73,7 @@
 
 #include "cgio_helpers.h"
 
+vtkInformationKeyMacro(vtkCGNSReader, FAMILY, String);
 vtkStandardNewMacro(vtkCGNSReader);
 
 namespace
@@ -97,7 +99,6 @@ struct duo_t
   }
 
   int& operator[](std::size_t n) { return pair[n]; }
-  const int& operator[](std::size_t n) const { return pair[n]; }
 private:
   int pair[2];
 };
@@ -203,6 +204,15 @@ public:
       else if (strcmp(nodeLabel, "FamilyName_t") == 0)
       {
         CGNSRead::readNodeStringData(cgioNum, *iter, this->FamilyName);
+        if (this->FamilyName.size() > 0 && this->FamilyName[0] == '/')
+        {
+          // This is a family path
+          std::string::size_type pos = this->FamilyName.find('/', 1);
+          if (pos != std::string::npos)
+          {
+            this->FamilyName = this->FamilyName.substr(pos + 1);
+          }
+        }
       }
       else if (strcmp(nodeLabel, "GridLocation_t") == 0)
       {
@@ -264,6 +274,9 @@ public:
     // (1,1,1); this means the default beginning cell center of the grid in that
     // zone is also (1,1,1)" (from CGNS docs:
     // https://cgns.github.io/CGNS_docs_current/sids/conv.html#structgrid).
+
+    // Hint that cellDim is <= 3
+    VTK_ASSUME(cellDim <= 3);
 
     // Hence, convert this->PointRange to 0-based values.
     int zPointRange[6];
@@ -365,6 +378,15 @@ public:
       else if (strcmp(nodeLabel, "FamilyName_t") == 0)
       {
         CGNSRead::readNodeStringData(cgioNum, *iter, this->FamilyName);
+        if (this->FamilyName.size() > 0 && this->FamilyName[0] == '/')
+        {
+          // This is a family path
+          std::string::size_type pos = this->FamilyName.find('/', 1);
+          if (pos != std::string::npos)
+          {
+            this->FamilyName = this->FamilyName.substr(pos + 1);
+          }
+        }
       }
       else if (strcmp(nodeLabel, "GridLocation_t") == 0)
       {
@@ -522,21 +544,43 @@ int StartsWithFlowSolution(const char* s)
 
   return ret;
 }
+//----------------------------------------------------------------------------
+// Small helper
+const char* get_data_type(const CGNS_ENUMT(DataType_t) dt)
+{
+  const char* dataType;
+  switch (dt)
+  {
+    case CGNS_ENUMV(Integer):
+      dataType = "I4";
+      break;
+    case CGNS_ENUMV(LongInteger):
+      dataType = "I8";
+      break;
+    case CGNS_ENUMV(RealSingle):
+      dataType = "R4";
+      break;
+    case CGNS_ENUMV(RealDouble):
+      dataType = "R8";
+      break;
+    case CGNS_ENUMV(Character):
+      dataType = "C1";
+      break;
+    default:
+      dataType = "MT";
+  }
+  return dataType;
+}
 
 //----------------------------------------------------------------------------
 vtkCGNSReader::vtkCGNSReader()
-  : PointDataArraySelection()
-  , CellDataArraySelection()
-  , Internal(new CGNSRead::vtkCGNSMetaData())
+  : Internal(new CGNSRead::vtkCGNSMetaData())
   , MeshPointsCache()
   , ConnectivitiesCache()
 {
   this->FileName = NULL;
-
-#if !defined(VTK_LEGACY_REMOVE)
-  this->LoadBndPatch = 0;
+  this->LoadBndPatch = false;
   this->LoadMesh = true;
-#endif
 
   this->NumberOfBases = 0;
   this->ActualTimeStep = 0;
@@ -545,20 +589,8 @@ vtkCGNSReader::vtkCGNSReader()
   this->IgnoreFlowSolutionPointers = false;
   this->UseUnsteadyPattern = false;
   this->DistributeBlocks = true;
-  this->IgnoreSILChangeEvents = false;
   this->CacheMesh = false;
   this->CacheConnectivity = false;
-
-  // Setup the selection callback to modify this object when an array
-  // selection is changed.
-  this->SelectionObserver = vtkCallbackCommand::New();
-  this->SelectionObserver->SetCallback(&vtkCGNSReader::SelectionModifiedCallback);
-  this->SelectionObserver->SetClientData(this);
-  this->PointDataArraySelection->AddObserver(vtkCommand::ModifiedEvent, this->SelectionObserver);
-  this->CellDataArraySelection->AddObserver(vtkCommand::ModifiedEvent, this->SelectionObserver);
-
-  this->Internal->GetSIL()->AddObserver(
-    vtkCommand::StateChangedEvent, this, &vtkCGNSReader::OnSILStateChanged);
 
   this->SetNumberOfInputPorts(0);
   this->SetNumberOfOutputPorts(1);
@@ -567,6 +599,13 @@ vtkCGNSReader::vtkCGNSReader()
   this->ProcSize = 1;
   this->Controller = NULL;
   this->SetController(vtkMultiProcessController::GetGlobalController());
+
+  this->PointDataArraySelection->AddObserver(
+    vtkCommand::ModifiedEvent, this, &vtkCGNSReader::Modified);
+  this->CellDataArraySelection->AddObserver(
+    vtkCommand::ModifiedEvent, this, &vtkCGNSReader::Modified);
+  this->BaseSelection->AddObserver(vtkCommand::ModifiedEvent, this, &vtkCGNSReader::Modified);
+  this->FamilySelection->AddObserver(vtkCommand::ModifiedEvent, this, &vtkCGNSReader::Modified);
 }
 
 //----------------------------------------------------------------------------
@@ -575,11 +614,6 @@ vtkCGNSReader::~vtkCGNSReader()
   this->SetFileName(0);
   this->MeshPointsCache.ClearCache();
   this->ConnectivitiesCache.ClearCache();
-
-  this->PointDataArraySelection->RemoveObserver(this->SelectionObserver);
-  this->CellDataArraySelection->RemoveObserver(this->SelectionObserver);
-
-  this->SelectionObserver->Delete();
   this->SetController(NULL);
 
   delete this->Internal;
@@ -668,7 +702,8 @@ int vtkCGNSReader::vtkPrivate::getGridAndSolutionNames(int base, std::string& gr
     {
       CGNSRead::char_33 gname;
       const cgsize_t offset = static_cast<cgsize_t>(self->ActualTimeStep * 32);
-      cgio_read_block_data(self->cgioNum, giterId, offset + 1, offset + 32, (void*)gname);
+      cgio_read_block_data_type(
+        self->cgioNum, giterId, offset + 1, offset + 32, "C1", (void*)gname);
       gname[32] = '\0';
       // NOTE: Names or identifiers contain no spaces and capitalization
       //       is used to distinguish individual words making up a name.
@@ -728,9 +763,9 @@ int vtkCGNSReader::vtkPrivate::getGridAndSolutionNames(int base, std::string& gr
         EndsWithPointers(nodeName))
       {
         CGNSRead::char_33 gname;
-        cgio_read_block_data(self->cgioNum, iterChildId[cc],
+        cgio_read_block_data_type(self->cgioNum, iterChildId[cc],
           (cgsize_t)(self->ActualTimeStep * 32 + 1), (cgsize_t)(self->ActualTimeStep * 32 + 32),
-          (void*)gname);
+          "C1", (void*)gname);
         gname[32] = '\0';
         CGNSRead::removeTrailingWhiteSpaces(gname);
         std::string tmpStr = std::string(gname);
@@ -1193,28 +1228,30 @@ int vtkCGNSReader::vtkPrivate::readSolution(const std::string& solutionNameStr, 
       continue;
     }
     double cgioVarId = solChildId[ff];
+    const char* fieldDataType = get_data_type(cgnsVars[ff].dt);
 
     // quick transfer of data because data types is given by cgns database
     if (cgnsVars[ff].isComponent == false)
     {
-      if (cgio_read_data(self->cgioNum, cgioVarId, fieldSrcStart, fieldSrcEnd, fieldSrcStride,
-            cellDim, fieldMemDims, fieldMemStart, fieldMemEnd, fieldMemStride,
+      if (cgio_read_data_type(self->cgioNum, cgioVarId, fieldSrcStart, fieldSrcEnd, fieldSrcStride,
+            fieldDataType, cellDim, fieldMemDims, fieldMemStart, fieldMemEnd, fieldMemStride,
             (void*)vtkVars[ff]->GetVoidPointer(0)) != CG_OK)
       {
         char message[81];
         cgio_error_message(message);
-        vtkGenericWarningMacro(<< "cgio_read_data :" << message);
+        vtkGenericWarningMacro(<< "cgio_read_data_type :" << message);
       }
     }
     else
     {
-      if (cgio_read_data(self->cgioNum, cgioVarId, fieldSrcStart, fieldSrcEnd, fieldSrcStride,
-            cellDim, fieldVectMemDims, fieldVectMemStart, fieldVectMemEnd, fieldVectMemStride,
+      if (cgio_read_data_type(self->cgioNum, cgioVarId, fieldSrcStart, fieldSrcEnd, fieldSrcStride,
+            fieldDataType, cellDim, fieldVectMemDims, fieldVectMemStart, fieldVectMemEnd,
+            fieldVectMemStride,
             (void*)vtkVars[ff]->GetVoidPointer(cgnsVars[ff].xyzIndex - 1)) != CG_OK)
       {
         char message[81];
         cgio_error_message(message);
-        vtkGenericWarningMacro(<< "cgio_read_data :" << message);
+        vtkGenericWarningMacro(<< "cgio_read_data_type :" << message);
       }
     }
     cgio_release_id(self->cgioNum, cgioVarId);
@@ -1444,6 +1481,7 @@ int vtkCGNSReader::vtkPrivate::readBCData(const double nodeId, const int cellDim
             continue;
           }
           double cgioVarId = varIds[ff];
+          const char* fieldDataType = get_data_type(cgnsVars[ff].dt);
 
           cgsize_t dataSize = 1;
           cgsize_t dimVals[12];
@@ -1470,12 +1508,12 @@ int vtkCGNSReader::vtkPrivate::readBCData(const double nodeId, const int cellDim
             // quick transfer of data because data types is given by cgns database
             if (cgnsVars[ff].isComponent == false)
             {
-              if (cgio_read_all_data(
-                    self->cgioNum, cgioVarId, (void*)vtkVars[ff]->GetVoidPointer(0)) != CG_OK)
+              if (cgio_read_all_data_type(self->cgioNum, cgioVarId, fieldDataType,
+                    (void*)vtkVars[ff]->GetVoidPointer(0)) != CG_OK)
               {
                 char message[81];
                 cgio_error_message(message);
-                vtkGenericWarningMacro(<< "cgio_read_data :" << message);
+                vtkGenericWarningMacro(<< "cgio_read_all_data_type :" << message);
               }
               if (dataSize == 1)
               {
@@ -1506,14 +1544,14 @@ int vtkCGNSReader::vtkPrivate::readBCData(const double nodeId, const int cellDim
               fieldVectMemDims[0] = fieldSrcEnd[0] * fieldVectMemStride[0];
               fieldVectMemEnd[0] = fieldSrcEnd[0] * fieldVectMemStride[0];
 
-              if (cgio_read_data(self->cgioNum, cgioVarId, fieldSrcStart, fieldSrcEnd,
-                    fieldSrcStride, 1, fieldVectMemDims, fieldVectMemStart, fieldVectMemEnd,
-                    fieldVectMemStride,
+              if (cgio_read_data_type(self->cgioNum, cgioVarId, fieldSrcStart, fieldSrcEnd,
+                    fieldSrcStride, fieldDataType, 1, fieldVectMemDims, fieldVectMemStart,
+                    fieldVectMemEnd, fieldVectMemStride,
                     (void*)vtkVars[ff]->GetVoidPointer(cgnsVars[ff].xyzIndex - 1)) != CG_OK)
               {
                 char message[81];
                 cgio_error_message(message);
-                vtkGenericWarningMacro(<< "cgio_read_data :" << message);
+                vtkGenericWarningMacro(<< "cgio_read_data_type :" << message);
               }
               if (dataSize == 1)
               {
@@ -1930,12 +1968,10 @@ int vtkCGNSReader::GetCurvilinearZone(
   int base, int zone, int cellDim, int physicalDim, void* v_zsize, vtkMultiBlockDataSet* mbase)
 {
   cgsize_t* zsize = reinterpret_cast<cgsize_t*>(v_zsize);
+  auto& baseInfo = this->Internal->GetBase(base);
+  auto& zoneInfo = baseInfo.zones[zone];
 
-  const auto sil = this->GetSIL();
-  const char* basename = this->Internal->GetBase(base).name;
-  const char* zonename = this->Internal->GetBase(base).zones[zone].name;
-
-  vtkSmartPointer<vtkDataObject> zoneDO = sil->ReadGridForZone(basename, zonename)
+  vtkSmartPointer<vtkDataObject> zoneDO = CGNSRead::ReadGridForZone(this, baseInfo, zoneInfo)
     ? vtkPrivate::readCurvilinearZone(base, zone, cellDim, physicalDim, zsize, nullptr, this)
     : vtkSmartPointer<vtkDataObject>();
   mbase->SetBlock(zone, zoneDO.Get());
@@ -1943,7 +1979,7 @@ int vtkCGNSReader::GetCurvilinearZone(
   //----------------------------------------------------------------------------
   // Handle boundary conditions (BC) patches
   //----------------------------------------------------------------------------
-  if (!this->CreateEachSolutionAsBlock && sil->ReadPatchesForBase(basename))
+  if (!this->CreateEachSolutionAsBlock && CGNSRead::ReadPatchesForBase(this, baseInfo))
   {
     vtkNew<vtkMultiBlockDataSet> newZoneMB;
 
@@ -1981,7 +2017,7 @@ int vtkCGNSReader::GetCurvilinearZone(
           try
           {
             BCInformation binfo(this->cgioNum, *bciter);
-            if (sil->ReadPatch(basename, zonename, binfo.Name))
+            if (CGNSRead::ReadPatch(this, baseInfo, zoneInfo, binfo.FamilyName))
             {
               const unsigned int idx = patchesMB->GetNumberOfBlocks();
               vtkSmartPointer<vtkDataSet> ds = zoneGrid
@@ -1994,8 +2030,7 @@ int vtkCGNSReader::GetCurvilinearZone(
 
               if (!binfo.FamilyName.empty())
               {
-                vtkInformationStringKey* bcfamily =
-                  new vtkInformationStringKey("FAMILY", "vtkCompositeDataSet");
+                vtkInformationStringKey* bcfamily = vtkCGNSReader::FAMILY();
                 patchesMB->GetMetaData(idx)->Set(bcfamily, binfo.FamilyName.c_str());
               }
               patchesMB->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), binfo.Name);
@@ -2028,6 +2063,8 @@ int vtkCGNSReader::GetUnstructuredZone(
   int base, int zone, int cellDim, int physicalDim, void* v_zsize, vtkMultiBlockDataSet* mbase)
 {
   cgsize_t* zsize = reinterpret_cast<cgsize_t*>(v_zsize);
+  auto& baseInfo = this->Internal->GetBase(base);
+  auto& zoneInfo = baseInfo.zones[zone];
 
   ////=========================================================================
   const bool warningIdTypeSize = sizeof(cgsize_t) > sizeof(vtkIdType);
@@ -2070,6 +2107,12 @@ int vtkCGNSReader::GetUnstructuredZone(
 
   std::vector<double> gridChildId;
   std::size_t nCoordsArray = 0;
+
+  if (CGNSRead::ReadDataForZone(this, baseInfo, zoneInfo) == false)
+  {
+    mbase->SetBlock(zone, vtkSmartPointer<vtkDataObject>());
+    return 0;
+  }
 
   vtkPrivate::getGridAndSolutionNames(base, gridCoordName, solutionNames, this);
   if (gridCoordName == "Null")
@@ -2227,7 +2270,7 @@ int vtkCGNSReader::GetUnstructuredZone(
 
     //
     CGNSRead::char_33 dataType;
-    std::vector<int> mdata;
+    std::vector<vtkTypeInt32> mdata;
 
     if (cgio_get_name(this->cgioNum, elemIdList[sec], sectionInfoList[sec].name) != CG_OK)
     {
@@ -2242,7 +2285,7 @@ int vtkCGNSReader::GetUnstructuredZone(
       vtkErrorMacro(<< "Unexpected data type for dimension data of Element\n");
     }
 
-    CGNSRead::readNodeData<int>(cgioNum, elemIdList[sec], mdata);
+    CGNSRead::readNodeData<vtkTypeInt32>(cgioNum, elemIdList[sec], mdata);
     if (mdata.size() != 2)
     {
       vtkErrorMacro(<< "Unexpected data for Elements_t node\n");
@@ -2263,8 +2306,8 @@ int vtkCGNSReader::GetUnstructuredZone(
 
     if (strcmp(dataType, "I4") == 0)
     {
-      std::vector<int> mdata2;
-      CGNSRead::readNodeData<int>(this->cgioNum, elemRangeId, mdata2);
+      std::vector<vtkTypeInt32> mdata2;
+      CGNSRead::readNodeData<vtkTypeInt32>(this->cgioNum, elemRangeId, mdata2);
       if (mdata2.size() != 2)
       {
         vtkErrorMacro(<< "Unexpected data for ElementRange node\n");
@@ -2274,8 +2317,8 @@ int vtkCGNSReader::GetUnstructuredZone(
     }
     else if (strcmp(dataType, "I8") == 0)
     {
-      std::vector<cglong_t> mdata2;
-      CGNSRead::readNodeData<cglong_t>(this->cgioNum, elemRangeId, mdata2);
+      std::vector<vtkTypeInt64> mdata2;
+      CGNSRead::readNodeData<vtkTypeInt64>(this->cgioNum, elemRangeId, mdata2);
       if (mdata2.size() != 2)
       {
         vtkErrorMacro(<< "Unexpected data for ElementRange node\n");
@@ -2481,8 +2524,9 @@ int vtkCGNSReader::GetUnstructuredZone(
         if (0 != CGNSRead::get_section_start_offset(this->cgioNum, elemIdList[osec], 1, srcStart,
                    srcEnd, srcStride, memStart, memEnd, memStride, memDim, localFaceElementsIdx))
         {
-          vtkWarningMacro("FAILED to read NGON_n ElementStartOffset array."
-                          " Trying a fallback solution for CGNS previous to 3.4\n");
+          // NOTE: the old polygonal layout was replaced in CGNS version 4.0
+          // NOTE: support for the old NFACE_n/NGON_n array layout may be deprecated in
+          // NOTE: a future version of ParaView.
           old_polygonal_layout = true;
         }
 
@@ -2610,8 +2654,9 @@ int vtkCGNSReader::GetUnstructuredZone(
         if (0 != CGNSRead::get_section_start_offset(this->cgioNum, cgioSectionId, 1, srcStart,
                    srcEnd, srcStride, memStart, memEnd, memStride, memDim, localCellElementsIdx))
         {
-          vtkWarningMacro("FAILED to read NFACE_n ElementStartOffset array."
-                          " Trying a fallback solution for CGNS previous to 3.4\n");
+          // NOTE: the old polygonal layout was replaced in CGNS version 4.0
+          // NOTE: support for the old NFACE_n/NGON_n array layout may be deprecated in
+          // NOTE: a future version of ParaView.
           old_polygonal_layout = true;
         }
         if (startNFaceArraySec[sec] != 0)
@@ -2959,10 +3004,7 @@ int vtkCGNSReader::GetUnstructuredZone(
     }
   }
   //
-  const auto sil = this->GetSIL();
-  const char* basename = this->Internal->GetBase(base).name;
-  const char* zonename = this->Internal->GetBase(base).zones[zone].name;
-  const bool requiredPatch = sil->ReadPatchesForBase(basename);
+  const bool requiredPatch = CGNSRead::ReadPatchesForBase(this, baseInfo);
 
   // SetUp zone Blocks
   vtkMultiBlockDataSet* mzone = vtkMultiBlockDataSet::New();
@@ -3036,7 +3078,7 @@ int vtkCGNSReader::GetUnstructuredZone(
           try
           {
             BCInformationUns binfo(this->cgioNum, *bciter, cellDim);
-            if (sil->ReadPatch(basename, zonename, binfo.Name))
+            if (CGNSRead::ReadPatch(this, baseInfo, zoneInfo, binfo.FamilyName))
             {
               std::vector<vtkIdList*> bndFaceList;
               //
@@ -3351,8 +3393,7 @@ int vtkCGNSReader::GetUnstructuredZone(
 
               if (!binfo.FamilyName.empty())
               {
-                vtkInformationStringKey* bcfamily =
-                  new vtkInformationStringKey("FAMILY", "vtkCompositeDataSet");
+                vtkInformationStringKey* bcfamily = vtkCGNSReader::FAMILY();
                 patchesMB->GetMetaData(idx)->Set(bcfamily, binfo.FamilyName.c_str());
               }
               patchesMB->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), binfo.Name);
@@ -3411,7 +3452,7 @@ int vtkCGNSReader::GetUnstructuredZone(
           try
           {
             BCInformationUns binfo(this->cgioNum, *bciter, cellDim);
-            if (sil->ReadPatch(basename, zonename, binfo.Name))
+            if (CGNSRead::ReadPatch(this, baseInfo, zoneInfo, binfo.FamilyName))
             {
               // Common struct to read from BCElementList or BCElementRange
               vtkNew<vtkCellArray> bcCells;
@@ -4099,8 +4140,7 @@ int vtkCGNSReader::GetUnstructuredZone(
               patchesMB->SetBlock(idx, bcGrid.Get());
               if (!binfo.FamilyName.empty())
               {
-                vtkInformationStringKey* bcfamily =
-                  new vtkInformationStringKey("FAMILY", "vtkCompositeDataSet");
+                vtkInformationStringKey* bcfamily = vtkCGNSReader::FAMILY();
                 patchesMB->GetMetaData(idx)->Set(bcfamily, binfo.FamilyName.c_str());
               }
               patchesMB->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), binfo.Name);
@@ -4235,19 +4275,14 @@ int vtkCGNSReader::RequestData(vtkInformation* vtkNotUsed(request),
   // Bnd Sections Not implemented yet for parallel
   if (numProcessors > 1)
   {
-#if !defined(VTK_LEGACY_REMOVE)
-    this->LoadBndPatch = 0;
-#endif
+    this->LoadBndPatch = false;
     this->CreateEachSolutionAsBlock = 0;
   }
 
-  this->IgnoreSILChangeEvents = true;
   if (!this->Internal->Parse(this->FileName))
   {
-    this->IgnoreSILChangeEvents = false;
     return 0;
   }
-  this->IgnoreSILChangeEvents = false;
 
   vtkMultiBlockDataSet* rootNode = output;
 
@@ -4306,8 +4341,7 @@ int vtkCGNSReader::RequestData(vtkInformation* vtkNotUsed(request),
     const CGNSRead::BaseInformation& curBaseInfo = this->Internal->GetBase(numBase);
 
     // skip unselected base
-    if (this->Internal->GetSIL()->GetBaseState(curBaseInfo.name) ==
-      vtkSubsetInclusionLattice::NotSelected)
+    if (!CGNSRead::ReadBase(this, curBaseInfo))
     {
       continue;
     }
@@ -4433,8 +4467,8 @@ int vtkCGNSReader::RequestData(vtkInformation* vtkNotUsed(request),
 
       if (strcmp(dataType, "I4") == 0)
       {
-        std::vector<int> mdata;
-        CGNSRead::readNodeData<int>(this->cgioNum, baseChildId[zone], mdata);
+        std::vector<vtkTypeInt32> mdata;
+        CGNSRead::readNodeData<vtkTypeInt32>(this->cgioNum, baseChildId[zone], mdata);
         for (std::size_t index = 0; index < mdata.size(); index++)
         {
           zsize[index] = static_cast<cgsize_t>(mdata[index]);
@@ -4442,8 +4476,8 @@ int vtkCGNSReader::RequestData(vtkInformation* vtkNotUsed(request),
       }
       else if (strcmp(dataType, "I8") == 0)
       {
-        std::vector<cglong_t> mdata;
-        CGNSRead::readNodeData<cglong_t>(this->cgioNum, baseChildId[zone], mdata);
+        std::vector<vtkTypeInt64> mdata;
+        CGNSRead::readNodeData<vtkTypeInt64>(this->cgioNum, baseChildId[zone], mdata);
         for (std::size_t index = 0; index < mdata.size(); index++)
         {
           zsize[index] = static_cast<cgsize_t>(mdata[index]);
@@ -4469,8 +4503,7 @@ int vtkCGNSReader::RequestData(vtkInformation* vtkNotUsed(request),
 
       if (familyName.empty() == false)
       {
-        vtkInformationStringKey* zonefamily =
-          new vtkInformationStringKey("FAMILY", "vtkCompositeDataSet");
+        vtkInformationStringKey* zonefamily = vtkCGNSReader::FAMILY();
         mbase->GetMetaData(zone)->Set(zonefamily, familyName.c_str());
       }
 
@@ -4614,28 +4647,24 @@ int vtkCGNSReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   for (int base = 0; base < this->Internal->GetNumberOfBaseNodes(); ++base)
   {
     const CGNSRead::BaseInformation& curBase = this->Internal->GetBase(base);
+    this->BaseSelection->AddArray(curBase.name, base == 0 ? true : false);
+
+    // add families.
+    for (auto& finfo : curBase.family)
+    {
+      this->FamilySelection->AddArray(finfo.name.c_str());
+    }
 
     // Fill Variable Vertex/Cell names ... perhaps should be improved
-    for (auto iter = curBase.PointDataArraySelection.begin();
-         iter != curBase.PointDataArraySelection.end(); ++iter)
+    for (const auto& pair : curBase.PointDataArraySelection)
     {
-      if (!this->PointDataArraySelection->ArrayExists(iter->first.c_str()))
-      {
-        this->PointDataArraySelection->DisableArray(iter->first.c_str());
-      }
+      this->PointDataArraySelection->AddArray(pair.first.c_str(), false);
     }
-    for (auto iter = curBase.CellDataArraySelection.begin();
-         iter != curBase.CellDataArraySelection.end(); ++iter)
+    for (const auto& pair : curBase.CellDataArraySelection)
     {
-      if (!this->CellDataArraySelection->ArrayExists(iter->first.c_str()))
-      {
-        this->CellDataArraySelection->DisableArray(iter->first.c_str());
-      }
+      this->CellDataArraySelection->AddArray(pair.first.c_str(), false);
     }
   }
-
-  outputVector->GetInformationObject(0)->Set(
-    vtkSubsetInclusionLattice::SUBSET_INCLUSION_LATTICE(), this->GetSIL());
   return 1;
 }
 
@@ -4644,10 +4673,8 @@ void vtkCGNSReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "File Name: " << (this->FileName ? this->FileName : "(none)") << "\n";
-#if !defined(VTK_LEGACY_REMOVE)
   os << indent << "LoadBndPatch: " << this->LoadBndPatch << endl;
   os << indent << "LoadMesh: " << this->LoadMesh << endl;
-#endif
   os << indent << "CreateEachSolutionAsBlock: " << this->CreateEachSolutionAsBlock << endl;
   os << indent << "IgnoreFlowSolutionPointers: " << this->IgnoreFlowSolutionPointers << endl;
   os << indent << "DistributeBlocks: " << this->DistributeBlocks << endl;
@@ -4720,7 +4747,7 @@ int vtkCGNSReader::CanReadFile(const char* name)
   }
 
   // read data
-  if (cgio_read_all_data(cgioFile, childId, &FileVersion))
+  if (cgio_read_all_data_type(cgioFile, childId, "R4", &FileVersion))
   {
     vtkErrorMacro(<< "read CGNS version number");
     ierr = 0;
@@ -4870,12 +4897,6 @@ void vtkCGNSReader::SetCellArrayStatus(const char* name, int status)
   }
 }
 
-//----------------------------------------------------------------------------
-void vtkCGNSReader::SelectionModifiedCallback(vtkObject*, unsigned long, void* clientdata, void*)
-{
-  static_cast<vtkCGNSReader*>(clientdata)->Modified();
-}
-
 //------------------------------------------------------------------------------
 void vtkCGNSReader::Broadcast(vtkMultiProcessController* ctrl)
 {
@@ -4886,136 +4907,88 @@ void vtkCGNSReader::Broadcast(vtkMultiProcessController* ctrl)
   }
 }
 
-//------------------------------------------------------------------------------
-void vtkCGNSReader::SetExternalSIL(vtkCGNSSubsetInclusionLattice* sil)
-{
-  this->Internal->SetExternalSIL(sil);
-}
-
-//------------------------------------------------------------------------------
-vtkCGNSSubsetInclusionLattice* vtkCGNSReader::GetSIL() const
-{
-  return this->Internal->GetSIL();
-}
-
-//------------------------------------------------------------------------------
-vtkIdType vtkCGNSReader::GetSILUpdateStamp() const
-{
-  return static_cast<vtkIdType>(this->GetSIL()->GetMTime());
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSReader::SetBlockStatus(const char* nodepath, bool enable)
-{
-  if (enable)
-  {
-    this->GetSIL()->Select(nodepath);
-  }
-  else
-  {
-    this->GetSIL()->Deselect(nodepath);
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSReader::ClearBlockStatus()
-{
-  this->GetSIL()->ClearSelections();
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSReader::OnSILStateChanged()
-{
-  if (!this->IgnoreSILChangeEvents)
-  {
-    this->Modified();
-  }
-}
-
 //----------------------------------------------------------------------------
 void vtkCGNSReader::DisableAllBases()
 {
-  this->GetSIL()->DeselectAllBases();
+  this->BaseSelection->DisableAllArrays();
 }
 
 //----------------------------------------------------------------------------
 void vtkCGNSReader::EnableAllBases()
 {
-  this->GetSIL()->SelectAllBases();
+  this->BaseSelection->EnableAllArrays();
 }
 
 //----------------------------------------------------------------------------
 int vtkCGNSReader::GetNumberOfBaseArrays()
 {
-  return this->GetSIL()->GetNumberOfBases();
+  return this->BaseSelection->GetNumberOfArrays();
 }
 
 //----------------------------------------------------------------------------
 int vtkCGNSReader::GetBaseArrayStatus(const char* name)
 {
-  return this->GetSIL()->GetBaseState(name) == vtkSubsetInclusionLattice::Selected ? 1 : 0;
+  return this->BaseSelection->GetArraySetting(name);
 }
 
 //----------------------------------------------------------------------------
 void vtkCGNSReader::SetBaseArrayStatus(const char* name, int status)
 {
-  if (status)
-  {
-    this->GetSIL()->SelectBase(name);
-  }
-  else
-  {
-    this->GetSIL()->DeselectBase(name);
-  }
+  this->BaseSelection->SetArraySetting(name, status);
 }
 
 //----------------------------------------------------------------------------
 const char* vtkCGNSReader::GetBaseArrayName(int index)
 {
-  return this->GetSIL()->GetBaseName(index);
+  return this->BaseSelection->GetArrayName(index);
+}
+
+//----------------------------------------------------------------------------
+vtkDataArraySelection* vtkCGNSReader::GetBaseSelection()
+{
+  return this->BaseSelection;
 }
 
 //----------------------------------------------------------------------------
 int vtkCGNSReader::GetNumberOfFamilyArrays()
 {
-  return this->GetSIL()->GetNumberOfFamilies();
+  return this->FamilySelection->GetNumberOfArrays();
 }
 
 //----------------------------------------------------------------------------
 const char* vtkCGNSReader::GetFamilyArrayName(int index)
 {
-  return this->GetSIL()->GetFamilyName(index);
+  return this->FamilySelection->GetArrayName(index);
 }
 
 //----------------------------------------------------------------------------
 void vtkCGNSReader::SetFamilyArrayStatus(const char* name, int status)
 {
-  if (status)
-  {
-    this->GetSIL()->SelectFamily(name);
-  }
-  else
-  {
-    this->GetSIL()->DeselectFamily(name);
-  }
+  this->FamilySelection->SetArraySetting(name, status);
 }
 
 //----------------------------------------------------------------------------
 int vtkCGNSReader::GetFamilyArrayStatus(const char* name)
 {
-  return this->GetSIL()->GetFamilyState(name) == vtkSubsetInclusionLattice::Selected ? 1 : 0;
+  return this->FamilySelection->GetArraySetting(name);
 }
 
 //----------------------------------------------------------------------------
 void vtkCGNSReader::EnableAllFamilies()
 {
-  this->GetSIL()->SelectAllFamilies();
+  this->FamilySelection->EnableAllArrays();
 }
 
 //----------------------------------------------------------------------------
 void vtkCGNSReader::DisableAllFamilies()
 {
-  this->GetSIL()->DeselectAllFamilies();
+  this->FamilySelection->DisableAllArrays();
+}
+
+//----------------------------------------------------------------------------
+vtkDataArraySelection* vtkCGNSReader::GetFamilySelection()
+{
+  return this->FamilySelection;
 }
 
 //----------------------------------------------------------------------------
@@ -5038,46 +5011,6 @@ void vtkCGNSReader::SetCacheConnectivity(bool enable)
   }
 }
 
-//==============================================================================
-// *************** LEGACY API **************************************************
-//------------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
-void vtkCGNSReader::SetLoadBndPatch(int vtkNotUsed(val))
-{
-  VTK_LEGACY_BODY(vtkCGNSReader::SetLoadBndPatch, "ParaView 5.5");
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSReader::LoadBndPatchOn()
-{
-  VTK_LEGACY_BODY(vtkCGNSReader::LoadBndPatchOn, "ParaView 5.5");
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSReader::LoadBndPatchOff()
-{
-  VTK_LEGACY_BODY(vtkCGNSReader::LoadBndPatchOff, "ParaView 5.5");
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSReader::SetLoadMesh(bool vtkNotUsed(val))
-{
-  VTK_LEGACY_BODY(vtkCGNSReader::SetLoadMesh, "ParaView 5.5");
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSReader::LoadMeshOn()
-{
-  VTK_LEGACY_BODY(vtkCGNSReader::LoadMeshOn, "ParaView 5.5");
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSReader::LoadMeshOff()
-{
-  VTK_LEGACY_BODY(vtkCGNSReader::LoadMeshOff, "ParaView 5.5");
-}
-
-#endif // !defined(VTK_LEGACY_REMOVE)
 //==============================================================================
 #ifdef _WINDOWS
 #pragma warning(pop)

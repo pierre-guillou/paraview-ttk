@@ -41,7 +41,7 @@ namespace
  * Only 3/6/9 component signed data array are considered flippable.
  */
 static void FindFlippableArrays(
-  vtkFieldData* fd, std::vector<std::pair<vtkIdType, int> >& flippableArrays)
+  vtkFieldData* fd, std::vector<std::pair<vtkIdType, int>>& flippableArrays)
 {
   // Find all flippable arrays
   for (int iArr = 0; iArr < fd->GetNumberOfArrays(); iArr++)
@@ -62,7 +62,7 @@ static void FindFlippableArrays(
       int nComp = array->GetNumberOfComponents();
       if (nComp == 3 || nComp == 6 || nComp == 9)
       {
-        flippableArrays.push_back(std::make_pair(iArr, nComp));
+        flippableArrays.emplace_back(iArr, nComp);
       }
     }
   }
@@ -71,7 +71,7 @@ static void FindFlippableArrays(
 
 vtkStandardNewMacro(vtkReflectionFilter);
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkReflectionFilter::vtkReflectionFilter()
 {
   this->Plane = USE_X_MIN;
@@ -80,10 +80,10 @@ vtkReflectionFilter::vtkReflectionFilter()
   this->FlipAllInputArrays = false;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkReflectionFilter::~vtkReflectionFilter() = default;
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkReflectionFilter::FlipTuple(double* tuple, int* mirrorDir, int nComp)
 {
   for (int j = 0; j < nComp; j++)
@@ -92,7 +92,7 @@ void vtkReflectionFilter::FlipTuple(double* tuple, int* mirrorDir, int nComp)
   }
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkReflectionFilter::ComputeBounds(vtkDataObject* input, double bounds[6])
 {
   // get the input and output
@@ -132,7 +132,7 @@ int vtkReflectionFilter::ComputeBounds(vtkDataObject* input, double bounds[6])
   return 0;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType vtkReflectionFilter::ReflectNon3DCell(
   vtkDataSet* input, vtkUnstructuredGrid* output, vtkIdType cellId, vtkIdType numInputPoints)
 {
@@ -287,7 +287,7 @@ vtkIdType vtkReflectionFilter::ReflectNon3DCell(
   return output->InsertNextCell(cellType, numCellPts, &newCellPts[0]);
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkReflectionFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -331,7 +331,7 @@ int vtkReflectionFilter::RequestData(vtkInformation* vtkNotUsed(request),
   return 0;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkReflectionFilter::RequestDataInternal(
   vtkDataSet* input, vtkUnstructuredGrid* output, double bounds[6])
 {
@@ -473,7 +473,7 @@ int vtkReflectionFilter::RequestDataInternal(
   vtkMath::TensorFromSymmetricTensor(mirrorSymmetricTensorDir, mirrorTensorDir);
 
   // Find all flippable arrays
-  std::vector<std::pair<vtkIdType, int> > flippableArrays;
+  std::vector<std::pair<vtkIdType, int>> flippableArrays;
   if (this->FlipAllInputArrays)
   {
     FindFlippableArrays(inPD, flippableArrays);
@@ -489,7 +489,7 @@ int vtkReflectionFilter::RequestDataInternal(
       vtkAbstractArray* array = inPD->GetAbstractArray(iArr);
       if (array == vectors || array == normals || array == tensors)
       {
-        flippableArrays.push_back(std::make_pair(iArr, array->GetNumberOfComponents()));
+        flippableArrays.emplace_back(iArr, array->GetNumberOfComponents());
       }
     }
   }
@@ -568,7 +568,7 @@ int vtkReflectionFilter::RequestDataInternal(
       vtkAbstractArray* array = inCD->GetAbstractArray(iArr);
       if (array == vectors || array == normals || array == tensors)
       {
-        flippableArrays.push_back(std::make_pair(iArr, array->GetNumberOfComponents()));
+        flippableArrays.emplace_back(iArr, array->GetNumberOfComponents());
       }
     }
   }
@@ -1066,7 +1066,7 @@ int vtkReflectionFilter::RequestDataInternal(
   return 1;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkReflectionFilter::FillInputPortInformation(int, vtkInformation* info)
 {
   // Input can be a dataset or a composite of datasets.
@@ -1076,7 +1076,7 @@ int vtkReflectionFilter::FillInputPortInformation(int, vtkInformation* info)
   return 1;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkReflectionFilter::RequestDataObject(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -1115,7 +1115,7 @@ int vtkReflectionFilter::RequestDataObject(
   return 0;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkReflectionFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

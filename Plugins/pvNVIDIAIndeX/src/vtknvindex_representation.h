@@ -40,12 +40,6 @@
 
 class vtkMultiProcessController;
 
-#ifdef USE_KDTREE
-class vtknvindex_KDTree_affinity;
-#else
-class vtknvindex_affinity;
-#endif
-
 class vtknvindex_config_settings;
 class vtknvindex_cluster_properties;
 
@@ -56,14 +50,9 @@ class vtknvindex_cluster_properties;
 struct vtknvindex_cached_bounds
 {
   double data_bounds[6];
-  int whole_extent[6];
-  double origin[3];
-  double spacing[3];
-
   vtknvindex_cached_bounds();
   vtknvindex_cached_bounds(const vtknvindex_cached_bounds& cached_bound);
-  vtknvindex_cached_bounds(const double _data_bounds[6], const int _whole_extent[6],
-    const double _origin[3], const double _spacing[3]);
+  vtknvindex_cached_bounds(const double _data_bounds[6]);
 };
 
 // The class vtknvindex_representation represents the base class for distributing and rendering

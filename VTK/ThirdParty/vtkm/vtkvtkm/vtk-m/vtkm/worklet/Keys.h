@@ -17,7 +17,6 @@
 #include <vtkm/cont/ArrayHandleGroupVecVariable.h>
 #include <vtkm/cont/ArrayHandleIndex.h>
 #include <vtkm/cont/ArrayHandlePermutation.h>
-#include <vtkm/cont/ArrayHandleVirtual.h>
 #include <vtkm/cont/Logging.h>
 
 #include <vtkm/Hash.h>
@@ -30,6 +29,8 @@
 #include <vtkm/cont/arg/TransportTagKeysIn.h>
 #include <vtkm/cont/arg/TypeCheckTagKeys.h>
 
+#include <vtkm/worklet/internal/DispatcherBase.h>
+
 #include <vtkm/worklet/StableSortIndices.h>
 #include <vtkm/worklet/vtkm_worklet_export.h>
 
@@ -39,6 +40,83 @@ namespace vtkm
 {
 namespace worklet
 {
+
+namespace internal
+{
+
+class VTKM_WORKLET_EXPORT KeysBase
+{
+public:
+  KeysBase(const KeysBase&) = default;
+  KeysBase& operator=(const KeysBase&) = default;
+  ~KeysBase() = default;
+
+  VTKM_CONT
+  vtkm::Id GetInputRange() const { return this->Counts.GetNumberOfValues(); }
+
+  VTKM_CONT
+  vtkm::cont::ArrayHandle<vtkm::Id> GetSortedValuesMap() const { return this->SortedValuesMap; }
+
+  VTKM_CONT
+  vtkm::cont::ArrayHandle<vtkm::Id> GetOffsets() const { return this->Offsets; }
+
+  VTKM_CONT
+  vtkm::cont::ArrayHandle<vtkm::IdComponent> GetCounts() const { return this->Counts; }
+
+  VTKM_CONT
+  vtkm::Id GetNumberOfValues() const { return this->SortedValuesMap.GetNumberOfValues(); }
+
+  template <typename Device>
+  struct ExecutionTypes
+  {
+    using IdPortal =
+      typename vtkm::cont::ArrayHandle<vtkm::Id>::template ExecutionTypes<Device>::PortalConst;
+    using IdComponentPortal = typename vtkm::cont::ArrayHandle<
+      vtkm::IdComponent>::template ExecutionTypes<Device>::PortalConst;
+
+    using Lookup = vtkm::exec::internal::ReduceByKeyLookupBase<IdPortal, IdComponentPortal>;
+  };
+
+  template <typename Device>
+  VTKM_CONT typename ExecutionTypes<Device>::Lookup PrepareForInput(Device device,
+                                                                    vtkm::cont::Token& token) const
+  {
+    return
+      typename ExecutionTypes<Device>::Lookup(this->SortedValuesMap.PrepareForInput(device, token),
+                                              this->Offsets.PrepareForInput(device, token),
+                                              this->Counts.PrepareForInput(device, token));
+  }
+
+  template <typename Device>
+  VTKM_CONT VTKM_DEPRECATED(1.6, "PrepareForInput now requires a vtkm::cont::Token object.")
+    typename ExecutionTypes<Device>::Lookup PrepareForInput(Device device) const
+  {
+    vtkm::cont::Token token;
+    return this->PrepareForInput(device, token);
+  }
+
+  VTKM_CONT
+  bool operator==(const vtkm::worklet::internal::KeysBase& other) const
+  {
+    return ((this->SortedValuesMap == other.SortedValuesMap) && (this->Offsets == other.Offsets) &&
+            (this->Counts == other.Counts));
+  }
+
+  VTKM_CONT
+  bool operator!=(const vtkm::worklet::internal::KeysBase& other) const
+  {
+    return !(*this == other);
+  }
+
+protected:
+  KeysBase() = default;
+
+  vtkm::cont::ArrayHandle<vtkm::Id> SortedValuesMap;
+  vtkm::cont::ArrayHandle<vtkm::Id> Offsets;
+  vtkm::cont::ArrayHandle<vtkm::IdComponent> Counts;
+};
+
+} // namespace internal
 
 /// Select the type of sort for BuildArrays calls. Unstable sorting is faster
 /// but will not produce consistent ordering for equal keys. Stable sorting
@@ -67,7 +145,7 @@ enum class KeysSortType
 /// creating a different \c Keys structure for each \c Invoke.
 ///
 template <typename T>
-class VTKM_ALWAYS_EXPORT Keys
+class VTKM_ALWAYS_EXPORT Keys : public internal::KeysBase
 {
 public:
   using KeyType = T;
@@ -111,22 +189,7 @@ public:
     vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny());
 
   VTKM_CONT
-  vtkm::Id GetInputRange() const { return this->UniqueKeys.GetNumberOfValues(); }
-
-  VTKM_CONT
   KeyArrayHandleType GetUniqueKeys() const { return this->UniqueKeys; }
-
-  VTKM_CONT
-  vtkm::cont::ArrayHandle<vtkm::Id> GetSortedValuesMap() const { return this->SortedValuesMap; }
-
-  VTKM_CONT
-  vtkm::cont::ArrayHandle<vtkm::Id> GetOffsets() const { return this->Offsets; }
-
-  VTKM_CONT
-  vtkm::cont::ArrayHandle<vtkm::IdComponent> GetCounts() const { return this->Counts; }
-
-  VTKM_CONT
-  vtkm::Id GetNumberOfValues() const { return this->SortedValuesMap.GetNumberOfValues(); }
 
   template <typename Device>
   struct ExecutionTypes
@@ -141,12 +204,22 @@ public:
   };
 
   template <typename Device>
-  VTKM_CONT typename ExecutionTypes<Device>::Lookup PrepareForInput(Device) const
+  VTKM_CONT typename ExecutionTypes<Device>::Lookup PrepareForInput(Device device,
+                                                                    vtkm::cont::Token& token) const
   {
-    return typename ExecutionTypes<Device>::Lookup(this->UniqueKeys.PrepareForInput(Device()),
-                                                   this->SortedValuesMap.PrepareForInput(Device()),
-                                                   this->Offsets.PrepareForInput(Device()),
-                                                   this->Counts.PrepareForInput(Device()));
+    return
+      typename ExecutionTypes<Device>::Lookup(this->UniqueKeys.PrepareForInput(device, token),
+                                              this->SortedValuesMap.PrepareForInput(device, token),
+                                              this->Offsets.PrepareForInput(device, token),
+                                              this->Counts.PrepareForInput(device, token));
+  }
+
+  template <typename Device>
+  VTKM_CONT VTKM_DEPRECATED(1.6, "PrepareForInput now requires a vtkm::cont::Token object.")
+    typename ExecutionTypes<Device>::Lookup PrepareForInput(Device device) const
+  {
+    vtkm::cont::Token token;
+    return this->PrepareForInput(device, token);
   }
 
   VTKM_CONT
@@ -161,10 +234,8 @@ public:
   bool operator!=(const vtkm::worklet::Keys<KeyType>& other) const { return !(*this == other); }
 
 private:
+  /// @cond NONE
   KeyArrayHandleType UniqueKeys;
-  vtkm::cont::ArrayHandle<vtkm::Id> SortedValuesMap;
-  vtkm::cont::ArrayHandle<vtkm::Id> Offsets;
-  vtkm::cont::ArrayHandle<vtkm::IdComponent> Counts;
 
   template <typename KeyArrayType>
   VTKM_CONT void BuildArraysInternal(KeyArrayType& keys, vtkm::cont::DeviceAdapterId device);
@@ -172,10 +243,41 @@ private:
   template <typename KeyArrayType>
   VTKM_CONT void BuildArraysInternalStable(const KeyArrayType& keys,
                                            vtkm::cont::DeviceAdapterId device);
+  /// @endcond
 };
 
 template <typename T>
 VTKM_CONT Keys<T>::Keys() = default;
+
+namespace internal
+{
+
+template <typename KeyType>
+inline auto SchedulingRange(const vtkm::worklet::Keys<KeyType>& inputDomain)
+  -> decltype(inputDomain.GetInputRange())
+{
+  return inputDomain.GetInputRange();
+}
+
+template <typename KeyType>
+inline auto SchedulingRange(const vtkm::worklet::Keys<KeyType>* const inputDomain)
+  -> decltype(inputDomain->GetInputRange())
+{
+  return inputDomain->GetInputRange();
+}
+
+inline auto SchedulingRange(const vtkm::worklet::internal::KeysBase& inputDomain)
+  -> decltype(inputDomain.GetInputRange())
+{
+  return inputDomain.GetInputRange();
+}
+
+inline auto SchedulingRange(const vtkm::worklet::internal::KeysBase* const inputDomain)
+  -> decltype(inputDomain->GetInputRange())
+{
+  return inputDomain->GetInputRange();
+}
+} // namespace internal
 }
 } // namespace vtkm::worklet
 
@@ -192,29 +294,31 @@ namespace arg
 {
 
 template <typename KeyType>
-struct TypeCheck<vtkm::cont::arg::TypeCheckTagKeys, vtkm::worklet::Keys<KeyType>>
+struct TypeCheck<vtkm::cont::arg::TypeCheckTagKeys, KeyType>
 {
-  static constexpr bool value = true;
+  static constexpr bool value =
+    std::is_base_of<vtkm::worklet::internal::KeysBase, typename std::decay<KeyType>::type>::value;
 };
 
 template <typename KeyType, typename Device>
-struct Transport<vtkm::cont::arg::TransportTagKeysIn, vtkm::worklet::Keys<KeyType>, Device>
+struct Transport<vtkm::cont::arg::TransportTagKeysIn, KeyType, Device>
 {
-  using ContObjectType = vtkm::worklet::Keys<KeyType>;
+  using ContObjectType = KeyType;
   using ExecObjectType = typename ContObjectType::template ExecutionTypes<Device>::Lookup;
 
   VTKM_CONT
   ExecObjectType operator()(const ContObjectType& object,
                             const ContObjectType& inputDomain,
                             vtkm::Id,
-                            vtkm::Id) const
+                            vtkm::Id,
+                            vtkm::cont::Token& token) const
   {
     if (object != inputDomain)
     {
       throw vtkm::cont::ErrorBadValue("A Keys object must be the input domain.");
     }
 
-    return object.PrepareForInput(Device());
+    return object.PrepareForInput(Device(), token);
   }
 
   // If you get a compile error here, it means that you have used a KeysIn
@@ -237,11 +341,11 @@ struct Transport<vtkm::cont::arg::TransportTagKeyedValuesIn, ArrayHandleType, De
 
   using ExecObjectType = typename GroupedArrayType::template ExecutionTypes<Device>::PortalConst;
 
-  template <typename KeyType>
   VTKM_CONT ExecObjectType operator()(const ContObjectType& object,
-                                      const vtkm::worklet::Keys<KeyType>& keys,
+                                      const vtkm::worklet::internal::KeysBase& keys,
                                       vtkm::Id,
-                                      vtkm::Id) const
+                                      vtkm::Id,
+                                      vtkm::cont::Token& token) const
   {
     if (object.GetNumberOfValues() != keys.GetNumberOfValues())
     {
@@ -255,7 +359,7 @@ struct Transport<vtkm::cont::arg::TransportTagKeyedValuesIn, ArrayHandleType, De
     // maintaining the resources it points to. However, the entire state of the
     // portal should be self contained except for the data managed by the
     // object argument, which should stay in scope.
-    return groupedArray.PrepareForInput(Device());
+    return groupedArray.PrepareForInput(Device(), token);
   }
 };
 
@@ -272,11 +376,11 @@ struct Transport<vtkm::cont::arg::TransportTagKeyedValuesInOut, ArrayHandleType,
 
   using ExecObjectType = typename GroupedArrayType::template ExecutionTypes<Device>::Portal;
 
-  template <typename KeyType>
   VTKM_CONT ExecObjectType operator()(ContObjectType object,
-                                      const vtkm::worklet::Keys<KeyType>& keys,
+                                      const vtkm::worklet::internal::KeysBase& keys,
                                       vtkm::Id,
-                                      vtkm::Id) const
+                                      vtkm::Id,
+                                      vtkm::cont::Token& token) const
   {
     if (object.GetNumberOfValues() != keys.GetNumberOfValues())
     {
@@ -290,7 +394,7 @@ struct Transport<vtkm::cont::arg::TransportTagKeyedValuesInOut, ArrayHandleType,
     // maintaining the resources it points to. However, the entire state of the
     // portal should be self contained except for the data managed by the
     // object argument, which should stay in scope.
-    return groupedArray.PrepareForInPlace(Device());
+    return groupedArray.PrepareForInPlace(Device(), token);
   }
 };
 
@@ -307,16 +411,16 @@ struct Transport<vtkm::cont::arg::TransportTagKeyedValuesOut, ArrayHandleType, D
 
   using ExecObjectType = typename GroupedArrayType::template ExecutionTypes<Device>::Portal;
 
-  template <typename KeyType>
   VTKM_CONT ExecObjectType operator()(ContObjectType object,
-                                      const vtkm::worklet::Keys<KeyType>& keys,
+                                      const vtkm::worklet::internal::KeysBase& keys,
                                       vtkm::Id,
-                                      vtkm::Id) const
+                                      vtkm::Id,
+                                      vtkm::cont::Token& token) const
   {
     // The PrepareForOutput for ArrayHandleGroupVecVariable and
     // ArrayHandlePermutation cannot determine the actual size expected for the
     // target array (object), so we have to make sure it gets allocated here.
-    object.PrepareForOutput(keys.GetNumberOfValues(), Device());
+    object.PrepareForOutput(keys.GetNumberOfValues(), Device(), token);
 
     PermutedArrayType permutedArray(keys.GetSortedValuesMap(), object);
     GroupedArrayType groupedArray(permutedArray, keys.GetOffsets());
@@ -325,7 +429,7 @@ struct Transport<vtkm::cont::arg::TransportTagKeyedValuesOut, ArrayHandleType, D
     // maintaining the resources it points to. However, the entire state of the
     // portal should be self contained except for the data managed by the
     // object argument, which should stay in scope.
-    return groupedArray.PrepareForOutput(keys.GetInputRange(), Device());
+    return groupedArray.PrepareForOutput(keys.GetInputRange(), Device(), token);
   }
 };
 }
@@ -338,10 +442,6 @@ struct Transport<vtkm::cont::arg::TransportTagKeyedValuesOut, ArrayHandleType, D
   extern template class VTKM_WORKLET_TEMPLATE_EXPORT vtkm::worklet::Keys<T>;                       \
   extern template VTKM_WORKLET_TEMPLATE_EXPORT VTKM_CONT void vtkm::worklet::Keys<T>::BuildArrays( \
     const vtkm::cont::ArrayHandle<T>& keys,                                                        \
-    vtkm::worklet::KeysSortType sort,                                                              \
-    vtkm::cont::DeviceAdapterId device);                                                           \
-  extern template VTKM_WORKLET_TEMPLATE_EXPORT VTKM_CONT void vtkm::worklet::Keys<T>::BuildArrays( \
-    const vtkm::cont::ArrayHandleVirtual<T>& keys,                                                 \
     vtkm::worklet::KeysSortType sort,                                                              \
     vtkm::cont::DeviceAdapterId device)
 

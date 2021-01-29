@@ -48,11 +48,6 @@ public:
    */
   vtkViewNode* CreateNode(vtkObject*);
 
-  /**
-   * Creates and returns a vtkViewNode for the provided class name.
-   */
-  vtkViewNode* CreateNode(const char*);
-
 protected:
   vtkViewNodeFactory();
   ~vtkViewNodeFactory() override;

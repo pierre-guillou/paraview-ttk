@@ -9,11 +9,9 @@
 ##============================================================================
 
 set(unit_tests
-  UnitTestTBBAlgorithms.cxx
   UnitTestTBBArrayHandle.cxx
   UnitTestTBBArrayHandleFancy.cxx
   UnitTestTBBArrayHandleMultiplexer.cxx
-  UnitTestTBBArrayHandleVirtualCoordinates.cxx
   UnitTestTBBBitField.cxx
   UnitTestTBBCellLocatorRectilinearGrid.cxx
   UnitTestTBBCellLocatorUniformBins.cxx

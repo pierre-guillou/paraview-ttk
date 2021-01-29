@@ -36,8 +36,8 @@ int setUpRind(const int cgioNum, const double rindId, int* rind)
 
   if (strcmp(dataType, "I4") == 0)
   {
-    std::vector<int> mdata;
-    CGNSRead::readNodeData<int>(cgioNum, rindId, mdata);
+    std::vector<vtkTypeInt32> mdata;
+    CGNSRead::readNodeData<vtkTypeInt32>(cgioNum, rindId, mdata);
     for (std::size_t index = 0; index < mdata.size(); index++)
     {
       rind[index] = static_cast<int>(mdata[index]);
@@ -45,8 +45,8 @@ int setUpRind(const int cgioNum, const double rindId, int* rind)
   }
   else if (strcmp(dataType, "I8") == 0)
   {
-    std::vector<cglong_t> mdata;
-    CGNSRead::readNodeData<cglong_t>(cgioNum, rindId, mdata);
+    std::vector<vtkTypeInt64> mdata;
+    CGNSRead::readNodeData<vtkTypeInt64>(cgioNum, rindId, mdata);
     for (std::size_t index = 0; index < mdata.size(); index++)
     {
       rind[index] = static_cast<int>(mdata[index]);
@@ -156,12 +156,12 @@ int get_section_connectivity(const int cgioNum, const double cgioSectionId, cons
 
   if (sizeOfCnt == sizeof(vtkIdType))
   {
-    if (cgio_read_data(cgioNum, cgioElemConnectId, srcStart, srcEnd, srcStride, dim, memDim,
-          memStart, memEnd, memStride, (void*)localElements) != CG_OK)
+    if (cgio_read_data_type(cgioNum, cgioElemConnectId, srcStart, srcEnd, srcStride, dataType, dim,
+          memDim, memStart, memEnd, memStride, (void*)localElements) != CG_OK)
     {
       char message[81];
       cgio_error_message(message);
-      std::cerr << "cgio_read_data :" << message;
+      std::cerr << "cgio_read_data_type :" << message;
       return 1;
     }
   }
@@ -181,13 +181,13 @@ int get_section_connectivity(const int cgioNum, const double cgioSectionId, cons
         std::cerr << "Allocation failed for temporary connectivity array\n";
       }
 
-      if (cgio_read_data(cgioNum, cgioElemConnectId, srcStart, srcEnd, srcStride, dim, memDim,
-            memStart, memEnd, memStride, (void*)data) != CG_OK)
+      if (cgio_read_data_type(cgioNum, cgioElemConnectId, srcStart, srcEnd, srcStride, "I4", dim,
+            memDim, memStart, memEnd, memStride, (void*)data) != CG_OK)
       {
         delete[] data;
         char message[81];
         cgio_error_message(message);
-        std::cerr << "cgio_read_data :" << message;
+        std::cerr << "cgio_read_data_type :" << message;
         return 1;
       }
       for (cgsize_t n = 0; n < nn; n++)
@@ -204,13 +204,13 @@ int get_section_connectivity(const int cgioNum, const double cgioSectionId, cons
         std::cerr << "Allocation failed for temporary connectivity array\n";
         return 1;
       }
-      if (cgio_read_data(cgioNum, cgioElemConnectId, srcStart, srcEnd, srcStride, dim, memDim,
-            memStart, memEnd, memStride, (void*)data) != CG_OK)
+      if (cgio_read_data_type(cgioNum, cgioElemConnectId, srcStart, srcEnd, srcStride, "I8", dim,
+            memDim, memStart, memEnd, memStride, (void*)data) != CG_OK)
       {
         delete[] data;
         char message[81];
         cgio_error_message(message);
-        std::cerr << "cgio_read_data :" << message;
+        std::cerr << "cgio_read_data_type :" << message;
         return 1;
       }
       for (cgsize_t n = 0; n < nn; n++)
@@ -258,12 +258,12 @@ int get_section_start_offset(const int cgioNum, const double cgioSectionId, cons
 
   if (sizeOfCnt == sizeof(vtkIdType))
   {
-    if (cgio_read_data(cgioNum, cgioElemOffsetId, srcStart, srcEnd, srcStride, dim, memDim,
-          memStart, memEnd, memStride, (void*)localElementsIdx) != CG_OK)
+    if (cgio_read_data_type(cgioNum, cgioElemOffsetId, srcStart, srcEnd, srcStride, dataType, dim,
+          memDim, memStart, memEnd, memStride, (void*)localElementsIdx) != CG_OK)
     {
       char message[81];
       cgio_error_message(message);
-      std::cerr << "cgio_read_data :" << message;
+      std::cerr << "cgio_read_data_type :" << message;
       return 1;
     }
   }
@@ -283,13 +283,13 @@ int get_section_start_offset(const int cgioNum, const double cgioSectionId, cons
         std::cerr << "Allocation failed for temporary connectivity offset array\n";
       }
 
-      if (cgio_read_data(cgioNum, cgioElemOffsetId, srcStart, srcEnd, srcStride, dim, memDim,
-            memStart, memEnd, memStride, (void*)data) != CG_OK)
+      if (cgio_read_data_type(cgioNum, cgioElemOffsetId, srcStart, srcEnd, srcStride, "I4", dim,
+            memDim, memStart, memEnd, memStride, (void*)data) != CG_OK)
       {
         delete[] data;
         char message[81];
         cgio_error_message(message);
-        std::cerr << "cgio_read_data :" << message;
+        std::cerr << "cgio_read_data_type :" << message;
         return 1;
       }
       for (cgsize_t n = 0; n < nn; n++)
@@ -306,13 +306,13 @@ int get_section_start_offset(const int cgioNum, const double cgioSectionId, cons
         std::cerr << "Allocation failed for temporary connectivity array\n";
         return 1;
       }
-      if (cgio_read_data(cgioNum, cgioElemOffsetId, srcStart, srcEnd, srcStride, dim, memDim,
-            memStart, memEnd, memStride, (void*)data) != CG_OK)
+      if (cgio_read_data_type(cgioNum, cgioElemOffsetId, srcStart, srcEnd, srcStride, "I8", dim,
+            memDim, memStart, memEnd, memStride, (void*)data) != CG_OK)
       {
         delete[] data;
         char message[81];
         cgio_error_message(message);
-        std::cerr << "cgio_read_data :" << message;
+        std::cerr << "cgio_read_data_type :" << message;
         return 1;
       }
       for (cgsize_t n = 0; n < nn; n++)
@@ -869,114 +869,7 @@ bool vtkCGNSMetaData::Parse(const char* cgnsFileName)
 
   this->LastReadFilename = cgnsFileName;
   cgio_close_file(cgioNum);
-
-  if (this->SkipSILUpdates == false)
-  {
-    this->UpdateSIL();
-  }
-
   return true;
-}
-
-//------------------------------------------------------------------------------
-void vtkCGNSMetaData::UpdateSIL()
-{
-  // initialize the SIL.
-  const auto selection = this->SIL->GetSelection();
-  this->SIL->Initialize();
-
-  // build the SIL.
-  auto silHierarchy = this->SIL->AddNode("Hierarchy");
-  auto silFamilies = this->SIL->AddNode("Families");
-
-  // these are provided to make it easier to support legacy API.
-  // Can be dropped entirely if not found useful.
-  auto silGrids = this->SIL->AddNode("Grids");
-  auto silPatches = this->SIL->AddNode("Patches");
-
-  // first add families.
-  std::map<std::string, int> silFamilyIds;
-  for (const CGNSRead::BaseInformation& baseInfo : this->baseList)
-  {
-    for (const CGNSRead::FamilyInformation& familyInfo : baseInfo.family)
-    {
-      if (silFamilyIds.find(familyInfo.name) == silFamilyIds.end())
-      {
-        silFamilyIds[familyInfo.name] = this->SIL->AddNode(familyInfo.name, silFamilies);
-      }
-    }
-  }
-
-  bool firstGridSelected = false;
-
-  // now handles bases/zones/zone_bcs
-  for (const CGNSRead::BaseInformation& baseInfo : this->baseList)
-  {
-    auto silBase = this->SIL->AddNode(baseInfo.name, silHierarchy);
-    auto silBaseGrids = this->SIL->AddNode(baseInfo.name, silGrids);
-    auto silBasePatches = this->SIL->AddNode(baseInfo.name, silPatches);
-
-    for (const CGNSRead::ZoneInformation& zoneInfo : baseInfo.zones)
-    {
-      auto silZone = this->SIL->AddZoneNode(zoneInfo.name, silBase);
-      auto silZoneGrid = this->SIL->AddNode("Grid", silZone);
-      if (!firstGridSelected)
-      {
-        firstGridSelected = true;
-        this->SIL->Select(silZoneGrid);
-      }
-
-      this->SIL->AddCrossLink(this->SIL->AddZoneNode(zoneInfo.name, silBaseGrids), silZoneGrid);
-      if (zoneInfo.family[0])
-      {
-        auto fiter = silFamilyIds.find(zoneInfo.family);
-        if (fiter == silFamilyIds.end())
-        {
-          fiter = silFamilyIds
-                    .insert(std::pair<std::string, int>(
-                      zoneInfo.family, this->SIL->AddNode(zoneInfo.family, silFamilies)))
-                    .first;
-        }
-        this->SIL->AddCrossLink(fiter->second, silZoneGrid);
-      }
-
-      auto silZonePatches = this->SIL->AddZoneNode(zoneInfo.name, silBasePatches);
-      for (const CGNSRead::ZoneBCInformation& bcInfo : zoneInfo.bcs)
-      {
-        auto silBC = this->SIL->AddNode(bcInfo.name, silZone);
-        this->SIL->AddCrossLink(silZonePatches, silBC);
-        if (bcInfo.family[0])
-        {
-          auto fiter = silFamilyIds.find(bcInfo.family);
-          if (fiter == silFamilyIds.end())
-          {
-            fiter = silFamilyIds
-                      .insert(std::pair<std::string, int>(
-                        bcInfo.family, this->SIL->AddNode(bcInfo.family, silFamilies)))
-                      .first;
-          }
-          this->SIL->AddCrossLink(fiter->second, silBC);
-        }
-      }
-    }
-  }
-  if (!selection.empty())
-  {
-    this->SIL->SetSelection(selection);
-  }
-}
-
-//------------------------------------------------------------------------------
-vtkCGNSMetaData::vtkCGNSMetaData()
-  : SIL(nullptr)
-  , SkipSILUpdates(false)
-{
-  this->SIL = vtkSmartPointer<vtkCGNSSubsetInclusionLattice>::New();
-}
-
-//------------------------------------------------------------------------------
-vtkCGNSMetaData::~vtkCGNSMetaData()
-{
 }
 
 //------------------------------------------------------------------------------
@@ -1168,7 +1061,7 @@ static void BroadcastFamilies(vtkMultiProcessController* controller,
   std::vector<CGNSRead::FamilyInformation>::iterator ite;
   for (ite = famInfo.begin(); ite != famInfo.end(); ++ite)
   {
-    BroadcastCGNSString(controller, ite->name);
+    BroadcastString(controller, ite->name, rank);
     int flags = 0;
     if (rank == 0)
     {
@@ -1200,12 +1093,12 @@ static void BroadcastZones(
     for (auto& zinfo : zoneInfo)
     {
       stream.Push(zinfo.name, 33);
-      stream.Push(zinfo.family, 33);
+      stream << zinfo.family;
       stream << static_cast<unsigned int>(zinfo.bcs.size());
       for (auto& bcinfo : zinfo.bcs)
       {
         stream.Push(bcinfo.name, 33);
-        stream.Push(bcinfo.family, 33);
+        stream << bcinfo.family;
       }
     }
   }
@@ -1221,16 +1114,14 @@ static void BroadcastZones(
       unsigned int size = 33;
       char* cref = zinfo.name;
       stream.Pop(cref, size);
-      cref = zinfo.family;
-      stream.Pop(cref, size);
+      stream >> zinfo.family;
       stream >> count;
       zinfo.bcs.resize(count);
       for (auto& bcinfo : zinfo.bcs)
       {
         cref = bcinfo.name;
         stream.Pop(cref, size);
-        cref = bcinfo.family;
-        stream.Pop(cref, size);
+        stream >> bcinfo.family;
       }
     }
   }
@@ -1293,4 +1184,78 @@ void vtkCGNSMetaData::Broadcast(vtkMultiProcessController* controller, int rank)
   CGNSRead::BroadcastString(controller, this->LastReadFilename, rank);
   BroadcastDoubleVector(controller, this->GlobalTime, rank);
 }
+
+//------------------------------------------------------------------------------
+bool ReadBase(vtkCGNSReader* reader, const BaseInformation& baseInfo)
+{
+  auto baseSelection = reader->GetBaseSelection();
+  if (!baseSelection->ArrayIsEnabled(baseInfo.name))
+  {
+    // base has not been enabled.
+    return false;
+  }
+
+  return true;
 }
+
+//------------------------------------------------------------------------------
+bool ReadDataForZone(
+  vtkCGNSReader* reader, const BaseInformation& baseInfo, const ZoneInformation& zoneInfo)
+{
+  auto baseSelection = reader->GetBaseSelection();
+  if (!baseSelection->ArrayIsEnabled(baseInfo.name))
+  {
+    // base has not been enabled.
+    return false;
+  }
+
+  // check if the zone's family is enabled.
+  auto familySelection = reader->GetFamilySelection();
+  if (familySelection->ArrayExists(zoneInfo.family.c_str()) &&
+    !familySelection->ArrayIsEnabled(zoneInfo.family.c_str()))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+bool ReadGridForZone(
+  vtkCGNSReader* reader, const BaseInformation& baseInfo, const ZoneInformation& zoneInfo)
+{
+  if (!reader->GetLoadMesh())
+  {
+    return false;
+  } // mesh (aka grid) is not enabled.
+
+  return ReadDataForZone(reader, baseInfo, zoneInfo);
+}
+
+//------------------------------------------------------------------------------
+bool ReadPatchesForBase(vtkCGNSReader* reader, const BaseInformation&)
+{
+  if (!reader->GetLoadBndPatch())
+  {
+    // patches have been globally disabled.
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+bool ReadPatch(vtkCGNSReader* reader, const BaseInformation&, const ZoneInformation&,
+  const std::string& patchFamilyname)
+{
+  auto familySelection = reader->GetFamilySelection();
+
+  if (!patchFamilyname.empty() && !familySelection->ArrayIsEnabled(patchFamilyname.c_str()))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+} // end of namespace

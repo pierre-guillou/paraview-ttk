@@ -16,17 +16,12 @@
 #include <vtkm/cont/cuda/internal/ThrustExceptionHandler.h>
 #include <vtkm/exec/cuda/internal/ArrayPortalFromThrust.h>
 
-#include <vtkm/cont/internal/ArrayExportMacros.h>
 #include <vtkm/cont/internal/ArrayManagerExecution.h>
 
 #include <vtkm/cont/ArrayPortalToIterators.h>
 #include <vtkm/cont/ErrorBadAllocation.h>
 #include <vtkm/cont/Logging.h>
 #include <vtkm/cont/Storage.h>
-
-//This is in a separate header so that ArrayHandleBasicImpl can include
-//the interface without getting any CUDA headers
-#include <vtkm/cont/cuda/internal/ExecutionArrayInterfaceBasicCuda.h>
 
 #include <vtkm/exec/cuda/internal/ThrustPatches.h>
 VTKM_THIRDPARTY_PRE_INCLUDE
@@ -75,7 +70,7 @@ public:
   vtkm::Id GetNumberOfValues() const { return static_cast<vtkm::Id>(this->End - this->Begin); }
 
   VTKM_CONT
-  PortalConstType PrepareForInput(bool updateData)
+  PortalConstType PrepareForInput(bool updateData, vtkm::cont::Token&)
   {
     try
     {
@@ -99,7 +94,7 @@ public:
   }
 
   VTKM_CONT
-  PortalType PrepareForInPlace(bool updateData)
+  PortalType PrepareForInPlace(bool updateData, vtkm::cont::Token&)
   {
     try
     {
@@ -123,7 +118,7 @@ public:
   }
 
   VTKM_CONT
-  PortalType PrepareForOutput(vtkm::Id numberOfValues)
+  PortalType PrepareForOutput(vtkm::Id numberOfValues, vtkm::cont::Token&)
   {
     try
     {
@@ -251,7 +246,8 @@ private:
   {
     try
     {
-      this->PrepareForOutput(this->Storage->GetNumberOfValues());
+      vtkm::cont::Token token;
+      this->PrepareForOutput(this->Storage->GetNumberOfValues(), token);
 
       VTKM_LOG_F(vtkm::cont::LogLevel::MemTransfer,
                  "Copying host --> CUDA dev: %s.",
@@ -268,31 +264,7 @@ private:
   }
 };
 
-template <typename T>
-struct ExecutionPortalFactoryBasic<T, DeviceAdapterTagCuda>
-{
-  using ValueType = T;
-  using PortalType = vtkm::exec::cuda::internal::ArrayPortalFromThrust<ValueType>;
-  using PortalConstType = vtkm::exec::cuda::internal::ConstArrayPortalFromThrust<ValueType>;
-
-  VTKM_CONT
-  static PortalType CreatePortal(ValueType* start, ValueType* end)
-  {
-    return PortalType(start, end);
-  }
-
-  VTKM_CONT
-  static PortalConstType CreatePortalConst(const ValueType* start, const ValueType* end)
-  {
-    return PortalConstType(start, end);
-  }
-};
-
 } // namespace internal
-
-#ifndef vtk_m_cont_cuda_internal_ArrayManagerExecutionCuda_cu
-VTKM_EXPORT_ARRAYHANDLES_FOR_DEVICE_ADAPTER(DeviceAdapterTagCuda)
-#endif // !vtk_m_cont_cuda_internal_ArrayManagerExecutionCuda_cu
 }
 } // namespace vtkm::cont
 

@@ -59,7 +59,7 @@ QVTKInteractorAdapter::QVTKInteractorAdapter(QObject* parentObject)
 {
 }
 
-QVTKInteractorAdapter::~QVTKInteractorAdapter() {}
+QVTKInteractorAdapter::~QVTKInteractorAdapter() = default;
 
 void QVTKInteractorAdapter::SetDevicePixelRatio(float ratio, vtkRenderWindowInteractor* iren)
 {
@@ -134,7 +134,7 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
     {
       iren->InvokeEvent(vtkCommand::MouseMoveEvent, e2);
     }
-    else if (t == QEvent::MouseButtonPress || t == QEvent::MouseButtonDblClick)
+    else if (t == QEvent::MouseButtonPress)
     {
       switch (e2->button())
       {
@@ -148,6 +148,26 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
 
         case Qt::RightButton:
           iren->InvokeEvent(vtkCommand::RightButtonPressEvent, e2);
+          break;
+
+        default:
+          break;
+      }
+    }
+    else if (t == QEvent::MouseButtonDblClick)
+    {
+      switch (e2->button())
+      {
+        case Qt::LeftButton:
+          iren->InvokeEvent(vtkCommand::LeftButtonDoubleClickEvent, e2);
+          break;
+
+        case Qt::MidButton:
+          iren->InvokeEvent(vtkCommand::MiddleButtonDoubleClickEvent, e2);
+          break;
+
+        case Qt::RightButton:
+          iren->InvokeEvent(vtkCommand::RightButtonDoubleClickEvent, e2);
           break;
 
         default:
@@ -179,7 +199,7 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
   if (t == QEvent::TouchBegin || t == QEvent::TouchUpdate || t == QEvent::TouchEnd)
   {
     QTouchEvent* e2 = dynamic_cast<QTouchEvent*>(e);
-    foreach (const QTouchEvent::TouchPoint& point, e2->touchPoints())
+    Q_FOREACH (const QTouchEvent::TouchPoint& point, e2->touchPoints())
     {
       if (point.id() >= VTKI_MAX_POINTERS)
       {
@@ -192,7 +212,7 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
         (e2->modifiers() & Qt::ControlModifier) > 0 ? 1 : 0,
         (e2->modifiers() & Qt::ShiftModifier) > 0 ? 1 : 0, 0, 0, nullptr, point.id());
     }
-    foreach (const QTouchEvent::TouchPoint& point, e2->touchPoints())
+    Q_FOREACH (const QTouchEvent::TouchPoint& point, e2->touchPoints())
     {
       if (point.id() >= VTKI_MAX_POINTERS)
       {
@@ -272,28 +292,48 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
   if (t == QEvent::Wheel)
   {
     QWheelEvent* e2 = static_cast<QWheelEvent*>(e);
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+    auto x = e2->x();
+    auto y = e2->y();
+#else
+    auto x = e2->position().x();
+    auto y = e2->position().y();
+#endif
 
     iren->SetEventInformationFlipY(
-      static_cast<int>(e2->x() * this->DevicePixelRatio + DevicePixelRatioTolerance),
-      static_cast<int>(e2->y() * this->DevicePixelRatio + DevicePixelRatioTolerance),
+      static_cast<int>(x * this->DevicePixelRatio + DevicePixelRatioTolerance),
+      static_cast<int>(y * this->DevicePixelRatio + DevicePixelRatioTolerance),
       (e2->modifiers() & Qt::ControlModifier) > 0 ? 1 : 0,
       (e2->modifiers() & Qt::ShiftModifier) > 0 ? 1 : 0);
     iren->SetAltKey((e2->modifiers() & Qt::AltModifier) > 0 ? 1 : 0);
 
-    this->AccumulatedDelta += e2->angleDelta().y();
+    double horizontalDelta = e2->angleDelta().x();
+    double verticalDelta = e2->angleDelta().y();
+    this->AccumulatedDelta += verticalDelta + horizontalDelta;
     const int threshold = 120;
 
     // invoke vtk event when accumulated delta passes the threshold
-    if (this->AccumulatedDelta >= threshold)
+    if (this->AccumulatedDelta >= threshold && verticalDelta != 0.0)
     {
       iren->InvokeEvent(vtkCommand::MouseWheelForwardEvent, e2);
       this->AccumulatedDelta = 0;
     }
-    else if (this->AccumulatedDelta <= -threshold)
+    else if (this->AccumulatedDelta <= -threshold && verticalDelta != 0.0)
     {
       iren->InvokeEvent(vtkCommand::MouseWheelBackwardEvent, e2);
       this->AccumulatedDelta = 0;
     }
+    else if (this->AccumulatedDelta >= threshold && horizontalDelta != 0.0)
+    {
+      iren->InvokeEvent(vtkCommand::MouseWheelLeftEvent, e2);
+      this->AccumulatedDelta = 0;
+    }
+    else if (this->AccumulatedDelta <= -threshold && horizontalDelta != 0.0)
+    {
+      iren->InvokeEvent(vtkCommand::MouseWheelRightEvent, e2);
+      this->AccumulatedDelta = 0;
+    }
+
     return true;
   }
 

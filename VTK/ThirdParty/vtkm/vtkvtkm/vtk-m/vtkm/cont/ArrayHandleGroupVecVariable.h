@@ -11,6 +11,7 @@
 #define vtk_m_cont_ArrayHandleGroupVecVariable_h
 
 #include <vtkm/cont/Algorithm.h>
+#include <vtkm/cont/ArrayGetValues.h>
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/ArrayHandleCast.h>
 #include <vtkm/cont/ArrayPortal.h>
@@ -69,22 +70,14 @@ public:
 
   VTKM_SUPPRESS_EXEC_WARNINGS
   VTKM_EXEC_CONT
-  vtkm::Id GetNumberOfValues() const { return this->OffsetsPortal.GetNumberOfValues(); }
+  vtkm::Id GetNumberOfValues() const { return this->OffsetsPortal.GetNumberOfValues() - 1; }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
   VTKM_EXEC_CONT
   ValueType Get(vtkm::Id index) const
   {
     vtkm::Id offsetIndex = this->OffsetsPortal.Get(index);
-    vtkm::Id nextOffsetIndex;
-    if (index + 1 < this->GetNumberOfValues())
-    {
-      nextOffsetIndex = this->OffsetsPortal.Get(index + 1);
-    }
-    else
-    {
-      nextOffsetIndex = this->SourcePortal.GetNumberOfValues();
-    }
+    vtkm::Id nextOffsetIndex = this->OffsetsPortal.Get(index + 1);
 
     return ValueType(this->SourcePortal,
                      static_cast<vtkm::IdComponent>(nextOffsetIndex - offsetIndex),
@@ -126,10 +119,9 @@ namespace arg
 // Instead, you need to implement the Load to point to the array portal. You
 // can also ignore the Store because the data is already set in the array at
 // that point.
-template <typename ThreadIndicesType, typename SourcePortalType, typename OffsetsPortalType>
+template <typename SourcePortalType, typename OffsetsPortalType>
 struct Fetch<vtkm::exec::arg::FetchTagArrayDirectOut,
              vtkm::exec::arg::AspectTagDefault,
-             ThreadIndicesType,
              vtkm::exec::internal::ArrayPortalGroupVecVariable<SourcePortalType, OffsetsPortalType>>
 {
   using ExecObjectType =
@@ -137,15 +129,16 @@ struct Fetch<vtkm::exec::arg::FetchTagArrayDirectOut,
   using ValueType = typename ExecObjectType::ValueType;
 
   VTKM_SUPPRESS_EXEC_WARNINGS
-  VTKM_EXEC
-  ValueType Load(const ThreadIndicesType& indices, const ExecObjectType& arrayPortal) const
+  template <typename ThreadIndicesType>
+  VTKM_EXEC ValueType Load(const ThreadIndicesType& indices,
+                           const ExecObjectType& arrayPortal) const
   {
     return arrayPortal.Get(indices.GetOutputIndex());
   }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
-  VTKM_EXEC
-  void Store(const ThreadIndicesType&, const ExecObjectType&, const ValueType&) const
+  template <typename ThreadIndicesType>
+  VTKM_EXEC void Store(const ThreadIndicesType&, const ExecObjectType&, const ValueType&) const
   {
     // We can actually ignore this because the VecFromPortal will already have
     // set new values in the array.
@@ -178,18 +171,18 @@ class Storage<vtkm::VecFromPortal<SourcePortal>,
   using OffsetsArrayHandleType = vtkm::cont::ArrayHandle<vtkm::Id, OffsetsStorageTag>;
 
   VTKM_STATIC_ASSERT_MSG(
-    (std::is_same<SourcePortal, typename SourceArrayHandleType::PortalControl>::value),
+    (std::is_same<SourcePortal, typename SourceArrayHandleType::WritePortalType>::value),
     "Used invalid SourcePortal type with expected SourceStorageTag.");
 
 public:
   using ValueType = vtkm::VecFromPortal<SourcePortal>;
 
   using PortalType = vtkm::exec::internal::ArrayPortalGroupVecVariable<
-    typename SourceArrayHandleType::PortalControl,
-    typename OffsetsArrayHandleType::PortalConstControl>;
+    typename SourceArrayHandleType::WritePortalType,
+    typename OffsetsArrayHandleType::ReadPortalType>;
   using PortalConstType = vtkm::exec::internal::ArrayPortalGroupVecVariable<
-    typename SourceArrayHandleType::PortalConstControl,
-    typename OffsetsArrayHandleType::PortalConstControl>;
+    typename SourceArrayHandleType::ReadPortalType,
+    typename OffsetsArrayHandleType::ReadPortalType>;
 
   VTKM_CONT
   Storage()
@@ -208,22 +201,20 @@ public:
   VTKM_CONT
   PortalType GetPortal()
   {
-    return PortalType(this->SourceArray.GetPortalControl(),
-                      this->OffsetsArray.GetPortalConstControl());
+    return PortalType(this->SourceArray.WritePortal(), this->OffsetsArray.ReadPortal());
   }
 
   VTKM_CONT
   PortalConstType GetPortalConst() const
   {
-    return PortalConstType(this->SourceArray.GetPortalConstControl(),
-                           this->OffsetsArray.GetPortalConstControl());
+    return PortalConstType(this->SourceArray.ReadPortal(), this->OffsetsArray.ReadPortal());
   }
 
   VTKM_CONT
   vtkm::Id GetNumberOfValues() const
   {
     VTKM_ASSERT(this->Valid);
-    return this->OffsetsArray.GetNumberOfValues();
+    return this->OffsetsArray.GetNumberOfValues() - 1;
   }
 
   VTKM_CONT
@@ -236,7 +227,7 @@ public:
   void Shrink(vtkm::Id numberOfValues)
   {
     VTKM_ASSERT(this->Valid);
-    this->OffsetsArray.Shrink(numberOfValues);
+    this->OffsetsArray.Shrink(numberOfValues + 1);
   }
 
   VTKM_CONT
@@ -309,30 +300,30 @@ public:
   }
 
   VTKM_CONT
-  vtkm::Id GetNumberOfValues() const { return this->OffsetsArray.GetNumberOfValues(); }
+  vtkm::Id GetNumberOfValues() const { return this->OffsetsArray.GetNumberOfValues() - 1; }
 
   VTKM_CONT
-  PortalConstExecution PrepareForInput(bool vtkmNotUsed(updateData))
+  PortalConstExecution PrepareForInput(bool vtkmNotUsed(updateData), vtkm::cont::Token& token)
   {
-    return PortalConstExecution(this->SourceArray.PrepareForInput(Device()),
-                                this->OffsetsArray.PrepareForInput(Device()));
+    return PortalConstExecution(this->SourceArray.PrepareForInput(Device(), token),
+                                this->OffsetsArray.PrepareForInput(Device(), token));
   }
 
   VTKM_CONT
-  PortalExecution PrepareForInPlace(bool vtkmNotUsed(updateData))
+  PortalExecution PrepareForInPlace(bool vtkmNotUsed(updateData), vtkm::cont::Token& token)
   {
-    return PortalExecution(this->SourceArray.PrepareForInPlace(Device()),
-                           this->OffsetsArray.PrepareForInput(Device()));
+    return PortalExecution(this->SourceArray.PrepareForInPlace(Device(), token),
+                           this->OffsetsArray.PrepareForInput(Device(), token));
   }
 
   VTKM_CONT
-  PortalExecution PrepareForOutput(vtkm::Id numberOfValues)
+  PortalExecution PrepareForOutput(vtkm::Id numberOfValues, vtkm::cont::Token& token)
   {
     // Cannot reallocate an ArrayHandleGroupVecVariable
-    VTKM_ASSERT(numberOfValues == this->OffsetsArray.GetNumberOfValues());
+    VTKM_ASSERT(numberOfValues == this->OffsetsArray.GetNumberOfValues() - 1);
     return PortalExecution(
-      this->SourceArray.PrepareForOutput(this->SourceArray.GetNumberOfValues(), Device()),
-      this->OffsetsArray.PrepareForInput(Device()));
+      this->SourceArray.PrepareForOutput(this->SourceArray.GetNumberOfValues(), Device(), token),
+      this->OffsetsArray.PrepareForInput(Device(), token));
   }
 
   VTKM_CONT
@@ -373,7 +364,7 @@ private:
 /// value contains values from the last offset to the end of the array.
 ///
 /// For example, if you have an array handle with the 9 values
-/// 0,1,2,3,4,5,6,7,8 an offsets array handle with the 3 values 0,4,6 and give
+/// 0,1,2,3,4,5,6,7,8 an offsets array handle with the 4 values 0,4,6,9 and give
 /// them to an \c ArrayHandleGroupVecVariable, you get an array that looks like
 /// it contains three values of Vec-like objects with the data [0,1,2,3],
 /// [4,5], and [6,7,8].
@@ -395,7 +386,7 @@ private:
 template <typename SourceArrayHandleType, typename OffsetsArrayHandleType>
 class ArrayHandleGroupVecVariable
   : public vtkm::cont::ArrayHandle<
-      vtkm::VecFromPortal<typename SourceArrayHandleType::PortalControl>,
+      vtkm::VecFromPortal<typename SourceArrayHandleType::WritePortalType>,
       vtkm::cont::StorageTagGroupVecVariable<typename SourceArrayHandleType::StorageTag,
                                              typename OffsetsArrayHandleType::StorageTag>>
 {
@@ -411,7 +402,7 @@ public:
     ArrayHandleGroupVecVariable,
     (ArrayHandleGroupVecVariable<SourceArrayHandleType, OffsetsArrayHandleType>),
     (vtkm::cont::ArrayHandle<
-      vtkm::VecFromPortal<typename SourceArrayHandleType::PortalControl>,
+      vtkm::VecFromPortal<typename SourceArrayHandleType::WritePortalType>,
       vtkm::cont::StorageTagGroupVecVariable<typename SourceArrayHandleType::StorageTag,
                                              typename OffsetsArrayHandleType::StorageTag>>));
 
@@ -465,10 +456,12 @@ VTKM_CONT void ConvertNumComponentsToOffsets(
   vtkm::Id& sourceArraySize,
   vtkm::cont::DeviceAdapterId device = vtkm::cont::DeviceAdapterTagAny())
 {
+  using namespace vtkm::cont;
   VTKM_IS_ARRAY_HANDLE(NumComponentsArrayType);
 
-  sourceArraySize = vtkm::cont::Algorithm::ScanExclusive(
-    device, vtkm::cont::make_ArrayHandleCast<vtkm::Id>(numComponentsArray), offsetsArray);
+  Algorithm::ScanExtended(device, make_ArrayHandleCast<vtkm::Id>(numComponentsArray), offsetsArray);
+
+  sourceArraySize = ArrayGetValue(offsetsArray.GetNumberOfValues() - 1, offsetsArray);
 }
 
 template <typename NumComponentsArrayType, typename OffsetsStorage>
@@ -479,8 +472,8 @@ VTKM_CONT void ConvertNumComponentsToOffsets(
 {
   VTKM_IS_ARRAY_HANDLE(NumComponentsArrayType);
 
-  vtkm::Id dummy;
-  vtkm::cont::ConvertNumComponentsToOffsets(numComponentsArray, offsetsArray, dummy, device);
+  vtkm::cont::Algorithm::ScanExtended(
+    device, vtkm::cont::make_ArrayHandleCast<vtkm::Id>(numComponentsArray), offsetsArray);
 }
 
 template <typename NumComponentsArrayType>

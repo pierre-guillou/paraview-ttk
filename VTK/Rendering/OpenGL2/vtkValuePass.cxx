@@ -318,10 +318,10 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkValuePass);
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkValuePass::vtkValuePass()
   : ImplFloat(new vtkInternalsFloat())
   , ImplInv(new vtkInternalsInvertible(this))
@@ -331,7 +331,7 @@ vtkValuePass::vtkValuePass()
   this->MultiBlocksArray = nullptr;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkValuePass::~vtkValuePass()
 {
   delete this->ImplFloat;
@@ -339,13 +339,13 @@ vtkValuePass::~vtkValuePass()
   delete this->PassState;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::SetInputArrayToProcess(int fieldAssociation, const char* name)
 {
   if (this->PassState->ArrayAccessMode != VTK_GET_ARRAY_BY_NAME ||
@@ -359,7 +359,7 @@ void vtkValuePass::SetInputArrayToProcess(int fieldAssociation, const char* name
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::SetInputArrayToProcess(int fieldAssociation, int fieldId)
 {
   if (this->PassState->ArrayMode != fieldAssociation || this->PassState->ArrayId != fieldId ||
@@ -372,7 +372,7 @@ void vtkValuePass::SetInputArrayToProcess(int fieldAssociation, int fieldId)
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::SetInputComponentToProcess(int component)
 {
   if (this->PassState->ArrayComponent != component)
@@ -382,8 +382,7 @@ void vtkValuePass::SetInputComponentToProcess(int component)
   }
 }
 
-#if !defined(VTK_LEGACY_REMOVE)
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::SetScalarRange(double min, double max)
 {
   VTK_LEGACY_BODY(vtkValuePass::SetScalarRange, "VTK 9.0");
@@ -395,9 +394,8 @@ void vtkValuePass::SetScalarRange(double min, double max)
     this->Modified();
   }
 }
-#endif
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::PopulateCellCellMap(const vtkRenderState* s)
 {
   int const count = s->GetPropArrayCount();
@@ -474,7 +472,7 @@ void vtkValuePass::PopulateCellCellMap(const vtkRenderState* s)
   }
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Perform rendering according to a render state \p s.
 // \pre s_exists: s!=0
@@ -498,7 +496,7 @@ void vtkValuePass::Render(const vtkRenderState* s)
   this->PostRender(s);
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Opaque pass with key checking.
 // \pre s_exists: s!=0
@@ -545,7 +543,7 @@ void vtkValuePass::RenderOpaqueGeometry(const vtkRenderState* s)
 void vtkValuePass::BeginPass(vtkRenderer* ren)
 {
   vtkOpenGLState* ostate = static_cast<vtkOpenGLRenderer*>(ren)->GetState();
-
+  ostate->vtkglDisable(GL_BLEND);
   switch (this->RenderingMode)
   {
     case vtkValuePass::FLOATING_POINT:
@@ -611,7 +609,7 @@ bool vtkValuePass::HasWindowSizeChanged(vtkRenderer* ren)
     return true;
   }
 
-  int* size = ren->GetSize();
+  const int* size = ren->GetSize();
   int* fboSize = this->ImplFloat->ValueFBO->GetLastSize();
 
   return (fboSize[0] != size[0] || fboSize[1] != size[1]);
@@ -627,7 +625,7 @@ bool vtkValuePass::InitializeFBO(vtkRenderer* ren)
 
   vtkOpenGLRenderWindow* renWin = vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow());
 
-  int* size = ren->GetSize();
+  const int* size = ren->GetSize();
   // Allocate FBO's Color attachment target
   this->ImplFloat->ValueRBO = vtkRenderbuffer::New();
   this->ImplFloat->ValueRBO->SetContext(renWin);
@@ -664,7 +662,7 @@ bool vtkValuePass::InitializeFBO(vtkRenderer* ren)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::ReleaseFBO(vtkWindow* win)
 {
   if (!this->ImplFloat->FBOAllocated)
@@ -687,8 +685,7 @@ void vtkValuePass::ReleaseFBO(vtkWindow* win)
   this->ImplFloat->FBOAllocated = false;
 }
 
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
+//------------------------------------------------------------------------------
 bool vtkValuePass::IsFloatingPointModeSupported()
 {
   VTK_LEGACY_BODY(vtkValuePass::IsFloatihngPointModeSupported, "VTK 9.0");
@@ -698,7 +695,6 @@ bool vtkValuePass::IsFloatingPointModeSupported()
   return true;
 #endif
 }
-#endif
 
 //------------------------------------------------------------------------------
 vtkFloatArray* vtkValuePass::GetFloatImageDataArray(vtkRenderer* ren)
@@ -721,29 +717,31 @@ vtkFloatArray* vtkValuePass::GetFloatImageDataArray(vtkRenderer* ren)
   return this->ImplFloat->OutputFloatArray;
 }
 
-//-------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::GetFloatImageData(
   int const format, int const width, int const height, void* data)
 {
+  auto ostate = this->ImplFloat->ValueFBO->GetContext()->GetState();
+
   // Prepare and bind value texture and FBO.
-  this->ImplFloat->ValueFBO->GetContext()->GetState()->PushReadFramebufferBinding();
+  ostate->PushReadFramebufferBinding();
   this->ImplFloat->ValueFBO->Bind(GL_READ_FRAMEBUFFER);
   this->ImplFloat->ValueFBO->ActivateReadBuffer(0);
 
   // Calling pack alignment ensures any window size can be grabbed.
-  glPixelStorei(GL_PACK_ALIGNMENT, 1);
+  ostate->vtkglPixelStorei(GL_PACK_ALIGNMENT, 1);
 #ifndef GL_ES_VERSION_3_0
   glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE);
 #endif
 
   glReadPixels(0, 0, width, height, format, GL_FLOAT, data);
 
-  this->ImplFloat->ValueFBO->GetContext()->GetState()->PopReadFramebufferBinding();
+  ostate->PopReadFramebufferBinding();
 
   vtkOpenGLCheckErrorMacro("Failed to read pixels from OpenGL buffer!");
 }
 
-//-------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int* vtkValuePass::GetFloatImageExtents()
 {
   int* size = this->ImplFloat->ValueFBO->GetLastSize();
@@ -758,7 +756,7 @@ int* vtkValuePass::GetFloatImageExtents()
   return this->ImplFloat->FloatImageExt;
 }
 
-//-------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkValuePass::PostReplaceShaderValues(std::string& vertexShader,
   std::string& vtkNotUsed(geometryShader), std::string& fragmentShader,
   vtkAbstractMapper* vtkNotUsed(mapper), vtkProp* vtkNotUsed(prop))
@@ -772,7 +770,7 @@ bool vtkValuePass::PostReplaceShaderValues(std::string& vertexShader,
   return success;
 }
 
-//-------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkValuePass::SetShaderParameters(vtkShaderProgram* program,
   vtkAbstractMapper* vtkNotUsed(mapper), vtkProp* vtkNotUsed(prop), vtkOpenGLVertexArrayObject* VAO)
 {
@@ -785,13 +783,13 @@ bool vtkValuePass::SetShaderParameters(vtkShaderProgram* program,
   return true;
 }
 
-//-------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMTimeType vtkValuePass::GetShaderStageMTime()
 {
   return this->GetMTime();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::ReleaseGraphicsResources(vtkWindow* win)
 {
   // Release buffers
@@ -820,7 +818,7 @@ void vtkValuePass::ReleaseGraphicsResources(vtkWindow* win)
   this->ReleaseFBO(win);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::RenderPieceFinish()
 {
   if (this->PassState->ArrayMode == VTK_SCALAR_MODE_USE_CELL_FIELD_DATA)
@@ -832,7 +830,7 @@ void vtkValuePass::RenderPieceFinish()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::RenderPieceStart(vtkDataArray* dataArr, vtkMapper* mapper)
 {
   // TODO It should only be necessary to upload the data if something has changed.
@@ -895,7 +893,7 @@ void vtkValuePass::RenderPieceStart(vtkDataArray* dataArr, vtkMapper* mapper)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::BeginMapperRender(
   vtkMapper* mapper, vtkDataArray* dataArray, vtkProperty* property)
 {
@@ -934,7 +932,7 @@ void vtkValuePass::EndMapperRender(vtkMapper* mapper, vtkProperty* property)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::InitializeBuffers(vtkRenderer* ren)
 {
   if (this->ImplFloat->BuffersAllocated)
@@ -957,7 +955,7 @@ void vtkValuePass::InitializeBuffers(vtkRenderer* ren)
   this->ImplFloat->BuffersAllocated = true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkValuePass::UpdateShaders(std::string& VSSource, std::string& FSSource)
 {
   vtkShaderProgram::Substitute(VSSource, "//VTK::ValuePass::Dec",
@@ -993,7 +991,7 @@ bool vtkValuePass::UpdateShaders(std::string& VSSource, std::string& FSSource)
   return vtkShaderProgram::Substitute(FSSource, "//VTK::ValuePass::Impl", fragImpl);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::BindAttributes(vtkShaderProgram* prog, vtkOpenGLVertexArrayObject* VAO)
 {
   if (this->PassState->ArrayMode == VTK_SCALAR_MODE_USE_POINT_FIELD_DATA)
@@ -1011,7 +1009,7 @@ void vtkValuePass::BindAttributes(vtkShaderProgram* prog, vtkOpenGLVertexArrayOb
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkValuePass::BindUniforms(vtkShaderProgram* prog)
 {
   if (this->PassState->ArrayMode == VTK_SCALAR_MODE_USE_CELL_FIELD_DATA)
@@ -1089,11 +1087,9 @@ vtkAbstractArray* vtkValuePass::GetArrayFromCompositeData(vtkMapper* mapper, Par
 }
 
 //-------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 void vtkValuePass::ColorToValue(
   unsigned char const* color, double const min, double const scale, double& value)
 {
   VTK_LEGACY_BODY(vtkValuePass::ColorToValue, "VTK 9.0");
   this->ImplInv->ColorToValue(color, min, scale, value);
 }
-#endif

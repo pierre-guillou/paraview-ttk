@@ -154,7 +154,7 @@ public:
    * position enum, valid values are vtkAxis::LEFT, vtkAxis::BOTTOM,
    * vtkAxis::RIGHT and vtkAxis::TOP.
    */
-  virtual void SetAxis(int axisIndex, vtkAxis*) override;
+  void SetAxis(int axisIndex, vtkAxis*) override;
 
   /**
    * Set whether the chart should draw a legend.
@@ -533,7 +533,7 @@ private:
    */
   bool RemovePlotFromCorners(vtkPlot* plot);
 
-  void ZoomInAxes(vtkAxis* x, vtkAxis* y, float* orign, float* max);
+  void ZoomInAxes(vtkAxis* x, vtkAxis* y, float* originf, float* max);
 
   /**
    * Remove all the selection from Plots.

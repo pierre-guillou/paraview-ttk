@@ -38,7 +38,6 @@
 #include "vtkGridAxesPlane2DActor.h" // needed for inline methods
 #include "vtkNew.h"                  // needed for vtkNew.
 #include "vtkSmartPointer.h"         // needed for vtkSmartPointer.
-#include "vtkStdString.h"            // needed for vtkStdString.
 
 class vtkAxis;
 class vtkContextScene;
@@ -106,6 +105,22 @@ public:
   vtkGetMacro(LabelMask, unsigned int);
   //@}
 
+  /**
+   * For some exporters and other other operations we must be
+   * able to collect all the actors or volumes. These methods
+   * are used in that process.
+   * In case the viewport is not a consumer of this prop:
+   * call UpdateGeometry() first for updated viewport-specific
+   * billboard geometry.
+   */
+  void GetActors(vtkPropCollection*) override;
+
+  /**
+   * Updates the billboard geometry without performing any rendering,
+   * to assist GetActors().
+   */
+  void UpdateGeometry(vtkViewport* viewport, bool doRegularUpdate);
+
   //@{
   /**
    * Get/Set the property used to control the appearance of the rendered grid,
@@ -137,8 +152,8 @@ public:
   /**
    * Set titles for each of the axes.
    */
-  void SetTitle(int axis, const vtkStdString& title);
-  const vtkStdString& GetTitle(int axis);
+  void SetTitle(int axis, const std::string& title);
+  const std::string& GetTitle(int axis);
   //@}
 
   //@{
@@ -248,7 +263,7 @@ protected:
 
   vtkTuple<vtkSmartPointer<vtkTextProperty>, 3> TitleTextProperty;
   vtkTuple<vtkSmartPointer<vtkTextProperty>, 3> LabelTextProperty;
-  vtkTuple<vtkStdString, 3> Titles;
+  vtkTuple<std::string, 3> Titles;
 
   vtkNew<vtkGridAxesHelper> Helper;
   vtkSmartPointer<vtkGridAxesPlane2DActor> PlaneActor;

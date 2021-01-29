@@ -18,6 +18,9 @@ PURPOSE.  See the above copyright notice for more information.
 // F-91297 Arpajon, France. <br> Implementation by Thierry Carrard (CEA) and Philippe Pebay (Kitware
 // SAS)
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkYoungsMaterialInterface.h"
 
 #include "vtkCell.h"
@@ -336,7 +339,7 @@ void vtkYoungsMaterialInterface::SetMaterialArrays(int M, const char* volume, co
   this->Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkYoungsMaterialInterface::SetMaterialNormalArray(const char* volume, const char* normal)
 {
   // not sure why this is done, but all SetMaterialNormalArray(int,..) variants
@@ -349,7 +352,7 @@ void vtkYoungsMaterialInterface::SetMaterialNormalArray(const char* volume, cons
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkYoungsMaterialInterface::SetMaterialOrderingArray(const char* volume, const char* ordering)
 {
   // not sure why this is done, but all SetMaterialOrderingArray(int,..) variants
@@ -362,7 +365,7 @@ void vtkYoungsMaterialInterface::SetMaterialOrderingArray(const char* volume, co
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkYoungsMaterialInterface::RemoveAllMaterials()
 {
   this->NumberOfDomains = -1;
@@ -417,7 +420,7 @@ struct vtkYoungsMaterialInterface_Mat
 
 static inline void vtkYoungsMaterialInterface_GetPointData(int nPointData,
   vtkDataArray** inPointArrays, vtkDataSet* input,
-  std::vector<std::pair<int, vtkIdType> >& prevPointsMap, int vtkNotUsed(nmat),
+  std::vector<std::pair<int, vtkIdType>>& prevPointsMap, int vtkNotUsed(nmat),
   vtkYoungsMaterialInterface_Mat* Mats, int a, vtkIdType i, double* t)
 {
   if ((i) >= 0)
@@ -518,7 +521,7 @@ void vtkYoungsMaterialInterface::UpdateBlockMapping()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkYoungsMaterialInterface::Aggregate(int nmat, int* inputsPerMaterial)
 {
   // Calculate number of domains
@@ -537,7 +540,7 @@ void vtkYoungsMaterialInterface::Aggregate(int nmat, int* inputsPerMaterial)
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -623,7 +626,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
   this->Aggregate(nmat, inputsPerMaterial);
 
   // map containing output blocks
-  std::map<int, vtkSmartPointer<vtkUnstructuredGrid> > outputBlocks;
+  std::map<int, vtkSmartPointer<vtkUnstructuredGrid>> outputBlocks;
 
   // iterate over input blocks
   inputIterator->InitTraversal();
@@ -799,7 +802,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
     vtkYoungsMaterialInterface_IndexedValue* matOrdering =
       new vtkYoungsMaterialInterface_IndexedValue[nmat];
 
-    std::vector<std::pair<int, vtkIdType> > prevPointsMap;
+    std::vector<std::pair<int, vtkIdType>> prevPointsMap;
     prevPointsMap.reserve(MAX_CELL_POINTS * nmat);
 
     for (vtkIdType ci = 0; ci < nCells; ci++)
@@ -1056,8 +1059,8 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
                 {
                   id = -(int)(prevPointsMap.size() + 1);
                   DBG_ASSERT((-id - 1) == prevPointsMap.size());
-                  prevPointsMap.push_back(std::make_pair(
-                    m, Mats[m].pointCount + ni)); // intersection points will be added first
+                  prevPointsMap.emplace_back(
+                    m, Mats[m].pointCount + ni); // intersection points will be added first
                   ni++;
                 }
                 else
@@ -1188,7 +1191,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
                 vtkIdType id = -(int)(prevPointsMap.size() + 1);
                 DBG_ASSERT((-id - 1) == prevPointsMap.size());
                 // Interpolated points will be added consecutively
-                prevPointsMap.push_back(std::make_pair(m, Mats[m].pointCount + i));
+                prevPointsMap.emplace_back(m, Mats[m].pointCount + i);
                 nextCell.pointIds[i] = id;
               }
               for (int i = 0; i < nOutsidePoints; i++)
@@ -1559,7 +1562,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
   int blockIndex = 0;
-  for (std::map<int, vtkSmartPointer<vtkUnstructuredGrid> >::iterator it = outputBlocks.begin();
+  for (std::map<int, vtkSmartPointer<vtkUnstructuredGrid>>::iterator it = outputBlocks.begin();
        it != outputBlocks.end(); ++it, ++blockIndex)
   {
     if (it->second->GetNumberOfCells() > 0)

@@ -41,7 +41,7 @@ class vtkDataSet;
 class vtkGenericCell;
 class vtkIdList;
 class vtkPointData;
-struct vtkLagrangianUserData;
+struct vtkLagrangianThreadedData;
 
 class VTKFILTERSFLOWPATHS_EXPORT vtkLagrangianParticle
 {
@@ -61,6 +61,8 @@ public:
    *   maximum number of steps was reached
    * PARTICLE_TERMINATION_OUT_OF_TIME = 6, means the particle was terminated because
    *   maximum integration time was reached
+   * PARTICLE_TERMINATION_TRANSFERRED = 7, means the particle was terminated because
+   *   it was transferred to another process to continue the integration
    */
   typedef enum ParticleTermination
   {
@@ -70,7 +72,8 @@ public:
     PARTICLE_TERMINATION_SURF_BREAK,
     PARTICLE_TERMINATION_OUT_OF_DOMAIN,
     PARTICLE_TERMINATION_OUT_OF_STEPS,
-    PARTICLE_TERMINATION_OUT_OF_TIME
+    PARTICLE_TERMINATION_OUT_OF_TIME,
+    PARTICLE_TERMINATION_TRANSFERRED
   } ParticleTermination;
 
   /**
@@ -104,7 +107,7 @@ public:
    * particle data is a pointer to the pointData associated to all particles.
    */
   vtkLagrangianParticle(int numberOfVariables, vtkIdType seedId, vtkIdType particleId,
-    vtkIdType seedArrayTupleIndex, double integrationTime, vtkPointData* seedData, int weightsSize,
+    vtkIdType seedArrayTupleIndex, double integrationTime, vtkPointData* seedData,
     int numberOfTrackedUserData);
 
   /**
@@ -113,8 +116,8 @@ public:
    */
   static vtkLagrangianParticle* NewInstance(int numberOfVariables, vtkIdType seedId,
     vtkIdType particleId, vtkIdType seedArrayTupleIndex, double integrationTime,
-    vtkPointData* seedData, int weightsSize, int numberOfTrackedUserData, vtkIdType numberOfSteps,
-    double previousIntegrationTime);
+    vtkPointData* seedData, int numberOfTrackedUserData, vtkIdType numberOfSteps = 0,
+    double previousIntegrationTime = 0);
 
   /**
    * method to create a particle from a parent particle.
@@ -280,56 +283,16 @@ public:
 
   //@{
   /**
-   * Get/Set a pointer to TemporaryUserData that is considered to be local to the thread.
-   * This can be used to store any kind of data, structure, class instance that you may need.
-   * This is set by the vtkLagrangianParticleTracker and can be initialized/finalized in the model
+   * Get/Set a pointer to a vtkLagrangianThreadedData that is considered to be local to the thread.
+   * This structure contains multiple objects to be used by the tracker and the model, it also
+   * contains a user data that can be used to store any kind of data, structure, class instance
+   * that you may need. This is set by the vtkLagrangianParticleTracker and can be
+   * initialized/finalized in the model
    */
-  inline vtkLagrangianUserData* GetThreadedUserData() { return this->ThreadedUserData; }
-  inline void SetThreadedUserData(vtkLagrangianUserData* userData)
+  inline vtkLagrangianThreadedData* GetThreadedData() { return this->ThreadedData; }
+  inline void SetThreadedData(vtkLagrangianThreadedData* threadedData)
   {
-    this->ThreadedUserData = userData;
-  }
-  //@}
-
-  //@{
-  /**
-   * Get/Set a pointer to a vtkGenericCell that is considered to be local to the thread
-   * manipulating the particle.
-   * The generic cell is normally set by the vtkLagrangianParticleTracker and used by the basic
-   * model and the tracker.
-   */
-  inline vtkGenericCell* GetThreadedGenericCell() { return this->ThreadedGenericCell; }
-  inline void SetThreadedGenericCell(vtkGenericCell* genericCell)
-  {
-    this->ThreadedGenericCell = genericCell;
-  }
-  //@}
-
-  //@{
-  /**
-   * Get/Set a pointer to a vtkIdList that is considered to be local to the thread
-   * manipulating the particle.
-   * The id list is normally set by the vtkLagrangianParticleTracker and used by the basic model
-   * and the tracker.
-   */
-  inline vtkIdList* GetThreadedIdList() { return this->ThreadedIdList; }
-  inline void SetThreadedIdList(vtkIdList* IdList) { this->ThreadedIdList = IdList; }
-  //@}
-
-  //@{
-  /**
-   * Get/Set a pointer to a vtkBilinearQuadIntersection that is
-   * considered to be local to the thread manipulating the particle.
-   * The bilinear quad intersection is normally set by the vtkLagrangianParticleTracker and used by
-   * the basic model and the tracker.
-   */
-  inline vtkBilinearQuadIntersection* GetThreadedBilinearQuadIntersection()
-  {
-    return this->ThreadedBilinearQuadIntersection;
-  }
-  inline void SetThreadedBilinearQuadIntersection(vtkBilinearQuadIntersection* bqi)
-  {
-    this->ThreadedBilinearQuadIntersection = bqi;
+    this->ThreadedData = threadedData;
   }
   //@}
 
@@ -372,30 +335,15 @@ public:
   virtual int GetNumberOfUserVariables();
 
   /**
-   * Get the particle data.
+   * Get the particle seed data, for reading only.
    */
   virtual vtkPointData* GetSeedData();
 
   /**
-   * Get the last weights computed when locating the
-   * particle in the last traversed cell
+   * Get the index of the tuple for this particle in the point data
+   * returned by GetSeedData method
    */
-  double* GetLastWeights();
-
-  /**
-   * Get the last traversed cell id
-   */
-  vtkIdType GetLastCellId();
-
-  /**
-   * Get the dataset containing the last traversed cell
-   */
-  vtkDataSet* GetLastDataSet();
-
-  /**
-   * Get the locator used to find the last traversed cell
-   */
-  vtkAbstractCellLocator* GetLastLocator();
+  virtual vtkIdType GetSeedArrayTupleIndex() const;
 
   /**
    * Get the last intersected surface cell id.
@@ -406,11 +354,6 @@ public:
    * Get the dataset containing the last intersected surface cell
    */
   vtkDataSet* GetLastSurfaceDataSet();
-
-  /**
-   * Set the last dataset and last cell id
-   */
-  void SetLastCell(vtkAbstractCellLocator* locator, vtkDataSet* dataset, vtkIdType cellId);
 
   /**
    * Set the last surface dataset and last surface cell id
@@ -506,13 +449,6 @@ public:
   virtual void PrintSelf(ostream& os, vtkIndent indent);
 
 protected:
-  /**
-   * Constructor wrapper for internal convenience
-   */
-  vtkLagrangianParticle* NewInstance(int numberOfVariables, vtkIdType seedId, vtkIdType particleId,
-    vtkIdType seedArrayTupleIndex, double integrationTime, vtkPointData* seedData, int weightsSize,
-    int numberOfTrackedUserData);
-
   vtkLagrangianParticle(const vtkLagrangianParticle&) = delete;
   vtkLagrangianParticle() = delete;
   void operator=(const vtkLagrangianParticle&) = delete;
@@ -533,22 +469,14 @@ protected:
   std::vector<double> TrackedUserData;
   std::vector<double> NextTrackedUserData;
 
-  vtkLagrangianUserData* ThreadedUserData = nullptr;
-  vtkGenericCell* ThreadedGenericCell = nullptr;
-  vtkIdList* ThreadedIdList = nullptr;
-  vtkBilinearQuadIntersection* ThreadedBilinearQuadIntersection = nullptr;
+  vtkLagrangianThreadedData* ThreadedData = nullptr;
 
   vtkIdType Id;
   vtkIdType ParentId;
   vtkIdType SeedId;
   vtkIdType NumberOfSteps;
-  vtkNew<vtkPointData> SeedData;
-
-  vtkAbstractCellLocator* LastLocator;
-  vtkDataSet* LastDataSet;
-  vtkIdType LastCellId;
-  int WeightsSize;
-  std::vector<double> LastWeights;
+  vtkIdType SeedArrayTupleIndex;
+  vtkPointData* SeedData;
 
   double StepTime;
   double IntegrationTime;

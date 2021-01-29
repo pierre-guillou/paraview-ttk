@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkActor.h"
 #include "vtkCamera.h"
 #include "vtkChartXY.h"
@@ -29,7 +32,7 @@
 #include "vtkRenderer.h"
 #include "vtkTable.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestChartsOn3D(int, char*[])
 {
 

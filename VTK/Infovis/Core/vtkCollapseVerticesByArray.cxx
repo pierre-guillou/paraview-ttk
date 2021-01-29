@@ -50,9 +50,9 @@ vtkCollapseVerticesByArray::vtkCollapseVerticesByArray()
   : vtkGraphAlgorithm()
   , AllowSelfLoops(false)
   , VertexArray(nullptr)
-  , CountEdgesCollapsed(0)
+  , CountEdgesCollapsed(false)
   , EdgesCollapsedArray(nullptr)
-  , CountVerticesCollapsed(0)
+  , CountVerticesCollapsed(false)
   , VerticesCollapsedArray(nullptr)
 {
   // Setting default names.
@@ -62,7 +62,7 @@ vtkCollapseVerticesByArray::vtkCollapseVerticesByArray()
   this->Internal = new vtkCollapseVerticesByArrayInternal();
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCollapseVerticesByArray::~vtkCollapseVerticesByArray()
 {
   delete this->Internal;
@@ -71,7 +71,7 @@ vtkCollapseVerticesByArray::~vtkCollapseVerticesByArray()
   delete[] this->EdgesCollapsedArray;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCollapseVerticesByArray::PrintSelf(ostream& os, vtkIndent indent)
 {
   // Base class print.
@@ -92,7 +92,7 @@ void vtkCollapseVerticesByArray::PrintSelf(ostream& os, vtkIndent indent)
 //------------------------------------------------------------------------------
 void vtkCollapseVerticesByArray::AddAggregateEdgeArray(const char* arrName)
 {
-  this->Internal->AggregateEdgeArrays.push_back(std::string(arrName));
+  this->Internal->AggregateEdgeArrays.emplace_back(arrName);
 }
 
 //------------------------------------------------------------------------------

@@ -17,12 +17,16 @@
 #include "vtkDataArray.h"
 #include "vtkFieldData.h"
 #include "vtkObjectFactory.h"
+#include "vtkUnsignedCharArray.h"
+#include "vtkVariant.h"
+
+#include "vtksys/FStream.hxx"
+#include "vtksys/SystemTools.hxx"
 
 #include <cassert>
 #include <map>
 #include <sstream>
 #include <string>
-#include <vtksys/SystemTools.hxx>
 
 class vtkCSVExporter::vtkInternals
 {
@@ -76,13 +80,9 @@ vtkStandardNewMacro(vtkCSVExporter);
 //----------------------------------------------------------------------------
 vtkCSVExporter::vtkCSVExporter()
 {
-  this->OutputStream = 0;
-  this->FileName = 0;
-  this->FieldDelimiter = 0;
   this->SetFieldDelimiter(",");
   this->Internals = new vtkInternals();
-  this->Mode = STREAM_ROWS;
-  this->WriteToOutputString = false;
+  this->Formatting = vtkVariant::DEFAULT_FORMATTING;
 }
 
 //----------------------------------------------------------------------------
@@ -93,11 +93,11 @@ vtkCSVExporter::~vtkCSVExporter()
     this->Close();
   }
   delete this->Internals;
-  this->Internals = NULL;
+  this->Internals = nullptr;
   delete this->OutputStream;
-  this->OutputStream = 0;
-  this->SetFieldDelimiter(0);
-  this->SetFileName(0);
+  this->OutputStream = nullptr;
+  this->SetFieldDelimiter(nullptr);
+  this->SetFileName(nullptr);
 }
 
 //----------------------------------------------------------------------------
@@ -144,14 +144,14 @@ bool vtkCSVExporter::Open(vtkCSVExporter::ExporterModes mode)
   }
   else
   {
-    this->OutputStream = new std::ofstream(this->FileName);
+    this->OutputStream = new vtksys::ofstream(this->FileName);
   }
 
   if (!this->OutputStream || !(*this->OutputStream))
   {
     vtkErrorMacro("Failed to open for writing: " << this->FileName);
     delete this->OutputStream;
-    this->OutputStream = 0;
+    this->OutputStream = nullptr;
     return false;
   }
   this->Mode = mode;
@@ -166,7 +166,7 @@ std::string vtkCSVExporter::GetOutputString()
 
 //----------------------------------------------------------------------------
 void vtkCSVExporter::AddColumn(
-  vtkAbstractArray* yarray, const char* yarrayname /*=NULL*/, vtkDataArray* xarray /*=NULL*/)
+  vtkAbstractArray* yarray, const char* yarrayname /*=nullptr*/, vtkDataArray* xarray /*=nullptr*/)
 {
   if (this->Mode != STREAM_COLUMNS)
   {
@@ -179,7 +179,7 @@ void vtkCSVExporter::AddColumn(
   this->Internals->Header += (this->Internals->ColumnCount > 0) ? "," : "";
   this->Internals->Header += "\"" + std::string(yarrayname) + "\"";
 
-  assert(xarray == NULL || (xarray->GetNumberOfTuples() == yarray->GetNumberOfTuples()));
+  assert(xarray == nullptr || (xarray->GetNumberOfTuples() == yarray->GetNumberOfTuples()));
   if (xarray && xarray->GetName() && this->Internals->XColumnName.empty())
   {
     this->Internals->XColumnName = "\"" + std::string(xarray->GetName()) + "\"";
@@ -188,7 +188,7 @@ void vtkCSVExporter::AddColumn(
   {
     this->Internals->AddColumnValue(this->FieldDelimiter,
       xarray ? xarray->GetTuple1(cc) : static_cast<double>(cc),
-      yarray->GetVariantValue(cc).ToString());
+      yarray->GetVariantValue(cc).ToString(this->Formatting, this->Precision));
   }
   this->Internals->ColumnCount++;
 }
@@ -268,6 +268,8 @@ void vtkCSVExporter::WriteData(vtkFieldData* data)
         continue;
       }
 
+      auto validMask = vtkUnsignedCharArray::SafeDownCast(
+        data->GetArray(("__vtkValidMask__" + std::string(name)).c_str()));
       int numComps = array->GetNumberOfComponents();
       for (int comp = 0; comp < numComps; comp++)
       {
@@ -275,15 +277,19 @@ void vtkCSVExporter::WriteData(vtkFieldData* data)
         {
           (*this->OutputStream) << this->FieldDelimiter;
         }
-        vtkVariant value = array->GetVariantValue(tuple * numComps + comp);
 
-        // to avoid weird characters in the output, cast char /
-        // signed char / unsigned char variables to integers
-        value = (value.IsChar() || value.IsSignedChar() || value.IsUnsignedChar())
-          ? vtkVariant(value.ToInt())
-          : value;
+        if (validMask == nullptr || validMask->GetValue(tuple) == 1)
+        {
+          vtkVariant value = array->GetVariantValue(tuple * numComps + comp);
 
-        (*this->OutputStream) << value.ToString().c_str();
+          // to avoid weird characters in the output, cast char /
+          // signed char / unsigned char variables to integers
+          value = (value.IsChar() || value.IsSignedChar() || value.IsUnsignedChar())
+            ? vtkVariant(value.ToInt())
+            : value;
+
+          (*this->OutputStream) << value.ToString(this->Formatting, this->Precision).c_str();
+        }
         first = false;
       }
     }
@@ -303,19 +309,15 @@ void vtkCSVExporter::Close()
     this->Internals->DumpLines(this->FieldDelimiter, *this->OutputStream);
   }
 
-  auto fileStream = dynamic_cast<std::ofstream*>(this->OutputStream);
-  if (fileStream)
-  {
-    fileStream->close();
-  }
-  else if (this->WriteToOutputString)
+  auto fileStream = dynamic_cast<vtksys::ofstream*>(this->OutputStream);
+  if (fileStream == nullptr && this->WriteToOutputString)
   {
     auto ss = dynamic_cast<std::ostringstream*>(OutputStream);
     this->OutputString = ss->str();
   }
 
   delete this->OutputStream;
-  this->OutputStream = 0;
+  this->OutputStream = nullptr;
 }
 
 //----------------------------------------------------------------------------

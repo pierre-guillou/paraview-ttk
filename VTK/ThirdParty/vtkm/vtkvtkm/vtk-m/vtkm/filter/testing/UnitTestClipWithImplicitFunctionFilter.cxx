@@ -35,8 +35,7 @@ vtkm::cont::DataSet MakeTestDatasetStructured()
   vtkm::cont::DataSetBuilderUniform builder;
   ds = builder.Create(dim);
 
-  vtkm::cont::DataSetFieldAdd fieldAdder;
-  fieldAdder.AddPointField(ds, "scalars", scalars, numVerts);
+  ds.AddPointField("scalars", scalars, numVerts);
 
   return ds;
 }
@@ -73,7 +72,7 @@ void TestClipStructured()
   vtkm::Float32 expected[13] = { 1, 1, 1, 1, 0, 1, 1, 1, 1, 0.25, 0.25, 0.25, 0.25 };
   for (int i = 0; i < 13; ++i)
   {
-    VTKM_TEST_ASSERT(test_equal(resultArrayHandle.GetPortalConstControl().Get(i), expected[i]),
+    VTKM_TEST_ASSERT(test_equal(resultArrayHandle.ReadPortal().Get(i), expected[i]),
                      "Wrong result for ClipWithImplicitFunction fliter on sturctured quads data");
   }
 }
@@ -109,7 +108,7 @@ void TestClipStructuredInverted()
   vtkm::Float32 expected[13] = { 1, 1, 1, 1, 0, 1, 1, 1, 1, 0.25, 0.25, 0.25, 0.25 };
   for (int i = 0; i < 13; ++i)
   {
-    VTKM_TEST_ASSERT(test_equal(resultArrayHandle.GetPortalConstControl().Get(i), expected[i]),
+    VTKM_TEST_ASSERT(test_equal(resultArrayHandle.ReadPortal().Get(i), expected[i]),
                      "Wrong result for ClipWithImplicitFunction fliter on sturctured quads data");
   }
 }

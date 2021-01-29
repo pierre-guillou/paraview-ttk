@@ -28,6 +28,7 @@
 
 vtkStandardNewMacro(vtkExtractVectorComponents);
 
+//------------------------------------------------------------------------------
 vtkExtractVectorComponents::vtkExtractVectorComponents()
 {
   this->ExtractToFieldData = 0;
@@ -35,8 +36,10 @@ vtkExtractVectorComponents::vtkExtractVectorComponents()
   this->OutputsInitialized = 0;
 }
 
+//------------------------------------------------------------------------------
 vtkExtractVectorComponents::~vtkExtractVectorComponents() = default;
 
+//------------------------------------------------------------------------------
 // Get the output dataset representing velocity x-component. If output is nullptr
 // then input hasn't been set, which is necessary for abstract objects. (Note:
 // this method returns the same information as the GetOutput() method with an
@@ -46,6 +49,7 @@ vtkDataSet* vtkExtractVectorComponents::GetVxComponent()
   return this->GetOutput(0);
 }
 
+//------------------------------------------------------------------------------
 // Get the output dataset representing velocity y-component. If output is nullptr
 // then input hasn't been set, which is necessary for abstract objects. (Note:
 // this method returns the same information as the GetOutput() method with an
@@ -55,6 +59,7 @@ vtkDataSet* vtkExtractVectorComponents::GetVyComponent()
   return this->GetOutput(1);
 }
 
+//------------------------------------------------------------------------------
 // Get the output dataset representing velocity z-component. If output is nullptr
 // then input hasn't been set, which is necessary for abstract objects. (Note:
 // this method returns the same information as the GetOutput() method with an
@@ -64,6 +69,7 @@ vtkDataSet* vtkExtractVectorComponents::GetVzComponent()
   return this->GetOutput(2);
 }
 
+//------------------------------------------------------------------------------
 // Specify the input data or filter.
 void vtkExtractVectorComponents::SetInputData(vtkDataSet* input)
 {
@@ -98,7 +104,7 @@ void vtkExtractVectorComponents::SetInputData(vtkDataSet* input)
   // since the input has changed we might need to create a new output
   // It seems that output 0 is the correct type as a result of the call to
   // the superclass's SetInput.  Check the type of output 1 instead.
-  if (strcmp(this->GetOutput(1)->GetClassName(), input->GetClassName()))
+  if (strcmp(this->GetOutput(1)->GetClassName(), input->GetClassName()) != 0)
   {
     output = input->NewInstance();
     this->GetExecutive()->SetOutputData(0, output);
@@ -112,6 +118,8 @@ void vtkExtractVectorComponents::SetInputData(vtkDataSet* input)
     vtkWarningMacro(<< " a new output had to be created since the input type changed.");
   }
 }
+
+//------------------------------------------------------------------------------
 namespace
 {
 
@@ -140,6 +148,7 @@ struct vtkExtractComponents
 };
 } // namespace
 
+//------------------------------------------------------------------------------
 int vtkExtractVectorComponents::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -307,6 +316,7 @@ int vtkExtractVectorComponents::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
+//------------------------------------------------------------------------------
 void vtkExtractVectorComponents::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

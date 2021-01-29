@@ -12,18 +12,26 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkCell3D.h"
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkDataArrayRange.h"
 #include "vtkDoubleArray.h"
 #include "vtkMath.h"
+#include "vtkMathUtilities.h"
 #include "vtkOrderedTriangulator.h"
 #include "vtkPointData.h"
 #include "vtkPointLocator.h"
 #include "vtkPoints.h"
 #include "vtkPolygon.h"
 #include "vtkTetra.h"
+
+#include <vector>
 
 vtkCell3D::vtkCell3D()
 {
@@ -56,7 +64,10 @@ bool vtkCell3D::IsInsideOut()
   // - Accumulate a signed projected distance on the normal between the faces and the centroid.
   // - Check the sign to see if the cell is inside out or not.
   double centroid[3], point[3], normal[3];
-  this->GetCentroid(centroid);
+  if (!this->GetCentroid(centroid))
+  {
+    return false;
+  }
   double signedDistanceToCentroid = 0.0;
   for (vtkIdType faceId = 0; faceId < this->GetNumberOfFaces(); ++faceId)
   {
@@ -74,6 +85,70 @@ bool vtkCell3D::IsInsideOut()
   return signedDistanceToCentroid > 0.0;
 }
 
+//----------------------------------------------------------------------------
+int vtkCell3D::Inflate(double dist)
+{
+  // Strategy:
+  // For each point, store in a buffer its inflated position by moving each
+  // incident face their normal direction by a distance of dist. This new
+  // position is done by solving a linear system of equation (intersection of 3
+  // planes). It is enough to pick 3 non-coplanar incident faces. Thus, only 3
+  // are picked (we discard faces coplanar to any already included face)
+  // Then, each point is updated using this buffer.
+
+  std::vector<double> buf(3 * this->Points->GetNumberOfPoints(), 0.0);
+  double* position = buf.data();
+  dist *= this->IsInsideOut() ? -1.0 : 1.0;
+  auto pointRange = vtk::DataArrayTupleRange<3>(this->Points->GetData());
+  for (vtkIdType pointId = 0; pointId < this->GetNumberOfPoints(); ++pointId, position += 3)
+  {
+    double normalBase[3][3] = { { 0.0 } };
+    int normalId = 0;
+    const vtkIdType* incidentFaceIds;
+    vtkIdType numberOfIncidentFaces = this->GetPointToIncidentFaces(pointId, incidentFaceIds);
+    for (vtkIdType id = 0; id < numberOfIncidentFaces && normalId < 3; ++id)
+    {
+      const vtkIdType* incidentFacePointIds;
+      vtkIdType incidentFaceSize = this->GetFacePoints(incidentFaceIds[id], incidentFacePointIds);
+      vtkPolygon::ComputeNormal(
+        this->Points, incidentFaceSize, incidentFacePointIds, normalBase[normalId]);
+
+      if (normalId == 0 ||
+        (normalId == 1 &&
+          (!vtkMathUtilities::NearlyEqual(
+            std::fabs(vtkMath::Dot(normalBase[0], normalBase[1])), 1.0))) ||
+        (normalId == 2 &&
+          !vtkMathUtilities::NearlyEqual(
+            std::fabs(vtkMath::Dot(normalBase[0], normalBase[2])), 1.0) &&
+          !vtkMathUtilities::NearlyEqual(
+            std::fabs(vtkMath::Dot(normalBase[1], normalBase[2])), 1.0)))
+      {
+        ++normalId;
+      }
+    }
+    if (normalId != 3)
+    {
+      continue;
+    }
+    auto point = pointRange[pointId];
+    double d[3] = { vtkMath::Dot(normalBase[0], point) + dist,
+      vtkMath::Dot(normalBase[1], point) + dist, vtkMath::Dot(normalBase[2], point) + dist };
+    vtkMath::LinearSolve3x3(normalBase, d, position);
+  }
+
+  using TupleRef = decltype(pointRange)::TupleReferenceType;
+  position = buf.data();
+  for (TupleRef point : pointRange)
+  {
+    point[0] = position[0];
+    point[1] = position[1];
+    point[2] = position[2];
+    position += 3;
+  }
+  return 1;
+}
+
+//----------------------------------------------------------------------------
 void vtkCell3D::Contour(double value, vtkDataArray* cellScalars,
   vtkIncrementalPointLocator* locator, vtkCellArray* verts, vtkCellArray* lines,
   vtkCellArray* polys, vtkPointData* inPd, vtkPointData* outPd, vtkCellData* inCd, vtkIdType cellId,
@@ -175,7 +250,7 @@ void vtkCell3D::Contour(double value, vtkDataArray* cellScalars,
     this->GetEdgePoints(edgeNum, tets);
 
     // Calculate a preferred interpolation direction.
-    // Has to be done in same direction to insure coincident points are
+    // Has to be done in same direction to ensure coincident points are
     // merged (different interpolation direction causes perturbations).
     s1 = cellScalars->GetComponent(tets[0], 0);
     s2 = cellScalars->GetComponent(tets[1], 0);
@@ -376,7 +451,7 @@ void vtkCell3D::Clip(double value, vtkDataArray* cellScalars, vtkIncrementalPoin
     cell3D->GetEdgePoints(edgeNum, verts);
 
     // Calculate a preferred interpolation direction.
-    // Has to be done in same direction to insure coincident points are
+    // Has to be done in same direction to ensure coincident points are
     // merged (different interpolation direction causes perturbations).
     s1 = cellScalars->GetComponent(verts[0], 0);
     s2 = cellScalars->GetComponent(verts[1], 0);

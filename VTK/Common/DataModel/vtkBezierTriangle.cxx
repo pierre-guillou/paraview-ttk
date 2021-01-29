@@ -33,13 +33,13 @@
 #define SEVEN_POINT_TRIANGLE
 
 vtkStandardNewMacro(vtkBezierTriangle);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkBezierTriangle::vtkBezierTriangle()
   : vtkHigherOrderTriangle()
 {
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkBezierTriangle::~vtkBezierTriangle() = default;
 
 void vtkBezierTriangle::PrintSelf(ostream& os, vtkIndent indent)
@@ -112,7 +112,7 @@ void vtkBezierTriangle::SetRationalWeightsFromPointData(
     this->GetRationalWeights()->Reset();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBezierTriangle::InterpolateFunctions(const double pcoords[3], double* weights)
 {
   const int dim = 2;
@@ -144,7 +144,7 @@ void vtkBezierTriangle::InterpolateFunctions(const double pcoords[3], double* we
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkBezierTriangle::InterpolateDerivs(const double pcoords[3], double* derivs)
 {
   const int dim = 2;

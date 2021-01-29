@@ -28,6 +28,7 @@
 #include "vtkMath.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
+#include "vtkSelection.h"
 #include "vtkVariantArray.h"
 
 // Initialize static member that controls global coincidence resolution
@@ -40,6 +41,8 @@ static double vtkMapperGlobalResolveCoincidentTopologyPolygonOffsetUnits = 0.0;
 static double vtkMapperGlobalResolveCoincidentTopologyLineOffsetFactor = 0.0;
 static double vtkMapperGlobalResolveCoincidentTopologyLineOffsetUnits = -4.0;
 static double vtkMapperGlobalResolveCoincidentTopologyPointOffsetUnits = -8.0;
+
+vtkCxxSetObjectMacro(vtkMapper, Selection, vtkSelection);
 
 // Construct with initial range (0,1).
 vtkMapper::vtkMapper()
@@ -99,6 +102,7 @@ vtkMapper::~vtkMapper()
     this->ColorTextureMap->UnRegister(this);
   }
   this->SetArrayName(nullptr);
+  this->SetSelection(nullptr);
 }
 
 // Get the bounds for the input of this mapper as
@@ -361,7 +365,7 @@ vtkUnsignedCharArray* vtkMapper::MapScalars(double alpha, int& cellFlag)
   return this->MapScalars(input, alpha, cellFlag);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Returns if we can use texture maps for scalar coloring. Note this doesn't say
 // we "will" use scalar coloring. It says, if we do use scalar coloring, we will
 // use a texture.
@@ -680,7 +684,7 @@ const char* vtkMapper::GetScalarModeAsString()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkMapper::HasOpaqueGeometry()
 {
   // by default we only return true for Opaque or Translucent
@@ -688,7 +692,7 @@ bool vtkMapper::HasOpaqueGeometry()
   return !this->HasTranslucentPolygonalGeometry();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkMapper::HasTranslucentPolygonalGeometry()
 {
   // scalar visibility?
@@ -715,7 +719,7 @@ bool vtkMapper::HasTranslucentPolygonalGeometry()
 namespace
 {
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 template <class T>
 void ScalarToTextureCoordinate(T scalar_value, // Input scalar
   double range_min,                            // range[0]
@@ -760,7 +764,7 @@ void ScalarToTextureCoordinate(T scalar_value, // Input scalar
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 template <class T>
 void CreateColorTextureCoordinates(T* input, float* output, vtkIdType numScalars, int numComps,
   int component, double* range, const double* table_range, int tableNumberOfColors,

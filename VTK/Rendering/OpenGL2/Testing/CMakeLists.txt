@@ -1,6 +1,7 @@
 vtk_module_test_data(
   Data/GIS/raster.tif
   Data/autoshop.jpg
+  Data/anisotropyTex.png
   Data/bunny.ply
   Data/clouds.jpeg
   Data/dragon.ply
@@ -12,6 +13,7 @@ vtk_module_test_data(
   Data/skybox-py.jpg
   Data/skybox-pz.jpg
   Data/skybox/,REGEX:.*\.jpg
+  Data/spiaggia_di_mondello_1k.hdr
   Data/,REGEX:vtk_.*\.png
   Data/wintersun.jpg)
 

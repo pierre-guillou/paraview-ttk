@@ -50,20 +50,20 @@ vtkOStreamWrapper& operator<<(vtkOStreamWrapper& os, const Json::Value& root)
 }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGeoJSONFeature::vtkGeoJSONFeature()
 {
   this->FeatureId = nullptr;
   this->OutlinePolygons = false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGeoJSONFeature::~vtkGeoJSONFeature()
 {
   free(this->FeatureId);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGeoJSONFeature::CreatePoint(const Json::Value& coordinates, double point[3])
 {
   // Check if Coordinates corresponds to Point
@@ -108,7 +108,7 @@ bool vtkGeoJSONFeature::CreatePoint(const Json::Value& coordinates, double point
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPolyData* vtkGeoJSONFeature::ExtractPoint(
   const Json::Value& coordinates, vtkPolyData* outputData)
 {
@@ -139,7 +139,7 @@ vtkPolyData* vtkGeoJSONFeature::ExtractPoint(
   return outputData;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPolyData* vtkGeoJSONFeature::ExtractMultiPoint(
   const Json::Value& coordinates, vtkPolyData* outputData)
 {
@@ -179,7 +179,7 @@ vtkPolyData* vtkGeoJSONFeature::ExtractMultiPoint(
   return outputData;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPolyData* vtkGeoJSONFeature::ExtractLineString(
   const Json::Value& coordinates, vtkPolyData* outputData)
 {
@@ -209,7 +209,7 @@ vtkPolyData* vtkGeoJSONFeature::ExtractLineString(
   return outputData;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPolyData* vtkGeoJSONFeature::ExtractMultiLineString(
   const Json::Value& coordinateArray, vtkPolyData* outputData)
 {
@@ -228,7 +228,7 @@ vtkPolyData* vtkGeoJSONFeature::ExtractMultiLineString(
   return outputData;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPolyData* vtkGeoJSONFeature::ExtractPolygon(
   const Json::Value& coordinate, vtkPolyData* outputData)
 {
@@ -298,7 +298,7 @@ vtkPolyData* vtkGeoJSONFeature::ExtractPolygon(
   return outputData;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPolyData* vtkGeoJSONFeature::ExtractMultiPolygon(
   const Json::Value& coordinateArray, vtkPolyData* outputData)
 {
@@ -319,7 +319,7 @@ vtkPolyData* vtkGeoJSONFeature::ExtractMultiPolygon(
   return outputData;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGeoJSONFeature::ExtractGeoJSONFeature(const Json::Value& root, vtkPolyData* outputData)
 {
   this->featureRoot = root;
@@ -382,7 +382,7 @@ void vtkGeoJSONFeature::ExtractGeoJSONFeature(const Json::Value& root, vtkPolyDa
   this->ExtractGeoJSONFeatureGeometry(geometryNode, outputData);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGeoJSONFeature::ExtractGeoJSONFeatureGeometry(
   const Json::Value& geometryRoot, vtkPolyData* outputData)
 {
@@ -444,7 +444,7 @@ void vtkGeoJSONFeature::ExtractGeoJSONFeatureGeometry(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGeoJSONFeature::IsLineString(const Json::Value& root)
 {
   if (!root.isArray())
@@ -453,7 +453,7 @@ bool vtkGeoJSONFeature::IsLineString(const Json::Value& root)
     return false;
   }
 
-  if (root.size() < 1)
+  if (root.empty())
   {
     vtkErrorMacro(<< "Expected at least 1 value at " << root);
     return false;
@@ -471,7 +471,7 @@ bool vtkGeoJSONFeature::IsLineString(const Json::Value& root)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGeoJSONFeature::IsMultiLineString(const Json::Value& root)
 {
   if (!root.isArray())
@@ -480,7 +480,7 @@ bool vtkGeoJSONFeature::IsMultiLineString(const Json::Value& root)
     return false;
   }
 
-  if (root.size() < 1)
+  if (root.empty())
   {
     vtkErrorMacro(<< "Expected at least 1 value at " << root);
     return false;
@@ -498,7 +498,7 @@ bool vtkGeoJSONFeature::IsMultiLineString(const Json::Value& root)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGeoJSONFeature::IsPoint(const Json::Value& root)
 {
   if (!root.isArray())
@@ -507,9 +507,11 @@ bool vtkGeoJSONFeature::IsPoint(const Json::Value& root)
     return false;
   }
 
-  if (!(root.size() > 0 && root.size() < 4))
+  const size_t root_size = root.size();
+  if (root_size == 0 || root_size > 3)
   {
-    vtkErrorMacro(<< "Expected 3 or less dimension values at " << root << " for point");
+    vtkErrorMacro(<< root_size << " is not between 1 and 3 dimensions at " << root
+                  << " for point.");
     return false;
   }
 
@@ -526,7 +528,7 @@ bool vtkGeoJSONFeature::IsPoint(const Json::Value& root)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGeoJSONFeature::IsMultiPoint(const Json::Value& root)
 {
   if (!root.isArray())
@@ -535,7 +537,7 @@ bool vtkGeoJSONFeature::IsMultiPoint(const Json::Value& root)
     return false;
   }
 
-  if (root.size() < 1)
+  if (root.empty())
   {
     vtkErrorMacro(<< "Expected at least 1 value at " << root << " for multipoint");
     return false;
@@ -553,7 +555,7 @@ bool vtkGeoJSONFeature::IsMultiPoint(const Json::Value& root)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGeoJSONFeature::IsPolygon(const Json::Value& root)
 {
   if (!root.isArray())
@@ -562,7 +564,7 @@ bool vtkGeoJSONFeature::IsPolygon(const Json::Value& root)
     return false;
   }
 
-  if (root.size() < 1)
+  if (root.empty())
   {
     vtkErrorMacro(<< "Expected at least 1 value at " << root << "for polygon");
     return false;
@@ -582,7 +584,7 @@ bool vtkGeoJSONFeature::IsPolygon(const Json::Value& root)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGeoJSONFeature::IsMultiPolygon(const Json::Value& root)
 {
   if (!root.isArray())
@@ -591,7 +593,7 @@ bool vtkGeoJSONFeature::IsMultiPolygon(const Json::Value& root)
     return false;
   }
 
-  if (root.size() < 1)
+  if (root.empty())
   {
     vtkErrorMacro(<< "Expected at least 1 value at " << root << " for multi polygon");
     return false;
@@ -609,7 +611,7 @@ bool vtkGeoJSONFeature::IsMultiPolygon(const Json::Value& root)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGeoJSONFeature::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os, indent);

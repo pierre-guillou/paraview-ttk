@@ -84,6 +84,7 @@ public:
 
   VTKM_CONT bool IsFieldCell() const { return this->FieldAssociation == Association::CELL_SET; }
   VTKM_CONT bool IsFieldPoint() const { return this->FieldAssociation == Association::POINTS; }
+  VTKM_CONT bool IsFieldGlobal() const { return this->FieldAssociation == Association::WHOLE_MESH; }
 
   VTKM_CONT vtkm::Id GetNumberOfValues() const { return this->Data.GetNumberOfValues(); }
 
@@ -92,15 +93,18 @@ public:
   {
     this->GetRangeImpl(TypeList());
     const vtkm::Id length = this->Range.GetNumberOfValues();
+    auto portal = this->Range.ReadPortal();
     for (vtkm::Id i = 0; i < length; ++i)
     {
-      range[i] = this->Range.GetPortalConstControl().Get(i);
+      range[i] = portal.Get(i);
     }
   }
 
   template <typename TypeList>
   VTKM_CONT const vtkm::cont::ArrayHandle<vtkm::Range>& GetRange(TypeList) const
   {
+    VTKM_STATIC_ASSERT_MSG((!std::is_same<TypeList, vtkm::ListUniversal>::value),
+                           "Cannot get the field range with vtkm::ListUniversal.");
     return this->GetRangeImpl(TypeList());
   }
 
@@ -122,10 +126,10 @@ public:
     this->ModifiedFlag = true;
   }
 
-  VTKM_CONT
-  void SetData(const vtkm::cont::VariantArrayHandle& newdata)
+  template <typename TypeList>
+  VTKM_CONT void SetData(const vtkm::cont::VariantArrayHandleBase<TypeList>& newdata)
   {
-    this->Data = newdata;
+    this->Data = vtkm::cont::VariantArrayHandle(newdata);
     this->ModifiedFlag = true;
   }
 
@@ -177,18 +181,59 @@ vtkm::cont::Field make_Field(std::string name,
                              Field::Association association,
                              const T* data,
                              vtkm::Id size,
-                             vtkm::CopyFlag copy = vtkm::CopyFlag::Off)
+                             vtkm::CopyFlag copy)
 {
   return vtkm::cont::Field(name, association, vtkm::cont::make_ArrayHandle(data, size, copy));
+}
+
+template <typename T>
+VTKM_DEPRECATED(1.6, "Specify a vtkm::CopyFlag or use a move version of make_Field.")
+vtkm::cont::Field
+  make_Field(std::string name, Field::Association association, const T* data, vtkm::Id size)
+{
+  return make_Field(name, association, data, size, vtkm::CopyFlag::Off);
 }
 
 template <typename T>
 vtkm::cont::Field make_Field(std::string name,
                              Field::Association association,
                              const std::vector<T>& data,
-                             vtkm::CopyFlag copy = vtkm::CopyFlag::Off)
+                             vtkm::CopyFlag copy)
 {
   return vtkm::cont::Field(name, association, vtkm::cont::make_ArrayHandle(data, copy));
+}
+
+template <typename T>
+VTKM_DEPRECATED(1.6, "Specify a vtkm::CopyFlag or use a move version of make_Field.")
+vtkm::cont::Field
+  make_Field(std::string name, Field::Association association, const std::vector<T>& data)
+{
+  return make_Field(name, association, data, vtkm::CopyFlag::Off);
+}
+
+template <typename T>
+vtkm::cont::Field make_FieldMove(std::string name,
+                                 Field::Association association,
+                                 std::vector<T>&& data)
+{
+  return vtkm::cont::Field(name, association, vtkm::cont::make_ArrayHandleMove(data));
+}
+
+template <typename T>
+vtkm::cont::Field make_Field(std::string name,
+                             Field::Association association,
+                             std::vector<T>&& data,
+                             vtkm::CopyFlag vtkmNotUsed(copy))
+{
+  return make_FieldMove(name, association, std::move(data));
+}
+
+template <typename T>
+vtkm::cont::Field make_Field(std::string name,
+                             Field::Association association,
+                             std::initializer_list<T>&& data)
+{
+  return make_FieldMove(name, association, vtkm::cont::make_ArrayHandle(std::move(data)));
 }
 
 //@}
@@ -260,6 +305,15 @@ struct SerializableField
 
   vtkm::cont::Field Field;
 };
+
+// Cannot directly serialize fields with a vtkm::ListUniversal type list since there has to
+// be a finite number of types to serialize. Do the best possible by serializing all basic
+// VTK-m types.
+template <>
+struct SerializableField<vtkm::ListUniversal> : SerializableField<vtkm::TypeListAll>
+{
+  using SerializableField<vtkm::TypeListAll>::SerializableField;
+};
 } // namespace cont
 } // namespace vtkm
 
@@ -296,6 +350,12 @@ public:
     vtkmdiy::load(bb, data);
     field = vtkm::cont::Field(name, assoc, vtkm::cont::VariantArrayHandle(data));
   }
+};
+
+template <>
+struct Serialization<vtkm::cont::SerializableField<vtkm::ListUniversal>>
+  : Serialization<vtkm::cont::SerializableField<vtkm::TypeListAll>>
+{
 };
 
 } // diy

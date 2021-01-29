@@ -49,21 +49,38 @@ struct vtkSMDomainInternals;
 class VTKREMOTINGSERVERMANAGER_EXPORT vtkSMDomain : public vtkSMSessionObject
 {
 public:
+  static vtkSMDomain* New();
   vtkTypeMacro(vtkSMDomain, vtkSMSessionObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
+   * Return values for `IsInDomain` calls.
+   */
+  enum IsInDomainReturnCodes
+  {
+    NOT_APPLICABLE = -1,
+    NOT_IN_DOMAIN = 0,
+    IN_DOMAIN = 1,
+  };
+
+  /**
    * Is the (unchecked) value of the property in the domain? Overwritten by
    * sub-classes.
+   *
+   * Returned values as defined in `IsInDomainReturnCodes`. `NOT_APPLICABLE` is
+   * returned if the domain is not applicable for the property values.
+   * `NOT_IN_DOMAIN` implies that the value is not in domain while `IN_DOMAIN`
+   * implies that the value is acceptable.
+   *
    */
-  virtual int IsInDomain(vtkSMProperty* property) = 0;
+  virtual int IsInDomain(vtkSMProperty* vtkNotUsed(property)) { return IN_DOMAIN; }
 
   /**
    * Update self based on the "unchecked" values of all required
    * properties. Subclasses must override this method to update the domain based
    * on the requestingProperty (and/or other required properties).
    */
-  virtual void Update(vtkSMProperty* requestingProperty) { (void)requestingProperty; }
+  virtual void Update(vtkSMProperty* requestingProperty);
 
   /**
    * Set the value of an element of a property from the animation editor.

@@ -16,23 +16,45 @@
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkIdTypeArray.h"
 #include "vtkIncrementalPointLocator.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMergePoints.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
+#include "vtkPoints.h"
 #include "vtkPolyData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+#include <unordered_map>
+
 vtkStandardNewMacro(vtkCleanPolyData);
 
-//---------------------------------------------------------------------------
+namespace
+{
+bool InsertPointUsingGlobalId(vtkIdType globalId, vtkPoints* newPts,
+  std::unordered_map<vtkIdType, vtkIdType>& addedGlobalIdMap, const double* x, vtkIdType& ptId)
+{
+  auto it = addedGlobalIdMap.find(globalId);
+  if (it == addedGlobalIdMap.end())
+  {
+    ptId = newPts->GetNumberOfPoints();
+    newPts->InsertNextPoint(x);
+    addedGlobalIdMap[globalId] = ptId;
+    return true;
+  }
+  ptId = it->second;
+  return false;
+}
+} // anonymous namespace
+
+//------------------------------------------------------------------------------
 // Specify a spatial locator for speeding the search process. By
 // default an instance of vtkPointLocator is used.
 vtkCxxSetObjectMacro(vtkCleanPolyData, Locator, vtkIncrementalPointLocator);
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Construct object with initial Tolerance of 0.0
 vtkCleanPolyData::vtkCleanPolyData()
 {
@@ -48,13 +70,13 @@ vtkCleanPolyData::vtkCleanPolyData()
   this->OutputPointsPrecision = vtkAlgorithm::DEFAULT_PRECISION;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkCleanPolyData::~vtkCleanPolyData()
 {
   this->SetLocator(nullptr);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCleanPolyData::OperateOnPoint(double in[3], double out[3])
 {
   out[0] = in[0];
@@ -62,7 +84,7 @@ void vtkCleanPolyData::OperateOnPoint(double in[3], double out[3])
   out[2] = in[2];
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCleanPolyData::OperateOnBounds(double in[6], double out[6])
 {
   out[0] = in[0];
@@ -73,7 +95,7 @@ void vtkCleanPolyData::OperateOnBounds(double in[6], double out[6])
   out[5] = in[5];
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkCleanPolyData::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -108,7 +130,7 @@ int vtkCleanPolyData::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -154,7 +176,7 @@ int vtkCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   // we'll be needing these
   vtkIdType inCellID, newId;
   vtkIdType i;
-  vtkIdType ptId;
+  vtkIdType ptId = 0;
   vtkIdType npts = 0;
   const vtkIdType* pts = nullptr;
   double x[3];
@@ -196,9 +218,14 @@ int vtkCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
     }
   }
 
+  std::unordered_map<vtkIdType, vtkIdType> addedGlobalIdsMap;
+  vtkIdTypeArray* globalIdsArray = vtkIdTypeArray::SafeDownCast(inputPD->GetGlobalIds());
+
   vtkPointData* outputPD = output->GetPointData();
   vtkCellData* outputCD = output->GetCellData();
-  if (!this->PointMerging)
+  // Since paraview/paraview#19961, global point ids can be used for the merging
+  // decision. In this case, they can be merged.
+  if (!this->PointMerging || (this->PointMerging && globalIdsArray))
   {
     outputPD->CopyAllOn(vtkDataSetAttributes::COPYTUPLE);
   }
@@ -243,7 +270,10 @@ int vtkCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
             outputPD->CopyData(inputPD, pts[i], ptId);
           }
         }
-        else if (this->Locator->InsertUniquePoint(newx, ptId))
+        else if ((globalIdsArray &&
+                   InsertPointUsingGlobalId(
+                     globalIdsArray->GetValue(pts[i]), newPts, addedGlobalIdsMap, newx, ptId)) ||
+          (!globalIdsArray && this->Locator->InsertUniquePoint(newx, ptId)))
         {
           outputPD->CopyData(inputPD, pts[i], ptId);
         }
@@ -289,7 +319,10 @@ int vtkCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
             outputPD->CopyData(inputPD, pts[i], ptId);
           }
         }
-        else if (this->Locator->InsertUniquePoint(newx, ptId))
+        else if ((globalIdsArray &&
+                   InsertPointUsingGlobalId(
+                     globalIdsArray->GetValue(pts[i]), newPts, addedGlobalIdsMap, newx, ptId)) ||
+          (!globalIdsArray && this->Locator->InsertUniquePoint(newx, ptId)))
         {
           outputPD->CopyData(inputPD, pts[i], ptId);
         }
@@ -359,7 +392,10 @@ int vtkCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
             outputPD->CopyData(inputPD, pts[i], ptId);
           }
         }
-        else if (this->Locator->InsertUniquePoint(newx, ptId))
+        else if ((globalIdsArray &&
+                   InsertPointUsingGlobalId(
+                     globalIdsArray->GetValue(pts[i]), newPts, addedGlobalIdsMap, newx, ptId)) ||
+          (!globalIdsArray && this->Locator->InsertUniquePoint(newx, ptId)))
         {
           outputPD->CopyData(inputPD, pts[i], ptId);
         }
@@ -450,7 +486,10 @@ int vtkCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
             outputPD->CopyData(inputPD, pts[i], ptId);
           }
         }
-        else if (this->Locator->InsertUniquePoint(newx, ptId))
+        else if ((globalIdsArray &&
+                   InsertPointUsingGlobalId(
+                     globalIdsArray->GetValue(pts[i]), newPts, addedGlobalIdsMap, newx, ptId)) ||
+          (!globalIdsArray && this->Locator->InsertUniquePoint(newx, ptId)))
         {
           outputPD->CopyData(inputPD, pts[i], ptId);
         }
@@ -610,7 +649,7 @@ int vtkCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Method manages creation of locators. It takes into account the potential
 // change of tolerance (zero to non-zero).
 void vtkCleanPolyData::CreateDefaultLocator(vtkPolyData* input)
@@ -660,7 +699,7 @@ void vtkCleanPolyData::CreateDefaultLocator(vtkPolyData* input)
   }
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCleanPolyData::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -684,7 +723,7 @@ void vtkCleanPolyData::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMTimeType vtkCleanPolyData::GetMTime()
 {
   vtkMTimeType mTime = this->vtkObject::GetMTime();

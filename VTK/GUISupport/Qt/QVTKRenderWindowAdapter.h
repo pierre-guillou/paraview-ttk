@@ -178,7 +178,8 @@ public:
    */
   void setCustomDevicePixelRatio(double dpr);
   //@}
-private slots:
+
+private Q_SLOTS:
   void contextAboutToBeDestroyed();
 
 private:

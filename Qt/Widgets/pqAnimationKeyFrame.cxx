@@ -160,9 +160,9 @@ void pqAnimationKeyFrame::paint(QPainter* painter, const QStyleOptionGraphicsIte
   if (this->parentTrack()->isEnabled())
   {
     // change brush only when parent track is enabled.
-    painter->setBrush(QBrush(QColor(255, 255, 255)));
+    painter->setBrush(widget->palette().base());
   }
-  QPen pen(QColor(0, 0, 0));
+  QPen pen(widget->palette().color(QPalette::Text));
   pen.setWidth(0);
   painter->setPen(pen);
   QRectF keyFrameRect(this->boundingRect());
@@ -177,13 +177,15 @@ void pqAnimationKeyFrame::paint(QPainter* painter, const QStyleOptionGraphicsIte
   QPointF pt(keyFrameRect.left() + 3.0,
     keyFrameRect.top() + 0.5 * keyFrameRect.height() + metrics.height() / 2.0 - 1.0);
   painter->drawText(pt, label);
-  iconWidth -= metrics.width(label);
+
+  iconWidth -= metrics.horizontalAdvance(label);
 
   label = metrics.elidedText(endValue().toString(), Qt::ElideRight, qRound(halfWidth));
-  pt = QPointF(keyFrameRect.right() - metrics.width(label) - 3.0,
+  double hAdvance = metrics.horizontalAdvance(label);
+  pt = QPointF(keyFrameRect.right() - hAdvance - 3.0,
     keyFrameRect.top() + 0.5 * keyFrameRect.height() + metrics.height() / 2.0 - 1.0);
   painter->drawText(pt, label);
-  iconWidth -= metrics.width(label);
+  iconWidth -= hAdvance;
 
   if (iconWidth >= 16)
   {

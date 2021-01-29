@@ -45,6 +45,7 @@ public:
   };
 
   static vtkStringArray* New();
+  static vtkStringArray* ExtendedNew();
   vtkTypeMacro(vtkStringArray, vtkAbstractArray);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
@@ -144,7 +145,7 @@ public:
 
   /**
    * Given a list of indices, return an array of values.  You must
-   * insure that the output array has been previously allocated with
+   * ensure that the output array has been previously allocated with
    * enough space to hold the data and that the types match
    * sufficiently to allow conversion (if necessary).
    */
@@ -152,7 +153,7 @@ public:
 
   /**
    * Get the values for the range of indices specified (i.e.,
-   * p1->p2 inclusive). You must insure that the output array has been
+   * p1->p2 inclusive). You must ensure that the output array has been
    * previously allocated with enough space to hold the data and that
    * the type of the output array is compatible with the type of this
    * array.

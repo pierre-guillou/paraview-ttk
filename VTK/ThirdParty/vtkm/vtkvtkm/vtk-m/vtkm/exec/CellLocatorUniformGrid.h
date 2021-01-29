@@ -34,8 +34,6 @@ private:
   using VisitType = vtkm::TopologyElementTagCell;
   using IncidentType = vtkm::TopologyElementTagPoint;
   using CellSetPortal = vtkm::exec::ConnectivityStructured<VisitType, IncidentType, dimensions>;
-  using CoordsPortal = typename vtkm::cont::ArrayHandleVirtualCoordinates::template ExecutionTypes<
-    DeviceAdapter>::PortalConst;
 
 public:
   VTKM_CONT
@@ -44,14 +42,12 @@ public:
                          const vtkm::Vec3f origin,
                          const vtkm::Vec3f invSpacing,
                          const vtkm::Vec3f maxPoint,
-                         const vtkm::cont::ArrayHandleVirtualCoordinates& coords,
                          DeviceAdapter)
     : CellDims(cellDims)
     , PointDims(pointDims)
     , Origin(origin)
     , InvSpacing(invSpacing)
     , MaxPoint(maxPoint)
-    , Coords(coords.PrepareForInput(DeviceAdapter()))
   {
   }
 
@@ -74,16 +70,14 @@ public:
   }
 
   VTKM_EXEC
-  void FindCell(const vtkm::Vec3f& point,
-                vtkm::Id& cellId,
-                vtkm::Vec3f& parametric,
-                const vtkm::exec::FunctorBase& worklet) const override
+  vtkm::ErrorCode FindCell(const vtkm::Vec3f& point,
+                           vtkm::Id& cellId,
+                           vtkm::Vec3f& parametric) const override
   {
-    (void)worklet; //suppress unused warning
     if (!this->IsInside(point))
     {
       cellId = -1;
-      return;
+      return vtkm::ErrorCode::CellNotFound;
     }
     // Get the Cell Id from the point.
     vtkm::Id3 logicalCell(0, 0, 0);
@@ -111,6 +105,8 @@ public:
     cellId =
       (logicalCell[2] * this->CellDims[1] + logicalCell[1]) * this->CellDims[0] + logicalCell[0];
     parametric = temp - logicalCell;
+
+    return vtkm::ErrorCode::Success;
   }
 
 private:
@@ -119,7 +115,6 @@ private:
   vtkm::Vec3f Origin;
   vtkm::Vec3f InvSpacing;
   vtkm::Vec3f MaxPoint;
-  CoordsPortal Coords;
 };
 }
 }

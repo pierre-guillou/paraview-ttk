@@ -60,8 +60,8 @@
 //  Oliver Ruebel (LBNL)
 //==============================================================================
 
-#ifndef vtkm_worklet_contourtree_augmented_contourtree_mesh_inc_combined_other_start_index_nneighbours_worklet_worklet_h
-#define vtkm_worklet_contourtree_augmented_contourtree_mesh_inc_combined_other_start_index_nneighbours_worklet_worklet_h
+#ifndef vtk_m_worklet_contourtree_augmented_contourtree_mesh_inc_combined_other_start_index_nneighbours_worklet_worklet_h
+#define vtk_m_worklet_contourtree_augmented_contourtree_mesh_inc_combined_other_start_index_nneighbours_worklet_worklet_h
 
 #include <vtkm/worklet/WorkletMapField.h>
 #include <vtkm/worklet/contourtree_augmented/Types.h>
@@ -83,7 +83,7 @@ public:
     FieldIn otherToCombinedSortOrder,       // (input) otherToCombinedSortOrder
     WholeArrayInOut combinedNNeighbours,    // (input/output) combinedNNeighbours
     WholeArrayInOut combinedOtherStartIndex // (input/output) combinedOthertStartIndex
-    );
+  );
   typedef void ExecutionSignature(_1, _2, _3, _4);
   typedef _1 InputDomain;
 
@@ -105,7 +105,6 @@ public:
                                     nneighboursVal);
 
     // Implements in reference code
-    // #pragma omp parallel for
     // The following is save since each global index is only written by one entry
     // for (indexVector::size_type vtx = 0; vtx < nNeighbours.size(); ++vtx)
     // {

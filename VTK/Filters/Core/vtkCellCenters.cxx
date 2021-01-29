@@ -28,6 +28,7 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
+#include "vtkSMPThreadLocalObject.h"
 #include "vtkSMPTools.h"
 
 vtkStandardNewMacro(vtkCellCenters);
@@ -37,7 +38,20 @@ namespace
 
 class CellCenterFunctor
 {
+  vtkSMPThreadLocalObject<vtkGenericCell> TLCell;
+  vtkSMPThreadLocal<std::vector<double>> TLWeigths;
+  vtkDataSet* DataSet;
+  vtkDoubleArray* CellCenters;
+  vtkIdType MaxCellSize;
+
 public:
+  CellCenterFunctor(vtkDataSet* ds, vtkDoubleArray* cellCenters)
+    : DataSet(ds)
+    , CellCenters(cellCenters)
+    , MaxCellSize(ds->GetMaxCellSize())
+  {
+  }
+
   void operator()(vtkIdType begin, vtkIdType end)
   {
     if (this->DataSet == nullptr)
@@ -50,8 +64,9 @@ public:
       return;
     }
 
-    std::vector<double> weights(this->DataSet->GetMaxCellSize());
-    vtkNew<vtkGenericCell> cell;
+    auto& weights = this->TLWeigths.Local();
+    weights.resize(this->MaxCellSize);
+    auto cell = this->TLCell.Local();
     for (vtkIdType cellId = begin; cellId < end; ++cellId)
     {
       this->DataSet->GetCell(cellId, cell);
@@ -71,19 +86,14 @@ public:
       this->CellCenters->SetTypedTuple(cellId, x);
     }
   }
-
-  vtkDataSet* DataSet;
-  vtkDoubleArray* CellCenters;
 };
 
 } // end anonymous namespace
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCellCenters::ComputeCellCenters(vtkDataSet* dataset, vtkDoubleArray* centers)
 {
-  CellCenterFunctor functor;
-  functor.DataSet = dataset;
-  functor.CellCenters = centers;
+  CellCenterFunctor functor(dataset, centers);
 
   // Call this once one the main thread before calling on multiple threads.
   // According to the documentation for vtkDataSet::GetCell(vtkIdType, vtkGenericCell*),
@@ -98,7 +108,7 @@ void vtkCellCenters::ComputeCellCenters(vtkDataSet* dataset, vtkDoubleArray* cen
   vtkSMPTools::For(0, dataset->GetNumberOfCells(), functor);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Generate points
 int vtkCellCenters::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
@@ -205,14 +215,14 @@ int vtkCellCenters::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkCellCenters::FillInputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkCellCenters::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

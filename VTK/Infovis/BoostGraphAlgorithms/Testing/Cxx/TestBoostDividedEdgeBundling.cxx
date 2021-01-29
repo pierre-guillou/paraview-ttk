@@ -38,7 +38,7 @@
 
 #include "vtkRegressionTestImage.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void BuildSampleGraph(vtkMutableDirectedGraph* graph)
 {
   vtkNew<vtkPoints> points;
@@ -75,7 +75,7 @@ void BuildSampleGraph(vtkMutableDirectedGraph* graph)
   graph->AddEdge(6, 0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void BuildGraphMLGraph(vtkMutableDirectedGraph* graph, std::string file)
 {
   vtkNew<vtkXMLTreeReader> reader;
@@ -111,12 +111,12 @@ void BuildGraphMLGraph(vtkMutableDirectedGraph* graph, std::string file)
       points->InsertNextPoint(x, y, 0.0);
     }
     vtkStdString s = sourceArr->GetValue(i);
-    if (s != "")
+    if (!s.empty())
     {
       source = vtkVariant(s).ToInt();
     }
     vtkStdString t = targetArr->GetValue(i);
-    if (t != "")
+    if (!t.empty())
     {
       target = vtkVariant(t).ToInt();
       graph->AddEdge(source, target);
@@ -124,7 +124,7 @@ void BuildGraphMLGraph(vtkMutableDirectedGraph* graph, std::string file)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class vtkBundledGraphItem : public vtkGraphItem
 {
 public:
@@ -132,30 +132,30 @@ public:
   vtkTypeMacro(vtkBundledGraphItem, vtkGraphItem);
 
 protected:
-  vtkBundledGraphItem() {}
-  ~vtkBundledGraphItem() override {}
+  vtkBundledGraphItem() = default;
+  ~vtkBundledGraphItem() override = default;
 
-  virtual vtkColor4ub EdgeColor(vtkIdType line, vtkIdType point) override;
-  virtual float EdgeWidth(vtkIdType line, vtkIdType point) override;
+  vtkColor4ub EdgeColor(vtkIdType line, vtkIdType point) override;
+  float EdgeWidth(vtkIdType line, vtkIdType point) override;
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkBundledGraphItem);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkColor4ub vtkBundledGraphItem::EdgeColor(vtkIdType edgeIdx, vtkIdType pointIdx)
 {
   float fraction = static_cast<float>(pointIdx) / (this->NumberOfEdgePoints(edgeIdx) - 1);
   return vtkColor4ub(fraction * 255, 0, 255 - fraction * 255, 255);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 float vtkBundledGraphItem::EdgeWidth(vtkIdType vtkNotUsed(lineIdx), vtkIdType vtkNotUsed(pointIdx))
 {
   return 4.0f;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestBoostDividedEdgeBundling(int argc, char* argv[])
 {
   vtkNew<vtkMutableDirectedGraph> graph;

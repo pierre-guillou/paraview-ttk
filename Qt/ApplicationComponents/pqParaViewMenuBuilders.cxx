@@ -62,18 +62,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqDesktopServicesReaction.h"
 #include "pqExampleVisualizationsDialogReaction.h"
 #include "pqExportReaction.h"
+#include "pqExtractorsMenuReaction.h"
 #include "pqFiltersMenuReaction.h"
 #ifdef PARAVIEW_USE_QTHELP
 #include "pqHelpReaction.h"
 #endif
 #include "pqIgnoreSourceTimeReaction.h"
-#include "pqImmediateExportReaction.h"
-#include "pqImportCinemaReaction.h"
 #include "pqLinkSelectionReaction.h"
 #include "pqLoadDataReaction.h"
 #include "pqLoadMaterialsReaction.h"
 #include "pqLoadRestoreWindowLayoutReaction.h"
 #include "pqLoadStateReaction.h"
+#include "pqLogViewerReaction.h"
 #include "pqMainControlsToolbar.h"
 #include "pqManageCustomFiltersReaction.h"
 #include "pqManageFavoritesReaction.h"
@@ -84,13 +84,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqProxyGroupMenuManager.h"
 #include "pqRecentFilesMenu.h"
 #include "pqReloadFilesReaction.h"
+#include "pqRenameProxyReaction.h"
 #include "pqRepresentationToolbar.h"
 #include "pqResetDefaultSettingsReaction.h"
 #include "pqSaveAnimationGeometryReaction.h"
 #include "pqSaveAnimationReaction.h"
 #include "pqSaveDataReaction.h"
+#include "pqSaveExtractsReaction.h"
 #include "pqSaveScreenshotReaction.h"
 #include "pqSaveStateReaction.h"
+#include "pqSearchItemReaction.h"
 #include "pqServerConnectReaction.h"
 #include "pqServerDisconnectReaction.h"
 #include "pqSetMainWindowTitleReaction.h"
@@ -118,6 +121,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QMainWindow>
 #include <QMenu>
 #include <QProxyStyle>
+#include <QSysInfo>
 
 #include "vtkPVFileInformation.h"
 #include "vtkSMProxyManager.h"
@@ -148,17 +152,21 @@ void pqParaViewMenuBuilders::buildFileMenu(QMenu& menu)
 
   // now setup reactions.
   new pqLoadDataReaction(ui.actionFileOpen);
-  new pqImportCinemaReaction(ui.actionFileImportCinemaDatabase);
 #if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
   new pqLoadMaterialsReaction(ui.actionFileLoadMaterials);
 #else
-  delete ui.actionFileLoadMaterials;
+  ui.actionFileLoadMaterials->setEnabled(false);
 #endif
   new pqRecentFilesMenu(*ui.menuRecentFiles, ui.menuRecentFiles);
   new pqReloadFilesReaction(ui.actionReloadFiles);
 
   new pqLoadStateReaction(ui.actionFileLoadServerState);
   new pqSaveStateReaction(ui.actionFileSaveServerState);
+#if VTK_MODULE_ENABLE_ParaView_pqPython
+  new pqCatalystExportReaction(ui.actionFileSaveCatalystState);
+#else
+  ui.actionFileSaveCatalystState->setEnabled(false);
+#endif
 
   new pqServerConnectReaction(ui.actionServerConnect);
   new pqServerDisconnectReaction(ui.actionServerDisconnect);
@@ -168,7 +176,7 @@ void pqParaViewMenuBuilders::buildFileMenu(QMenu& menu)
   new pqSaveAnimationGeometryReaction(ui.actionFileSaveGeometry);
 
   new pqExportReaction(ui.actionExport);
-  new pqImmediateExportReaction(ui.actionExportImmediate);
+  new pqSaveExtractsReaction(ui.actionFileSaveExtracts);
   new pqSaveDataReaction(ui.actionFileSaveData);
 
   new pqLoadRestoreWindowLayoutReaction(true, ui.actionFileLoadWindowArrangement);
@@ -200,8 +208,10 @@ void pqParaViewMenuBuilders::buildEditMenu(QMenu& menu, pqPropertiesPanel* prope
   new pqCopyReaction(ui.actionPaste, true);
   new pqApplicationSettingsReaction(ui.actionEditSettings);
   new pqDataQueryReaction(ui.actionQuery);
+  new pqSearchItemReaction(ui.actionSearch);
   new pqResetDefaultSettingsReaction(ui.actionResetDefaultSettings);
   new pqSetMainWindowTitleReaction(ui.actionSetMainWindowTitle);
+  new pqRenameProxyReaction(ui.actionRename, propertiesPanel);
 
   if (propertiesPanel)
   {
@@ -263,6 +273,31 @@ void pqParaViewMenuBuilders::buildFiltersMenu(
 }
 
 //-----------------------------------------------------------------------------
+void pqParaViewMenuBuilders::buildExtractorsMenu(
+  QMenu& menu, QMainWindow* mainWindow, bool hideDisabled, bool quickLaunchable)
+{
+  // Make sure disabled actions are still considered active
+  menu.setStyle(new pqActiveDisabledStyle);
+
+  pqProxyGroupMenuManager* mgr =
+    new pqProxyGroupMenuManager(&menu, "ParaViewExtractWriters", quickLaunchable);
+  mgr->addProxyDefinitionUpdateListener("extract_writers");
+
+  auto menuReaction = new pqExtractorsMenuReaction(mgr, hideDisabled);
+  auto* pvappcore = pqPVApplicationCore::instance();
+  if (quickLaunchable && pvappcore)
+  {
+    menuReaction->connect(pvappcore, SIGNAL(aboutToShowQuickLaunch()), SLOT(updateEnableState()));
+  }
+
+  if (mainWindow)
+  {
+    // create toolbars for categories as needed.
+    new pqCategoryToolbarsBehavior(mgr, mainWindow);
+  }
+}
+
+//-----------------------------------------------------------------------------
 void pqParaViewMenuBuilders::buildToolsMenu(QMenu& menu)
 {
   new pqCreateCustomFilterReaction(
@@ -306,7 +341,7 @@ void pqParaViewMenuBuilders::buildToolsMenu(QMenu& menu)
     pqTestingReaction::LOCK_VIEW_SIZE_CUSTOM);
   menu.addSeparator();
   new pqTimerLogReaction(menu.addAction("Timer Log") << pqSetName("actionToolsTimerLog"));
-  menu.addSeparator(); // --------------------------------------------------
+  new pqLogViewerReaction(menu.addAction("Log Viewer") << pqSetName("actionToolsLogViewer"));
 
 #if VTK_MODULE_ENABLE_ParaView_pqPython
   menu.addSeparator(); // --------------------------------------------------
@@ -322,7 +357,7 @@ void pqParaViewMenuBuilders::buildViewMenu(QMenu& menu, QMainWindow& mainWindow)
 }
 
 //-----------------------------------------------------------------------------
-void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
+void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu, QMainWindow* mainWindow)
 {
   // Build the context menu manually so we can insert submenus where needed.
   QAction* actionPBOpen = new QAction(menu.parent());
@@ -352,7 +387,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
     QApplication::translate("pqPipelineBrowserContextMenu", "&Show All", Q_NULLPTR));
 #ifndef QT_NO_STATUSTIP
   actionPBShowAll->setStatusTip(QApplication::translate(
-    "pqPipelineBrowserContextMenu", "Shoo all source outputs in the pipeline", Q_NULLPTR));
+    "pqPipelineBrowserContextMenu", "Show all source outputs in the pipeline", Q_NULLPTR));
 #endif // QT_NO_STATUSTIP
 
   QAction* actionPBHideAll = new QAction(menu.parent());
@@ -470,18 +505,36 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
     "Link this source and current selected source as a selection link", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
 
+  QAction* actionPBRename = new QAction(menu.parent());
+  actionPBRename->setObjectName(QStringLiteral("actionPBRename"));
+  actionPBRename->setText(
+    QApplication::translate("pqPipelineBrowserContextMenu", "Rename", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+  actionPBRename->setToolTip(QApplication::translate(
+    "pqPipelineBrowserContextMenu", "Rename currently selected source", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+#ifndef QT_NO_STATUSTIP
+  actionPBRename->setStatusTip(QApplication::translate(
+    "pqPipelineBrowserContextMenu", "Rename currently selected source", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+
   menu.addAction(actionPBOpen);
   menu.addAction(actionPBShowAll);
   menu.addAction(actionPBHideAll);
+  menu.addSeparator();
   menu.addAction(actionPBCopy);
   menu.addAction(actionPBPaste);
+  menu.addSeparator();
+  menu.addAction(actionPBDelete);
+  menu.addAction(actionPBRename);
+  menu.addAction(actionPBReloadFiles);
+  menu.addAction(actionPBIgnoreTime);
+  menu.addSeparator();
   menu.addAction(actionPBChangeInput);
   QMenu* addFilterMenu = menu.addMenu("Add Filter");
   pqParaViewMenuBuilders::buildFiltersMenu(
     *addFilterMenu, nullptr, true /*hide disabled*/, false /*quickLaunchable*/);
-  menu.addAction(actionPBReloadFiles);
-  menu.addAction(actionPBIgnoreTime);
-  menu.addAction(actionPBDelete);
+  menu.addSeparator();
   menu.addAction(actionPBCreateCustomFilter);
   menu.addAction(actionPBLinkSelection);
 
@@ -498,6 +551,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu)
   new pqDeleteReaction(actionPBDelete);
   new pqCreateCustomFilterReaction(actionPBCreateCustomFilter);
   new pqLinkSelectionReaction(actionPBLinkSelection);
+  new pqRenameProxyReaction(actionPBRename, mainWindow);
 }
 
 //-----------------------------------------------------------------------------
@@ -509,7 +563,7 @@ void pqParaViewMenuBuilders::buildMacrosMenu(QMenu& menu)
   pqPythonManager* manager = pqPVApplicationCore::instance()->pythonManager();
   if (manager)
   {
-    new pqMacroReaction(menu.addAction("Add new macro...") << pqSetName("actionMacroCreate"));
+    new pqMacroReaction(menu.addAction("Import new macro...") << pqSetName("actionMacroCreate"));
     QMenu* editMenu = menu.addMenu("Edit...");
     QMenu* deleteMenu = menu.addMenu("Delete...");
     menu.addSeparator();
@@ -531,17 +585,31 @@ void pqParaViewMenuBuilders::buildHelpMenu(QMenu& menu)
     (menu.addAction(QIcon(":/pqWidgets/Icons/pdf.png"), "Getting Started with ParaView")
                                   << pqSetName("actionGettingStarted")));
 
-  // ParaView Guide
-  QAction* guide = menu.addAction(QIcon(":/pqWidgets/Icons/pdf.png"), "ParaView Guide");
+  QString versionString = QString("%1.%2.%3")
+                            .arg(vtkSMProxyManager::GetVersionMajor())
+                            .arg(vtkSMProxyManager::GetVersionMinor())
+                            .arg(vtkSMProxyManager::GetVersionPatch());
+
+  // ParaView Guide. If there is a copy local to the install tree, use it instead of going
+  // out to the web.
+  QString paraViewGuideFile =
+    QString("%1/ParaViewGuide-%2.pdf").arg(documentationPath).arg(versionString);
+  QFile guideLocalFile(paraViewGuideFile);
+  QAction* guide = menu.addAction("ParaView Guide");
   guide->setObjectName("actionGuide");
   guide->setShortcut(QKeySequence::HelpContents);
-  QString guideURL = QString("https://www.paraview.org/paraview-downloads/"
-                             "download.php?submit=Download&version=v%1.%2&type=binary&os="
-                             "Sources&downloadFile=ParaViewGuide-%1.%2.%3.pdf")
-                       .arg(vtkSMProxyManager::GetVersionMajor())
-                       .arg(vtkSMProxyManager::GetVersionMinor())
-                       .arg(vtkSMProxyManager::GetVersionPatch());
-  new pqDesktopServicesReaction(QUrl(guideURL), guide);
+  if (guideLocalFile.exists())
+  {
+    guide->setIcon(QIcon(":/pqWidgets/Icons/pdf.png"));
+    QUrl guideUrl = QUrl::fromLocalFile(paraViewGuideFile);
+    new pqDesktopServicesReaction(guideUrl, guide);
+  }
+  else
+  {
+    // Remote ParaView Guide
+    QString guideURL = QString("https://docs.paraview.org/en/v%1/").arg(versionString);
+    new pqDesktopServicesReaction(QUrl(guideURL), guide);
+  }
 
 #ifdef PARAVIEW_USE_QTHELP
   // Help
@@ -589,12 +657,6 @@ void pqParaViewMenuBuilders::buildHelpMenu(QMenu& menu)
     (menu.addAction("ParaView Community Support") << pqSetName("actionCommunitySupport")));
 
   // ParaView Release Notes
-  QString versionString(PARAVIEW_VERSION_FULL);
-  int indexOfHyphen = versionString.indexOf('-');
-  if (indexOfHyphen > -1)
-  {
-    versionString = versionString.left(indexOfHyphen);
-  }
   versionString.replace('.', '-');
   new pqDesktopServicesReaction(
     QUrl("https://blog.kitware.com/paraview-" + versionString + "-release-notes/"),
@@ -623,6 +685,16 @@ void pqParaViewMenuBuilders::buildHelpMenu(QMenu& menu)
   // -----------------
   menu.addSeparator();
 #endif
+
+  // Bug report
+  QString bugReportURL = QString("https://gitlab.kitware.com/paraview/paraview/-/issues/"
+                                 "new?issue[title]=Bug&issue[description]="
+                                 "OS: %1\nParaView Version: %2\nQt Version: %3\n\nDescription")
+                           .arg(QSysInfo::prettyProductName())
+                           .arg(PARAVIEW_VERSION_FULL)
+                           .arg(QT_VERSION_STR);
+  new pqDesktopServicesReaction(
+    QUrl(bugReportURL), (menu.addAction("Bug Report") << pqSetName("bugReport")));
 
   // About
   new pqAboutDialogReaction(menu.addAction("About...") << pqSetName("actionAbout"));
@@ -684,7 +756,7 @@ void pqParaViewMenuBuilders::buildToolbars(QMainWindow& mainWindow)
 }
 
 //-----------------------------------------------------------------------------
-void pqParaViewMenuBuilders::buildCatalystMenu(QMenu& menu, QWidget* exportConfiguration)
+void pqParaViewMenuBuilders::buildCatalystMenu(QMenu& menu)
 {
   new pqCatalystConnectReaction(menu.addAction("Connect...") << pqSetName("actionCatalystConnect"));
   new pqCatalystPauseSimulationReaction(
@@ -697,25 +769,4 @@ void pqParaViewMenuBuilders::buildCatalystMenu(QMenu& menu, QWidget* exportConfi
 
   new pqCatalystRemoveBreakpointReaction(
     menu.addAction("Remove Breakpoint") << pqSetName("actionCatalystRemoveBreakpoint"));
-
-#if VTK_MODULE_ENABLE_ParaView_pqPython
-  menu.addSeparator(); // --------------------------------------------------
-  // QAction* cexport = menu.addAction("Configure Exports"); //WTH won't this show up on mac?
-  // QAction* cexport = menu.addAction("Setup Exports"); //or this on mac?
-  QAction* cexport = menu.addAction("Define Exports")
-    << pqSetName("actionCatalystConfigure"); // but this is OK?
-  QObject::connect(cexport, SIGNAL(triggered()), exportConfiguration, SLOT(show()));
-
-  QAction* gcatalyst = menu.addAction("Export Catalyst Script")
-    << pqSetName("actionExportCatalyst");
-  new pqCatalystExportReaction(gcatalyst);
-  QAction* gimmediate = menu.addAction("Export Now") << pqSetName("actionExportImmediate");
-  new pqImmediateExportReaction(gimmediate);
-  QAction* gtemporal = menu.addAction("Export Temporal Script")
-    << pqSetName("actionExportTemporal");
-  new pqTemporalExportReaction(gtemporal);
-
-#else
-  (void)exportConfiguration; // avoid unreferenced parameter comp warning
-#endif
 }

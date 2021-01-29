@@ -22,7 +22,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
-#include "vtkViewNodeCollection.h"
 #include "vtkWindow.h"
 
 #include "RTWrapper/RTWrapper.h"
@@ -30,19 +29,19 @@
 //============================================================================
 vtkStandardNewMacro(vtkOSPRayCameraNode);
 
-//----------------------------------------------------------------------------
-vtkOSPRayCameraNode::vtkOSPRayCameraNode() {}
+//------------------------------------------------------------------------------
+vtkOSPRayCameraNode::vtkOSPRayCameraNode() = default;
 
-//----------------------------------------------------------------------------
-vtkOSPRayCameraNode::~vtkOSPRayCameraNode() {}
+//------------------------------------------------------------------------------
+vtkOSPRayCameraNode::~vtkOSPRayCameraNode() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOSPRayCameraNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOSPRayCameraNode::Render(bool prepass)
 {
   if (prepass)
@@ -65,9 +64,8 @@ void vtkOSPRayCameraNode::Render(bool prepass)
       }
     }
 
-    vtkWindow* win = ren->GetVTKWindow();
-    double* vp = win->GetTileViewport();
-    int* ts = win->GetTileScale();
+    double* vp = orn->GetViewport();
+    int* ts = orn->GetScale();
 
     vtkCamera* cam = static_cast<vtkCamera*>(this->Renderable);
     double myDistance = cam->GetDistance();
@@ -88,31 +86,31 @@ void vtkOSPRayCameraNode::Render(bool prepass)
       // TODO: looks like imageStart/imageEnd doesn't work in ortho mode
       double height = cam->GetParallelScale() * 2 * ts[0];
       ospCamera = ospNewCamera("orthographic");
-      ospSetf(ospCamera, "height", height);
+      ospSetFloat(ospCamera, "height", height);
     }
     else
     {
       // TODO: there's a rounding error here since TileScale is an int
       double fovy = cam->GetViewAngle() * ts[0];
       ospCamera = ospNewCamera("perspective");
-      ospSetf(ospCamera, "fovy", fovy);
+      ospSetFloat(ospCamera, "fovy", fovy);
 
       if (myFocalDistance > 0.0)
       {
-        ospSetf(ospCamera, "focusDistance", myFocalDistance);
-        ospSetf(ospCamera, "apertureRadius", 0.5 * myFocalDisk);
+        ospSetFloat(ospCamera, "focusDistance", myFocalDistance);
+        ospSetFloat(ospCamera, "apertureRadius", 0.5 * myFocalDisk);
       }
       else
       {
-        ospSetf(ospCamera, "focusDistance", 0.0f);
-        ospSetf(ospCamera, "apertureRadius", 0.0f);
+        ospSetFloat(ospCamera, "focusDistance", 0.0f);
+        ospSetFloat(ospCamera, "apertureRadius", 0.0f);
       }
     }
 
     ospSetObject(orn->GetORenderer(), "camera", ospCamera);
     int tiledSize[2];
     orn->GetSize(tiledSize);
-    ospSetf(ospCamera, "aspect", float(tiledSize[0]) / float(tiledSize[1]));
+    ospSetFloat(ospCamera, "aspect", float(tiledSize[0]) / float(tiledSize[1]));
     double* pos = cam->GetPosition();
 
     double shiftedCamPos[3];
@@ -136,10 +134,10 @@ void vtkOSPRayCameraNode::Render(bool prepass)
     shiftedCamPos[1] = pos[1];
     shiftedCamPos[2] = pos[2];
 
-    ospSet3f(ospCamera, "pos", shiftedCamPos[0], shiftedCamPos[1], shiftedCamPos[2]);
+    ospSetVec3f(ospCamera, "position", shiftedCamPos[0], shiftedCamPos[1], shiftedCamPos[2]);
 
     double* up = cam->GetViewUp();
-    ospSet3f(ospCamera, "up", up[0], up[1], up[2]);
+    ospSetVec3f(ospCamera, "up", up[0], up[1], up[2]);
 
     // double *dop = cam->GetDirectionOfProjection();
     double shiftedDOP[3];
@@ -147,10 +145,11 @@ void vtkOSPRayCameraNode::Render(bool prepass)
     shiftedDOP[1] = myFocalPoint[1] - shiftedCamPos[1];
     shiftedDOP[2] = myFocalPoint[2] - shiftedCamPos[2];
     // ospSet3f(ospCamera, "dir", dop[0], dop[1], dop[2]);
-    ospSet3f(ospCamera, "dir", shiftedDOP[0], shiftedDOP[1], shiftedDOP[2]);
-    ospSet2f(ospCamera, "imageStart", (float)vp[0], (float)vp[1]);
-    ospSet2f(ospCamera, "imageEnd", (float)vp[2], (float)vp[3]);
+    ospSetVec3f(ospCamera, "direction", shiftedDOP[0], shiftedDOP[1], shiftedDOP[2]);
+    ospSetVec2f(ospCamera, "imageStart", (float)vp[0], (float)vp[1]);
+    ospSetVec2f(ospCamera, "imageEnd", (float)vp[2], (float)vp[3]);
     ospCommit(ospCamera);
     ospRelease(ospCamera);
+    this->oCamera = ospCamera;
   }
 }

@@ -23,11 +23,11 @@
  * Since QVTKOpenGLWindow is based on QOpenGLWindow it is intended for
  * rendering in a top-level window. QVTKOpenGLWindow can be embedded in a
  * another QWidget using `QWidget::createWindowContainer` or by using
- * QVTKOpenGLWidget instead. However, developers are encouraged to check
+ * QVTKOpenGLStereoWidget instead. However, developers are encouraged to check
  * Qt documentation for `QWidget::createWindowContainer` idiosyncrasies.
  * Using QVTKOpenGLNativeWidget instead is generally a better choice for causes
  * where you want to embed VTK rendering results in a QWidget. QVTKOpenGLWindow
- * or QVTKOpenGLWidget is still preferred for applications that want to support
+ * or QVTKOpenGLStereoWidget is still preferred for applications that want to support
  * quad-buffer based stereo rendering.
  *
  * To request a specific configuration for the context, use
@@ -44,7 +44,7 @@
  * will be used.
  *
  * @note QVTKOpenGLWindow requires Qt version 5.9 and above.
- * @sa QVTKOpenGLWidget QVTKOpenGLNativeWidget
+ * @sa QVTKOpenGLStereoWidget QVTKOpenGLNativeWidget
  */
 #ifndef QVTKOpenGLWindow_h
 #define QVTKOpenGLWindow_h
@@ -53,6 +53,7 @@
 #include <QScopedPointer> // for QScopedPointer.
 
 #include "QVTKInteractor.h"        // needed for QVTKInteractor
+#include "vtkDeprecation.h"        // For VTK_DEPRECATED_IN_9_0_0
 #include "vtkGUISupportQtModule.h" // for export macro
 #include "vtkNew.h"                // needed for vtkNew
 #include "vtkSmartPointer.h"       // needed for vtkSmartPointer
@@ -153,10 +154,12 @@ public:
 
   //@{
   /**
-   * @deprecated in VTK 8.3. Use `setRenderWindow` instead.
+   * @deprecated in VTK 9.0. Use `setRenderWindow` instead.
    */
-  VTK_LEGACY(void SetRenderWindow(vtkGenericOpenGLRenderWindow* win));
-  VTK_LEGACY(void SetRenderWindow(vtkRenderWindow* win));
+  VTK_DEPRECATED_IN_9_0_0("Use QVTKOpenGLWindow::setRenderWindow")
+  void SetRenderWindow(vtkGenericOpenGLRenderWindow* win);
+  VTK_DEPRECATED_IN_9_0_0("Use QVTKOpenGLWindow::setRenderWindow")
+  void SetRenderWindow(vtkRenderWindow* win);
   //@}
 
   //@{
@@ -165,35 +168,40 @@ public:
    * QVTKOpenGLWindow is QObject subclass, we follow Qt naming conventions
    * rather than VTK's.
    */
-  VTK_LEGACY(vtkRenderWindow* GetRenderWindow());
-  VTK_LEGACY(QVTKInteractor* GetInteractor());
+  VTK_DEPRECATED_IN_9_0_0("Use QVTKOpenGLWindow::renderWindow")
+  vtkRenderWindow* GetRenderWindow();
+  VTK_DEPRECATED_IN_9_0_0("Use QVTKOpenGLWindow::interactor")
+  QVTKInteractor* GetInteractor();
   //@}
 
   /**
-   * @deprecated in VTK 8.3
+   * @deprecated in VTK 9.0
    * QVTKInteractorAdapter is an internal helper. Hence the API was removed.
    */
-  VTK_LEGACY(QVTKInteractorAdapter* GetInteractorAdapter());
+  VTK_DEPRECATED_IN_9_0_0("Removed in 9.0.0 (internal)")
+  QVTKInteractorAdapter* GetInteractorAdapter();
 
   /**
-   * @deprecated in VTK 8.3. Simply use `QWidget::setCursor` API to change
+   * @deprecated in VTK 9.0. Simply use `QWidget::setCursor` API to change
    * cursor.
    */
-  VTK_LEGACY(void setQVTKCursor(const QCursor& cursor));
+  VTK_DEPRECATED_IN_9_0_0("Use QWidget::setCursor")
+  void setQVTKCursor(const QCursor& cursor);
 
   /**
-   * @deprecated in VTK 8.3. Use `setDefaultCursor` instead.
+   * @deprecated in VTK 9.0. Use `setDefaultCursor` instead.
    */
-  VTK_LEGACY(void setDefaultQVTKCursor(const QCursor& cursor));
+  VTK_DEPRECATED_IN_9_0_0("Use QWidget::setDefaultCursor")
+  void setDefaultQVTKCursor(const QCursor& cursor);
 
-signals:
+Q_SIGNALS:
   /**
    * Signal emitted when any event has been receive, with the corresponding
    * event as argument.
    */
   void windowEvent(QEvent* e);
 
-protected slots:
+protected Q_SLOTS:
   /**
    * Called as a response to `QOpenGLContext::aboutToBeDestroyed`. This may be
    * called anytime during the widget lifecycle. We need to release any OpenGL
@@ -204,11 +212,11 @@ protected slots:
   void updateSize();
 
   /**
-   * QVTKOpenGLWidget is given friendship so it can call `cleanupContext` in its
+   * QVTKOpenGLStereoWidget is given friendship so it can call `cleanupContext` in its
    * destructor to ensure that OpenGL state is proporly cleaned up before the
    * widget goes away.
    */
-  friend class QVTKOpenGLWidget;
+  friend class QVTKOpenGLStereoWidget;
 
 protected:
   bool event(QEvent* evt) override;

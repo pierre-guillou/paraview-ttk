@@ -368,17 +368,6 @@ struct DeviceAdapterAlgorithm
                                            const vtkm::cont::ArrayHandle<U, VIn>& values,
                                            vtkm::cont::ArrayHandle<U, VOut>& output);
 
-  /// \brief Streaming version of scan exclusive
-  ///
-  /// Computes a scan one block at a time.
-  ///
-  /// \return The total sum.
-  ///
-  template <typename T, class CIn, class COut>
-  VTKM_CONT static T StreamingScanExclusive(const vtkm::Id numBlocks,
-                                            const vtkm::cont::ArrayHandle<T, CIn>& input,
-                                            vtkm::cont::ArrayHandle<T, COut>& output);
-
   /// \brief Compute an extended prefix sum operation on the input ArrayHandle.
   ///
   /// Computes an extended prefix sum operation on the \c input ArrayHandle,
@@ -732,14 +721,6 @@ public:
   VTKM_CONT bool Exists() const;
 #endif
 };
-
-/// \brief Class providing a device-specific support for atomic operations.
-///
-/// AtomicInterfaceControl provides atomic operations for the control
-/// environment, and may be subclassed to implement the device interface when
-/// appropriate for a CPU-based device.
-template <typename DeviceTag>
-class AtomicInterfaceExecution;
 
 /// \brief Class providing a device-specific support for selecting the optimal
 /// Task type for a given worklet.

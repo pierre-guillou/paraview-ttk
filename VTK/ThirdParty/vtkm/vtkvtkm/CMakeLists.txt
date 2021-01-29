@@ -31,6 +31,9 @@ else ()
   set(VTKm_INSTALL_ONLY_LIBRARIES ON)
 endif ()
 
+# Make sure VTK-m is compiled for VTK types.
+set(VTKm_USE_DEFAULT_TYPES_FOR_VTK ON)
+
 set(VTKm_USE_DEFAULT_SYMBOL_VISIBILITY OFF)
 set(VTKm_ENABLE_RENDERING OFF)
 set(VTKm_ENABLE_TESTING OFF)
@@ -47,14 +50,9 @@ set(VTKm_NO_ASSERT ON)
 # Disable VTK-m warning flags and just rely on VTK's warning flags.
 set(VTKm_ENABLE_DEVELOPER_FLAGS OFF)
 
-# Workaround cmake issue #7519 which causes the c++11 flag set for VTK-m using
-# target_compile_features to not work.
-if (VTKm_ENABLE_CUDA AND CMAKE_VERSION VERSION_LESS 3.11)
-  set(CMAKE_CUDA_STANDARD 11)
-  set(CMAKE_CUDA_STANDARD_REQUIRED True)
-endif ()
-
-set(BUILD_SHARED_LIBS OFF)
+if(VTKm_ENABLE_CUDA)
+  set(BUILD_SHARED_LIBS OFF)
+endif()
 
 add_subdirectory(vtk-m)
 vtkm_setup_job_pool()

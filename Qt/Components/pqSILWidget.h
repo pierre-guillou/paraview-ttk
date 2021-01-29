@@ -34,7 +34,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqComponentsModule.h"
 #include "pqTreeViewSelectionHelper.h"
-#include "vtkConfigure.h"
 #include <QList>
 #include <QPointer>
 #include <QTabWidget>
@@ -86,7 +85,7 @@ public:
   */
   pqProxySILModel* activeModel() { return this->ActiveModel; }
 
-protected slots:
+protected Q_SLOTS:
   void onModelReset();
   void checkSelectedBlocks() { this->toggleSelectedBlocks(true); }
   void uncheckSelectedBlocks() { this->toggleSelectedBlocks(false); }

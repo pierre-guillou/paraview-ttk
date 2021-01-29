@@ -43,6 +43,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCommand.h"
 #include "vtkErrorCode.h"
 #include "vtkImageData.h"
+#include "vtkNew.h"
+#include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxyManager.h"
@@ -111,18 +113,16 @@ int pqTabbedMultiViewWidget::pqTabWidget::addAsTab(
   pqMultiViewWidget* wdg, pqTabbedMultiViewWidget* self)
 {
   int tab_count = this->count();
+  if (this->ReadOnly)
+  {
+    // Add one for the missing '+' button which is not present in ReadOnly mode.
+    // The logic later on assumes an additional tab.
+    tab_count++;
+  }
   vtkSMViewLayoutProxy* proxy = wdg->layoutManager();
   pqServerManagerModel* smmodel = pqApplicationCore::instance()->getServerManagerModel();
   pqProxy* item = smmodel->findItem<pqProxy*>(proxy);
-  QString name = QString("Layout #%1").arg(tab_count);
-  if (item->getSMName().startsWith("ViewLayout"))
-  {
-    item->rename(name);
-  }
   int tab_index = this->insertTab(tab_count - 1, wdg, item->getSMName());
-
-  SM_SCOPED_TRACE(CallFunction).arg("CreateLayout").arg(name.toUtf8().data());
-
   this->connect(item, SIGNAL(nameChanged(pqServerManagerModelItem*)), self,
     SLOT(onLayoutNameChanged(pqServerManagerModelItem*)));
 
@@ -493,7 +493,9 @@ void pqTabbedMultiViewWidget::closeTab(int index)
     END_UNDO_SET();
   }
 
-  if (this->Internals->TabWidget->count() == 1)
+  // The '+' tab is missing if in readOnly mode. Account for that here.
+  int minimumNumberOfTabs = this->readOnly() ? 0 : 1;
+  if (this->Internals->TabWidget->count() == minimumNumberOfTabs)
   {
     this->Internals->setCurrentTab(this->createTab());
   }
@@ -512,9 +514,14 @@ int pqTabbedMultiViewWidget::createTab(pqServer* server)
   if (server)
   {
     BEGIN_UNDO_SET("Add View Tab");
-    vtkSMProxy* vlayout = pqApplicationCore::instance()->getObjectBuilder()->createProxy(
-      "misc", "ViewLayout", server, "layouts");
-    assert(vlayout != NULL);
+    auto pxm = server->proxyManager();
+    auto vlayout = pxm->NewProxy("misc", "ViewLayout");
+    Q_ASSERT(vlayout != nullptr);
+
+    vtkNew<vtkSMParaViewPipelineControllerWithRendering> controller;
+    controller->InitializeProxy(vlayout);
+    controller->RegisterLayoutProxy(vlayout);
+    vlayout->FastDelete();
     END_UNDO_SET();
 
     auto& internals = (*this->Internals);
@@ -620,7 +627,7 @@ void pqTabbedMultiViewWidget::lockViewSize(const QSize& viewSize)
     }
   }
 
-  emit this->viewSizeLocked(!viewSize.isEmpty());
+  Q_EMIT this->viewSizeLocked(!viewSize.isEmpty());
 }
 
 //-----------------------------------------------------------------------------

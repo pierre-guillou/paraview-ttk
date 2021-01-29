@@ -212,7 +212,12 @@ template <typename DerivedPolicy>
 inline VTKM_CONT void Histogram::PreExecute(const vtkm::cont::PartitionedDataSet& input,
                                             const vtkm::filter::PolicyBase<DerivedPolicy>&)
 {
-  using TypeList = typename DerivedPolicy::FieldTypeList;
+  // Policies are on their way out, but until they are we want to respect them. In the mean
+  // time, respect the policy if it is defined.
+  using TypeList = typename std::conditional<
+    std::is_same<typename DerivedPolicy::FieldTypeList, vtkm::ListUniversal>::value,
+    VTKM_DEFAULT_TYPE_LIST,
+    typename DerivedPolicy::FieldTypeList>::type;
   if (this->Range.IsNonEmpty())
   {
     this->ComputedRange = this->Range;
@@ -225,7 +230,7 @@ inline VTKM_CONT void Histogram::PreExecute(const vtkm::cont::PartitionedDataSet
     {
       throw vtkm::cont::ErrorFilterExecution("expecting scalar field.");
     }
-    this->ComputedRange = handle.GetPortalConstControl().Get(0);
+    this->ComputedRange = handle.ReadPortal().Get(0);
   }
 }
 

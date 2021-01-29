@@ -28,7 +28,7 @@ vtkStandardNewMacro(vtkInteractorStyleRubberBandPick);
 #define VTKISRBP_ORIENT 0
 #define VTKISRBP_SELECT 1
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkInteractorStyleRubberBandPick::vtkInteractorStyleRubberBandPick()
 {
   this->CurrentMode = VTKISRBP_ORIENT;
@@ -38,19 +38,19 @@ vtkInteractorStyleRubberBandPick::vtkInteractorStyleRubberBandPick()
   this->PixelArray = vtkUnsignedCharArray::New();
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkInteractorStyleRubberBandPick::~vtkInteractorStyleRubberBandPick()
 {
   this->PixelArray->Delete();
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleRubberBandPick::StartSelect()
 {
   this->CurrentMode = VTKISRBP_SELECT;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleRubberBandPick::OnChar()
 {
   switch (this->Interactor->GetKeyCode())
@@ -85,7 +85,7 @@ void vtkInteractorStyleRubberBandPick::OnChar()
   }
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleRubberBandPick::OnLeftButtonDown()
 {
   if (this->CurrentMode != VTKISRBP_SELECT)
@@ -113,7 +113,7 @@ void vtkInteractorStyleRubberBandPick::OnLeftButtonDown()
 
   this->PixelArray->Initialize();
   this->PixelArray->SetNumberOfComponents(4);
-  int* size = renWin->GetSize();
+  const int* size = renWin->GetSize();
   this->PixelArray->SetNumberOfTuples(size[0] * size[1]);
 
   renWin->GetRGBACharPixelData(0, 0, size[0] - 1, size[1] - 1, 1, this->PixelArray);
@@ -121,7 +121,7 @@ void vtkInteractorStyleRubberBandPick::OnLeftButtonDown()
   this->FindPokedRenderer(this->StartPosition[0], this->StartPosition[1]);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleRubberBandPick::OnMouseMove()
 {
   if (this->CurrentMode != VTKISRBP_SELECT)
@@ -138,7 +138,7 @@ void vtkInteractorStyleRubberBandPick::OnMouseMove()
 
   this->EndPosition[0] = this->Interactor->GetEventPosition()[0];
   this->EndPosition[1] = this->Interactor->GetEventPosition()[1];
-  int* size = this->Interactor->GetRenderWindow()->GetSize();
+  const int* size = this->Interactor->GetRenderWindow()->GetSize();
   if (this->EndPosition[0] > (size[0] - 1))
   {
     this->EndPosition[0] = size[0] - 1;
@@ -158,7 +158,7 @@ void vtkInteractorStyleRubberBandPick::OnMouseMove()
   this->RedrawRubberBand();
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleRubberBandPick::OnLeftButtonUp()
 {
   if (this->CurrentMode != VTKISRBP_SELECT)
@@ -183,11 +183,11 @@ void vtkInteractorStyleRubberBandPick::OnLeftButtonUp()
   // this->CurrentMode = VTKISRBP_ORIENT;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleRubberBandPick::RedrawRubberBand()
 {
   // update the rubber band on the screen
-  int* size = this->Interactor->GetRenderWindow()->GetSize();
+  const int* size = this->Interactor->GetRenderWindow()->GetSize();
 
   vtkUnsignedCharArray* tmpPixelArray = vtkUnsignedCharArray::New();
   tmpPixelArray->DeepCopy(this->PixelArray);
@@ -266,12 +266,12 @@ void vtkInteractorStyleRubberBandPick::RedrawRubberBand()
   tmpPixelArray->Delete();
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleRubberBandPick::Pick()
 {
   // find rubber band lower left, upper right and center
   double rbcenter[3];
-  int* size = this->Interactor->GetRenderWindow()->GetSize();
+  const int* size = this->Interactor->GetRenderWindow()->GetSize();
   int min[2], max[2];
   min[0] =
     this->StartPosition[0] <= this->EndPosition[0] ? this->StartPosition[0] : this->EndPosition[0];
@@ -359,7 +359,7 @@ void vtkInteractorStyleRubberBandPick::Pick()
   this->Interactor->Render();
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkInteractorStyleRubberBandPick::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

@@ -34,7 +34,7 @@ class vtkDijkstraGraphInternals
 public:
   vtkDijkstraGraphInternals() { this->HeapSize = 0; }
 
-  ~vtkDijkstraGraphInternals() {}
+  ~vtkDijkstraGraphInternals() = default;
 
   // CumulativeWeights(v) current summed weight for path to vertex v.
   std::vector<double> CumulativeWeights;
@@ -53,7 +53,7 @@ public:
   std::vector<unsigned char> ClosedVertices;
 
   // Adjacency representation.
-  std::vector<std::map<int, double> > Adjacency;
+  std::vector<std::map<int, double>> Adjacency;
 
   // Path repelling by assigning high costs to flagged vertices.
   std::vector<unsigned char> BlockedVertices;

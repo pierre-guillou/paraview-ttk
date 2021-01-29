@@ -15,67 +15,8 @@
 #include <vtkm/Deprecated.h>
 #include <vtkm/List.h>
 
-#if defined(VTKM_USING_GLIBCXX_4)
-// It would make sense to put this in its own header file, but it is hard to imagine needing
-// aligned_union anywhere else.
-#include <algorithm>
-namespace vtkmstd
-{
-
-template <std::size_t... Xs>
-struct max_size;
-template <std::size_t X>
-struct max_size<X>
-{
-  static constexpr std::size_t value = X;
-};
-template <std::size_t X0, std::size_t... Xs>
-struct max_size<X0, Xs...>
-{
-  static constexpr std::size_t other_value = max_size<Xs...>::value;
-  static constexpr std::size_t value = (other_value > X0) ? other_value : X0;
-};
-
-// This is to get around an apparent bug in GCC 4.8 where alianas(x) does not
-// seem to work when x is a constexpr. See
-// https://stackoverflow.com/questions/29879609/g-complains-constexpr-function-is-not-a-constant-expression
-template <std::size_t Alignment, std::size_t Size>
-struct aligned_data_block
-{
-  alignas(Alignment) char _s[Size];
-};
-
-template <std::size_t Len, class... Types>
-struct aligned_union
-{
-  static constexpr std::size_t alignment_value = vtkmstd::max_size<alignof(Types)...>::value;
-
-  using type =
-    vtkmstd::aligned_data_block<alignment_value, vtkmstd::max_size<Len, sizeof(Types)...>::value>;
-};
-
-// GCC 4.8 and 4.9 standard library does not support std::is_trivially_copyable.
-// There is no relyable way to get this information (since it has to come special from
-// the compiler). For our purposes, we will report as nothing being trivially copyable,
-// which causes us to call the constructors with everything. This should be fine unless
-// some other part of the compiler is trying to check for trivial copies (perhaps nvcc
-// on top of GCC 4.8).
-template <typename>
-struct is_trivially_copyable : std::false_type
-{
-};
-
-} // namespace vtkmstd
-
-#else // NOT VTKM_USING_GLIBCXX_4
-namespace vtkmstd
-{
-
-using std::aligned_union;
-using std::is_trivially_copyable;
-
-} // namespace vtkmstd
-#endif
+#include <vtkmstd/aligned_union.h>
+#include <vtkmstd/is_trivially_copyable.h>
 
 namespace vtkm
 {
@@ -142,23 +83,20 @@ struct AllTriviallyCopyable<T0, T1, T2>
 
 template <typename T0, typename T1, typename T2, typename T3>
 struct AllTriviallyCopyable<T0, T1, T2, T3>
-  : std::integral_constant<bool,
-                           (vtkmstd::is_trivially_copyable<T0>::value &&
-                            vtkmstd::is_trivially_copyable<T1>::value &&
-                            vtkmstd::is_trivially_copyable<T2>::value &&
-                            vtkmstd::is_trivially_copyable<T3>::value)>
+  : std::integral_constant<
+      bool,
+      (vtkmstd::is_trivially_copyable<T0>::value && vtkmstd::is_trivially_copyable<T1>::value &&
+       vtkmstd::is_trivially_copyable<T2>::value && vtkmstd::is_trivially_copyable<T3>::value)>
 {
 };
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename... Ts>
 struct AllTriviallyCopyable<T0, T1, T2, T3, T4, Ts...>
-  : std::integral_constant<bool,
-                           (vtkmstd::is_trivially_copyable<T0>::value &&
-                            vtkmstd::is_trivially_copyable<T1>::value &&
-                            vtkmstd::is_trivially_copyable<T2>::value &&
-                            vtkmstd::is_trivially_copyable<T3>::value &&
-                            vtkmstd::is_trivially_copyable<T4>::value &&
-                            AllTriviallyCopyable<Ts...>::value)>
+  : std::integral_constant<
+      bool,
+      (vtkmstd::is_trivially_copyable<T0>::value && vtkmstd::is_trivially_copyable<T1>::value &&
+       vtkmstd::is_trivially_copyable<T2>::value && vtkmstd::is_trivially_copyable<T3>::value &&
+       vtkmstd::is_trivially_copyable<T4>::value && AllTriviallyCopyable<Ts...>::value)>
 {
 };
 
@@ -276,7 +214,16 @@ struct VariantConstructorImpl<vtkm::internal::Variant<Ts...>, std::false_type>
   VTKM_EXEC_CONT VariantConstructorImpl& operator=(VariantConstructorImpl&& rhs) noexcept
   {
     this->Reset();
+// Get rid of spurious GCC-10 warning:
+// Storage might be uninitialized, but that is OK as long as Index == -1.
+#if defined(VTKM_GCC)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     this->Storage = std::move(rhs.Storage);
+#if defined(VTKM_GCC)
+#pragma GCC diagnostic pop
+#endif
     this->Index = std::move(rhs.Index);
     rhs.Index = -1;
     return *this;
@@ -333,6 +280,7 @@ public:
   Variant& operator=(const Variant&) = default;
   Variant& operator=(Variant&&) = default;
 
+  VTKM_SUPPRESS_EXEC_WARNINGS
   template <typename T>
   VTKM_EXEC_CONT Variant(const T& src) noexcept
   {
@@ -344,6 +292,7 @@ public:
     this->Index = index;
   }
 
+  VTKM_SUPPRESS_EXEC_WARNINGS
   template <typename T>
   VTKM_EXEC_CONT Variant(const T&& src) noexcept
   {
@@ -388,6 +337,7 @@ public:
   }
 
 private:
+  VTKM_SUPPRESS_EXEC_WARNINGS
   template <typename T, vtkm::IdComponent I, typename... Args>
   VTKM_EXEC_CONT T& EmplaceImpl(Args&&... args)
   {
@@ -397,6 +347,7 @@ private:
     return *value;
   }
 
+  VTKM_SUPPRESS_EXEC_WARNINGS
   template <typename T, vtkm::IdComponent I, typename U, typename... Args>
   VTKM_EXEC_CONT T& EmplaceImpl(std::initializer_list<U> il, Args&&... args)
   {

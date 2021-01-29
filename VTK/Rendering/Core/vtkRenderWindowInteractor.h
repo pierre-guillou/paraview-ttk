@@ -62,6 +62,7 @@ class vtkTimerIdMap;
 class vtkAbstractPicker;
 class vtkAbstractPropPicker;
 class vtkAssemblyPath;
+class vtkHardwareWindow;
 class vtkInteractorObserver;
 class vtkRenderWindow;
 class vtkRenderer;
@@ -161,6 +162,16 @@ public:
   vtkGetObjectMacro(RenderWindow, vtkRenderWindow);
   //@}
 
+  //@{
+  /**
+   * Set/Get the hardware window being controlled by this object.
+   * For opengl the hardware window is not used as the opengl
+   * subclasses of RenderWindow provide the functionality.
+   */
+  void SetHardwareWindow(vtkHardwareWindow* aren);
+  vtkGetObjectMacro(HardwareWindow, vtkHardwareWindow);
+  //@}
+
   /**
    * Event loop notification member for window size change.
    * Window size is measured in pixels.
@@ -196,7 +207,7 @@ public:
   int CreateRepeatingTimer(unsigned long duration);
 
   /**
-   * Create a one shot timer, with the specified duretion (in milliseconds).
+   * Create a one shot timer, with the specified duration (in milliseconds).
    * \return the timer id.
    */
   int CreateOneShotTimer(unsigned long duration);
@@ -573,7 +584,7 @@ public:
   /**
    * Set/get the rotation for the gesture in degrees, update LastRotation
    */
-  void SetRotation(double val);
+  void SetRotation(double rotation);
   vtkGetMacro(Rotation, double);
   vtkGetMacro(LastRotation, double);
   //@}
@@ -582,7 +593,7 @@ public:
   /**
    * Set/get the scale for the gesture, updates LastScale
    */
-  void SetScale(double val);
+  void SetScale(double scale);
   vtkGetMacro(Scale, double);
   vtkGetMacro(LastScale, double);
   //@}
@@ -721,6 +732,8 @@ public:
   virtual void MiddleButtonReleaseEvent();
   virtual void MouseWheelForwardEvent();
   virtual void MouseWheelBackwardEvent();
+  virtual void MouseWheelLeftEvent();
+  virtual void MouseWheelRightEvent();
   virtual void ExposeEvent();
   virtual void ConfigureEvent();
   virtual void EnterEvent();
@@ -794,6 +807,7 @@ protected:
   ~vtkRenderWindowInteractor() override;
 
   vtkRenderWindow* RenderWindow;
+  vtkHardwareWindow* HardwareWindow;
   vtkInteractorObserver* InteractorStyle;
 
   // Used as a helper object to pick instances of vtkProp

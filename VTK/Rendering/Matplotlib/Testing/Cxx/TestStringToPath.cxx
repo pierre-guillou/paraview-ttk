@@ -30,14 +30,14 @@
 #include "vtkRenderer.h"
 #include "vtkTextProperty.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class StringToPathContextTest : public vtkContextItem
 {
 public:
   static StringToPathContextTest* New();
   vtkTypeMacro(StringToPathContextTest, vtkContextItem);
   // Paint event for the chart, called whenever the chart needs to be drawn
-  virtual bool Paint(vtkContext2D* painter) override;
+  bool Paint(vtkContext2D* painter) override;
 
   void SetPath(vtkPath* path) { this->Path = path; }
 
@@ -45,7 +45,7 @@ protected:
   vtkPath* Path;
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestStringToPath(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 {
   // Set up a 2D context view, context test object and add it to the scene

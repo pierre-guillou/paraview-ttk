@@ -79,6 +79,8 @@
 #include "vtkXMLDataElement.h"
 #include "vtkXMLDataObjectWriter.h"
 #include "vtkXMLUtilities.h"
+
+#include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include "vtkPVLODActor.h"
@@ -2119,7 +2121,7 @@ void vtkPVOpenVRHelper::ExportLocationsAsSkyboxes(vtkSMViewProxy* smview)
 
   std::string dir = "pv-skybox/";
   vtksys::SystemTools::MakeDirectory(dir);
-  ofstream json("pv-skybox/index.json");
+  vtksys::ofstream json("pv-skybox/index.json");
   json << "{ \"data\": [ { \"mimeType\": \"image/jpg\","
           "\"pattern\": \"{poseIndex}/{orientation}.jpg\","
           "\"type\": \"blob\", \"name\": \"image\", \"metadata\": {}}], "
@@ -2321,14 +2323,14 @@ void vtkPVOpenVRHelper::ExportLocationsAsView(vtkSMViewProxy* smview)
   topel->SetName("View");
   topel->SetIntAttribute("Version", 2);
   topel->SetIntAttribute("UseImageBasedLighting", pvRenderer->GetUseImageBasedLighting());
-  if (pvRenderer->GetEnvironmentCubeMap())
+  if (pvRenderer->GetEnvironmentTexture())
   {
-    vtkTexture* cubetex = pvRenderer->GetEnvironmentCubeMap();
+    vtkTexture* cubetex = pvRenderer->GetEnvironmentTexture();
     if (textures.find(cubetex) == textures.end())
     {
       textures[cubetex] = textures.size();
     }
-    topel->SetIntAttribute("EnvironmentCubeMap", static_cast<int>(textures[cubetex]));
+    topel->SetIntAttribute("EnvironmentTexture", static_cast<int>(textures[cubetex]));
   }
 
   vtkNew<vtkXMLDataElement> posesel;
@@ -2689,7 +2691,7 @@ void vtkPVOpenVRHelper::SendToOpenVR(vtkSMViewProxy* smview)
   this->RenderWindow->SetInteractor(this->Interactor);
 
   this->Renderer->SetUseImageBasedLighting(pvRenderer->GetUseImageBasedLighting());
-  this->Renderer->SetEnvironmentCubeMap(pvRenderer->GetEnvironmentCubeMap());
+  this->Renderer->SetEnvironmentTexture(pvRenderer->GetEnvironmentTexture());
 
   // required for LOD volume rendering
   // iren->SetDesiredUpdateRate(220.0);

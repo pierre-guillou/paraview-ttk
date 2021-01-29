@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPlotPie.h"
 
 #include "vtkBrush.h"
@@ -76,10 +79,10 @@ public:
   float Radius;
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPlotPie);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotPie::vtkPlotPie()
 {
   this->ColorSeries = vtkSmartPointer<vtkColorSeries>::New();
@@ -88,7 +91,7 @@ vtkPlotPie::vtkPlotPie()
   this->Dimensions[0] = this->Dimensions[1] = this->Dimensions[2] = this->Dimensions[3] = 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPlotPie::~vtkPlotPie()
 {
   delete this->Private;
@@ -100,7 +103,7 @@ vtkPlotPie::~vtkPlotPie()
   this->Private = nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotPie::Paint(vtkContext2D* painter)
 {
   if (!this->Visible)
@@ -136,7 +139,7 @@ bool vtkPlotPie::Paint(vtkContext2D* painter)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 bool vtkPlotPie::PaintLegend(vtkContext2D* painter, const vtkRectf& rect, int legendIndex)
 {
@@ -149,7 +152,7 @@ bool vtkPlotPie::PaintLegend(vtkContext2D* painter, const vtkRectf& rect, int le
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkPlotPie::SetDimensions(int arg1, int arg2, int arg3, int arg4)
 {
@@ -174,7 +177,7 @@ void vtkPlotPie::SetDimensions(const int arg[4])
   this->SetDimensions(arg[0], arg[1], arg[2], arg[3]);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPie::SetColorSeries(vtkColorSeries* colorSeries)
 {
   if (this->ColorSeries == colorSeries)
@@ -185,22 +188,16 @@ void vtkPlotPie::SetColorSeries(vtkColorSeries* colorSeries)
   this->Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkColorSeries* vtkPlotPie::GetColorSeries()
 {
   return this->ColorSeries;
 }
 
-//-----------------------------------------------------------------------------
-vtkIdType vtkPlotPie::GetNearestPoint(const vtkVector2f& point,
-#ifndef VTK_LEGACY_REMOVE
-  const vtkVector2f& tolerance,
-#else
-  const vtkVector2f& vtkNotUsed(tolerance),
-#endif // VTK_LEGACY_REMOVE
+//------------------------------------------------------------------------------
+vtkIdType vtkPlotPie::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
   vtkVector2f* value, vtkIdType* vtkNotUsed(segmentId))
 {
-#ifndef VTK_LEGACY_REMOVE
   if (!this->LegacyRecursionFlag)
   {
     this->LegacyRecursionFlag = true;
@@ -210,13 +207,12 @@ vtkIdType vtkPlotPie::GetNearestPoint(const vtkVector2f& point,
     {
       VTK_LEGACY_REPLACED_BODY(vtkPlotPie::GetNearestPoint(const vtkVector2f& point,
                                  const vtkVector2f& tolerance, vtkVector2f* value),
-        "VTK 8.3",
+        "VTK 9.0",
         vtkPlotPie::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
           vtkVector2f* value, vtkIdType* segmentId));
       return retLegacy;
     }
   }
-#endif // VTK_LEGACY_REMOVE
 
   float x = point.GetX() - this->Private->CenterX;
   float y = point.GetY() - this->Private->CenterY;
@@ -246,13 +242,13 @@ vtkIdType vtkPlotPie::GetNearestPoint(const vtkVector2f& point,
   return -1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPlotPie::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkPlotPie::UpdateTableCache(vtkTable* table)
 {
   // Get the x and y arrays (index 0 and 1 respectively)

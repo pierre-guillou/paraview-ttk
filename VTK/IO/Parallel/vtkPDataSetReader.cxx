@@ -35,12 +35,13 @@
 #include "vtkStructuredPointsReader.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtksys/Encoding.hxx"
+#include "vtksys/FStream.hxx"
 
 #include <vector>
 
 vtkStandardNewMacro(vtkPDataSetReader);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPDataSetReader::vtkPDataSetReader()
 {
   this->FileName = nullptr;
@@ -54,14 +55,14 @@ vtkPDataSetReader::vtkPDataSetReader()
   this->SetNumberOfInputPorts(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkPDataSetReader::~vtkPDataSetReader()
 {
   delete[] this->FileName;
   this->SetNumberOfPieces(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPDataSetReader::SetNumberOfPieces(int num)
 {
   int i;
@@ -109,12 +110,12 @@ void vtkPDataSetReader::SetNumberOfPieces(int num)
   this->NumberOfPieces = num;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPDataSetReader::RequestDataObject(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
 
-  ifstream* file;
+  istream* file;
   char* block;
   char* param;
   char* value;
@@ -143,8 +144,9 @@ int vtkPDataSetReader::RequestDataObject(
   {
     vtkErrorMacro("This does not look like a VTK file: " << this->FileName);
   }
-  file->close();
+
   delete file;
+  file = nullptr;
 
   vtkInformation* info = outputVector->GetInformationObject(0);
   vtkDataSet* output = vtkDataSet::SafeDownCast(info->Get(vtkDataObject::DATA_OBJECT()));
@@ -191,7 +193,7 @@ int vtkPDataSetReader::RequestDataObject(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Returns 0 for end of file.
 // Returns 1 for start block,
 // Returns 2 for parameter-value pair (occurs after 1 but before 3).
@@ -384,10 +386,10 @@ int vtkPDataSetReader::ReadXML(istream* file, char** retBlock, char** retParam, 
   return 2;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPDataSetReader::CanReadFile(const char* filename)
 {
-  ifstream* file;
+  istream* file;
   char* block;
   char* param;
   char* value;
@@ -427,12 +429,11 @@ int vtkPDataSetReader::CanReadFile(const char* filename)
     tmp->Delete();
   }
 
-  file->close();
   delete file;
   return flag;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPDataSetReader::ReadPVTKFileInformation(
   istream* file, vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -451,7 +452,7 @@ void vtkPDataSetReader::ReadPVTKFileInformation(
 
   // The file block should have a version parameter.
   type = this->ReadXML(file, &block, &param, &val);
-  if (type != 2 || strcmp(param, "version"))
+  if (type != 2 || strcmp(param, "version") != 0)
   {
     vtkErrorMacro("Could not find file version.");
     return;
@@ -626,7 +627,7 @@ void vtkPDataSetReader::ReadPVTKFileInformation(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPDataSetReader::ReadVTKFileInformation(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -649,10 +650,10 @@ void vtkPDataSetReader::ReadVTKFileInformation(
   }
 }
 
-//----------------------------------------------------------------------------
-ifstream* vtkPDataSetReader::OpenFile(const char* filename)
+//------------------------------------------------------------------------------
+istream* vtkPDataSetReader::OpenFile(const char* filename)
 {
-  ifstream* file;
+  vtksys::ifstream* file;
 
   if (!filename || filename[0] == '\0')
   {
@@ -660,13 +661,7 @@ ifstream* vtkPDataSetReader::OpenFile(const char* filename)
     return nullptr;
   }
 
-  // Open the new file
-#ifdef _WIN32
-  file = new ifstream(vtksys::Encoding::ToWindowsExtendedPath(filename), ios::in);
-#else
-  file = new ifstream(filename, ios::in);
-#endif
-
+  file = new vtksys::ifstream(filename);
   if (!file || file->fail())
   {
     delete file;
@@ -677,7 +672,7 @@ ifstream* vtkPDataSetReader::OpenFile(const char* filename)
   return file;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPDataSetReader::RequestInformation(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -687,7 +682,7 @@ int vtkPDataSetReader::RequestInformation(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPDataSetReader::RequestData(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -751,7 +746,7 @@ int vtkPDataSetReader::RequestData(
   return 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPDataSetReader::PolyDataExecute(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -819,7 +814,7 @@ int vtkPDataSetReader::PolyDataExecute(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkPDataSetReader::UnstructuredGridExecute(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -882,7 +877,7 @@ int vtkPDataSetReader::UnstructuredGridExecute(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Structured data is trickier.  Which files to load?
 int vtkPDataSetReader::ImageDataExecute(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
@@ -977,7 +972,7 @@ int vtkPDataSetReader::ImageDataExecute(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Structured data is trickier.  Which files to load?
 int vtkPDataSetReader::StructuredGridExecute(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
@@ -1014,7 +1009,7 @@ int vtkPDataSetReader::StructuredGridExecute(
   this->CoverExtent(uExt, pieceMask.data());
 
   // Now read the pieces.
-  std::vector<vtkSmartPointer<vtkStructuredGrid> > pieces;
+  std::vector<vtkSmartPointer<vtkStructuredGrid>> pieces;
   reader = vtkStructuredGridReader::New();
   reader->ReadAllScalarsOn();
   reader->ReadAllVectorsOn();
@@ -1140,7 +1135,7 @@ int vtkPDataSetReader::StructuredGridExecute(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPDataSetReader::CoverExtent(int ext[6], int* pieceMask)
 {
   int bestArea;
@@ -1243,7 +1238,7 @@ void vtkPDataSetReader::CoverExtent(int ext[6], int* pieceMask)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkPDataSetReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

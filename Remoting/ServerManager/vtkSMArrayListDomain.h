@@ -72,7 +72,6 @@
 
 #include "vtkRemotingServerManagerModule.h" //needed for exports
 #include "vtkSMStringListDomain.h"
-#include "vtkStdString.h" // needed for vtkStdString.
 
 class vtkPVDataSetAttributesInformation;
 class vtkSMInputArrayDomain;
@@ -137,13 +136,6 @@ public:
    * vtkDataSetAttributes.h.
    */
   vtkGetMacro(AttributeType, int);
-  //@}
-
-  //@{
-  /**
-   * Return the string that is used as "none_string" in XML configuration.
-   */
-  vtkGetStringMacro(NoneString);
   //@}
 
   /**
@@ -212,14 +204,14 @@ public:
    * returns the mangled name for the component index that is passed in.
 
    */
-  static vtkStdString CreateMangledName(vtkPVArrayInformation* arrayInfo, int component);
+  static std::string CreateMangledName(vtkPVArrayInformation* arrayInfo, int component);
 
   //@{
   /**
    * returns the mangled name for the component index that is passed in.
 
    */
-  static vtkStdString ArrayNameFromMangledName(const char* name);
+  static std::string ArrayNameFromMangledName(const char* name);
   static int ComponentIndexFromMangledName(vtkPVArrayInformation* info, const char* name);
   //@}
 
@@ -264,10 +256,7 @@ protected:
   vtkSetStringMacro(InputDomainName);
   //@}
 
-  vtkSetStringMacro(NoneString);
-
   char* InputDomainName;
-  char* NoneString;
 
   // Currently, used by vtkSMRepresentedArrayListDomain to avoid picking just an
   // arbitrary array for scalar coloring. Need to rethink how this should be

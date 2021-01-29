@@ -22,8 +22,6 @@
 #ifndef vtkIOStream_h
 #define vtkIOStream_h
 
-#include "vtkConfigure.h"
-
 #ifdef _MSC_VER
 #pragma warning(push, 3)
 #endif
@@ -42,10 +40,8 @@ using std::endl;
 using std::ends;
 using std::fstream;
 using std::hex;
-using std::ifstream;
 using std::ios;
 using std::istream;
-using std::ofstream;
 using std::ostream;
 using std::setfill;
 using std::setprecision;

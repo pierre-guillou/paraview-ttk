@@ -120,8 +120,8 @@ int parseMTL(
 #line 121 "..\\vtk3\\vtk\\io\\import\\mtlsyntax.c"
   {
   cs = simple_lexer_start;
-  ts = 0;
-  te = 0;
+  ts = nullptr;
+  te = nullptr;
   act = 0;
   }
 
@@ -158,7 +158,7 @@ _resume:
     const char *_lower = _keys;
     const char *_mid;
     const char *_upper = _keys + _klen - 1;
-    while (1) {
+    while (true) {
       if ( _upper < _lower )
         break;
 
@@ -181,7 +181,7 @@ _resume:
     const char *_lower = _keys;
     const char *_mid;
     const char *_upper = _keys + (_klen<<1) - 2;
-    while (1) {
+    while (true) {
       if ( _upper < _lower )
         break;
 
@@ -344,7 +344,7 @@ _again:
     switch ( *_acts++ ) {
   case 3:
 #line 1 "NONE"
-  {ts = 0;}
+  {ts = nullptr;}
   break;
 #line 350 "..\\vtk3\\vtk\\io\\import\\mtlsyntax.c"
     }

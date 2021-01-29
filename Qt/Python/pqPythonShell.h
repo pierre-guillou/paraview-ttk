@@ -64,7 +64,7 @@ class PQPYTHON_EXPORT pqPythonShell : public QWidget
   typedef QWidget Superclass;
 
 public:
-  pqPythonShell(QWidget* parent = 0, Qt::WindowFlags flags = 0);
+  pqPythonShell(QWidget* parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags{});
   ~pqPythonShell() override;
 
   /**
@@ -88,7 +88,7 @@ public:
     ERROR
   };
 
-public slots:
+public Q_SLOTS:
   /**
   * Prints some text on the shell.
   */
@@ -141,7 +141,7 @@ public slots:
    */
   void initialize();
 
-signals:
+Q_SIGNALS:
   /**
   * signal fired whenever the shell starts (starting=true) and finishes
   * (starting=false) executing a Python command/script. This can be used by
@@ -149,7 +149,7 @@ signals:
   */
   void executing(bool starting);
 
-protected slots:
+protected Q_SLOTS:
   void pushScript(const QString&);
   void runScript();
 

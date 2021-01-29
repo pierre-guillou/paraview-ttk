@@ -42,7 +42,7 @@ class pqVRAddStyleDialog : public QDialog
   typedef QDialog Superclass;
 
 public:
-  pqVRAddStyleDialog(QWidget* parent = 0, Qt::WindowFlags f = 0);
+  pqVRAddStyleDialog(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags{});
   virtual ~pqVRAddStyleDialog();
 
   void setInteractorStyle(vtkVRInteractorStyle*, const QString& name);
@@ -51,7 +51,7 @@ public:
   // Returns true if there are any user-configurable options.
   bool isConfigurable();
 
-private slots:
+private Q_SLOTS:
 
 private:
   Q_DISABLE_COPY(pqVRAddStyleDialog)

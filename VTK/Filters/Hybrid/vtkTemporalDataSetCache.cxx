@@ -17,27 +17,60 @@
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkCompositeDataSet.h"
+#include "vtkFeatures.h" // for VTK_USE_MEMKIND
+#include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+#include <algorithm>
 #include <vector>
 
-//---------------------------------------------------------------------------
+// A helper class to to turn on memkind, if enabled, while ensuring it always is restored
+class vtkTDSCMemkindRAII
+{
+  bool OriginalValue = false;
+
+public:
+  vtkTDSCMemkindRAII(vtkTemporalDataSetCache* owner)
+  {
+#ifdef VTK_USE_MEMKIND
+    this->OriginalValue = vtkObjectBase::GetUsingMemkind();
+    if (owner->GetCacheInMemkind())
+    {
+      vtkObjectBase::SetUsingMemkind(true);
+    }
+#else
+    (void)owner;
+    (void)this->OriginalValue;
+#endif
+  }
+  ~vtkTDSCMemkindRAII()
+  {
+#ifdef VTK_USE_MEMKIND
+    vtkObjectBase::SetUsingMemkind(this->OriginalValue);
+#endif
+  }
+  vtkTDSCMemkindRAII(vtkTDSCMemkindRAII const&) = default;
+};
+
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkTemporalDataSetCache);
 
-//----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTemporalDataSetCache::vtkTemporalDataSetCache()
 {
   this->CacheSize = 10;
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfOutputPorts(1);
+  this->CacheInMemkind = false;
+  this->IsASource = false;
+  this->Ejected = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTemporalDataSetCache::~vtkTemporalDataSetCache()
 {
   CacheType::iterator pos = this->Cache.begin();
@@ -46,8 +79,10 @@ vtkTemporalDataSetCache::~vtkTemporalDataSetCache()
     pos->second.second->UnRegister(this);
     this->Cache.erase(pos++);
   }
+  this->SetEjected(nullptr);
 }
 
+//------------------------------------------------------------------------------
 vtkTypeBool vtkTemporalDataSetCache::ProcessRequest(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -70,10 +105,19 @@ vtkTypeBool vtkTemporalDataSetCache::ProcessRequest(
     return this->RequestUpdateExtent(request, inputVector, outputVector);
   }
 
+  // when acting as a source, provide extents
+  if (request->Has(vtkCompositeDataPipeline::REQUEST_INFORMATION()))
+  {
+    if (this->IsASource)
+    {
+      return this->RequestInformation(request, inputVector, outputVector);
+    }
+  }
+
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTemporalDataSetCache::FillInputPortInformation(int port, vtkInformation* info)
 {
   // port 0 must be temporal data, but port 1 can be any dataset
@@ -89,14 +133,15 @@ int vtkTemporalDataSetCache::FillOutputPortInformation(int vtkNotUsed(port), vtk
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkDataObject");
   return 1;
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTemporalDataSetCache::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 
   os << indent << "CacheSize: " << this->CacheSize << endl;
 }
-//----------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
 void vtkTemporalDataSetCache::SetCacheSize(int size)
 {
   if (size < 1)
@@ -123,6 +168,99 @@ void vtkTemporalDataSetCache::SetCacheSize(int size)
   }
 }
 
+//------------------------------------------------------------------------------
+int vtkTemporalDataSetCache::RequestInformation(
+  vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+{
+  vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+  vtkDataObject* dobj = inInfo->Get(vtkDataObject::DATA_OBJECT());
+  bool hasInTime = false;
+  double inTime = 0.0;
+  if (dobj)
+  {
+    if (dobj->GetInformation()->Has(vtkDataObject::DATA_TIME_STEP()))
+    {
+      inTime = dobj->GetInformation()->Get(vtkDataObject::DATA_TIME_STEP());
+      hasInTime = true;
+    }
+  }
+
+  this->TimeStepValues.clear();
+  size_t numTimeStepValues = this->Cache.size();
+  if (numTimeStepValues <= 0)
+  {
+    return 1;
+  }
+
+  CacheType::iterator pos = this->Cache.begin();
+  double min = pos->first;
+  double max = pos->first;
+  for (; pos != this->Cache.end();)
+  {
+    this->TimeStepValues.push_back(pos->first);
+    if (pos->first < min)
+    {
+      min = pos->first;
+    }
+    if (pos->first > max)
+    {
+      max = pos->first;
+    }
+    if (hasInTime && pos->first == inTime)
+    {
+      hasInTime = false;
+    }
+    pos++;
+  }
+  if (hasInTime)
+  {
+    // cache doesn't contain our input, but it will when we are asked later
+    // so announce it's time too
+    if (inTime < min)
+    {
+      min = inTime;
+    }
+    if (inTime > max)
+    {
+      max = inTime;
+    }
+    this->TimeStepValues.push_back(inTime);
+  }
+  std::sort(this->TimeStepValues.begin(), this->TimeStepValues.end());
+  vtkInformation* info = outputVector->GetInformationObject(0);
+
+  // tell the caller that I can provide time varying data and
+  // tell it what range of times I can deal with
+  double tRange[2];
+  tRange[0] = this->TimeStepValues[0];
+  tRange[1] = this->TimeStepValues[this->TimeStepValues.size() - 1];
+  info->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), tRange, 2);
+
+  // tell the caller what the specific values are
+  info->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->TimeStepValues[0],
+    static_cast<int>(this->TimeStepValues.size()));
+
+  // if we are caching structured data, we need to provide topological extents
+  pos = this->Cache.begin();
+  if (pos != this->Cache.end())
+  {
+    vtkImageData* id = vtkImageData::SafeDownCast(pos->second.second);
+    if (id)
+    {
+      // as an ID
+      double* origin = id->GetOrigin();
+      int* extent = id->GetExtent();
+      double* spacing = id->GetSpacing();
+      info->Set(vtkDataObject::ORIGIN(), origin, 3);
+      info->Set(vtkDataObject::SPACING(), spacing, 3);
+      info->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), extent, 6);
+    }
+  }
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 int vtkTemporalDataSetCache::RequestDataObject(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -148,6 +286,7 @@ int vtkTemporalDataSetCache::RequestDataObject(
 
       if (!output || !output->IsA(input->GetClassName()))
       {
+        auto mkhold = vtkTDSCMemkindRAII(this);
         vtkDataObject* newOutput = input->NewInstance();
         info->Set(vtkDataObject::DATA_OBJECT(), newOutput);
         newOutput->Delete();
@@ -158,7 +297,7 @@ int vtkTemporalDataSetCache::RequestDataObject(
   return 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTemporalDataSetCache ::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -174,17 +313,20 @@ int vtkTemporalDataSetCache ::RequestUpdateExtent(vtkInformation* vtkNotUsed(req
     return 1;
   }
 
-  vtkMTimeType pmt = ddp->GetPipelineMTime();
-  for (pos = this->Cache.begin(); pos != this->Cache.end();)
+  if (!this->IsASource)
   {
-    if (pos->second.first < pmt)
+    vtkMTimeType pmt = ddp->GetPipelineMTime();
+    for (pos = this->Cache.begin(); pos != this->Cache.end();)
     {
-      pos->second.second->Delete();
-      this->Cache.erase(pos++);
-    }
-    else
-    {
-      ++pos;
+      if (pos->second.first < pmt)
+      {
+        pos->second.second->Delete();
+        this->Cache.erase(pos++);
+      }
+      else
+      {
+        ++pos;
+      }
     }
   }
 
@@ -244,12 +386,11 @@ int vtkTemporalDataSetCache ::RequestUpdateExtent(vtkInformation* vtkNotUsed(req
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This method simply copies by reference the input data to the output.
 int vtkTemporalDataSetCache::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
-
   vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
 
@@ -268,20 +409,29 @@ int vtkTemporalDataSetCache::RequestData(vtkInformation* vtkNotUsed(request),
   CacheType::iterator pos = this->Cache.find(upTime);
   if (pos != this->Cache.end())
   {
+    auto mkhold = vtkTDSCMemkindRAII(this);
     vtkDataObject* cachedData = pos->second.second;
     output.TakeReference(cachedData->NewInstance());
     output->ShallowCopy(cachedData);
-
     // update the m time in the cache
     pos->second.first = outputUpdateTime;
   }
   // otherwise it better be in the input
   else
   {
-    if (input->GetInformation()->Has(vtkDataObject::DATA_TIME_STEP()) && (inTime == upTime))
+    if (input->GetInformation()->Has(vtkDataObject::DATA_TIME_STEP()))
     {
-      output.TakeReference(input->NewInstance());
-      output->ShallowCopy(input);
+      if (inTime == upTime)
+      {
+        auto mkhold = vtkTDSCMemkindRAII(this);
+        output.TakeReference(input->NewInstance());
+        output->ShallowCopy(input);
+      }
+      else
+      {
+        output = this->GetEjected()->NewInstance();
+        output->ShallowCopy(this->GetEjected());
+      }
     }
     else
     {
@@ -298,21 +448,16 @@ int vtkTemporalDataSetCache::RequestData(vtkInformation* vtkNotUsed(request),
   // size add the requested data to the cache first
   if (input->GetInformation()->Has(vtkDataObject::DATA_TIME_STEP()))
   {
-
-    // is the input time not already in the cache?
+    // nothing to do if the input time is already in the cache
     CacheType::iterator pos1 = this->Cache.find(inTime);
     if (pos1 == this->Cache.end())
     {
       // if we have room in the Cache then just add the new data
       if (this->Cache.size() < static_cast<unsigned long>(this->CacheSize))
       {
-        vtkDataObject* cachedData = input->NewInstance();
-        cachedData->ShallowCopy(input);
-
-        this->Cache[inTime] =
-          std::pair<unsigned long, vtkDataObject*>(outputUpdateTime, cachedData);
+        this->ReplaceCacheItem(input, inTime, outputUpdateTime);
       }
-      // no room in the cache, we need to get rid of something
+      // if there is no room in the cache, we need to get rid of something
       else
       {
         // get rid of the oldest data in the cache
@@ -328,12 +473,61 @@ int vtkTemporalDataSetCache::RequestData(vtkInformation* vtkNotUsed(request),
         // was there old data?
         if (oldestpos->second.first < outputUpdateTime)
         {
+          this->SetEjected(oldestpos->second.second);
           oldestpos->second.second->UnRegister(this);
           this->Cache.erase(oldestpos);
+
+          this->ReplaceCacheItem(input, inTime, outputUpdateTime);
         }
-        // if no old data and no room then we are done
+        else
+        {
+          // if no old data and no room then we are done
+        }
       }
     }
   }
   return 1;
+}
+
+//------------------------------------------------------------------------------
+void vtkTemporalDataSetCache::ReplaceCacheItem(
+  vtkDataObject* input, double inTime, vtkMTimeType outputUpdateTime)
+{
+  auto mkhold = vtkTDSCMemkindRAII(this);
+  vtkDataObject* cachedData = input->NewInstance();
+  if (input->GetUsingMemkind() && !this->IsASource)
+  {
+    cachedData->ShallowCopy(input);
+  }
+  else
+  {
+    if (this->GetCacheInMemkind())
+    {
+      cachedData->DeepCopy(input);
+    }
+    else
+    {
+      cachedData->ShallowCopy(input);
+    }
+  }
+  this->Cache[inTime] = std::pair<unsigned long, vtkDataObject*>(outputUpdateTime, cachedData);
+}
+
+//------------------------------------------------------------------------------
+void vtkTemporalDataSetCache::SetEjected(vtkDataObject* victim)
+{
+  if (this->Ejected != victim)
+  {
+    vtkDataObject* tmp = this->Ejected;
+    this->Ejected = victim;
+    if (this->Ejected != nullptr)
+    {
+      this->Ejected->Register(this);
+    }
+    if (tmp != nullptr)
+    {
+      tmp->UnRegister(this);
+    }
+    // this->Modified(); //this is only thing we are changing from the macro
+  }
 }

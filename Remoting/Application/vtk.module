@@ -48,11 +48,13 @@ OPTIONAL_DEPENDS
   VTK::ImagingSources
   VTK::InteractionWidgets
   VTK::IOADIOS2
+  VTK::IOFides
   VTK::IOCityGML
   VTK::IOGDAL
   VTK::IOGeometry
   VTK::IOH5part
   VTK::IOInfovis
+  VTK::IOIoss
   VTK::IOLAS
   VTK::IOLegacy
   VTK::IOMotionFX

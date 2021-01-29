@@ -67,7 +67,8 @@ class CoProcessor(object):
         self.__FirstTimeStepIndex = None
         # a list of arrays requested for each channel, e.g. {'input': ["a point data array name", 0], ["a cell data array name", 1]}
         self.__RequestedArrays = None
-        self.__RootDirectory = ""
+        self.__ImageRootDirectory = ""
+        self.__DataRootDirectory = ""
         self.__CinemaDHelper = None
 
     def SetPrintEnsightFormatString(self, enable):
@@ -438,6 +439,9 @@ class CoProcessor(object):
             # we have a description of this channel but we don't need the grid so return
             return
 
+        if inputname in self.__ProducersMap:
+            raise RuntimeError("CreateProducer is being called multiple times for input '%s'" % inputname)
+
         producer = simple.PVTrivialProducer(guiName=inputname)
         producer.add_attribute("cpSimulationInput", inputname)
         # mark this as an input proxy so we can use cpstate.locate_simulation_inputs()
@@ -458,6 +462,22 @@ class CoProcessor(object):
         self.__ProducersMap[inputname] = producer
         producer.UpdatePipeline(datadescription.GetTime())
         return producer
+
+    def CreateTemporalProducer(self, datadescription, inputname):
+        """Python access to a temporal cache object associated with a specific
+        one simulation product. Much like CreateProducer, only this ends up with
+        a temporal cache filter instead of a PVTrivialProducer."""
+        if not datadescription.GetInputDescriptionByName(inputname):
+            raise RuntimeError ("Simulation input name '%s' does not exist" % inputname)
+
+        idd = datadescription.GetInputDescriptionByName(inputname)
+
+        cache = idd.GetTemporalCache()
+        if not cache:
+            raise RuntimeError ("I see no cache for '%s'" % inputname)
+            return
+
+        return servermanager._getPyProxy(cache)
 
     def ProcessExodusIIWriter(self, writer):
         """Extra work for the ExodusII writer to avoid undesired warnings
@@ -481,7 +501,9 @@ class CoProcessor(object):
     def RegisterWriter(self, writer, filename, freq, paddingamount=0, **params):
         """Registers a writer proxy. This method is generally used in
            CreatePipeline() to register writers. All writes created as such will
-           write the output files appropriately in WriteData() is called."""
+           write the output files appropriately in WriteData() is called.
+           params should be empty as of ParaView 5.9 but is passed in for
+           backwards compatibility."""
         writerParametersProxy = self.WriterParametersProxy(
             writer, filename, freq, paddingamount)
 
@@ -519,6 +541,7 @@ class CoProcessor(object):
         proxy = servermanager.ProxyManager().NewProxy(
             "insitu_writer_parameters", helperName)
         controller.PreInitializeProxy(proxy)
+
         if writerIsProxy:
             # it's possible that the writer can take in multiple input connections
             # so we need to go through all of them. the try/except block seems
@@ -815,7 +838,8 @@ class CoProcessor(object):
 
     def EnableCinemaDTable(self):
         """ Enable the normally disabled cinema D table export feature """
-        self.__CinemaDHelper = exportnow.CinemaDHelper(True, self.__RootDirectory)
+        self.__CinemaDHelper = exportnow.CinemaDHelper(True,
+                self.__ImageRootDirectory)
 
 
     def __AppendCViewToCinemaDTable(self, time, producer, filelist):
@@ -853,21 +877,30 @@ class CoProcessor(object):
         if comm.GetLocalProcessId() == 0:
             self.__CinemaDHelper.WriteNow()
 
-
     def SetRootDirectory(self, root_directory):
         """ Makes Catalyst put all output under this directory. """
+        self.SetImageRootDirectory(root_directory)
+        self.SetDataRootDirectory(root_directory)
+
+    def SetImageRootDirectory(self, root_directory):
+        """Specify root directory for image extracts"""
         if root_directory and not root_directory.endswith("/"):
             root_directory = root_directory + "/"
-        self.__RootDirectory = root_directory
+        self.__ImageRootDirectory = root_directory
 
+    def SetDataRootDirectory(self, root_directory):
+        """Specify root directory for data extracts"""
+        if root_directory and not root_directory.endswith("/"):
+            root_directory = root_directory + "/"
+        self.__DataRootDirectory = root_directory
 
     def __FixupWriters(self):
         """ Called once to ensure that all writers obey the root directory directive """
-        if not self.__RootDirectory:
-            return
-        for view in self.__ViewsList:
-            view.cpFileName = self.__RootDirectory + view.cpFileName
-        for writer in self.__WritersList:
-            fileName = self.__RootDirectory + writer.parameters.GetProperty("FileName").GetElement(0)
-            writer.parameters.GetProperty("FileName").SetElement(0, fileName)
-            writer.parameters.FileName = fileName
+        if self.__ImageRootDirectory:
+            for view in self.__ViewsList:
+                view.cpFileName = self.__ImageRootDirectory + view.cpFileName
+        if self.__DataRootDirectory:
+            for writer in self.__WritersList:
+                fileName = self.__DataRootDirectory + writer.parameters.GetProperty("FileName").GetElement(0)
+                writer.parameters.GetProperty("FileName").SetElement(0, fileName)
+                writer.parameters.FileName = fileName

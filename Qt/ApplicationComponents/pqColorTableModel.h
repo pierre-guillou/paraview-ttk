@@ -67,14 +67,21 @@ public:
 
   QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
 
-  virtual void refresh();
+protected Q_SLOTS:
+
+  void controlPointsChanged();
+
+  void updatePoint(const QModelIndex& idx);
 
 private:
   Q_DISABLE_COPY(pqColorTableModel)
 
   pqColorOpacityEditorWidget* Widget;
 
-  int NumberOfRowsCache;
+  double Range[2];
+
+  class pqInternals;
+  pqInternals* Internals;
 };
 
 #endif

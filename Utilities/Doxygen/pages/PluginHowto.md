@@ -117,7 +117,6 @@ There are four ways for loading plugins:
   <Plugin name="PrismPlugin" auto_load="0"/>
   <Plugin name="PointSprite_Plugin" auto_load="0"/>
   <Plugin name="pvblot" auto_load="0"/>
-  <Plugin name="SierraPlotTools" auto_load="0"/>
   <Plugin name="H5PartReader" auto_load="1"/>
 </Plugins>
 ```
@@ -167,13 +166,18 @@ following code:
 ```cmake
 # ParaView requires CMake 3.8 in order to be used.
 cmake_minimum_required(VERSION 3.8)
-project(myplugin)
+project(myplugin C CXX)
 
 find_package(ParaView REQUIRED)
 ```
 
 Where CMake will ask for the `ParaView_DIR` which you point to the ParaView
 build or install tree you would to build your with.
+
+Note that the `C` and `CXX` languages are required in general because ParaView
+may need to find other packages which are written with only C in mind (MPI is
+the usual culprit here) and need to know about the C compiler that is
+available.
 
 ## Exposing an Existing Filter
 
@@ -1373,7 +1377,7 @@ configuration type, which may look something like
 `C:\Users\MyUser\ParaView-v4.2.0-build\lib\Release\vtkPVAnimation-pv4.2.lib`.
 
 [ParaView Guide]: http://www.kitware.com/products/books/paraview.html
-[core readers]: https://gitlab.kitware.com/paraview/paraview/blob/87babdbeab6abe20aac6f8b2692788abc6bb20ac/ParaViewCore/ServerManager/SMApplication/Resources/readers.xml#L158-179
+[core readers]: https://gitlab.kitware.com/paraview/paraview/-/blob/87babdbeab6abe20aac6f8b2692788abc6bb20ac/ParaViewCore/ServerManager/SMApplication/Resources/readers.xml#L158-179
 [pqPropertyWidget]: https://kitware.github.io/paraview-docs/nightly/cxx/classpqPropertyWidget.html
 [pqPropertyWidgetDecorator]: https://kitware.github.io/paraview-docs/nightly/cxx/classpqPropertyWidgetDecorator.html
 [QActionGroup]: https://doc.qt.io/qt-5/qactiongroup.html

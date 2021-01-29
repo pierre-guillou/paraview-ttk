@@ -14,35 +14,35 @@ PURPOSE.  See the above copyright notice for more information.
 =========================================================================*/
 #include "vtkUniformHyperTreeGridSource.h"
 
+#include "vtkCellData.h"
 #include "vtkDataObject.h"
 #include "vtkDoubleArray.h"
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
-#include "vtkPointData.h"
 #include "vtkUniformHyperTreeGrid.h"
 
 vtkStandardNewMacro(vtkUniformHyperTreeGridSource);
 
-//----------------------------------------------------------------------------
-vtkUniformHyperTreeGridSource::vtkUniformHyperTreeGridSource() {}
+//------------------------------------------------------------------------------
+vtkUniformHyperTreeGridSource::vtkUniformHyperTreeGridSource() = default;
 
-//----------------------------------------------------------------------------
-vtkUniformHyperTreeGridSource::~vtkUniformHyperTreeGridSource() {}
+//------------------------------------------------------------------------------
+vtkUniformHyperTreeGridSource::~vtkUniformHyperTreeGridSource() = default;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkUniformHyperTreeGridSource::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkUniformHyperTreeGridSource::FillOutputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkUniformHyperTreeGrid");
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkUniformHyperTreeGridSource::RequestData(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
@@ -57,7 +57,7 @@ int vtkUniformHyperTreeGridSource::RequestData(
 
   output->Initialize();
 
-  vtkPointData* outData = output->GetPointData();
+  vtkCellData* outData = output->GetCellData();
 
   this->LevelBitsIndexCnt.clear();
   this->LevelBitsIndexCnt.push_back(0);

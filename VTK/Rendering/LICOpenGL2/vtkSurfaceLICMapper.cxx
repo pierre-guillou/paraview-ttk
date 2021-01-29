@@ -37,10 +37,10 @@
 #endif
 #define vtkSurfaceLICMapperDEBUG 0
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkObjectFactoryNewMacro(vtkSurfaceLICMapper);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSurfaceLICMapper::vtkSurfaceLICMapper()
 {
   this->SetInputArrayToProcess(
@@ -49,7 +49,7 @@ vtkSurfaceLICMapper::vtkSurfaceLICMapper()
   this->LICInterface = vtkSurfaceLICInterface::New();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkSurfaceLICMapper::~vtkSurfaceLICMapper()
 {
 #if vtkSurfaceLICMapperDEBUG >= 1
@@ -72,7 +72,7 @@ void vtkSurfaceLICMapper::ShallowCopy(vtkAbstractMapper* mapper)
   this->vtkOpenGLPolyDataMapper::ShallowCopy(mapper);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSurfaceLICMapper::ReleaseGraphicsResources(vtkWindow* win)
 {
   this->LICInterface->ReleaseGraphicsResources(win);
@@ -98,26 +98,29 @@ void vtkSurfaceLICMapper::ReplaceShaderValues(
     "uniform mat3 normalMatrix;\n"
     "in vec3 tcoordVCVSOutput;");
 
-  vtkShaderProgram::Substitute(FSSource, "//VTK::TCoord::Impl",
-    // projected vectors
-    "  vec3 tcoordLIC = normalMatrix * tcoordVCVSOutput;\n"
-    "  vec3 normN = normalize(normalVCVSOutput);\n"
-    "  float k = dot(tcoordLIC, normN);\n"
-    "  tcoordLIC = (tcoordLIC - k*normN);\n"
-    "  gl_FragData[1] = vec4(tcoordLIC.x, tcoordLIC.y, 0.0 , gl_FragCoord.z);\n"
-    //   "  gl_FragData[1] = vec4(tcoordVC.xyz, gl_FragCoord.z);\n"
-    // vectors for fragment masking
-    "  if (uMaskOnSurface == 0)\n"
-    "    {\n"
-    "    gl_FragData[2] = vec4(tcoordVCVSOutput, gl_FragCoord.z);\n"
-    "    }\n"
-    "  else\n"
-    "    {\n"
-    "    gl_FragData[2] = vec4(tcoordLIC.x, tcoordLIC.y, 0.0 , gl_FragCoord.z);\n"
-    "    }\n"
-    //   "  gl_FragData[2] = vec4(19.0, 19.0, tcoordVC.x, gl_FragCoord.z);\n"
-    ,
-    false);
+  if (this->LastLightComplexity[this->LastBoundBO] > 0)
+  {
+    vtkShaderProgram::Substitute(FSSource, "//VTK::TCoord::Impl",
+      // projected vectors
+      "  vec3 tcoordLIC = normalMatrix * tcoordVCVSOutput;\n"
+      "  vec3 normN = normalize(normalVCVSOutput);\n"
+      "  float k = dot(tcoordLIC, normN);\n"
+      "  tcoordLIC = (tcoordLIC - k*normN);\n"
+      "  gl_FragData[1] = vec4(tcoordLIC.x, tcoordLIC.y, 0.0 , gl_FragCoord.z);\n"
+      //   "  gl_FragData[1] = vec4(tcoordVC.xyz, gl_FragCoord.z);\n"
+      // vectors for fragment masking
+      "  if (uMaskOnSurface == 0)\n"
+      "    {\n"
+      "    gl_FragData[2] = vec4(tcoordVCVSOutput, gl_FragCoord.z);\n"
+      "    }\n"
+      "  else\n"
+      "    {\n"
+      "    gl_FragData[2] = vec4(tcoordLIC.x, tcoordLIC.y, 0.0 , gl_FragCoord.z);\n"
+      "    }\n"
+      //   "  gl_FragData[2] = vec4(19.0, 19.0, tcoordVC.x, gl_FragCoord.z);\n"
+      ,
+      false);
+  }
 
   shaders[vtkShader::Vertex]->SetSource(VSSource);
   shaders[vtkShader::Fragment]->SetSource(FSSource);
@@ -132,7 +135,7 @@ void vtkSurfaceLICMapper::SetMapperShaderParameters(
   cellBO.Program->SetUniformi("uMaskOnSurface", this->LICInterface->GetMaskOnSurface());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSurfaceLICMapper::RenderPiece(vtkRenderer* renderer, vtkActor* actor)
 {
 #ifdef vtkSurfaceLICMapperTIME
@@ -189,6 +192,7 @@ void vtkSurfaceLICMapper::RenderPiece(vtkRenderer* renderer, vtkActor* actor)
 
   // draw the geometry
   this->LICInterface->PrepareForGeometry();
+  this->UpdateCameraShiftScale(renderer, actor);
   this->RenderPieceStart(renderer, actor);
   this->RenderPieceDraw(renderer, actor);
   this->RenderPieceFinish(renderer, actor);
@@ -218,7 +222,7 @@ void vtkSurfaceLICMapper::RenderPiece(vtkRenderer* renderer, vtkActor* actor)
 #endif
 }
 
-//-------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSurfaceLICMapper::BuildBufferObjects(vtkRenderer* ren, vtkActor* act)
 {
   if (this->LICInterface->GetHasVectors())
@@ -230,7 +234,7 @@ void vtkSurfaceLICMapper::BuildBufferObjects(vtkRenderer* ren, vtkActor* act)
   this->Superclass::BuildBufferObjects(ren, act);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkSurfaceLICMapper::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

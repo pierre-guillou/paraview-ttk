@@ -78,7 +78,7 @@ struct BlockT
   vtkSmartPointer<vtkStaticPointLocator> Locator;
   vtkNew<vtkSignedCharArray> MarkedArray;
   vtkNew<vtkIntArray> UpdateFlags;
-  std::vector<std::pair<diy::BlockID, vtkBoundingBox> > Neighbors;
+  std::vector<std::pair<diy::BlockID, vtkBoundingBox>> Neighbors;
 
   void BuildLocator();
   void EnqueueAndExpand(int assoc, int round, const diy::Master::ProxyWithLink& cp);
@@ -221,7 +221,7 @@ void BlockT::Expand(int assoc, int round, const std::set<vtkIdType>& ptids)
 
 vtkStandardNewMacro(vtkExpandMarkedElements);
 vtkCxxSetObjectMacro(vtkExpandMarkedElements, Controller, vtkMultiProcessController);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExpandMarkedElements::vtkExpandMarkedElements()
 {
   this->SetController(vtkMultiProcessController::GetGlobalController());
@@ -229,13 +229,13 @@ vtkExpandMarkedElements::vtkExpandMarkedElements()
     0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_CELLS, vtkDataSetAttributes::SCALARS);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkExpandMarkedElements::~vtkExpandMarkedElements()
 {
   this->SetController(nullptr);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkExpandMarkedElements::RequestData(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -320,7 +320,7 @@ int vtkExpandMarkedElements::RequestData(
         if (src.gid != rp.gid() && in_bbx.IsValid() && in_bbx.Intersects(bbox))
         {
           vtkLogF(TRACE, "%d --> %d", rp.gid(), src.gid);
-          b->Neighbors.push_back(std::make_pair(src, in_bbx));
+          b->Neighbors.emplace_back(src, in_bbx);
         }
       }
     }
@@ -330,7 +330,7 @@ int vtkExpandMarkedElements::RequestData(
   for (int cc = 0; cc < static_cast<int>(gids.size()); ++cc)
   {
     auto b = master.block<BlockT>(cc);
-    if (b->Neighbors.size() > 0)
+    if (!b->Neighbors.empty())
     {
       auto l = new diy::Link();
       for (const auto& npair : b->Neighbors)
@@ -364,7 +364,7 @@ int vtkExpandMarkedElements::RequestData(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkExpandMarkedElements::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

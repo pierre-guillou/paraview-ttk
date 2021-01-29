@@ -43,6 +43,7 @@ class pqRenderView;
 class pqView;
 class vtkIntArray;
 class vtkObject;
+class vtkSMPVRepresentationProxy;
 
 /**
 * pqRenderViewSelectionReaction handles various selection modes available on
@@ -89,12 +90,12 @@ public:
     QActionGroup* modifierGroup = NULL);
   ~pqRenderViewSelectionReaction() override;
 
-signals:
+Q_SIGNALS:
   void selectedCustomBox(int xmin, int ymin, int xmax, int ymax);
   void selectedCustomBox(const int region[4]);
   void selectedCustomPolygon(vtkIntArray* polygon);
 
-private slots:
+private Q_SLOTS:
   /**
   * For checkable actions, this calls this->beginSelection() or
   * this->endSelection() is val is true or false, respectively. For
@@ -135,6 +136,11 @@ private slots:
   * makes the pre-selection.
   */
   void preSelection();
+
+  /**
+  * makes fast pre-selection.
+  */
+  void fastPreSelection();
 
   /**
   * callback called for mouse stop events when in 'interactive selection'
@@ -183,6 +189,8 @@ private:
   QCursor ZoomCursor;
   QTimer MouseMovingTimer;
   bool MouseMoving;
+  int MousePosition[2];
+  vtkSMPVRepresentationProxy* CurrentRepresentation = nullptr;
 
   static QPointer<pqRenderViewSelectionReaction> ActiveReaction;
 

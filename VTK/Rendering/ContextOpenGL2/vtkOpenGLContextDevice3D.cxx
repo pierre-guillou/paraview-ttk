@@ -106,7 +106,7 @@ void vtkOpenGLContextDevice3D::Initialize(vtkRenderer* ren, vtkOpenGLContextDevi
   this->Renderer = ren;
   this->RenderWindow = vtkOpenGLRenderWindow::SafeDownCast(ren->GetVTKWindow());
 }
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOpenGLContextDevice3D::Begin(vtkViewport* vtkNotUsed(viewport))
 {
   this->ModelMatrix->Identity();
@@ -364,7 +364,7 @@ void vtkOpenGLContextDevice3D::DrawPoly(
     }
     else
     {
-      glLineWidth(this->Pen->GetWidth());
+      this->RenderWindow->GetState()->vtkglLineWidth(this->Pen->GetWidth());
     }
     cbo->Program->SetUniform4uc("vertexColor", this->Pen->GetColor());
   }
@@ -376,14 +376,14 @@ void vtkOpenGLContextDevice3D::DrawPoly(
 
   // free everything
   cbo->ReleaseGraphicsResources(this->RenderWindow);
-  glLineWidth(1.0);
+  this->RenderWindow->GetState()->vtkglLineWidth(1.0);
 
   this->DisableDepthBuffer();
 
   vtkOpenGLCheckErrorMacro("failed after DrawPoly");
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOpenGLContextDevice3D::DrawLines(
   const float* verts, int n, const unsigned char* colors, int nc)
 {
@@ -405,7 +405,7 @@ void vtkOpenGLContextDevice3D::DrawLines(
   {
     vtkErrorMacro(<< "lines wider than 1.0 are not supported\n");
   }
-  glLineWidth(this->Pen->GetWidth());
+  this->RenderWindow->GetState()->vtkglLineWidth(this->Pen->GetWidth());
 
   vtkOpenGLHelper* cbo = nullptr;
   if (colors)
@@ -431,11 +431,11 @@ void vtkOpenGLContextDevice3D::DrawLines(
   this->BuildVBO(cbo, verts, n, colors, nc, nullptr);
   this->SetMatrices(cbo->Program);
 
-  glDrawArrays(GL_LINE, 0, n);
+  glDrawArrays(GL_LINES, 0, n);
 
   // free everything
   cbo->ReleaseGraphicsResources(this->RenderWindow);
-  glLineWidth(1.0);
+  this->RenderWindow->GetState()->vtkglLineWidth(1.0);
 
   this->DisableDepthBuffer();
 
@@ -452,7 +452,7 @@ void vtkOpenGLContextDevice3D::DrawPoints(
 
   this->EnableDepthBuffer();
 
-  glPointSize(this->Pen->GetWidth());
+  this->RenderWindow->GetState()->vtkglPointSize(this->Pen->GetWidth());
 
   vtkOpenGLHelper* cbo = nullptr;
   if (colors)
@@ -542,13 +542,13 @@ void vtkOpenGLContextDevice3D::ApplyBrush(vtkBrush* brush)
   this->Brush->DeepCopy(brush);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOpenGLContextDevice3D::PushMatrix()
 {
   this->ModelMatrix->Push();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkOpenGLContextDevice3D::PopMatrix()
 {
   this->ModelMatrix->Pop();

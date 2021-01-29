@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkChartXY.h"
 #include "vtkContextScene.h"
 #include "vtkContextView.h"
@@ -33,7 +36,7 @@ static int data_2009[] = { 9058, 9474, 9979, 9408, 8900, 11569, 14688, 12231, 10
 static int data_2010[] = { 9058, 10941, 9979, 10270, 8900, 11228, 14688, 12231, 10160, 9585, 9384,
   8590 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestBarGraphHorizontal(int, char*[])
 {
   // Set up a 2D scene, add an XY chart to it

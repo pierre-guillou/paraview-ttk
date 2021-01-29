@@ -289,7 +289,7 @@
           Set the radius of the sphere.
         </Documentation>
       </DoubleVectorProperty>
-      <PropertyGroup label="Sphere Parameters" panel_widget="InteractiveSphere">
+      <PropertyGroup label="Point Cloud Parameters" panel_widget="InteractiveSphere">
         <Property function="Center" name="Center" />
         <Property function="Radius" name="Radius" />
         <Property function="Input" name="Input" />
@@ -572,6 +572,7 @@
         <DoubleRangeDomain name="range" />
       </DoubleVectorProperty>
       <DoubleVectorProperty information_only="1"
+                            repeatable="1"
                             name="TimestepValues">
         <Documentation>The timesteps currently available. This property does
         not have any information helper since vtkSMTimeKeeperProxy keeps this
@@ -673,34 +674,54 @@
     </Proxy>
 
     <!-- ================================================================= -->
-    <Proxy name="CatalystOptions">
-      <Documentation>Common XML for Catalyst Specific Properties</Documentation>
-      <IntVectorProperty name="WriteFrequency"
-                       label="Write Frequency"
-                       default_values="1"
-                       number_of_elements="1">
-        <Documentation>Set how often Catalyst runs will export this data product. Zero is OK and means only when output is forced by the simulation.
-        </Documentation>
-        <IntRangeDomain min="0"
-                        name="range" />
+    <Proxy name="LogRecorder" class="vtkLogRecorder">
+      <IntVectorProperty name="RankEnabled"
+                         command="SetRankEnabled"
+                         default_values="-1"
+                         number_of_elements="1">
+        <Documentation>Set rank to enable logging.</Documentation>
       </IntVectorProperty>
-      <StringVectorProperty name="CatalystFilePattern"
-                          label="File Pattern"
-                          default_values="filename_%t.ext"
-                          number_of_elements="1">
-        <Documentation>Set the filename pattern Catalyst runs will use to export this data product.
-        </Documentation>
-      </StringVectorProperty>
-      <IntVectorProperty name="CatalystFitToScreen"
-                       label="Fit To Screen"
-                       default_values="0"
-                       number_of_elements="1">
-        <Documentation>Causes Catalyst to reset the camera with each screenshot to keep all objects in view.
-        </Documentation>
-        <BooleanDomain name="bool" />
+      <IntVectorProperty name="RankDisabled"
+                         command="SetRankDisabled"
+                         default_values="-1"
+                         number_of_elements="1">
+        <Documentation>Set rank to disable logging.</Documentation>
       </IntVectorProperty>
-
+      <Property name="ClearLogs"
+                command="ClearLogs">
+        <Documentation>Invoke to clear logs.</Documentation>
+      </Property>
+      <IntVectorProperty name="Verbosity"
+                         command="SetVerbosity"
+                         default_values="-2"
+                         number_of_elements="1">
+        <Documentation>Set verbosity of desired log entries.</Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty name="CategoryVerbosity"
+                         command="SetCategoryVerbosity"
+                         default_values="-1 0"
+                         number_of_elements="2">
+        <Documentation>Set the verbosity of a specific ParaView logging category.</Documentation>
+      </IntVectorProperty>
+      <Property name="ResetCategoryVerbosities"
+                command="ResetCategoryVerbosities">
+        <Documentation>Invoke to clear verbosity elevations.</Documentation>
+      </Property>
     </Proxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkRemoteWriterHelper" name="RemoteWriterHelper" processes="client|dataserver">
+      <Documentation>
+        Proxy used internally to help write data generated on the client-side on the data-server side.
+      </Documentation>
+      <IntVectorProperty name="OutputDestination"
+                         command="SetOutputDestination"
+                         number_of_elements="1"
+                         default_values="0"
+                         panel_visibility="never" />
+      <ProxyProperty name="Writer" command="SetWriter" />
+    </SourceProxy>
+
     <!-- End of group "misc" -->
   </ProxyGroup>
 
@@ -821,6 +842,97 @@
   </ProxyGroup>
 
   <ProxyGroup name="coprocessing">
+    <Proxy name="CatalystOptions">
+      <Documentation>
+        Catalyst options that affect the script execution when running in situ.
+      </Documentation>
+
+      <StringVectorProperty name="ExtractsOutputDirectory"
+        number_of_elements="1"
+        default_values="datasets">
+        <Documentation>
+          Choose directory under which to save all extracts.
+        </Documentation>
+        <FileListDomain name="directory" />
+        <Hints>
+          <UseDirectoryName />
+          <AcceptAnyFile />
+        </Hints>
+      </StringVectorProperty>
+
+      <IntVectorProperty name="GenerateCinemaSpecification"
+        number_of_elements="1"
+        default_values="0">
+        <Documentation>
+          Generate Cinema specification to summarize generated extracts in a file named
+          **data.csv** under the **Extracts Output Directory**.
+        </Documentation>
+        <BooleanDomain name="bool" />
+      </IntVectorProperty>
+
+      <ProxyProperty name="GlobalTrigger">
+        <ProxyListDomain name="proxy_list">
+          <Proxy group="extract_triggers" name="TimeStep" />
+        </ProxyListDomain>
+      </ProxyProperty>
+
+      <IntVectorProperty name="EnableCatalystLive"
+        number_of_elements="1"
+        default_values="0">
+        <Documentation>
+          Enable Catalyst Live which allows connecting to a Catalyst instrumented simulation
+          using the ParaView GUI.
+        </Documentation>
+        <BooleanDomain name="bool" />
+      </IntVectorProperty>
+
+      <StringVectorProperty name="CatalystLiveURL"
+        label="Catalyst Live URL"
+        number_of_elements="1"
+        default_values="localhost:22222">
+        <Documentation>
+          Specify the hostname (or IP address) and port for the node on which a ParaView client will
+          be listening for Catalyst Live connections.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+            mode="enabled_state"
+            property="EnableCatalystLive"
+            value="1" />
+        </Hints>
+      </StringVectorProperty>
+
+      <ProxyProperty name="CatalystLiveTrigger" panel_visibility="advanced">
+        <ProxyListDomain name="proxy_list">
+          <Proxy group="extract_triggers" name="TimeStep" />
+        </ProxyListDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+            mode="enabled_state"
+            property="EnableCatalystLive"
+            value="1" />
+        </Hints>
+      </ProxyProperty>
+
+      <PropertyGroup label="Directories">
+        <Property name="ExtractsOutputDirectory" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Global Options">
+        <Property name="GlobalTrigger" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Catalyst Live Options">
+        <Property name="EnableCatalystLive" />
+        <Property name="CatalystLiveURL" />
+        <Property name="CatalystLiveTrigger" />
+      </PropertyGroup>
+
+      <Hints>
+        <UseDocumentationForLabels />
+      </Hints>
+    </Proxy>
+
     <Proxy name="CatalystGlobalOptions">
       <Documentation>
         A proxy used to maintain global Catalyst state. This, combined with the pipeline shape and a choice of writers and screenshots define what Catalyst will do with and produce from the data that the simulation gives to it.
@@ -847,15 +959,30 @@
         </Documentation>
       </IntVectorProperty>
 
-      <StringVectorProperty name="RootDirectory"
+      <StringVectorProperty name="DataExtractsRootDirectory"
                             number_of_elements="1"
                             default_values="">
         <FileListDomain name="directory" />
         <Hints>
           <UseDirectoryName/>
+          <AcceptAnyFile />
         </Hints>
         <Documentation>
-          Defines a top level directory where Catalyst output files are placed under.
+          Defines a top level directory where data extracts are placed under.
+        </Documentation>
+      </StringVectorProperty>
+
+      <StringVectorProperty name="ImageExtractsRootDirectory"
+                            number_of_elements="1"
+                            default_values="">
+        <FileListDomain name="directory" />
+        <Hints>
+          <UseDirectoryName/>
+          <BrowseLocalFileSystem />
+          <AcceptAnyFile />
+        </Hints>
+        <Documentation>
+          Defines a top level directory where image extracts are placed under.
         </Documentation>
       </StringVectorProperty>
 
@@ -1435,6 +1562,7 @@
           <Entry text="only *user-modified* properites" value="2" />
         </EnumerationDomain>
       </IntVectorProperty>
+
       <IntVectorProperty name="FullyTraceSupplementalProxies"
         number_of_elements="1"
         default_values="0">
@@ -1444,6 +1572,16 @@
           when accessed the first time in trace.
         </Documentation>
       </IntVectorProperty>
+
+      <IntVectorProperty name="SkipRenderingComponents"
+        number_of_elements="1"
+        default_values="0">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Skip rendering components such as views, representations, etc.
+        </Documentation>
+      </IntVectorProperty>
+
       <IntVectorProperty name="ShowIncrementalTrace"
           default_values="0"
           number_of_elements="1">
@@ -1452,6 +1590,7 @@
             Show trace as it is being generated.
           </Documentation>
       </IntVectorProperty>
+
       <PropertyGroup label="General options">
         <Property name="PropertiesToTraceOnCreate" />
       </PropertyGroup>
@@ -1459,6 +1598,7 @@
         <Property name="FullyTraceSupplementalProxies" />
       </PropertyGroup>
       <PropertyGroup label="Miscellaneous">
+        <Property name="SkipRenderingComponents" />
         <Property name="ShowIncrementalTrace" />
       </PropertyGroup>
       <Hints>
@@ -1486,6 +1626,14 @@
           -->
         </EnumerationDomain>
       </IntVectorProperty>
+      <IntVectorProperty name="SkipRenderingComponents"
+        number_of_elements="1"
+        default_values="0">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Skip rendering components such as views, representations, etc.
+        </Documentation>
+      </IntVectorProperty>
       <IntVectorProperty name="SkipHiddenDisplayProperties"
           default_values="1"
           number_of_elements="1">
@@ -1493,11 +1641,31 @@
           <Documentation>
             Skip displays properties/representations for elements hidden in a view.
           </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator
+            type="GenericDecorator"
+            mode="enabled_state"
+            property="SkipRenderingComponents" value="0">
+          </PropertyWidgetDecorator>
+        </Hints>
       </IntVectorProperty>
-      <PropertyGroup label="General options">
+      <SubProxy>
+        <Proxy name="SaveExtractsOptions" proxygroup="misc" proxyname="SaveAnimationExtracts"/>
+        <ExposedProperties>
+          <Property name="ExtractsOutputDirectory" />
+        </ExposedProperties>
+      </SubProxy>
+
+      <PropertyGroup label="General Options">
         <Property name="PropertiesToTraceOnCreate" />
+        <Property name="SkipRenderingComponents" />
         <Property name="SkipHiddenDisplayProperties" />
       </PropertyGroup>
+
+      <PropertyGroup label="Save Extracts Options">
+        <Property name="ExtractsOutputDirectory" />
+      </PropertyGroup>
+
       <Hints>
         <UseDocumentationForLabels />
       </Hints>

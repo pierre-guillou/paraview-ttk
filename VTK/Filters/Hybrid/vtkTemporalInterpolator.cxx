@@ -36,7 +36,7 @@
 
 vtkStandardNewMacro(vtkTemporalInterpolator);
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTemporalInterpolator::vtkTemporalInterpolator()
 {
   this->DiscreteTimeStepInterval = 0.0; // non value
@@ -52,10 +52,10 @@ vtkTemporalInterpolator::vtkTemporalInterpolator()
   this->NumberOfCacheEntries = 2;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTemporalInterpolator::~vtkTemporalInterpolator() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTemporalInterpolator::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -64,7 +64,7 @@ void vtkTemporalInterpolator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "DiscreteTimeStepInterval: " << this->DiscreteTimeStepInterval << "\n";
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTemporalInterpolator::FillInputPortInformation(int port, vtkInformation* info)
 {
   if (port == 0)
@@ -74,14 +74,14 @@ int vtkTemporalInterpolator::FillInputPortInformation(int port, vtkInformation* 
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTemporalInterpolator::FillOutputPortInformation(int vtkNotUsed(port), vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkDataObject");
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTemporalInterpolator::RequestDataObject(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -117,7 +117,7 @@ int vtkTemporalInterpolator::RequestDataObject(
   return 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Change the information
 int vtkTemporalInterpolator::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
@@ -311,26 +311,27 @@ int vtkTemporalInterpolator::RequestUpdateExtent(vtkInformation* vtkNotUsed(requ
   return 1;
 }
 
-//----------------------------------------------------------------------------
-bool vtkTemporalInterpolator ::VerifyArrays(vtkDataArray** arrays, int N)
+//------------------------------------------------------------------------------
+vtkTemporalInterpolator::ArrayMatch vtkTemporalInterpolator::VerifyArrays(
+  vtkDataArray** arrays, int N)
 {
   vtkIdType Nt = arrays[0]->GetNumberOfTuples();
   vtkIdType Nc = arrays[0]->GetNumberOfComponents();
   for (int i = 1; i < N; ++i)
   {
-    if (arrays[i]->GetNumberOfTuples() != Nt)
-    {
-      return false;
-    }
     if (arrays[i]->GetNumberOfComponents() != Nc)
     {
-      return false;
+      return MISMATCHED_COMPS;
+    }
+    if (arrays[i]->GetNumberOfTuples() != Nt)
+    {
+      return MISMATCHED_TUPLES;
     }
   }
-  return true;
+  return MATCHED;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObject* vtkTemporalInterpolator ::InterpolateDataObject(
   vtkDataObject* in1, vtkDataObject* in2, double ratio)
 {
@@ -389,7 +390,7 @@ vtkDataObject* vtkTemporalInterpolator ::InterpolateDataObject(
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataSet* vtkTemporalInterpolator ::InterpolateDataSet(
   vtkDataSet* in1, vtkDataSet* in2, double ratio)
 {
@@ -419,7 +420,7 @@ vtkDataSet* vtkTemporalInterpolator ::InterpolateDataSet(
 
       // allocate double for output if input is double - otherwise float
       // do a quick check to see if all arrays have the same number of tuples
-      if (!this->VerifyArrays(arrays, 2))
+      if (this->VerifyArrays(arrays, 2) != MATCHED)
       {
         vtkWarningMacro("Interpolation aborted for points because the number of "
                         "tuples/components in each time step are different");
@@ -486,7 +487,7 @@ vtkDataSet* vtkTemporalInterpolator ::InterpolateDataSet(
     if (arrays[1])
     {
       // do a quick check to see if all arrays have the same number of tuples
-      if (!this->VerifyArrays(&arrays[0], 2))
+      if (this->VerifyArrays(&arrays[0], 2) != MATCHED)
       {
         vtkWarningMacro(<< "Interpolation aborted for array "
                         << (scalarname ? scalarname : "(unnamed array)")
@@ -541,7 +542,7 @@ vtkDataSet* vtkTemporalInterpolator ::InterpolateDataSet(
     if (arrays[1])
     {
       // do a quick check to see if all arrays have the same number of tuples
-      if (!this->VerifyArrays(&arrays[0], 2))
+      if (this->VerifyArrays(&arrays[0], 2) != MATCHED)
       {
         vtkWarningMacro(<< "Interpolation aborted for array "
                         << (scalarname ? scalarname : "(unnamed array)")
@@ -588,7 +589,7 @@ struct vtkTemporalExecute
 };
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataArray* vtkTemporalInterpolator ::InterpolateDataArray(
   double ratio, vtkDataArray** arrays, vtkIdType numTuples)
 {

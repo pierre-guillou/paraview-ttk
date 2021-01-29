@@ -495,13 +495,8 @@ void pqFlatTreeView::setHeader(QHeaderView* headerView)
     // Set up the default header view.
     this->HeaderView = new QHeaderView(Qt::Horizontal, this->viewport());
     this->HeaderView->setSortIndicatorShown(false);
-#if QT_VERSION >= 0x050000
     this->HeaderView->setSectionsClickable(false);
     this->HeaderView->setSectionResizeMode(QHeaderView::Interactive);
-#else
-    this->HeaderView->setClickable(false);
-    this->HeaderView->setResizeMode(QHeaderView::Interactive);
-#endif
     this->HeaderOwned = true;
   }
 
@@ -2014,7 +2009,7 @@ void pqFlatTreeView::keyPressEvent(QKeyEvent* e)
       {
         if (current.isValid())
         {
-          emit this->activated(current);
+          Q_EMIT this->activated(current);
         }
       }
       else
@@ -2040,7 +2035,7 @@ void pqFlatTreeView::keyPressEvent(QKeyEvent* e)
     {
       if (current.isValid())
       {
-        emit this->activated(current);
+        Q_EMIT this->activated(current);
       }
 
       break;
@@ -2296,7 +2291,7 @@ void pqFlatTreeView::mousePressEvent(QMouseEvent* e)
     // If the item was not edited, send the clicked signal.
     if (sendClicked)
     {
-      emit this->clicked(index);
+      Q_EMIT this->clicked(index);
     }
   }
 }
@@ -2367,7 +2362,7 @@ void pqFlatTreeView::mouseDoubleClickEvent(QMouseEvent* e)
 
     if (this->Model->flags(index) & Qt::ItemIsEnabled)
     {
-      emit this->activated(index);
+      Q_EMIT this->activated(index);
     }
   }
 }
@@ -3144,7 +3139,7 @@ int pqFlatTreeView::getDataWidth(const QModelIndex& index, const QFontMetrics& f
   else
   {
     // Find the font width for the string.
-    return fm.width(indexData.toString());
+    return fm.horizontalAdvance(indexData.toString());
   }
 }
 
@@ -3728,7 +3723,7 @@ void pqFlatTreeView::drawData(QPainter& painter, int px, int py, const QModelInd
     {
       // Set the text color based on the highlighted state.
       painter.save();
-      QVariant color = this->Model->data(index, Qt::TextColorRole);
+      QVariant color = this->Model->data(index, Qt::ForegroundRole);
       if (selected)
       {
         painter.setPen(options.palette.color(QPalette::Normal, QPalette::HighlightedText));
@@ -3769,8 +3764,7 @@ void pqFlatTreeView::drawData(QPainter& painter, int px, int py, const QModelInd
       // so it fits. Use the text elide style from the options.
       if (itemWidth > columnWidth)
       {
-        text = QAbstractItemDelegate::elidedText(
-          options.fontMetrics, columnWidth, options.textElideMode, text);
+        text = options.fontMetrics.elidedText(text, options.textElideMode, columnWidth);
       }
 
       painter.drawText(px, py + fontAscent, text);

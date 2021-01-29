@@ -118,6 +118,7 @@
 #define VTKIS_TOGGLE_DRAW_CONTROLS 16 // draw device controls helpers
 #define VTKIS_MENU 17                 // invoke an application menu
 #define VTKIS_GESTURE 18              // touch interaction in progress
+#define VTKIS_ENV_ROTATE 19           // rotate the renderer environment texture
 
 #define VTKIS_ANIM_OFF 0
 #define VTKIS_ANIM_ON 1
@@ -131,6 +132,7 @@ class vtkOutlineSource;
 class vtkPolyDataMapper;
 class vtkProp3D;
 class vtkProp;
+class vtkStringArray;
 class vtkTDxInteractorStyle;
 
 class VTKRENDERINGCORE_EXPORT vtkInteractorStyle : public vtkInteractorObserver
@@ -228,8 +230,13 @@ public:
   virtual void OnMiddleButtonUp() {}
   virtual void OnRightButtonDown() {}
   virtual void OnRightButtonUp() {}
+  virtual void OnLeftButtonDoubleClick() {}
+  virtual void OnMiddleButtonDoubleClick() {}
+  virtual void OnRightButtonDoubleClick() {}
   virtual void OnMouseWheelForward() {}
   virtual void OnMouseWheelBackward() {}
+  virtual void OnMouseWheelLeft() {}
+  virtual void OnMouseWheelRight() {}
   virtual void OnFourthButtonDown() {}
   virtual void OnFourthButtonUp() {}
   virtual void OnFifthButtonDown() {}
@@ -293,6 +300,7 @@ public:
   virtual void Dolly() {}
   virtual void Zoom() {}
   virtual void UniformScale() {}
+  virtual void EnvironmentRotate() {}
 
   /**
    * gesture based events
@@ -344,7 +352,24 @@ public:
   virtual void EndTwoPointer();
   virtual void StartGesture();
   virtual void EndGesture();
+  virtual void StartEnvRotate();
+  virtual void EndEnvRotate();
   //@}
+
+  /**
+   * When the mouse location is updated while dragging files.
+   * The argument contains the position relative to the window of the mouse
+   * where the files are dropped.
+   * It is called before OnDropFiles.
+   */
+  virtual void OnDropLocation(double* vtkNotUsed(position)) {}
+
+  /**
+   * When files are dropped on the render window.
+   * The argument contains the list of file paths dropped.
+   * It is called after OnDropLocation.
+   */
+  virtual void OnDropFiles(vtkStringArray* vtkNotUsed(filePaths)) {}
 
   //@{
   /**

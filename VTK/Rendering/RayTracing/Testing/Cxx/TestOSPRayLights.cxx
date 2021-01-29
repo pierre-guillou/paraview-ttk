@@ -73,13 +73,13 @@ int TestOSPRayLights(int argc, char* argv[])
   vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
   normals->SetInputConnection(polysource->GetOutputPort());
 
+  const double DIFF = 0.7;
   vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
   mapper->SetInputConnection(normals->GetOutputPort());
   vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
   actor->SetMapper(mapper);
   actor->GetProperty()->SetColor(1.0, 1.0, 1.0);
-  actor->GetProperty()->SetAmbient(0.1);
-  actor->GetProperty()->SetDiffuse(1);
+  actor->GetProperty()->SetDiffuse(DIFF);
   actor->GetProperty()->SetSpecularColor(1, 1, 1);
   actor->GetProperty()->SetSpecular(0.9);
   actor->GetProperty()->SetSpecularPower(500);
@@ -94,8 +94,7 @@ int TestOSPRayLights(int argc, char* argv[])
   actor = vtkSmartPointer<vtkActor>::New();
   actor->SetMapper(mapper);
   actor->GetProperty()->SetColor(1.0, 1.0, 1.0);
-  actor->GetProperty()->SetAmbient(0.1);
-  actor->GetProperty()->SetDiffuse(1);
+  actor->GetProperty()->SetDiffuse(DIFF);
   actor->GetProperty()->SetSpecular(0);
   renderer->AddActor(actor);
 
@@ -107,8 +106,7 @@ int TestOSPRayLights(int argc, char* argv[])
   mapper->SetInputConnection(floor->GetOutputPort());
   actor = vtkSmartPointer<vtkActor>::New();
   actor->GetProperty()->SetColor(1.0, 1.0, 1.0);
-  actor->GetProperty()->SetAmbient(0.1);
-  actor->GetProperty()->SetDiffuse(1);
+  actor->GetProperty()->SetDiffuse(DIFF);
   actor->GetProperty()->SetSpecular(0);
   actor->SetMapper(mapper);
   renderer->AddActor(actor);
@@ -121,14 +119,12 @@ int TestOSPRayLights(int argc, char* argv[])
   mapper->SetInputConnection(left->GetOutputPort());
   actor = vtkSmartPointer<vtkActor>::New();
   actor->GetProperty()->SetColor(1.0, 1.0, 1.0);
-  actor->GetProperty()->SetAmbient(0.1);
-  actor->GetProperty()->SetDiffuse(1);
+  actor->GetProperty()->SetDiffuse(DIFF);
   actor->GetProperty()->SetSpecular(0);
   actor->SetMapper(mapper);
   renderer->AddActor(actor);
 
   vtkSmartPointer<vtkSphereSource> magnifier = vtkSmartPointer<vtkSphereSource>::New();
-  // TODO: use PathTracer_Dielectric material for this when available
   magnifier->SetCenter(x0 + (x1 - x0) * 0.6, y0 + (y1 - y0) * 0.2, z0 + (z1 - z0) * 0.7);
   magnifier->SetRadius((x1 - x0) * 0.05);
   magnifier->SetPhiResolution(30);
@@ -137,14 +133,13 @@ int TestOSPRayLights(int argc, char* argv[])
   mapper->SetInputConnection(magnifier->GetOutputPort());
   actor = vtkSmartPointer<vtkActor>::New();
   actor->GetProperty()->SetColor(1.0, 1.0, 1.0);
-  actor->GetProperty()->SetAmbient(0.1);
-  actor->GetProperty()->SetDiffuse(1);
-  actor->GetProperty()->SetSpecular(0);
+  actor->GetProperty()->SetInterpolationToPBR();
+  actor->GetProperty()->SetMetallic(0.0);
+  actor->GetProperty()->SetRoughness(0.1);
   actor->SetMapper(mapper);
   renderer->AddActor(actor);
 
   vtkSmartPointer<vtkSphereSource> discoball = vtkSmartPointer<vtkSphereSource>::New();
-  // TODO: use PathTracer_Metal material for this when available
   discoball->SetCenter(x0 + (x1 - x0) * 0.5, y0 + (y1 - y0) * 0.85, z0 + (z1 - z0) * 0.5);
   discoball->SetRadius((x1 - x0) * 0.1);
   discoball->SetPhiResolution(30);
@@ -153,11 +148,12 @@ int TestOSPRayLights(int argc, char* argv[])
   mapper->SetInputConnection(discoball->GetOutputPort());
   actor = vtkSmartPointer<vtkActor>::New();
   actor->GetProperty()->SetColor(1.0, 1.0, 1.0);
-  actor->GetProperty()->SetAmbient(0.1);
-  actor->GetProperty()->SetDiffuse(1);
-  actor->GetProperty()->SetSpecular(0);
+  actor->GetProperty()->SetMetallic(1.0);
+  actor->GetProperty()->SetRoughness(0.1);
   actor->SetMapper(mapper);
   renderer->AddActor(actor);
+
+#define INTENS 0.2
 
   vtkSmartPointer<vtkLight> light = vtkSmartPointer<vtkLight>::New();
   // blue light casting shadows from infinity toward bottom left back corner
@@ -166,7 +162,7 @@ int TestOSPRayLights(int argc, char* argv[])
   light->SetFocalPoint(x0, y0, z0);
   light->SetLightTypeToSceneLight();
   light->SetColor(0.0, 0.0, 1.0);
-  light->SetIntensity(0.3);
+  light->SetIntensity(INTENS);
   light->SwitchOn();
   renderer->AddLight(light);
 
@@ -178,7 +174,7 @@ int TestOSPRayLights(int argc, char* argv[])
   light->SetFocalPoint(x0 + (x1 - x0) * 0.5, y0 + (y1 - y0) * 0, z0 + (z1 - z0) * 0.5);
   light->SetLightTypeToSceneLight();
   light->SetColor(1.0, 0.0, 0.0);
-  light->SetIntensity(0.3);
+  light->SetIntensity(INTENS);
   light->SwitchOn();
   renderer->AddLight(light);
 
@@ -187,7 +183,7 @@ int TestOSPRayLights(int argc, char* argv[])
   light->PositionalOn();
   light->SetLightTypeToHeadlight();
   light->SetColor(0.0, 1.0, 0.0);
-  light->SetIntensity(0.3);
+  light->SetIntensity(INTENS);
   light->SwitchOn();
   renderer->AddLight(light);
 
@@ -196,6 +192,7 @@ int TestOSPRayLights(int argc, char* argv[])
 
   vtkSmartPointer<vtkOSPRayPass> ospray = vtkSmartPointer<vtkOSPRayPass>::New();
   renderer->SetPass(ospray);
+  vtkOSPRayRendererNode::SetRendererType("OSPRay pathtracer", renderer);
 
   for (int i = 0; i < argc; ++i)
   {
@@ -209,8 +206,8 @@ int TestOSPRayLights(int argc, char* argv[])
   // increase image quality from default (otherwise subsampling artifacts)
   renWin->Render();
   renderer->UseShadowsOn();
-  vtkOSPRayRendererNode::SetMaxFrames(5, renderer);
-  vtkOSPRayRendererNode::SetSamplesPerPixel(4, renderer);
+  vtkOSPRayRendererNode::SetMaxFrames(0, renderer);
+  vtkOSPRayRendererNode::SetSamplesPerPixel(20, renderer);
 
   vtkSmartPointer<vtkOSPRayTestInteractor> style = vtkSmartPointer<vtkOSPRayTestInteractor>::New();
   style->SetPipelineControlPoints(renderer, ospray, nullptr);

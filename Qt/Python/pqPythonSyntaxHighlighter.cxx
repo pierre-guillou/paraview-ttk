@@ -124,7 +124,7 @@ pqPythonSyntaxHighlighter::pqPythonSyntaxHighlighter(QTextEdit* textEdit, QObjec
   this->Internals->TextEdit->setFont(font);
   // Set tab width equal to 4 spaces
   QFontMetrics metrics = this->Internals->TextEdit->fontMetrics();
-  this->Internals->TextEdit->setTabStopWidth(metrics.width("    "));
+  this->Internals->TextEdit->setTabStopDistance(metrics.horizontalAdvance("    "));
   this->rehighlightSyntax();
 }
 

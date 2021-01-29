@@ -33,8 +33,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define pqChooseColorPresetReaction_h
 
 #include "pqReaction.h"
-#include "vtkWeakPointer.h" // needed for vtkWeakPointer.
-#include <QPointer>         // needed for QPointer
+#include "vtkWeakPointer.h"   // needed for vtkWeakPointer.
+#include <QPointer>           // needed for QPointer
+#include <QRegularExpression> // needed for QRegularExpression.
 
 class pqDataRepresentation;
 class pqPresetDialog;
@@ -76,13 +77,13 @@ public:
   pqChooseColorPresetReaction(QAction* parent, bool track_active_objects = true);
   ~pqChooseColorPresetReaction() override;
 
-public slots:
+public Q_SLOTS:
   /**
   * Choose color preset for the representation set using setRepresentation().
   * Returns false if representation cannot be located or its is not using
   * scalar coloring.
   */
-  bool choosePreset(const char* presetName = NULL);
+  bool choosePreset(const char* presetName = nullptr);
 
   /**
   * Set the data representation explicitly when track_active_objects is false.
@@ -102,13 +103,30 @@ public slots:
   */
   void updateEnableState() override;
 
-signals:
   /**
-  * fired every time a preset is applied.
-  */
-  void presetApplied();
+   * Show/hide widget in the dialog.
+   * Allows a regexp as user entry to do the matching between data values and preset.
+   * Intended to be used for series preset.
+   */
+  void setAllowsRegexpMatching(bool allow) { this->AllowsRegexpMatching = allow; }
 
-private slots:
+  /**
+   * Return the regular expression specified in the Dialog.
+   */
+  QRegularExpression regularExpression();
+
+  /**
+   * Return if annotations should be loaded.
+   */
+  bool loadAnnotations();
+
+Q_SIGNALS:
+  /**
+   * fired every time a preset is applied.
+   */
+  void presetApplied(const QString&);
+
+private Q_SLOTS:
   void applyCurrentPreset();
 
   /**
@@ -128,6 +146,7 @@ private:
   QPointer<pqDataRepresentation> Representation;
   vtkWeakPointer<vtkSMProxy> TransferFunctionProxy;
   static QPointer<pqPresetDialog> PresetDialog;
+  bool AllowsRegexpMatching;
 };
 
 #endif

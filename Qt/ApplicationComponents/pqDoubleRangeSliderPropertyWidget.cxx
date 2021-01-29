@@ -38,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqProxyWidget.h"
 #include "pqWidgetRangeDomain.h"
 #include "vtkCommand.h"
+#include "vtkPVXMLElement.h"
 #include "vtkSMBoundsDomain.h"
 #include "vtkSMProperty.h"
 #include "vtkSMUncheckedPropertyHelper.h"
@@ -88,6 +89,32 @@ pqDoubleRangeSliderPropertyWidget::pqDoubleRangeSliderPropertyWidget(
   new pqWidgetRangeDomain(ui.ThresholdBetween_0, "minimum", "maximum", smProperty, 0);
   new pqWidgetRangeDomain(ui.ThresholdBetween_1, "minimum", "maximum", smProperty, 1);
   this->setProperty(smProperty);
+
+  // Process hints for customization
+  vtkPVXMLElement* hints = smProperty->GetHints();
+  if (hints)
+  {
+    if (hints->FindNestedElementByName("HideResetButton"))
+    {
+      ui.Reset->setVisible(false);
+    }
+    if (vtkPVXMLElement* minLabelXML = hints->FindNestedElementByName("MinimumLabel"))
+    {
+      const char* minLabel = minLabelXML->GetAttribute("text");
+      if (minLabel)
+      {
+        ui.MinLabel->setText(minLabel);
+      }
+    }
+    if (vtkPVXMLElement* maxLabelXML = hints->FindNestedElementByName("MaximumLabel"))
+    {
+      const char* maxLabel = maxLabelXML->GetAttribute("text");
+      if (maxLabel)
+      {
+        ui.MaxLabel->setText(maxLabel);
+      }
+    }
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -124,8 +151,8 @@ void pqDoubleRangeSliderPropertyWidget::resetClicked()
   smproperty->ResetToDomainDefaults(/*use_unchecked_values*/ true);
 
   this->highlightResetButton(false);
-  emit this->changeAvailable();
-  emit this->changeFinished();
+  Q_EMIT this->changeAvailable();
+  Q_EMIT this->changeFinished();
 }
 
 //-----------------------------------------------------------------------------
@@ -137,7 +164,7 @@ void pqDoubleRangeSliderPropertyWidget::lowerChanged(double val)
     this->Internals->Ui.ThresholdBetween_1->setValue(val);
   }
 
-  emit this->changeFinished();
+  Q_EMIT this->changeFinished();
 }
 
 //-----------------------------------------------------------------------------
@@ -149,5 +176,5 @@ void pqDoubleRangeSliderPropertyWidget::upperChanged(double val)
     this->Internals->Ui.ThresholdBetween_0->setValue(val);
   }
 
-  emit this->changeFinished();
+  Q_EMIT this->changeFinished();
 }

@@ -40,7 +40,7 @@
 #include <string>
 #include <vtksys/CommandLineArguments.hxx>
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 static inline int CLAMP(int a, int low, int high)
 {
   a = (a < low) ? low : a;
@@ -48,7 +48,7 @@ static inline int CLAMP(int a, int low, int high)
   return a;
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
 {
   std::string filename;
@@ -93,7 +93,7 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
   arg.AddArgument(
     "--zoom-factor", argT::EQUAL_ARGUMENT, &zoom_factor, "(optional: default 2.8) set camera zoom");
 
-  if (!arg.Parse() || filename == "")
+  if (!arg.Parse() || filename.empty())
   {
     cerr << "Problem parsing arguments." << endl;
     cerr << arg.GetHelp() << endl;
@@ -206,7 +206,7 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
 
   filter->SetInputConnection(extractVOI->GetOutputPort());
 
-  if (noise_filename != "")
+  if (!noise_filename.empty())
   {
     vtkSmartPointer<vtkPNGReader> pngReader = vtkSmartPointer<vtkPNGReader>::New();
 
@@ -314,7 +314,7 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
   return reply;
 }
 
-// --------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int StructuredGridLIC2DDemo(int argc, char* argv[])
 {
   return vtkStructuredGridLIC2DTestDriver(argc, argv);

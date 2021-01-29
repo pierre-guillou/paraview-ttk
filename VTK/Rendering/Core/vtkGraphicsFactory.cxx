@@ -52,7 +52,7 @@ const char* vtkGraphicsFactory::GetRenderLibrary()
     {
       temp = "Win32OpenGL";
     }
-    else if (strcmp("OpenGL", temp) && strcmp("Win32OpenGL", temp))
+    else if (strcmp("OpenGL", temp) != 0 && strcmp("Win32OpenGL", temp) != 0)
     {
       vtkGenericWarningMacro(<< "VTK_RENDERER set to unsupported type:" << temp);
       temp = nullptr;
@@ -87,7 +87,7 @@ vtkObject* vtkGraphicsFactory::CreateInstance(const char* vtkclassname)
   return nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGraphicsFactory::SetUseMesaClasses(int use)
 {
   vtkUseMesaClassesCriticalSection.Lock();
@@ -95,13 +95,13 @@ void vtkGraphicsFactory::SetUseMesaClasses(int use)
   vtkUseMesaClassesCriticalSection.Unlock();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGraphicsFactory::GetUseMesaClasses()
 {
   return vtkGraphicsFactory::UseMesaClasses;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGraphicsFactory::SetOffScreenOnlyMode(int use)
 {
   vtkOffScreenOnlyModeCriticalSection.Lock();
@@ -109,13 +109,13 @@ void vtkGraphicsFactory::SetOffScreenOnlyMode(int use)
   vtkOffScreenOnlyModeCriticalSection.Unlock();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGraphicsFactory::GetOffScreenOnlyMode()
 {
   return vtkGraphicsFactory::OffScreenOnlyMode;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGraphicsFactory::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

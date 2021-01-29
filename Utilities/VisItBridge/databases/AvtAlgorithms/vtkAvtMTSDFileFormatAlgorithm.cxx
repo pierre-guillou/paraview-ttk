@@ -99,6 +99,7 @@ int vtkAvtMTSDFileFormatAlgorithm::RequestData(vtkInformation *request,
     }
   this->FillMultiBlock(output,TimeIndex);
   this->CleanupAVTReader();
+  this->SetupGhostInformation(outInfo);
   return 1;
 }
 

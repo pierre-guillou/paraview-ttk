@@ -38,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkGraph.h"
 #include "vtkInEdgeIterator.h"
 #include "vtkMemberFunctionCommand.h"
+#include "vtkNew.h"
 #include "vtkOutEdgeIterator.h"
 #include "vtkSMSILDomain.h"
 #include "vtkSMSILModel.h"
@@ -84,7 +85,7 @@ pqSILModel::~pqSILModel()
 void pqSILModel::update()
 {
   this->beginResetModel();
-  bool prev = this->blockSignals(true);
+  const bool prev = this->blockSignals(true);
   auto sil = this->SILDomain->GetSIL();
   this->SILModel->Initialize(sil);
   this->ModelIndexCache->clear();
@@ -92,22 +93,23 @@ void pqSILModel::update()
   // Update the list of hierarchies.
   this->Hierarchies.clear();
   this->HierarchyVertexIds.clear();
-
-  vtkStringArray* names =
-    vtkStringArray::SafeDownCast(sil->GetVertexData()->GetAbstractArray("Names"));
-  vtkAdjacentVertexIterator* iter = vtkAdjacentVertexIterator::New();
-  sil->GetAdjacentVertices(0, iter);
-  int childNo = 0;
-  while (iter->HasNext())
+  if (sil)
   {
-    vtkIdType vertexid = iter->Next();
-    QString hierarchyName = QString(names->GetValue(vertexid));
-    this->Hierarchies[hierarchyName] =
-      this->createIndex(childNo, 0, static_cast<quint32>(vertexid));
-    this->collectLeaves(vertexid, this->HierarchyVertexIds[hierarchyName]);
-    childNo++;
+    vtkStringArray* names =
+      vtkStringArray::SafeDownCast(sil->GetVertexData()->GetAbstractArray("Names"));
+    vtkNew<vtkAdjacentVertexIterator> iter;
+    sil->GetAdjacentVertices(0, iter);
+    int childNo = 0;
+    while (iter->HasNext())
+    {
+      vtkIdType vertexid = iter->Next();
+      QString hierarchyName = QString(names->GetValue(vertexid));
+      this->Hierarchies[hierarchyName] =
+        this->createIndex(childNo, 0, static_cast<quint32>(vertexid));
+      this->collectLeaves(vertexid, this->HierarchyVertexIds[hierarchyName]);
+      childNo++;
+    }
   }
-  iter->Delete();
   this->blockSignals(prev);
   this->endResetModel();
 }
@@ -166,7 +168,7 @@ void pqSILModel::setStatus(const QString& hierarchyName, const QList<QVariant>& 
       this->SILModel->SetCheckState(vertex, vtkSMSILModel::UNCHECKED);
     }
   }
-  emit this->checkStatusChanged();
+  Q_EMIT this->checkStatusChanged();
 }
 
 //-----------------------------------------------------------------------------
@@ -434,7 +436,7 @@ bool pqSILModel::setData(const QModelIndex& idx, const QVariant& value, int role
     bool checked = (value.toInt() == Qt::Checked);
     this->SILModel->SetCheckState(
       vertexId, checked ? vtkSMSILModel::CHECKED : vtkSMSILModel::UNCHECKED);
-    emit this->checkStatusChanged();
+    Q_EMIT this->checkStatusChanged();
     return true;
   }
 
@@ -446,7 +448,7 @@ Qt::ItemFlags pqSILModel::flags(const QModelIndex& idx) const
 {
   if (!INDEX_IS_VALID(idx))
   {
-    return 0;
+    return Qt::ItemFlags{};
   }
 
   vtkIdType vertexId = 0;
@@ -471,5 +473,5 @@ void pqSILModel::checkStateUpdated(
 {
   vtkIdType vertexId = *reinterpret_cast<vtkIdType*>(calldata);
   QModelIndex idx = this->makeIndex(vertexId);
-  emit this->dataChanged(idx, idx, QVector<int>{ Qt::CheckStateRole });
+  Q_EMIT this->dataChanged(idx, idx, QVector<int>{ Qt::CheckStateRole });
 }

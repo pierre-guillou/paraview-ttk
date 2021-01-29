@@ -178,12 +178,13 @@ public:
                        const IdHandle& faceOffsets,
                        const IdHandle& cellConn,
                        const IdHandle& cellOffsets,
-                       const UCharHandle& shapes)
-    : FaceConnPortal(faceConnectivity.PrepareForInput(Device()))
-    , FaceOffsetsPortal(faceOffsets.PrepareForInput(Device()))
-    , CellConnPortal(cellConn.PrepareForInput(Device()))
-    , CellOffsetsPortal(cellOffsets.PrepareForInput(Device()))
-    , ShapesPortal(shapes.PrepareForInput(Device()))
+                       const UCharHandle& shapes,
+                       vtkm::cont::Token& token)
+    : FaceConnPortal(faceConnectivity.PrepareForInput(Device(), token))
+    , FaceOffsetsPortal(faceOffsets.PrepareForInput(Device(), token))
+    , CellConnPortal(cellConn.PrepareForInput(Device(), token))
+    , CellOffsetsPortal(cellOffsets.PrepareForInput(Device(), token))
+    , ShapesPortal(shapes.PrepareForInput(Device(), token))
   {
   }
 
@@ -218,7 +219,7 @@ public:
   VTKM_EXEC
   vtkm::UInt8 GetCellShape(const vtkm::Id& cellId) const override
   {
-    BOUNDS_CHECK(ShapesPortal, cellId)
+    BOUNDS_CHECK(ShapesPortal, cellId);
     return ShapesPortal.Get(cellId);
   }
 
@@ -253,10 +254,11 @@ public:
                      CountingHandle& cellOffsets,
                      vtkm::Int32 shapeId,
                      vtkm::Int32 numIndices,
-                     vtkm::Int32 numFaces)
-    : FaceConnPortal(faceConn.PrepareForInput(Device()))
-    , CellConnectivityPortal(cellConn.PrepareForInput(Device()))
-    , CellOffsetsPortal(cellOffsets.PrepareForInput(Device()))
+                     vtkm::Int32 numFaces,
+                     vtkm::cont::Token& token)
+    : FaceConnPortal(faceConn.PrepareForInput(Device(), token))
+    , CellConnectivityPortal(cellConn.PrepareForInput(Device(), token))
+    , CellOffsetsPortal(cellOffsets.PrepareForInput(Device(), token))
     , ShapeId(shapeId)
     , NumIndices(numIndices)
     , NumFaces(numFaces)
@@ -328,19 +330,19 @@ VTKM_CONT MeshConnHandle make_MeshConnHandle(MeshConnType&& func,
 }
 } //namespace vtkm::rendering::raytracing
 
-#ifdef VTKM_CUDA
 
 // Cuda seems to have a bug where it expects the template class VirtualObjectTransfer
 // to be instantiated in a consistent order among all the translation units of an
 // executable. Failing to do so results in random crashes and incorrect results.
 // We workaroud this issue by explicitly instantiating VirtualObjectTransfer for
 // all the implicit functions here.
-
-#include <vtkm/cont/cuda/internal/VirtualObjectTransferCuda.h>
+#ifdef VTKM_CUDA
+#include <vtkm/cont/internal/VirtualObjectTransferInstantiate.h>
 VTKM_EXPLICITLY_INSTANTIATE_TRANSFER(vtkm::rendering::raytracing::MeshConnStructured);
-VTKM_EXPLICITLY_INSTANTIATE_TRANSFER(
+VTKM_EXPLICITLY_INSTANTIATE_TRANSFER_CUDA(
   vtkm::rendering::raytracing::MeshConnUnstructured<vtkm::cont::DeviceAdapterTagCuda>);
-
+VTKM_EXPLICITLY_INSTANTIATE_TRANSFER_KOKKOS(
+  vtkm::rendering::raytracing::MeshConnUnstructured<vtkm::cont::DeviceAdapterTagKokkos>);
 #endif
 
 #endif // MeshConnectivityBase

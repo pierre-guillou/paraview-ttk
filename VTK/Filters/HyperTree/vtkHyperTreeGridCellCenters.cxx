@@ -17,6 +17,7 @@
 #include "vtkAlgorithm.h"
 #include "vtkBitArray.h"
 #include "vtkCellArray.h"
+#include "vtkCellData.h"
 #include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkInformation.h"
@@ -30,7 +31,7 @@
 
 vtkStandardNewMacro(vtkHyperTreeGridCellCenters);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridCellCenters::vtkHyperTreeGridCellCenters()
 {
   this->Input = nullptr;
@@ -42,10 +43,10 @@ vtkHyperTreeGridCellCenters::vtkHyperTreeGridCellCenters()
   this->Points = nullptr;
 }
 
-//-----------------------------------------------------------------------------
-vtkHyperTreeGridCellCenters::~vtkHyperTreeGridCellCenters() {}
+//------------------------------------------------------------------------------
+vtkHyperTreeGridCellCenters::~vtkHyperTreeGridCellCenters() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTypeBool vtkHyperTreeGridCellCenters::ProcessRequest(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -70,7 +71,7 @@ vtkTypeBool vtkHyperTreeGridCellCenters::ProcessRequest(
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridCellCenters::FillInputPortInformation(
   int vtkNotUsed(port), vtkInformation* info)
 {
@@ -78,7 +79,7 @@ int vtkHyperTreeGridCellCenters::FillInputPortInformation(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridCellCenters::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -114,7 +115,7 @@ void vtkHyperTreeGridCellCenters::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridCellCenters::RequestData(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -127,7 +128,7 @@ int vtkHyperTreeGridCellCenters::RequestData(
   this->Output = vtkPolyData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
   // Initialize output cell data
-  this->InData = this->Input->GetPointData();
+  this->InData = this->Input->GetCellData();
   this->OutData = this->Output->GetPointData();
   this->OutData->CopyAllocate(this->InData);
 
@@ -148,7 +149,7 @@ int vtkHyperTreeGridCellCenters::RequestData(
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridCellCenters::ProcessTrees()
 {
   // Create storage for corners of leaf cells
@@ -190,7 +191,7 @@ void vtkHyperTreeGridCellCenters::ProcessTrees()
   this->Points = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridCellCenters::RecursivelyProcessTree(
   vtkHyperTreeGridNonOrientedGeometryCursor* cursor)
 {

@@ -6,6 +6,8 @@ vtk_object_factory_declare(
   OVERRIDE  vtkPResampleWithDataSet)
 
 set(classes
+  vtkAdaptiveResampleToImage
+  vtkOverlappingCellsDetector
   vtkExtractSubsetWithSeed
   vtkGenerateGlobalIds
   vtkPResampleToImage

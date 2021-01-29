@@ -104,6 +104,11 @@ public:
   bool loadAnnotations() const;
 
   /**
+   * Returns the specified regularExpression.
+   */
+  QRegularExpression regularExpression();
+
+  /**
   * Returns true if the user requested to preserve/use the preset data range.
   * If false, the user is expecting the current transfer function range to be
   * maintained.
@@ -121,6 +126,11 @@ public:
   void setCustomizableLoadAnnotations(bool state, bool defaultValue = true);
 
   /**
+   * Set when user can choose a regexp to load annotations along with the default state.
+   */
+  void setCustomizableAnnotationsRegexp(bool state, bool defaultValue = false);
+
+  /**
   * Set when user can choose to load opacities along with the default state.
   */
   void setCustomizableLoadOpacities(bool state, bool defaultValue = true);
@@ -130,10 +140,10 @@ public:
   */
   void setCustomizableUsePresetRange(bool state, bool defaultValue = false);
 
-signals:
+Q_SIGNALS:
   void applyPreset(const Json::Value& preset);
 
-protected slots:
+protected Q_SLOTS:
   void updateEnabledStateForSelection();
   void updateForSelectedIndex(const QModelIndex& proxyIndex);
   void triggerApply(const QModelIndex& proxyIndex = QModelIndex());
@@ -147,7 +157,7 @@ protected:
   void showEvent(QShowEvent* e) override;
   void closeEvent(QCloseEvent* e) override;
 
-private slots:
+private Q_SLOTS:
   void updateGroups();
 
 private:

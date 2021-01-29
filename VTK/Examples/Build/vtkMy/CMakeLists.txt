@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.3...3.12 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.8...3.12 FATAL_ERROR)
 
 #
 # Set the project name.  The version number is optional.
@@ -17,6 +17,9 @@ find_package(VTK
   OPTIONAL_COMPONENTS
     RenderingOpenGL2
     Python)
+
+list(INSERT CMAKE_MODULE_PATH 0
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 #
 # Check if VTK is shared or static, and default to the same.

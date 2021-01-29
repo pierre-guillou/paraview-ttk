@@ -101,7 +101,7 @@ public:
    * Variable array selection.
    */
   virtual int GetNumberOfVariableArrays();
-  virtual const char* GetVariableArrayName(int idx);
+  virtual const char* GetVariableArrayName(int index);
   virtual int GetVariableArrayStatus(const char* name);
   virtual void SetVariableArrayStatus(const char* name, int status);
   //@}
@@ -205,7 +205,7 @@ public:
   class VTKIONETCDF_EXPORT MidpointCoordinates
   {
   public:
-    MidpointCoordinates() {}
+    MidpointCoordinates() = default;
     MidpointCoordinates(const double coord[3], vtkIdType id)
     {
       this->Coordinate[0] = coord[0];
@@ -341,8 +341,8 @@ protected:
 
   private:
     // Too lazy to implement these.
-    MidpointCoordinateMap(const MidpointCoordinateMap&);
-    void operator=(const MidpointCoordinateMap&);
+    MidpointCoordinateMap(const MidpointCoordinateMap&) = delete;
+    void operator=(const MidpointCoordinateMap&) = delete;
   };
 
   //@{
@@ -381,8 +381,8 @@ protected:
 
   private:
     // Too lazy to implement these.
-    MidpointIdMap(const MidpointIdMap&);
-    void operator=(const MidpointIdMap&);
+    MidpointIdMap(const MidpointIdMap&) = delete;
+    void operator=(const MidpointIdMap&) = delete;
   };
 
   /**
@@ -404,7 +404,8 @@ protected:
    * 0 on failure.  Also fills a midpoint id map that will be passed into
    * InterpolateMidpointFieldData.
    */
-  virtual int ReadMidpointData(int meshFD, vtkMultiBlockDataSet* output, MidpointIdMap& map);
+  virtual int ReadMidpointData(
+    int meshFD, vtkMultiBlockDataSet* output, MidpointIdMap& midpointIds);
 
   /**
    * Instead of reading data from the mesh file, restore the data from the

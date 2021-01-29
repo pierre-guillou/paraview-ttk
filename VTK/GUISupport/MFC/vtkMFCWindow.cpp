@@ -176,7 +176,7 @@ void vtkMFCWindow::DrawDC(CDC* pDC)
   int cyPage = pDC->GetDeviceCaps(VERTRES);
 
   // Get the size of the window in pixels.
-  int* size = this->pvtkWin32OpenGLRW->GetSize();
+  const int* size = this->pvtkWin32OpenGLRW->GetSize();
   int cxWindow = size[0];
   int cyWindow = size[1];
   float fx = float(cxPage) / float(cxWindow);
@@ -296,6 +296,8 @@ void vtkMFCWindow::OnMouseMove(UINT nFlags, CPoint point)
 
 BOOL vtkMFCWindow::OnMouseWheel(UINT nFlags, short zDelta, CPoint point)
 {
+  // Point is in screen space, translate to the client space.
+  ScreenToClient(&point);
   if (zDelta > 0)
     static_cast<vtkWin32RenderWindowInteractor*>(this->GetInteractor())
       ->OnMouseWheelForward(this->GetSafeHwnd(), nFlags, point.x, point.y);

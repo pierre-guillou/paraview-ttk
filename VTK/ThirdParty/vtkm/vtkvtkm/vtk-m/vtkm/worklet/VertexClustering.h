@@ -110,11 +110,9 @@ VTKM_CONT vtkm::cont::ArrayHandle<ValueType> ConcretePermutationArray(
 template <typename T, vtkm::IdComponent N>
 vtkm::cont::ArrayHandle<T> copyFromVec(vtkm::cont::ArrayHandle<vtkm::Vec<T, N>> const& other)
 {
-  const T* vmem = reinterpret_cast<const T*>(&*other.GetPortalConstControl().GetIteratorBegin());
-  vtkm::cont::ArrayHandle<T> mem =
-    vtkm::cont::make_ArrayHandle(vmem, other.GetNumberOfValues() * N);
-  vtkm::cont::ArrayHandle<T> result;
-  vtkm::cont::ArrayCopy(mem, result);
+  const T* vmem = reinterpret_cast<const T*>(&*other.ReadPortal().GetIteratorBegin());
+  vtkm::cont::ArrayHandle<T> result =
+    vtkm::cont::make_ArrayHandle(vmem, other.GetNumberOfValues() * N, vtkm::CopyFlag::On);
   return result;
 }
 
@@ -122,9 +120,6 @@ vtkm::cont::ArrayHandle<T> copyFromVec(vtkm::cont::ArrayHandle<vtkm::Vec<T, N>> 
 
 struct VertexClustering
 {
-  using PointIdMapType = vtkm::cont::ArrayHandlePermutation<vtkm::cont::ArrayHandle<vtkm::Id>,
-                                                            vtkm::cont::ArrayHandle<vtkm::Id>>;
-
   struct GridInfo
   {
     vtkm::Id3 dim;
@@ -375,10 +370,14 @@ public:
       vtkm::worklet::Keys<vtkm::Id> keys;
       keys.BuildArrays(pointCidArray, vtkm::worklet::KeysSortType::Stable);
 
+      // Create a View with all the keys offsets but the last element since
+      // BuildArrays uses ScanExtended
+      auto keysView = vtkm::cont::make_ArrayHandleView(
+        keys.GetOffsets(), 0, keys.GetOffsets().GetNumberOfValues() - 1);
+
       // For mapping properties, this map will select an arbitrary point from
       // the cluster:
-      this->PointIdMap =
-        vtkm::cont::make_ArrayHandlePermutation(keys.GetOffsets(), keys.GetSortedValuesMap());
+      this->PointIdMap = internal::ConcretePermutationArray(keysView, keys.GetSortedValuesMap());
 
       // Compute representative points from each cluster (may not match the
       // PointIdMap indexing)
@@ -499,7 +498,7 @@ public:
 
     // remove the last element if invalid
     vtkm::Id cells = pointId3Array.GetNumberOfValues();
-    if (cells > 0 && pointId3Array.GetPortalConstControl().Get(cells - 1)[2] >= nPoints)
+    if (cells > 0 && pointId3Array.ReadPortal().Get(cells - 1)[2] >= nPoints)
     {
       cells--;
       pointId3Array.Shrink(cells);
@@ -542,8 +541,11 @@ public:
     return internal::ConcretePermutationArray(this->CellIdMap, input);
   }
 
+  vtkm::cont::ArrayHandle<vtkm::Id> GetPointIdMap() const { return this->PointIdMap; }
+  vtkm::cont::ArrayHandle<vtkm::Id> GetCellIdMap() const { return this->CellIdMap; }
+
 private:
-  PointIdMapType PointIdMap;
+  vtkm::cont::ArrayHandle<vtkm::Id> PointIdMap;
   vtkm::cont::ArrayHandle<vtkm::Id> CellIdMap;
 }; // struct VertexClustering
 }

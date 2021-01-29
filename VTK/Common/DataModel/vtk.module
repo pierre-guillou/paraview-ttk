@@ -15,6 +15,7 @@ DEPENDS
 PRIVATE_DEPENDS
   VTK::CommonMisc
   VTK::CommonSystem
+  VTK::pugixml
   VTK::vtksys
 TEST_DEPENDS
   VTK::ChartsCore
@@ -25,6 +26,8 @@ TEST_DEPENDS
   VTK::FiltersGeneric
   VTK::FiltersGeometry
   VTK::FiltersModeling
+  VTK::ImagingCore
+  VTK::ImagingSources
   VTK::IOGeometry
   VTK::IOLegacy
   VTK::IOXML

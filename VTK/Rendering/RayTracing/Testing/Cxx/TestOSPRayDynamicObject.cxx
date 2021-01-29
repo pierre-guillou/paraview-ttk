@@ -49,10 +49,13 @@ int TestOSPRayDynamicObject(int argc, char* argv[])
   vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
   renderer->AddActor(actor);
   actor->SetMapper(mapper);
-  renderer->SetBackground(0.1, 0.1, 1.0);
+  renderer->SetBackground(0.0, 0.0, 1.0);
+  renderer->SetEnvironmentalBG(0.0, 0.5, 0.5);
+  vtkOSPRayRendererNode::SetBackgroundMode(3, renderer); // test use ENV with BP
   renWin->SetSize(400, 400);
   renWin->Render();
 
+  vtkOSPRayRendererNode::SetRendererType("OSPRay pathtracer", renderer);
   for (int i = 0; i < argc; ++i)
   {
     if (!strcmp(argv[i], "--OptiX"))

@@ -50,12 +50,22 @@ public:
    * Capture image. The properties for this proxy provide all the necessary
    * information to capture the image.
    */
-  virtual bool WriteImage(const char* filename);
+  bool WriteImage(const char* filename);
+
+  /**
+   * This is same as `WriteImage(const char*)` except that one can specify the
+   * location at which to write the image. Currently supported values are
+   * vtkPVSession::CLIENT, vtkPVSession::DATA_SERVER or vtkPVSession::DATA_SERVER_ROOT.
+   * Selecting vtkPVSession::DATA_SERVER is same as
+   * vtkPVSession::DATA_SERVER_ROOT since the images are only written on root
+   * node.
+   */
+  bool WriteImage(const char* filename, vtkTypeUInt32 location);
 
   /**
    * Capture the rendered image but doesn't save it out to any file.
    */
-  virtual vtkSmartPointer<vtkImageData> CaptureImage();
+  vtkSmartPointer<vtkImageData> CaptureImage();
 
   /**
    * Updates default property values for saving the given file.
@@ -114,10 +124,10 @@ protected:
   ~vtkSMSaveScreenshotProxy() override;
 
   /**
-   * Captures rendered image, but assumes that the `Prepare` has already been
-   * called successfully.
+   * When StereoMode is set to VTK_STEREO_EMULATE, both eyes are captures. In
+   * that case, this method may be used to return images for each of the eyes.
    */
-  virtual vtkSmartPointer<vtkImageData> CapturePreppedImage();
+  std::pair<vtkSmartPointer<vtkImageData>, vtkSmartPointer<vtkImageData> > CapturePreppedImages();
 
   /**
    * Prepares for saving an image. This will do any changes to view properties
@@ -139,6 +149,11 @@ protected:
    * domain that supports the given filename.
    */
   vtkSMProxy* GetFormatProxy(const std::string& filename);
+
+  /**
+   * Adds a stereo filename suffix to the given filename.
+   */
+  std::string GetStereoFileName(const std::string& filename, bool left);
 
   friend class pqCatalystExportReaction;  // access to GetView,FormatProxy
   friend class pqImmediateExportReaction; // access to GetView,FormatProxy

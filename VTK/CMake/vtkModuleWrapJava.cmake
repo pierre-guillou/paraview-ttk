@@ -19,6 +19,10 @@ and third arguments, respectively.
 _vtk_module_wrap_java_sources(<module> <sources> <classes>)
 ~~~
 #]==]
+
+cmake_policy(PUSH)
+cmake_policy(SET CMP0053 NEW)
+
 function (_vtk_module_wrap_java_sources module sources java_sources)
   _vtk_module_get_module_property("${module}"
     PROPERTY  "exclude_wrap"
@@ -32,6 +36,40 @@ function (_vtk_module_wrap_java_sources module sources java_sources)
   set(_vtk_java_args_file "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_library_name}Java/${_vtk_java_library_name}-java.$<CONFIGURATION>.args")
   set(_vtk_java_init_data_file "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_java_library_name}Java/${_vtk_java_library_name}-java-init.data")
 
+  set(_vtk_java_hierarchy_depends "${module}")
+  _vtk_module_get_module_property("${module}"
+    PROPERTY  "private_depends"
+    VARIABLE  _vtk_java_private_depends)
+  list(APPEND _vtk_java_hierarchy_depends ${_vtk_java_private_depends})
+
+  set(_vtk_java_command_depends)
+  foreach (_vtk_java_hierarchy_depend IN LISTS _vtk_java_hierarchy_depends)
+    _vtk_module_get_module_property("${_vtk_java_hierarchy_depend}"
+      PROPERTY  "hierarchy"
+      VARIABLE  _vtk_java_hierarchy_file)
+    if (_vtk_java_hierarchy_file)
+      list(APPEND _vtk_java_hierarchy_files "${_vtk_java_hierarchy_file}")
+      get_property(_vtk_java_is_imported
+        TARGET    "${_vtk_java_hierarchy_depend}"
+        PROPERTY  "IMPORTED")
+      if (_vtk_java_is_imported OR CMAKE_GENERATOR MATCHES "Ninja")
+        list(APPEND _vtk_java_command_depends "${_vtk_java_hierarchy_file}")
+      else ()
+        _vtk_module_get_module_property("${_vtk_java_hierarchy_depend}"
+          PROPERTY  "library_name"
+          VARIABLE  _vtk_java_hierarchy_library_name)
+        if (TARGET "${_vtk_java_hierarchy_library_name}-hierarchy")
+          list(APPEND _vtk_java_command_depends "${_vtk_java_hierarchy_library_name}-hierarchy")
+        else ()
+          message(FATAL_ERROR
+            "The ${_vtk_java_hierarchy_depend} hierarchy file is attached to a non-imported target "
+            "and a hierarchy target (${_vtk_java_hierarchy_library_name}-hierarchy) is "
+            "missing.")
+        endif ()
+      endif ()
+    endif ()
+  endforeach ()
+
   set(_vtk_java_genex_compile_definitions
     "$<TARGET_PROPERTY:${_vtk_java_target_name},COMPILE_DEFINITIONS>")
   set(_vtk_java_genex_include_directories
@@ -39,27 +77,8 @@ function (_vtk_module_wrap_java_sources module sources java_sources)
   file(GENERATE
     OUTPUT  "${_vtk_java_args_file}"
     CONTENT "$<$<BOOL:${_vtk_java_genex_compile_definitions}>:\n-D\'$<JOIN:${_vtk_java_genex_compile_definitions},\'\n-D\'>\'>\n
-$<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_include_directories},\'\n-I\'>\'>\n")
-
-  _vtk_module_get_module_property("${module}"
-    PROPERTY  "hierarchy"
-    VARIABLE  _vtk_java_hierarchy_file)
-
-  get_property(_vtk_java_is_imported
-    TARGET    "${module}"
-    PROPERTY  "IMPORTED")
-  if (_vtk_java_is_imported OR CMAKE_GENERATOR MATCHES "Ninja")
-    set(_vtk_java_command_depend "${_vtk_java_hierarchy_file}")
-  else ()
-    if (TARGET "${_vtk_java_library_name}-hierarchy")
-      set(_vtk_java_command_depend "${_vtk_java_library_name}-hierarchy")
-    else ()
-      message(FATAL_ERROR
-        "The ${module} hierarchy file is attached to a non-imported target "
-        "and a hierarchy target (${_vtk_java_library_name}-hierarchy) is "
-        "missing.")
-    endif ()
-  endif ()
+$<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_include_directories},\'\n-I\'>\'>\n
+$<$<BOOL:${_vtk_java_hierarchy_files}>:\n--types \'$<JOIN:${_vtk_java_hierarchy_files},\'\n--types \'>\'>\n")
 
   set(_vtk_java_sources)
   set(_vtk_java_java_sources)
@@ -86,7 +105,6 @@ $<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_
     list(APPEND _vtk_java_sources
       "${_vtk_java_source_output}")
 
-    set(_vtk_java_command_depends)
     set(_vtk_java_wrap_target "VTK::WrapJava")
     set(_vtk_java_macros_args)
     if (TARGET VTKCompileTools::WrapJava)
@@ -112,7 +130,6 @@ $<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_
               "@${_vtk_java_args_file}"
               -o "${_vtk_java_source_output}"
               "${_vtk_java_header}"
-              --types "${_vtk_java_hierarchy_file}"
               ${_vtk_java_macros_args}
       IMPLICIT_DEPENDS
               CXX "${_vtk_java_header}"
@@ -120,7 +137,6 @@ $<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_
       DEPENDS
         "${_vtk_java_header}"
         "${_vtk_java_args_file}"
-        "${_vtk_java_command_depend}"
         "$<TARGET_FILE:${_vtk_java_wrap_target}>"
         ${_vtk_java_command_depends})
 
@@ -135,7 +151,6 @@ $<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_
               "@${_vtk_java_args_file}"
               -o "${_vtk_java_java_source_output}"
               "${_vtk_java_header}"
-              --types "${_vtk_java_hierarchy_file}"
               ${_vtk_java_macros_args}
       IMPLICIT_DEPENDS
               CXX "${_vtk_java_header}"
@@ -143,7 +158,6 @@ $<$<BOOL:${_vtk_java_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_java_genex_
       DEPENDS
         "${_vtk_java_header}"
         "${_vtk_java_args_file}"
-        "${_vtk_java_command_depend}"
         "$<TARGET_FILE:${_vtk_java_parse_target}>"
         ${_vtk_java_command_depends})
   endforeach ()
@@ -227,6 +241,9 @@ function (_vtk_module_wrap_java_library name)
 
   set(_vtk_java_target "${name}Java")
 
+  # XXX(java): Should this be a `MODULE`? If not, we should probably export
+  # these targets, but then we'll need logic akin to the `vtkModuleWrapPython`
+  # logic for loading wrapped modules from other packages.
   add_library("${_vtk_java_target}" SHARED
     ${_vtk_java_library_sources})
   add_custom_target("${_vtk_java_target}-java-sources"
@@ -239,18 +256,26 @@ function (_vtk_module_wrap_java_library name)
       PROPERTY
         PREFIX "")
   endif ()
+  if (APPLE)
+    set_property(TARGET "${_vtk_java_target}"
+      PROPERTY
+        SUFFIX ".jnilib")
+  endif ()
   set_property(TARGET "${_vtk_java_target}"
     PROPERTY
       "_vtk_module_java_files" "${_vtk_java_library_java_sources}")
 
-  if (APPLE)
-    add_custom_command(
-      TARGET  "${_vtk_java_target}"
-      POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E create_symlink
-              "$<TARGET_FILE_NAME:${_vtk_java_target}>"
-              "$<TARGET_FILE_DIR:${_vtk_java_target}>/$<TARGET_PROPERTY:${_vtk_java_target},PREFIX>${_vtk_java_target}.jnilib"
-      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+  if (_vtk_java_JNILIB_DESTINATION)
+    install(
+      TARGETS "${_vtk_java_target}"
+      # Windows
+      RUNTIME
+        DESTINATION "${_vtk_java_JNILIB_DESTINATION}"
+        COMPONENT   "${_vtk_java_JNILIB_COMPONENT}"
+      # Other platforms
+      LIBRARY
+        DESTINATION "${_vtk_java_JNILIB_DESTINATION}"
+        COMPONENT   "${_vtk_java_JNILIB_COMPONENT}")
   endif ()
 
   vtk_module_autoinit(
@@ -260,6 +285,7 @@ function (_vtk_module_wrap_java_library name)
   target_link_libraries("${_vtk_java_target}"
     PRIVATE
       ${ARGN}
+      # XXX(java): If we use modules, remove this.
       ${_vtk_java_library_link_depends}
       VTK::Java)
 endfunction ()
@@ -283,6 +309,11 @@ vtk_module_wrap_java(
     `${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/vtkJava`. Java source files are
     written to this directory. After generation, the files may be compiled as
     needed.
+  * `LIBRARY_DESTINATION` (Recommended): If provided, dynamic loader
+    information will be added to modules for loading dependent libraries.
+  * `JNILIB_DESTINATION`: Where to install JNI libraries.
+  * `JNILIB_COMPONENT`: Defaults to `jni`. The install component to use for JNI
+    libraries.
 
 For each wrapped module, a `<module>Java` target will be created. These targets
 will have a `_vtk_module_java_files` property which is the list of generated
@@ -292,11 +323,10 @@ For dependency purposes, the `<module>Java-java-sources` target may also be
 used.
 #]==]
 function (vtk_module_wrap_java)
-  cmake_parse_arguments(_vtk_java
+  cmake_parse_arguments(PARSE_ARGV 0 _vtk_java
     ""
-    "JAVA_OUTPUT;WRAPPED_MODULES"
-    "MODULES"
-    ${ARGN})
+    "JAVA_OUTPUT;WRAPPED_MODULES;LIBRARY_DESTINATION;JNILIB_DESTINATION;JNILIB_COMPONENT"
+    "MODULES")
 
   if (_vtk_java_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR
@@ -308,11 +338,51 @@ function (vtk_module_wrap_java)
     set(_vtk_java_JAVA_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/vtkJava")
   endif ()
 
+  if (NOT _vtk_java_JNILIB_COMPONENT)
+    set(_vtk_java_JNILIB_COMPONENT "jni")
+  endif ()
+
+  # Set up rpaths
+  set(CMAKE_BUILD_RPATH_USE_ORIGIN 1)
+  if (UNIX)
+    if (APPLE)
+      set(_vtk_java_origin_rpath_prefix
+        "@loader_path")
+    else ()
+      set(_vtk_java_origin_rpath_prefix
+        "$ORIGIN")
+    endif ()
+
+    list(APPEND CMAKE_INSTALL_RPATH
+      # For sibling wrapped modules.
+      "${_vtk_java_origin_rpath_prefix}")
+
+    if (DEFINED _vtk_java_LIBRARY_DESTINATION AND DEFINED _vtk_java_JNILIB_DESTINATION)
+      file(RELATIVE_PATH _vtk_java_relpath
+        "/prefix/${_vtk_java_JNILIB_DESTINATION}"
+        "/prefix/${_vtk_java_LIBRARY_DESTINATION}")
+
+      list(APPEND CMAKE_INSTALL_RPATH
+        # For libraries.
+        "${_vtk_java_origin_rpath_prefix}/${_vtk_java_relpath}")
+    endif ()
+  endif ()
+
+  if (DEFINED _vtk_java_JNILIB_DESTINATION)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${_vtk_java_JNILIB_DESTINATION}")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${_vtk_java_JNILIB_DESTINATION}")
+  endif ()
+
   if (NOT _vtk_java_MODULES)
     message(WARNING
       "No modules were requested for java wrapping.")
     return ()
   endif ()
+
+  # Disable CMake's automoc support for these targets.
+  set(CMAKE_AUTOMOC 0)
+  set(CMAKE_AUTORCC 0)
+  set(CMAKE_AUTOUIC 0)
 
   set(_vtk_java_all_wrapped_modules)
   foreach (_vtk_java_module IN LISTS _vtk_java_MODULES)
@@ -341,3 +411,5 @@ function (vtk_module_wrap_java)
       PARENT_SCOPE)
   endif ()
 endfunction ()
+
+cmake_policy(POP)

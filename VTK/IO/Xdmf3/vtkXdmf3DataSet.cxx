@@ -199,7 +199,7 @@ vtkDataArray* vtkXdmf3DataSet::XdmfToVTKArray(XdmfArray* xArray,
   return vArray;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkXdmf3DataSet::VTKToXdmfArray(
   vtkDataArray* vArray, XdmfArray* xArray, unsigned int rank, unsigned int* dims)
 {
@@ -360,10 +360,6 @@ bool vtkXdmf3DataSet::VTKToXdmfArray(
     case VTK_OPAQUE:
     case VTK_LONG_LONG:
     case VTK_UNSIGNED_LONG_LONG:
-#if !defined(VTK_LEGACY_REMOVE)
-    case VTK___INT64:
-    case VTK_UNSIGNED___INT64:
-#endif
     case VTK_VARIANT:
     case VTK_OBJECT:
     case VTK_UNICODE_STRING:
@@ -376,7 +372,7 @@ bool vtkXdmf3DataSet::VTKToXdmfArray(
   return true;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::XdmfToVTKAttributes(vtkXdmf3ArraySelection* fselection,
   vtkXdmf3ArraySelection* cselection, vtkXdmf3ArraySelection* pselection, XdmfGrid* grid,
   vtkDataObject* dObject, vtkXdmf3ArrayKeeper* keeper)
@@ -495,7 +491,7 @@ void vtkXdmf3DataSet::XdmfToVTKAttributes(vtkXdmf3ArraySelection* fselection,
     {
       atype = MATRIX;
     }
-    else if (attrType == XdmfAttributeType::Tensor6())
+    else if (attrType == XdmfAttributeType::Tensor6()) // && ncomp == 6)
     {
       atype = TENSOR6;
     }
@@ -550,7 +546,7 @@ void vtkXdmf3DataSet::XdmfToVTKAttributes(vtkXdmf3ArraySelection* fselection,
   }
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::VTKToXdmfAttributes(vtkDataObject* dObject, XdmfGrid* grid)
 {
   vtkDataSet* dataSet = vtkDataSet::SafeDownCast(dObject);
@@ -691,7 +687,7 @@ void vtkXdmf3DataSet::VTKToXdmfAttributes(vtkDataObject* dObject, XdmfGrid* grid
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned int vtkXdmf3DataSet::GetNumberOfPointsPerCell(int vtk_cell_type, bool& fail)
 {
   fail = false;
@@ -742,7 +738,7 @@ unsigned int vtkXdmf3DataSet::GetNumberOfPointsPerCell(int vtk_cell_type, bool& 
   return 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXdmf3DataSet::GetXdmfCellType(int vtkType)
 {
   switch (vtkType)
@@ -846,7 +842,7 @@ int vtkXdmf3DataSet::GetXdmfCellType(int vtkType)
   */
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXdmf3DataSet::GetVTKCellType(shared_ptr<const XdmfTopologyType> topologyType)
 {
   // TODO: examples to test/demonstrate each of these
@@ -1072,7 +1068,7 @@ void vtkXdmf3DataSet::XdmfToVTK(vtkXdmf3ArraySelection* fselection,
   vtkXdmf3DataSet::XdmfToVTKAttributes(fselection, cselection, pselection, grid, dataSet, keeper);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::CopyShape(
   XdmfRegularGrid* grid, vtkImageData* dataSet, vtkXdmf3ArrayKeeper* vtkNotUsed(keeper))
 {
@@ -1140,7 +1136,7 @@ void vtkXdmf3DataSet::CopyShape(
   dataSet->SetSpacing(spacing);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::VTKToXdmf(
   vtkImageData* dataSet, XdmfDomain* domain, bool hasTime, double time, const char* name)
 {
@@ -1181,7 +1177,7 @@ void vtkXdmf3DataSet::XdmfToVTK(vtkXdmf3ArraySelection* fselection,
   vtkXdmf3DataSet::XdmfToVTKAttributes(fselection, cselection, pselection, grid, dataSet, keeper);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::CopyShape(
   XdmfRectilinearGrid* grid, vtkRectilinearGrid* dataSet, vtkXdmf3ArrayKeeper* keeper)
 {
@@ -1248,7 +1244,7 @@ void vtkXdmf3DataSet::CopyShape(
   }
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::VTKToXdmf(
   vtkRectilinearGrid* dataSet, XdmfDomain* domain, bool hasTime, double time, const char* name)
 {
@@ -1298,7 +1294,7 @@ void vtkXdmf3DataSet::XdmfToVTK(vtkXdmf3ArraySelection* fselection,
   vtkXdmf3DataSet::XdmfToVTKAttributes(fselection, cselection, pselection, grid, dataSet, keeper);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::CopyShape(
   XdmfCurvilinearGrid* grid, vtkStructuredGrid* dataSet, vtkXdmf3ArrayKeeper* keeper)
 {
@@ -1363,7 +1359,7 @@ void vtkXdmf3DataSet::CopyShape(
   }
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::VTKToXdmf(
   vtkStructuredGrid* dataSet, XdmfDomain* domain, bool hasTime, double time, const char* name)
 {
@@ -1419,7 +1415,7 @@ void vtkXdmf3DataSet::XdmfToVTK(vtkXdmf3ArraySelection* fselection,
   vtkXdmf3DataSet::XdmfToVTKAttributes(fselection, cselection, pselection, grid, dataSet, keeper);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::CopyShape(
   XdmfUnstructuredGrid* grid, vtkUnstructuredGrid* dataSet, vtkXdmf3ArrayKeeper* keeper)
 {
@@ -1591,7 +1587,7 @@ void vtkXdmf3DataSet::CopyShape(
   }
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::VTKToXdmf(
   vtkPointSet* dataSet, XdmfDomain* domain, bool hasTime, double time, const char* name)
 {
@@ -1831,7 +1827,7 @@ void vtkXdmf3DataSet::XdmfToVTK(vtkXdmf3ArraySelection* fselection,
   }
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::VTKToXdmf(
   vtkDirectedGraph* dataSet, XdmfDomain* domain, bool hasTime, double time, const char* name)
 {
@@ -2044,7 +2040,7 @@ void vtkXdmf3DataSet::XdmfToVTKAttributes(
     {
       atype = SCALAR;
     }
-    else if (attrType == XdmfAttributeType::Vector() && ncomp == 1)
+    else if (attrType == XdmfAttributeType::Vector() && ncomp == 3)
     {
       atype = VECTOR;
     }
@@ -2056,7 +2052,7 @@ void vtkXdmf3DataSet::XdmfToVTKAttributes(
     {
       atype = MATRIX;
     }
-    else if (attrType == XdmfAttributeType::Tensor6())
+    else if (attrType == XdmfAttributeType::Tensor6()) // && ncomp == 6)
     {
       atype = TENSOR6;
     }
@@ -2104,7 +2100,7 @@ void vtkXdmf3DataSet::XdmfToVTKAttributes(
   }
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXdmf3DataSet::XdmfSubsetToVTK(XdmfGrid* grid, unsigned int setnum, vtkDataSet* dataSet,
   vtkUnstructuredGrid* subSet, vtkXdmf3ArrayKeeper* keeper)
 {

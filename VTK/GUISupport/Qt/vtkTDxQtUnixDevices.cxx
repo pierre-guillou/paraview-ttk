@@ -38,19 +38,19 @@ public:
   vtkWindowIdToDevice Map;
 };
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTDxQtUnixDevices::vtkTDxQtUnixDevices()
 {
   this->Private = new vtkTDxQtUnixDevicesPrivate;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTDxQtUnixDevices::~vtkTDxQtUnixDevices()
 {
   delete this->Private;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTDxQtUnixDevices::ProcessEvent(vtkTDxUnixDeviceXEvent* e)
 {
   const XEvent* event = static_cast<const XEvent*>(e);
@@ -58,7 +58,7 @@ void vtkTDxQtUnixDevices::ProcessEvent(vtkTDxUnixDeviceXEvent* e)
   // Find the real X11 window id.
   QWidgetList l = static_cast<QApplication*>(QApplication::instance())->topLevelWidgets();
   int winIdLast = 0;
-  foreach (QWidget* w, l)
+  Q_FOREACH (QWidget* w, l)
   {
     if (!w->isHidden())
     {
@@ -78,7 +78,7 @@ void vtkTDxQtUnixDevices::ProcessEvent(vtkTDxUnixDeviceXEvent* e)
       // not yet created.
       device = vtkSmartPointer<vtkTDxUnixDevice>::New();
       this->Private->Map.insert(
-        std::pair<const vtkTDxUnixDeviceWindow, vtkSmartPointer<vtkTDxUnixDevice> >(winId, device));
+        std::pair<const vtkTDxUnixDeviceWindow, vtkSmartPointer<vtkTDxUnixDevice>>(winId, device));
 
       device->SetDisplayId(event->xany.display);
       device->SetWindowId(winId);
@@ -92,7 +92,7 @@ void vtkTDxQtUnixDevices::ProcessEvent(vtkTDxUnixDeviceXEvent* e)
       else
       {
         cout << "device initialized on window" << winId << hex << winId << dec;
-        emit CreateDevice(device);
+        Q_EMIT CreateDevice(device);
       }
     }
     else

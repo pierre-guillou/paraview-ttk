@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkHigherOrderWedge.h"
 
 #include "vtkCellData.h"
@@ -494,6 +498,24 @@ int vtkHigherOrderWedge::IntersectWithLine(
 
 int vtkHigherOrderWedge::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
 {
+  // Note that the node numbering between the vtkWedge and vtkHigherOrderWedge is different:
+  //
+  //    vtkWedge                vtkHigherOrderWedge
+  //  4 +-------+ 5               5 +-------+ 4
+  //    |\     /|                   |\     /|
+  //    | \   / |                   | \   / |
+  //    |  \ /  |                   |  \ /  |
+  //    | 3 +   |                   | 3 +   |
+  //    |   |   |                   |   |   |
+  //  1 +...|...+ 2               2 +...|...+ 1
+  //     \  |  ,                     \  |  ,
+  //      \ | ,                       \ | ,
+  //       \|,                         \|,
+  //      0 +                         0 +
+  //
+  // For this reason, in order to not get tetrahedra with negative Jacobian,
+  // the nodes 2 and 3 of each tetra are swapped.
+
   ptIds->Reset();
   pts->Reset();
 
@@ -506,14 +528,20 @@ int vtkHigherOrderWedge::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vt
       // Sigh. Triangulate methods all reset their points/ids
       // so we must copy them to our output.
       vtkIdType np = this->TmpPts->GetNumberOfPoints();
-      vtkIdType ni = this->TmpIds->GetNumberOfIds();
-      for (vtkIdType ii = 0; ii < np; ++ii)
+      vtkIdType ii = 0;
+      while (ii < np)
       {
         pts->InsertNextPoint(this->TmpPts->GetPoint(ii));
-      }
-      for (vtkIdType ii = 0; ii < ni; ++ii)
-      {
+        pts->InsertNextPoint(this->TmpPts->GetPoint(ii + 1));
+        pts->InsertNextPoint(this->TmpPts->GetPoint(ii + 3));
+        pts->InsertNextPoint(this->TmpPts->GetPoint(ii + 2));
+
         ptIds->InsertNextId(this->TmpIds->GetId(ii));
+        ptIds->InsertNextId(this->TmpIds->GetId(ii + 1));
+        ptIds->InsertNextId(this->TmpIds->GetId(ii + 3));
+        ptIds->InsertNextId(this->TmpIds->GetId(ii + 2));
+
+        ii += 4;
       }
     }
   }

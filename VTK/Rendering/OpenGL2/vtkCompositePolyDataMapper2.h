@@ -71,8 +71,6 @@ public:
   bool GetBlockVisibility(unsigned int index);
   void RemoveBlockVisibility(unsigned int index);
   void RemoveBlockVisibilities();
-  // This method is deprecated and will be removed in VTK 8.2. It is misspelled.
-  VTK_LEGACY(void RemoveBlockVisibilites());
   //@}
 
   //@{
@@ -122,6 +120,11 @@ public:
    * This calls RenderPiece (in a for loop if streaming is necessary).
    */
   void Render(vtkRenderer* ren, vtkActor* act) override;
+
+  /**\brief A convenience method for enabling/disabling
+   *   the VBO's shift+scale transform.
+   */
+  void SetVBOShiftScaleMethod(int m) override;
 
   //@{
   /**
@@ -202,6 +205,8 @@ protected:
     std::stack<vtkColor3d> AmbientColor;
     std::stack<vtkColor3d> DiffuseColor;
     std::stack<vtkColor3d> SpecularColor;
+    std::stack<vtkColor3d> SelectionColor;
+    std::stack<float> SelectionOpacity;
   };
 
   bool RecursiveHasTranslucentGeometry(vtkDataObject* dobj, unsigned int& flat_index);

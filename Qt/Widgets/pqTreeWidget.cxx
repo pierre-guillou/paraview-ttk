@@ -106,11 +106,7 @@ pqTreeWidget::pqTreeWidget(QWidget* p)
   QObject::connect(
     this->header(), SIGNAL(sectionClicked(int)), this, SLOT(doToggle(int)), Qt::QueuedConnection);
 
-#if QT_VERSION >= 0x050000
   this->header()->setSectionsClickable(true);
-#else
-  this->header()->setClickable(true);
-#endif
 
   QObject::connect(
     this->model(), SIGNAL(dataChanged(QModelIndex, QModelIndex)), this, SLOT(updateCheckState()));
@@ -314,9 +310,8 @@ QSize pqTreeWidget::sizeHint() const
     pix = qMax(pix, this->sizeHintForRow(0) * num);
   }
 
-  int margin[4];
-  this->getContentsMargins(margin, margin + 1, margin + 2, margin + 3);
-  int h = pix + margin[1] + margin[3] + this->header()->frameSize().height();
+  QMargins margin = this->contentsMargins();
+  int h = pix + margin.top() + margin.bottom() + this->header()->frameSize().height();
   return QSize(156, h);
 }
 
@@ -400,7 +395,7 @@ QModelIndex pqTreeWidget::moveCursor(CursorAction cursorAction, Qt::KeyboardModi
     {
       // User is at last row, we need to add a new row before moving to that
       // row.
-      emit this->navigatedPastEnd();
+      Q_EMIT this->navigatedPastEnd();
       // if the table grows, the index may change.
       suggestedIndex = this->Superclass::moveCursor(cursorAction, modifiers);
     }

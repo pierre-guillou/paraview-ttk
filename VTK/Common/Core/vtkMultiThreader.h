@@ -27,6 +27,7 @@
 
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkThreads.h" // for VTK_MAX_THREADS
 
 #include <mutex> // For std::mutex
 
@@ -39,14 +40,12 @@
 // If VTK_USE_PTHREADS is defined, then pthread_create() will be
 // used to create multiple threads
 
-// Defined in vtkSystemIncludes.h:
-//   VTK_MAX_THREADS
-
 // If VTK_USE_PTHREADS is defined, then the multithreaded
 // function is of type void *, and returns nullptr
 // Otherwise the type is void which is correct for WIN32
 
-// Defined in vtkSystemIncludes.h:
+// Defined in vtkThreads.h:
+//   VTK_MAX_THREADS
 //   VTK_THREAD_RETURN_VALUE
 //   VTK_THREAD_RETURN_TYPE
 
@@ -116,6 +115,13 @@ public:
 
   //@{
   /**
+   * Set/Get the maximum number of threads VTK was allocated to support.
+   */
+  static int GetGlobalStaticMaximumNumberOfThreads();
+  //@}
+
+  //@{
+  /**
    * Set/Get the maximum number of threads to use when multithreading.
    * This limits and overrides any other settings for multithreading.
    * A value of zero indicates no limit.
@@ -176,12 +182,12 @@ public:
   /**
    * Terminate the thread that was created with a SpawnThreadExecute()
    */
-  void TerminateThread(int thread_id);
+  void TerminateThread(int threadId);
 
   /**
    * Determine if a thread is still active
    */
-  vtkTypeBool IsThreadActive(int threadID);
+  vtkTypeBool IsThreadActive(int threadId);
 
   /**
    * Get the thread identifier of the calling thread.

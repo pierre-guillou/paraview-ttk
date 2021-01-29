@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkGenericGeometryFilter.h"
 
 #include "vtkCellArray.h"
@@ -45,7 +49,7 @@
 vtkStandardNewMacro(vtkGenericGeometryFilter);
 
 vtkCxxSetObjectMacro(vtkGenericGeometryFilter, Locator, vtkIncrementalPointLocator);
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Construct with all types of clipping turned off.
 vtkGenericGeometryFilter::vtkGenericGeometryFilter()
 {
@@ -72,7 +76,7 @@ vtkGenericGeometryFilter::vtkGenericGeometryFilter()
 
   this->PassThroughCellIds = 0;
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGenericGeometryFilter::~vtkGenericGeometryFilter()
 {
   if (this->Locator)
@@ -83,7 +87,7 @@ vtkGenericGeometryFilter::~vtkGenericGeometryFilter()
   this->InternalPD->Delete();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Specify a (xmin,xmax, ymin,ymax, zmin,zmax) bounding box to clip data.
 void vtkGenericGeometryFilter::SetExtent(
   double xMin, double xMax, double yMin, double yMax, double zMin, double zMax)
@@ -100,7 +104,7 @@ void vtkGenericGeometryFilter::SetExtent(
   this->SetExtent(extent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Specify a (xmin,xmax, ymin,ymax, zmin,zmax) bounding box to clip data.
 void vtkGenericGeometryFilter::SetExtent(double extent[6])
 {
@@ -123,7 +127,7 @@ void vtkGenericGeometryFilter::SetExtent(double extent[6])
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGenericGeometryFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -399,7 +403,7 @@ int vtkGenericGeometryFilter::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGenericGeometryFilter::FillInputPortInformation(int port, vtkInformation* info)
 {
   if (!this->Superclass::FillInputPortInformation(port, info))
@@ -410,7 +414,7 @@ int vtkGenericGeometryFilter::FillInputPortInformation(int port, vtkInformation*
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Specify a spatial locator for merging points. By
 // default an instance of vtkMergePoints is used.
 void vtkGenericGeometryFilter::CreateDefaultLocator()
@@ -421,7 +425,7 @@ void vtkGenericGeometryFilter::CreateDefaultLocator()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGenericGeometryFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -454,7 +458,7 @@ void vtkGenericGeometryFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PassThroughCellIds: " << (this->GetPassThroughCellIds() ? "On\n" : "Off\n");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkMTimeType vtkGenericGeometryFilter::GetMTime()
 {
   vtkMTimeType mTime = this->Superclass::GetMTime();
@@ -468,7 +472,7 @@ vtkMTimeType vtkGenericGeometryFilter::GetMTime()
   return mTime;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkGenericGeometryFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {

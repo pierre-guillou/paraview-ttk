@@ -64,6 +64,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   //@}
 
+  //@{
   /**
    * Given a vtkImageData (and hence its associated orientation
    * matrix), and an instance of vtkPointSet, transform its points, as
@@ -71,9 +72,14 @@ public:
    * vtkPointSet. This is a convenience function, internally it calls
    * TranslatePoints(), TransformPoints(), TransformNormals(), and/or
    * TransformVectors() as appropriate. Note that both the normals and
-   * vectors associated with the point and cell data are transformed.
+   * vectors associated with the point and cell data are transformed
+   * unless the second signature is called, which controls whether to
+   * transform normals and/or vectors.
    */
   static void TransformPointSet(vtkImageData* im, vtkPointSet* ps);
+  static void TransformPointSet(
+    vtkImageData* im, vtkPointSet* ps, bool transNormals, bool transVectors);
+  //@}
 
   /**
    * Given x-y-z points represented by a vtkDataArray,
@@ -102,8 +108,8 @@ public:
   static void TransformVectors(vtkMatrix3x3* m3, double spacing[3], vtkDataArray* da);
 
 protected:
-  vtkImageTransform() {}
-  ~vtkImageTransform() override {}
+  vtkImageTransform() = default;
+  ~vtkImageTransform() override = default;
 
 private:
   vtkImageTransform(const vtkImageTransform&) = delete;

@@ -40,8 +40,8 @@ public:
 public:
   WaterTightLeafIntersector() = default;
 
-  WaterTightLeafIntersector(const Id4Handle& triangles)
-    : Triangles(triangles.PrepareForInput(Device()))
+  WaterTightLeafIntersector(const Id4Handle& triangles, vtkm::cont::Token& token)
+    : Triangles(triangles.PrepareForInput(Device(), token))
   {
   }
 
@@ -93,8 +93,8 @@ public:
 public:
   MollerTriLeafIntersector() {}
 
-  MollerTriLeafIntersector(const Id4Handle& triangles)
-    : Triangles(triangles.PrepareForInput(Device()))
+  MollerTriLeafIntersector(const Id4Handle& triangles, vtkm::cont::Token& token)
+    : Triangles(triangles.PrepareForInput(Device(), token))
   {
   }
 
@@ -148,9 +148,10 @@ public:
   }
 
   template <typename Device>
-  VTKM_CONT MollerTriLeafIntersector<Device> PrepareForExecution(Device) const
+  VTKM_CONT MollerTriLeafIntersector<Device> PrepareForExecution(Device,
+                                                                 vtkm::cont::Token& token) const
   {
-    return MollerTriLeafIntersector<Device>(Triangles);
+    return MollerTriLeafIntersector<Device>(this->Triangles, token);
   }
 };
 
@@ -167,9 +168,10 @@ public:
   }
 
   template <typename Device>
-  VTKM_CONT WaterTightLeafIntersector<Device> PrepareForExecution(Device) const
+  VTKM_CONT WaterTightLeafIntersector<Device> PrepareForExecution(Device,
+                                                                  vtkm::cont::Token& token) const
   {
-    return WaterTightLeafIntersector<Device>(Triangles);
+    return WaterTightLeafIntersector<Device>(this->Triangles, token);
   }
 };
 
@@ -241,18 +243,30 @@ public:
   private:
     Precision MinScalar;
     Precision invDeltaScalar;
+    bool Normalize;
 
   public:
     VTKM_CONT
     LerpScalar(const vtkm::Float32& minScalar, const vtkm::Float32& maxScalar)
       : MinScalar(minScalar)
     {
-      //Make sure the we don't divide by zero on
-      //something like an iso-surface
-      if (maxScalar - MinScalar != 0.f)
-        invDeltaScalar = 1.f / (maxScalar - MinScalar);
+      Normalize = true;
+      if (minScalar > maxScalar)
+      {
+        // support the scalar renderer
+        Normalize = false;
+        MinScalar = 0;
+        invDeltaScalar = 1;
+      }
       else
-        invDeltaScalar = 0.f;
+      {
+        //Make sure the we don't divide by zero on
+        //something like an iso-surface
+        if (maxScalar - MinScalar != 0.f)
+          invDeltaScalar = 1.f / (maxScalar - MinScalar);
+        else
+          invDeltaScalar = 1.f / minScalar;
+      }
     }
     typedef void ControlSignature(FieldIn,
                                   FieldIn,
@@ -280,7 +294,10 @@ public:
       Precision cScalar = Precision(scalars.Get(indices[3]));
       lerpedScalar = aScalar * n + bScalar * u + cScalar * v;
       //normalize
-      lerpedScalar = (lerpedScalar - MinScalar) * invDeltaScalar;
+      if (Normalize)
+      {
+        lerpedScalar = (lerpedScalar - MinScalar) * invDeltaScalar;
+      }
     }
   }; //class LerpScalar
 
@@ -290,18 +307,30 @@ public:
   private:
     Precision MinScalar;
     Precision invDeltaScalar;
+    bool Normalize;
 
   public:
     VTKM_CONT
     NodalScalar(const vtkm::Float32& minScalar, const vtkm::Float32& maxScalar)
       : MinScalar(minScalar)
     {
-      //Make sure the we don't divide by zero on
-      //something like an iso-surface
-      if (maxScalar - MinScalar != 0.f)
-        invDeltaScalar = 1.f / (maxScalar - MinScalar);
+      Normalize = true;
+      if (minScalar > maxScalar)
+      {
+        // support the scalar renderer
+        Normalize = false;
+        MinScalar = 0;
+        invDeltaScalar = 1;
+      }
       else
-        invDeltaScalar = 1.f / minScalar;
+      {
+        //Make sure the we don't divide by zero on
+        //something like an iso-surface
+        if (maxScalar - MinScalar != 0.f)
+          invDeltaScalar = 1.f / (maxScalar - MinScalar);
+        else
+          invDeltaScalar = 1.f / minScalar;
+      }
     }
 
     typedef void ControlSignature(FieldIn, FieldOut, WholeArrayIn, WholeArrayIn);
@@ -321,8 +350,10 @@ public:
       //Todo: one normalization
       scalar = Precision(scalars.Get(indices[0]));
 
-      //normalize
-      scalar = (scalar - MinScalar) * invDeltaScalar;
+      if (Normalize)
+      {
+        scalar = (scalar - MinScalar) * invDeltaScalar;
+      }
     }
   }; //class LerpScalar
 

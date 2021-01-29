@@ -15,7 +15,6 @@
 #include "vtkSMChartSeriesSelectionDomain.h"
 
 #include "vtkChartRepresentation.h"
-#include "vtkColorSeries.h"
 #include "vtkCommand.h"
 #include "vtkDataObject.h"
 #include "vtkNew.h"
@@ -26,11 +25,15 @@
 #include "vtkPVDataSetAttributesInformation.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMArrayListDomain.h"
+#include "vtkSMProperty.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStringVectorProperty.h"
+#include "vtkSMTransferFunctionPresets.h"
+#include "vtkSMTransferFunctionProxy.h"
 #include "vtkSMUncheckedPropertyHelper.h"
-#include "vtkStdString.h"
 #include "vtkStringList.h"
+
+#include <vtk_jsoncpp.h>
 
 #include <algorithm>
 #include <assert.h>
@@ -91,8 +94,7 @@ static bool GetSeriesVisibilityDefault(const char* regex, bool& value)
 
 class vtkSMChartSeriesSelectionDomain::vtkInternals
 {
-  int ColorCounter;
-  vtkNew<vtkColorSeries> Colors;
+  unsigned int ColorCounter;
 
 public:
   std::map<std::string, bool> VisibilityOverrides;
@@ -102,7 +104,25 @@ public:
   {
   }
 
-  vtkColor3ub GetNextColor() { return this->Colors->GetColorRepeating(this->ColorCounter++); }
+  void GetNextColor(const char* presetName, double rgb[3])
+  {
+    auto presets = vtkSMTransferFunctionPresets::GetInstance();
+    const char* name = presetName ? presetName : "";
+    if (!presets->HasPreset(name))
+    {
+      vtkWarningWithObjectMacro(
+        nullptr, "No preset with this name (" << name << "). Fall back to Spectrum.");
+      name = "Spectrum";
+    }
+    const Json::Value& preset = presets->GetFirstPresetWithName(name);
+    const Json::Value& indexedColors = preset["IndexedColors"];
+    auto nbOfColors = indexedColors.size() / 3;
+    int idx = this->ColorCounter % nbOfColors;
+    rgb[0] = indexedColors[3 * idx].asDouble();
+    rgb[1] = indexedColors[3 * idx + 1].asDouble();
+    rgb[2] = indexedColors[3 * idx + 2].asDouble();
+    this->ColorCounter++;
+  }
 };
 
 //---------------------------------------------------------------------------
@@ -224,7 +244,7 @@ void vtkSMChartSeriesSelectionDomain::Update(vtkSMProperty*)
   {
     // since there's no way to choose which dataset from a composite one to use,
     // just look at the top-level array information (skipping partial arrays).
-    std::vector<vtkStdString> column_names;
+    std::vector<std::string> column_names;
     int fieldAssociation = vtkSMUncheckedPropertyHelper(fieldDataSelection).GetAsInt(0);
     this->PopulateAvailableArrays(
       std::string(), column_names, dataInfo, fieldAssociation, this->FlattenTable);
@@ -232,7 +252,7 @@ void vtkSMChartSeriesSelectionDomain::Update(vtkSMProperty*)
     return;
   }
 
-  std::vector<vtkStdString> column_names;
+  std::vector<std::string> column_names;
   int fieldAssociation = vtkSMUncheckedPropertyHelper(fieldDataSelection).GetAsInt(0);
 
   vtkSMUncheckedPropertyHelper compositeIndexHelper(compositeIndex);
@@ -275,7 +295,7 @@ void vtkSMChartSeriesSelectionDomain::Update(vtkSMProperty*)
 // Add arrays from dataInfo to strings. If blockName is non-empty, then it's
 // used to "uniquify" the array names.
 void vtkSMChartSeriesSelectionDomain::PopulateAvailableArrays(const std::string& blockName,
-  std::vector<vtkStdString>& strings, vtkPVDataInformation* dataInfo, int fieldAssociation,
+  std::vector<std::string>& strings, vtkPVDataInformation* dataInfo, int fieldAssociation,
   bool flattenTable)
 {
   // this method is typically called for leaf nodes (or multi-piece).
@@ -290,7 +310,7 @@ void vtkSMChartSeriesSelectionDomain::PopulateAvailableArrays(const std::string&
 
   // helps use avoid duplicates. duplicates may arise for plot types that treat
   // multiple columns as a single series/plot e.g. quartile plots.
-  std::set<vtkStdString> uniquestrings;
+  std::set<std::string> uniquestrings;
 
   vtkPVDataSetAttributesInformation* dsa = dataInfo->GetAttributeInformation(fieldAssociation);
   for (int cc = 0; dsa != nullptr && cc < dsa->GetNumberOfArrays(); cc++)
@@ -312,8 +332,8 @@ void vtkSMChartSeriesSelectionDomain::PopulateAvailableArrays(const std::string&
 // Add array component from arrayInfo to strings. If blockName is non-empty, then it's
 // used to "uniquify" the array names.
 void vtkSMChartSeriesSelectionDomain::PopulateArrayComponents(vtkChartRepresentation* chartRepr,
-  const std::string& blockName, std::vector<vtkStdString>& strings,
-  std::set<vtkStdString>& uniquestrings, vtkPVArrayInformation* arrayInfo, bool flattenTable)
+  const std::string& blockName, std::vector<std::string>& strings,
+  std::set<std::string>& uniquestrings, vtkPVArrayInformation* arrayInfo, bool flattenTable)
 {
   if (arrayInfo && (!this->HidePartialArrays || arrayInfo->GetIsPartial() == 0))
   {
@@ -369,9 +389,9 @@ void vtkSMChartSeriesSelectionDomain::PopulateArrayComponents(vtkChartRepresenta
 }
 
 //----------------------------------------------------------------------------
-std::vector<vtkStdString> vtkSMChartSeriesSelectionDomain::GetDefaultValue(const char* series)
+std::vector<std::string> vtkSMChartSeriesSelectionDomain::GetDefaultValue(const char* series)
 {
-  std::vector<vtkStdString> values;
+  std::vector<std::string> values;
   if (this->DefaultMode == VISIBILITY)
   {
     values.push_back(this->GetDefaultSeriesVisibility(series) ? "1" : "0");
@@ -383,11 +403,14 @@ std::vector<vtkStdString> vtkSMChartSeriesSelectionDomain::GetDefaultValue(const
   }
   else if (this->DefaultMode == COLOR)
   {
-    vtkColor3ub color = this->Internals->GetNextColor();
+    double rgb[3];
+    auto presetProp = this->GetProperty()->GetParent()->GetProperty("LastPresetName");
+    this->Internals->GetNextColor(
+      presetProp ? vtkSMPropertyHelper(presetProp).GetAsString() : "Spectrum", rgb);
     for (int kk = 0; kk < 3; kk++)
     {
       std::ostringstream stream;
-      stream << std::setprecision(2) << color.GetData()[kk] / 255.0;
+      stream << std::setprecision(2) << rgb[kk];
       values.push_back(stream.str());
     }
   }
@@ -443,7 +466,7 @@ void vtkSMChartSeriesSelectionDomain::UpdateDefaultValues(
     }
   }
 
-  const std::vector<vtkStdString>& domain_strings = this->GetStrings();
+  const std::vector<std::string>& domain_strings = this->GetStrings();
   for (size_t cc = 0; cc < domain_strings.size(); cc++)
   {
     if (preserve_previous_values && seriesNames.find(domain_strings[cc]) != seriesNames.end())
@@ -452,7 +475,7 @@ void vtkSMChartSeriesSelectionDomain::UpdateDefaultValues(
       // to preserve.
       continue;
     }
-    std::vector<vtkStdString> cur_values = this->GetDefaultValue(domain_strings[cc].c_str());
+    std::vector<std::string> cur_values = this->GetDefaultValue(domain_strings[cc].c_str());
     if (cur_values.size() > 0)
     {
       values->AddString(domain_strings[cc].c_str());
@@ -509,7 +532,7 @@ void vtkSMChartSeriesSelectionDomain::OnDomainModified()
 
 //----------------------------------------------------------------------------
 void vtkSMChartSeriesSelectionDomain::SetDefaultVisibilityOverride(
-  const vtkStdString& arrayname, bool visibility)
+  const std::string& arrayname, bool visibility)
 {
   this->Internals->VisibilityOverrides[arrayname] = visibility;
 }

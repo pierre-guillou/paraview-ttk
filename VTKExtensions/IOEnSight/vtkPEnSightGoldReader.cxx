@@ -14,11 +14,12 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
+#include "vtksys/FStream.hxx"
+
 #include <ctype.h>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <vtkIOStream.h>
 
 vtkStandardNewMacro(vtkPEnSightGoldReader);
 
@@ -91,7 +92,7 @@ int vtkPEnSightGoldReader::ReadGeometryFile(
 
   // Opening the text file as binary. If not, the reader fails to read
   // files with Unix line endings on Windows machines.
-  this->IS = new ifstream(sfilename.c_str(), ios::in | ios::binary);
+  this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in | ios::binary);
   if (this->IS->fail())
   {
     vtkErrorMacro("Unable to open file: " << sfilename.c_str());
@@ -291,7 +292,7 @@ int vtkPEnSightGoldReader::ReadMeasuredGeometryFile(
     sfilename = fileName;
   }
 
-  this->IS = new ifstream(sfilename.c_str(), ios::in | ios::binary);
+  this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in | ios::binary);
   if (this->IS->fail())
   {
     vtkErrorMacro("Unable to open file: " << sfilename.c_str());
@@ -455,7 +456,7 @@ int vtkPEnSightGoldReader::ReadScalarsPerNode(const char* fileName, const char* 
     sfilename = fileName;
   }
 
-  this->IS = new ifstream(sfilename.c_str(), ios::in | ios::binary);
+  this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in | ios::binary);
   if (this->IS->fail())
   {
     vtkErrorMacro("Unable to open file: " << sfilename.c_str());
@@ -675,7 +676,7 @@ int vtkPEnSightGoldReader::ReadVectorsPerNode(const char* fileName, const char* 
     sfilename = fileName;
   }
 
-  this->IS = new ifstream(sfilename.c_str(), ios::in | ios::binary);
+  this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in | ios::binary);
   if (this->IS->fail())
   {
     vtkErrorMacro("Unable to open file: " << sfilename.c_str());
@@ -854,7 +855,7 @@ int vtkPEnSightGoldReader::ReadTensorsPerNode(const char* fileName, const char* 
     sfilename = fileName;
   }
 
-  this->IS = new ifstream(sfilename.c_str(), ios::in | ios::binary);
+  this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in | ios::binary);
   if (this->IS->fail())
   {
     vtkErrorMacro("Unable to open file: " << sfilename.c_str());
@@ -980,7 +981,7 @@ int vtkPEnSightGoldReader::ReadScalarsPerElement(const char* fileName, const cha
     sfilename = fileName;
   }
 
-  this->IS = new ifstream(sfilename.c_str(), ios::in | ios::binary);
+  this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in | ios::binary);
   if (this->IS->fail())
   {
     vtkErrorMacro("Unable to open file: " << sfilename.c_str());
@@ -1187,7 +1188,7 @@ int vtkPEnSightGoldReader::ReadVectorsPerElement(const char* fileName, const cha
     sfilename = fileName;
   }
 
-  this->IS = new ifstream(sfilename.c_str(), ios::in | ios::binary);
+  this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in | ios::binary);
   if (this->IS->fail())
   {
     vtkErrorMacro("Unable to open file: " << sfilename.c_str());
@@ -1356,7 +1357,7 @@ int vtkPEnSightGoldReader::ReadTensorsPerElement(const char* fileName, const cha
     sfilename = fileName;
   }
 
-  this->IS = new ifstream(sfilename.c_str(), ios::in | ios::binary);
+  this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in | ios::binary);
   if (this->IS->fail())
   {
     vtkErrorMacro("Unable to open file: " << sfilename.c_str());
@@ -2129,6 +2130,23 @@ int vtkPEnSightGoldReader::CreateUnstructuredGridOutput(
           }
           lineRead = this->ReadNextDataLine(line);
         }
+
+        // prepare an array of Ids describing the vtkPolyhedron object
+        int nodeIndx = 0; // indexing the raw array of point Ids
+        // vtkPolyhedron's info of faces
+        std::vector<vtkIdType> faceArray(elementNodeCount + numFacesPerElement[i]);
+        vtkIdType faceArrayIdx = 0;
+        for (j = 0; j < numFacesPerElement[i]; j++)
+        {
+          // number of points constituting this face
+          faceArray[faceArrayIdx++] = numNodesPerFace[faceCount + j];
+          for (k = 0; k < numNodesPerFace[faceCount + j]; k++)
+          {
+            // convert EnSight 1-based indexing to VTK 0-based indexing
+            faceArray[faceArrayIdx++] = intIds[nodeIndx++] - 1;
+          }
+        }
+
         faceCount += numFacesPerElement[i];
 
         // Build element
@@ -2147,8 +2165,8 @@ int vtkPEnSightGoldReader::CreateUnstructuredGridOutput(
           elementNodeCount,
           nodeIds);
           this->GetCellIds(idx, vtkPEnSightReader::NFACED)->InsertNextId(cellId);*/
-        this->InsertNextCellAndId(output, VTK_CONVEX_POINT_SET, elementNodeCount, nodeIds, idx,
-          vtkPEnSightReader::NFACED, i, numElements);
+        this->InsertNextCellAndId(output, VTK_POLYHEDRON, elementNodeCount, nodeIds, idx,
+          vtkPEnSightReader::NFACED, i, numElements, faceArray);
 
         delete[] nodeIds;
         delete[] intIds;

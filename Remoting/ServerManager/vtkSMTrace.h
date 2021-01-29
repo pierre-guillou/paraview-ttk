@@ -62,7 +62,6 @@
 #include "vtkRemotingServerManagerModule.h" // needed for exports
 #include "vtkSMObject.h"
 #include "vtkSmartPointer.h" // needed for iVar
-#include "vtkStdString.h"    // needed for ivar
 
 #include <vector>
 
@@ -98,7 +97,7 @@ public:
    * Stop trace and return the generated trace script.
    * This will also destroy the active tracer.
    */
-  static vtkStdString StopTrace();
+  static std::string StopTrace();
 
   //@{
   /**
@@ -131,6 +130,14 @@ public:
   vtkGetMacro(FullyTraceSupplementalProxies, bool);
   //@}
 
+  //@{
+  /**
+   * Skip rendering components such as views, representations.
+   */
+  vtkSetMacro(SkipRenderingComponents, bool);
+  vtkGetMacro(SkipRenderingComponents, bool);
+  //@}
+
   enum
   {
     RECORD_ALL_PROPERTIES = 0,
@@ -145,13 +152,16 @@ public:
   /**
    * Return the current trace.
    */
-  vtkStdString GetCurrentTrace();
+  std::string GetCurrentTrace();
 
   /**
-   * Save a Python state for the application and return it. Note this cannot be
-   * called when tracing is active.
+   * Generate a Python state for the application and return it. Note this cannot
+   * be called when Python tracing is active.
+   *
+   * `options` is a proxy with options to customize the state generation such as
+   * `('pythontracing', 'PythonStateOptions')`.
    */
-  static vtkStdString GetState(int propertiesToTraceOnCreate, bool skipHiddenRepresentations);
+  static std::string GetState(vtkSMProxy* options);
 
   // ************** BEGIN INTERNAL *************************
   //@{
@@ -220,6 +230,7 @@ protected:
   bool LogTraceToStdout;
   int PropertiesToTraceOnCreate;
   bool FullyTraceSupplementalProxies;
+  bool SkipRenderingComponents;
 
 private:
   vtkSMTrace(const vtkSMTrace&) = delete;

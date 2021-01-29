@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QLineEdit>
 #include <QStackedWidget>
 #include <QStringList>
+#include <QTabBar>
 
 // VTK includes
 #include "vtkCommand.h"
@@ -67,6 +68,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqActiveObjects.h"
 #include "pqCompositeDataInformationTreeModel.h"
 #include "pqCoreUtilities.h"
+#include "pqDataAssemblyTreeModel.h"
+#include "pqDoubleLineEdit.h"
 #include "pqNonEditableStyledItemDelegate.h"
 #include "pqObjectBuilder.h"
 #include "pqOutputPort.h"
@@ -77,16 +80,26 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // ParaView components includes
 
+static QString formatTime(double time)
+{
+  auto settings = vtkPVGeneralSettings::GetInstance();
+  const auto precision = settings->GetAnimationTimePrecision();
+  const auto notation =
+    static_cast<pqDoubleLineEdit::RealNumberNotation>(settings->GetAnimationTimeNotation());
+  return pqDoubleLineEdit::formatDouble(time, notation, precision);
+}
+
 class pqProxyInformationWidget::pqUi : public Ui::pqProxyInformationWidget
 {
 public:
   pqUi(QObject* p)
     : compositeTreeModel(new pqCompositeDataInformationTreeModel(p))
+    , assemblyTreeModel(new pqDataAssemblyTreeModel(p))
   {
-    this->compositeTreeModel->setHeaderData(0, Qt::Horizontal, "Data Hierarchy");
   }
 
   QPointer<pqCompositeDataInformationTreeModel> compositeTreeModel;
+  QPointer<pqDataAssemblyTreeModel> assemblyTreeModel;
 };
 
 //-----------------------------------------------------------------------------
@@ -104,6 +117,7 @@ pqProxyInformationWidget::pqProxyInformationWidget(QWidget* p)
   this->connect(this->Ui->compositeTree->selectionModel(),
     SIGNAL(currentChanged(const QModelIndex&, const QModelIndex&)),
     SLOT(onCurrentChanged(const QModelIndex&)));
+  this->Ui->assemblyTree->setModel(this->Ui->assemblyTreeModel);
   this->connect(this->Ui->dataTypeProperties, SIGNAL(currentChanged(int)),
     SLOT(onDataTypePropertiesWidgetChanged(int)));
   this->onDataTypePropertiesWidgetChanged(0); // set initial size
@@ -161,7 +175,7 @@ pqOutputPort* pqProxyInformationWidget::getOutputPort()
 void pqProxyInformationWidget::updateInformation()
 {
   this->Ui->compositeTreeModel->reset(nullptr);
-  this->Ui->compositeTree->setVisible(false);
+  this->Ui->hierarchyTabWidget->setVisible(false);
   this->Ui->filename->setText(tr("NA"));
   this->Ui->filename->setToolTip(tr("NA"));
   this->Ui->filename->setStatusTip(tr("NA"));
@@ -171,12 +185,14 @@ void pqProxyInformationWidget::updateInformation()
 
   vtkPVDataInformation* dataInformation = NULL;
   pqPipelineSource* source = NULL;
+  vtkDataAssembly* assembly = nullptr;
   if (this->OutputPort)
   {
     source = this->OutputPort->getSource();
     if (this->OutputPort->getOutputPortProxy())
     {
       dataInformation = this->OutputPort->getDataInformation();
+      assembly = this->OutputPort->dataAssembly();
     }
   }
 
@@ -192,10 +208,22 @@ void pqProxyInformationWidget::updateInformation()
 
   if (this->Ui->compositeTreeModel->reset(dataInformation))
   {
-    this->Ui->compositeTree->setVisible(true);
+    this->Ui->hierarchyTabWidget->setVisible(true);
     this->Ui->compositeTree->expandToDepth(1);
     this->Ui->compositeTree->selectionModel()->setCurrentIndex(
       this->Ui->compositeTreeModel->rootIndex(), QItemSelectionModel::ClearAndSelect);
+    this->Ui->assemblyTreeModel->setDataAssembly(assembly);
+    this->Ui->assemblyTree->expandToDepth(1);
+
+    if (assembly == nullptr)
+    {
+      this->Ui->hierarchyTabWidget->setCurrentIndex(0);
+      this->Ui->hierarchyTabWidget->tabBar()->hide();
+    }
+    else
+    {
+      this->Ui->hierarchyTabWidget->tabBar()->show();
+    }
   }
 
   this->fillDataInformation(dataInformation);
@@ -252,18 +280,16 @@ void pqProxyInformationWidget::updateInformation()
   this->Ui->timeValues->blockSignals(true);
   //
 
-  int precision = vtkPVGeneralSettings::GetInstance()->GetAnimationTimePrecision();
-  char notation = vtkPVGeneralSettings::GetInstance()->GetAnimationTimeNotation();
-
   if (tsv)
   {
-    unsigned int numElems = tsv->GetNumberOfElements();
+    const unsigned int numElems = tsv->GetNumberOfElements();
     for (unsigned int i = 0; i < numElems; i++)
     {
       QTreeWidgetItem* item = new QTreeWidgetItem(this->Ui->timeValues);
       item->setData(0, Qt::DisplayRole, i);
-      item->setData(1, Qt::DisplayRole, QString::number(tsv->GetElement(i), notation, precision));
-      item->setData(1, Qt::ToolTipRole, QString::number(tsv->GetElement(i), notation, precision));
+      auto label = ::formatTime(tsv->GetElement(i));
+      item->setData(1, Qt::DisplayRole, label);
+      item->setData(1, Qt::ToolTipRole, label);
       item->setFlags(item->flags() | Qt::ItemIsEditable);
     }
   }
@@ -367,15 +393,18 @@ void pqProxyInformationWidget::fillDataInformation(vtkPVDataInformation* dataInf
   if (dataInformation->GetHasTime())
   {
     this->Ui->dataTimeLabel->setVisible(true);
-    const char* timeLabel = dataInformation->GetTimeLabel();
-    this->Ui->dataTimeLabel->setText(QString("Current data %2: %1")
-                                       .arg(dataInformation->GetTime())
-                                       .arg(timeLabel ? timeLabel : "time"));
-    this->Ui->groupDataTime->setTitle(timeLabel);
+    const char* timeLabel =
+      dataInformation->GetTimeLabel() ? dataInformation->GetTimeLabel() : "time";
+    auto capitalizedTimeLabel = vtksys::SystemTools::Capitalized(timeLabel);
+    this->Ui->dataTimeLabel->setText(
+      QString("Current data %2: %1").arg(::formatTime(dataInformation->GetTime())).arg(timeLabel));
+    this->Ui->groupDataTime->setTitle(capitalizedTimeLabel.c_str());
+    this->Ui->timeValues->setHeaderLabels({ "Index", capitalizedTimeLabel.c_str() });
   }
   else
   {
     this->Ui->groupDataTime->setTitle(tr("Time"));
+    this->Ui->timeValues->setHeaderLabels({ "Index", "Time" });
   }
 
   vtkPVDataSetAttributesInformation* info[6];
@@ -431,23 +460,36 @@ void pqProxyInformationWidget::fillDataInformation(vtkPVDataInformation* dataInf
         QTreeWidgetItem* item = new QTreeWidgetItem(this->Ui->dataArrays);
         item->setData(0, Qt::DisplayRole, arrayInfo->GetName());
         item->setData(0, Qt::DecorationRole, pixmaps[k]);
-        QString dataType = vtkImageScalarTypeNameMacro(arrayInfo->GetDataType());
-        item->setData(1, Qt::DisplayRole, dataType);
+        item->setData(1, Qt::DisplayRole, vtkImageScalarTypeNameMacro(arrayInfo->GetDataType()));
         int numComponents = arrayInfo->GetNumberOfComponents();
-        QString dataRange;
-        double range[2];
-        for (int j = 0; j < numComponents; j++)
+        if (arrayInfo->GetDataType() == VTK_STRING)
         {
-          if (j != 0)
+          QStringList values;
+          for (int j = 0; j < arrayInfo->GetNumberOfStringValues(); ++j)
           {
-            dataRange.append(", ");
+            values.push_back(arrayInfo->GetStringValue(j));
           }
-          arrayInfo->GetComponentRange(j, range);
-          QString componentRange = QString("[%1, %2]").arg(range[0]).arg(range[1]);
-          dataRange.append(componentRange);
+          auto csv = values.join(",");
+          item->setData(2, Qt::DisplayRole, csv);
+          item->setData(2, Qt::ToolTipRole, csv);
         }
-        item->setData(2, Qt::DisplayRole, dataType == "string" ? tr("NA") : dataRange);
-        item->setData(2, Qt::ToolTipRole, dataRange);
+        else
+        {
+          QString dataRange;
+          double range[2];
+          for (int j = 0; j < numComponents; j++)
+          {
+            if (j != 0)
+            {
+              dataRange.append(", ");
+            }
+            arrayInfo->GetComponentRange(j, range);
+            QString componentRange = QString("[%1, %2]").arg(range[0]).arg(range[1]);
+            dataRange.append(componentRange);
+          }
+          item->setData(2, Qt::DisplayRole, dataRange);
+          item->setData(2, Qt::ToolTipRole, dataRange);
+        }
         item->setFlags(item->flags() | Qt::ItemIsEditable);
         if (arrayInfo->GetIsPartial())
         {

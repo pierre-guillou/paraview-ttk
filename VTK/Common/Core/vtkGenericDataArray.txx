@@ -919,9 +919,7 @@ vtkGenericDataArray<DerivedT, ValueTypeT>::vtkGenericDataArray()
 
 //-----------------------------------------------------------------------------
 template <class DerivedT, class ValueTypeT>
-vtkGenericDataArray<DerivedT, ValueTypeT>::~vtkGenericDataArray()
-{
-}
+vtkGenericDataArray<DerivedT, ValueTypeT>::~vtkGenericDataArray() = default;
 
 //-----------------------------------------------------------------------------
 template <class DerivedT, class ValueTypeT>
@@ -974,18 +972,18 @@ struct ATIsSupported : public std::false_type
 };
 
 template <typename ValueType>
-struct ATIsSupported<vtkAOSDataArrayTemplate<ValueType> > : public std::true_type
+struct ATIsSupported<vtkAOSDataArrayTemplate<ValueType>> : public std::true_type
 {
 };
 
 template <typename ValueType>
-struct ATIsSupported<vtkSOADataArrayTemplate<ValueType> > : public std::true_type
+struct ATIsSupported<vtkSOADataArrayTemplate<ValueType>> : public std::true_type
 {
 };
 
 #ifdef VTK_USE_SCALED_SOA_ARRAYS
 template <typename ValueType>
-struct ATIsSupported<vtkScaledSOADataArrayTemplate<ValueType> > : public std::true_type
+struct ATIsSupported<vtkScaledSOADataArrayTemplate<ValueType>> : public std::true_type
 {
 };
 #endif

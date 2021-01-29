@@ -50,15 +50,16 @@
 //  Oliver Ruebel (LBNL)
 //==============================================================================
 
-#ifndef vtkm_worklet_contourtree_augmented_mesh_dem_triangulation_2d_freudenthal_h
-#define vtkm_worklet_contourtree_augmented_mesh_dem_triangulation_2d_freudenthal_h
+#ifndef vtk_m_worklet_contourtree_augmented_mesh_dem_triangulation_2d_freudenthal_h
+#define vtk_m_worklet_contourtree_augmented_mesh_dem_triangulation_2d_freudenthal_h
 
 #include <cstdlib>
 #include <vtkm/Types.h>
 
 #include <vtkm/worklet/contourtree_augmented/Mesh_DEM_Triangulation.h>
-#include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/MeshBoundary.h>
 #include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/MeshStructureFreudenthal2D.h>
+#include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/mesh_boundary/ComputeMeshBoundary2D.h>
+#include <vtkm/worklet/contourtree_augmented/mesh_dem_meshtypes/mesh_boundary/MeshBoundary2D.h>
 
 #include <vtkm/cont/ExecutionObjectBase.h>
 
@@ -70,25 +71,33 @@ namespace contourtree_augmented
 {
 
 template <typename T, typename StorageType>
-class Mesh_DEM_Triangulation_2D_Freudenthal : public Mesh_DEM_Triangulation_2D<T, StorageType>,
-                                              public vtkm::cont::ExecutionObjectBase
+class Mesh_DEM_Triangulation_2D_Freudenthal
+  : public Mesh_DEM_Triangulation_2D<T, StorageType>
+  , public vtkm::cont::ExecutionObjectBase
 { // class Mesh_DEM_Triangulation
 public:
   // Constants and case tables
-  m2d_freudenthal::edgeBoundaryDetectionMasksType edgeBoundaryDetectionMasks;
+  m2d_freudenthal::EdgeBoundaryDetectionMasksType EdgeBoundaryDetectionMasks;
 
   //Mesh dependent helper functions
-  void setPrepareForExecutionBehavior(bool getMax);
+  void SetPrepareForExecutionBehavior(bool getMax);
 
   template <typename DeviceTag>
-  MeshStructureFreudenthal2D<DeviceTag> PrepareForExecution(DeviceTag) const;
+  MeshStructureFreudenthal2D<DeviceTag> PrepareForExecution(DeviceTag,
+                                                            vtkm::cont::Token& token) const;
 
   Mesh_DEM_Triangulation_2D_Freudenthal(vtkm::Id ncols, vtkm::Id nrows);
 
   MeshBoundary2DExec GetMeshBoundaryExecutionObject() const;
 
+  void GetBoundaryVertices(IdArrayType& boundaryVertexArray,    // output
+                           IdArrayType& boundarySortIndexArray, // output
+                           MeshBoundary2DExec* meshBoundaryExecObj =
+                             NULL // optional input, included for consistency with ContourTreeMesh
+  ) const;
+
 private:
-  bool useGetMax; // Define the behavior ofr the PrepareForExecution function
+  bool UseGetMax; // Define the behavior ofr the PrepareForExecution function
 };                // class Mesh_DEM_Triangulation
 
 // creates input mesh
@@ -99,38 +108,66 @@ Mesh_DEM_Triangulation_2D_Freudenthal<T, StorageType>::Mesh_DEM_Triangulation_2D
   : Mesh_DEM_Triangulation_2D<T, StorageType>(ncols, nrows)
 
 {
-  edgeBoundaryDetectionMasks = vtkm::cont::make_ArrayHandle(
-    m2d_freudenthal::edgeBoundaryDetectionMasks, m2d_freudenthal::N_INCIDENT_EDGES);
+  this->EdgeBoundaryDetectionMasks =
+    vtkm::cont::make_ArrayHandle(m2d_freudenthal::EdgeBoundaryDetectionMasks,
+                                 m2d_freudenthal::N_INCIDENT_EDGES,
+                                 vtkm::CopyFlag::Off);
 }
 
 template <typename T, typename StorageType>
-void Mesh_DEM_Triangulation_2D_Freudenthal<T, StorageType>::setPrepareForExecutionBehavior(
+void Mesh_DEM_Triangulation_2D_Freudenthal<T, StorageType>::SetPrepareForExecutionBehavior(
   bool getMax)
 {
-  this->useGetMax = getMax;
+  this->UseGetMax = getMax;
 }
 
 // Get VTKM execution object that represents the structure of the mesh and provides the mesh helper functions on the device
 template <typename T, typename StorageType>
 template <typename DeviceTag>
 MeshStructureFreudenthal2D<DeviceTag>
-  Mesh_DEM_Triangulation_2D_Freudenthal<T, StorageType>::PrepareForExecution(DeviceTag) const
+Mesh_DEM_Triangulation_2D_Freudenthal<T, StorageType>::PrepareForExecution(
+  DeviceTag,
+  vtkm::cont::Token& token) const
 {
-  return MeshStructureFreudenthal2D<DeviceTag>(this->nCols,
-                                               this->nRows,
+  return MeshStructureFreudenthal2D<DeviceTag>(this->NumColumns,
+                                               this->NumRows,
                                                m2d_freudenthal::N_INCIDENT_EDGES,
-                                               this->useGetMax,
-                                               this->sortIndices,
-                                               this->sortOrder,
-                                               edgeBoundaryDetectionMasks);
+                                               this->UseGetMax,
+                                               this->SortIndices,
+                                               this->SortOrder,
+                                               this->EdgeBoundaryDetectionMasks,
+                                               token);
 }
 
 template <typename T, typename StorageType>
 MeshBoundary2DExec
 Mesh_DEM_Triangulation_2D_Freudenthal<T, StorageType>::GetMeshBoundaryExecutionObject() const
 {
-  return MeshBoundary2DExec(this->nCols, this->nRows, this->sortOrder);
+  return MeshBoundary2DExec(this->NumColumns, this->NumRows, this->SortOrder);
 }
+
+
+template <typename T, typename StorageType>
+void Mesh_DEM_Triangulation_2D_Freudenthal<T, StorageType>::GetBoundaryVertices(
+  IdArrayType& boundaryVertexArray,    // output
+  IdArrayType& boundarySortIndexArray, // output
+  MeshBoundary2DExec*
+    meshBoundaryExecObj // optional input, included for consistency with ContourTreeMesh
+) const
+{
+  vtkm::Id numBoundary = 2 * this->NumRows + 2 * this->NumColumns - 4;
+  auto boundaryId = vtkm::cont::ArrayHandleIndex(numBoundary);
+  ComputeMeshBoundary2D computeMeshBoundary2dWorklet;
+  this->Invoke(computeMeshBoundary2dWorklet,
+               boundaryId,        // input
+               this->SortIndices, // input
+               (meshBoundaryExecObj == NULL) ? this->GetMeshBoundaryExecutionObject()
+                                             : *meshBoundaryExecObj, // input
+               boundaryVertexArray,                                  // output
+               boundarySortIndexArray                                // output
+  );
+}
+
 
 } // namespace contourtree_augmented
 } // worklet

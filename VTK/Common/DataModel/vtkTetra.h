@@ -51,10 +51,12 @@ public:
    */
   void GetEdgePoints(vtkIdType edgeId, const vtkIdType*& pts) override;
   // @deprecated Replaced by GetEdgePoints(vtkIdType, const vtkIdType*&) as of VTK 9.0
-  VTK_LEGACY(virtual void GetEdgePoints(int edgeId, int*& pts) override);
+  VTK_DEPRECATED_IN_9_0_0("Replaced by vtkTetra::GetEdgePoints(vtkIdType, const vtkIdType*&)")
+  void GetEdgePoints(int edgeId, int*& pts) override;
   vtkIdType GetFacePoints(vtkIdType faceId, const vtkIdType*& pts) override;
   // @deprecated Replaced by GetFacePoints(vtkIdType, const vtkIdType*&) as of VTK 9.0
-  VTK_LEGACY(virtual void GetFacePoints(int faceId, int*& pts) override);
+  VTK_DEPRECATED_IN_9_0_0("Replaced by vtkTetra::GetFacePoints(vtkIdType, const vtkIdType*&)")
+  void GetFacePoints(int faceId, int*& pts) override;
   void GetEdgeToAdjacentFaces(vtkIdType edgeId, const vtkIdType*& pts) override;
   vtkIdType GetFaceToAdjacentFaces(vtkIdType faceId, const vtkIdType*& faceIds) override;
   vtkIdType GetPointToIncidentEdges(vtkIdType pointId, const vtkIdType*& edgeIds) override;
@@ -156,7 +158,7 @@ public:
    * x3, and x4.
    */
   static double Circumsphere(
-    double p1[3], double p2[3], double p3[3], double p4[3], double center[3]);
+    double x1[3], double x2[3], double x3[3], double x4[3], double center[3]);
 
   /**
    * Compute the center (center[3]) and radius (method return value) of

@@ -283,40 +283,6 @@
     </SourceProxy>
 
     <!-- ==================================================================== -->
-    <SourceProxy class="vtkMergeArrays"
-                 label="Append Attributes"
-                 name="AppendAttributes">
-      <Documentation long_help="Copies geometry from first input.  Puts all of the arrays into the output."
-                     short_help="Puts all input arrays into the single output.">
-                     The Append Attributes filter takes multiple input data
-                     sets with the same geometry and merges their point and
-                     cell attributes to produce a single output containing all
-                     the point and cell attributes of the inputs. Any inputs
-                     without the same number of points and cells as the first
-                     input are ignored. The input data sets must already be
-                     collected together, either as a result of a reader that
-                     loads multiple parts (e.g., EnSight reader) or because the
-                     Group Parts filter has been run to form a collection of
-                     data sets.</Documentation>
-      <InputProperty clean_command="RemoveAllInputs"
-                     command="AddInputConnection"
-                     multiple_input="1"
-                     name="Input">
-        <ProxyGroupDomain name="groups">
-          <Group name="sources" />
-          <Group name="filters" />
-        </ProxyGroupDomain>
-        <DataTypeDomain composite_data_supported="1"
-                        name="input_type">
-          <DataType value="vtkDataObject" />
-        </DataTypeDomain>
-        <Documentation>This property specifies the input to the Append
-        Attributes filter.</Documentation>
-      </InputProperty>
-      <!-- End AppendAttributes -->
-    </SourceProxy>
-
-    <!-- ==================================================================== -->
     <SourceProxy class="vtkPlotEdges"
                  label="Plot On Sorted Lines"
                  name="PlotOnSortedLines">
@@ -343,6 +309,29 @@
       </Hints>
       <!-- End PlotEdges -->
     </SourceProxy>
+
+    <SourceProxy class="vtkConvertPolyhedraFilter"
+                 label="Convert Polyhedral Cells"
+                 name="ConvertPolyhedra">
+      <Documentation long_help="Attempt to convert polyhedral cells tp simple cells.">
+Attempt to convert polyhedral cells to simple cells (tetrahedron, pyramid, wedge
+or hexahedron). It will speed up downstream processing if polyhedral cells can
+be treated as simple cells.
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkUnstructuredGridBase" />
+        </DataTypeDomain>
+        <Documentation>This property specifies the input to the Convert Polyhedral Cells
+        filter.</Documentation>
+      </InputProperty>
+    </SourceProxy>
+
 
     <!-- ==================================================================== -->
     <SourceProxy class="vtkPVArrayCalculator"
@@ -685,13 +674,18 @@ array.
         </DataTypeDomain>
         <InputArrayDomain attribute_type="point"
                           name="input_array"
-                          number_of_components="1" />
+                          number_of_components="1"
+                          data_type="vtkDataSet" />
+        <InputArrayDomain attribute_type="cell"
+                          name="input_array_htg"
+                          number_of_components="1"
+                          data_type="vtkHyperTreeGrid" />
         <Documentation>This property specifies the input dataset to be used by
         the contour filter.</Documentation>
       </InputProperty>
       <StringVectorProperty animateable="0"
                             command="SetInputArrayToProcess"
-                            element_types="0 0 0 0 2"
+                            element_types="int int int int str"
                             label="Contour By"
                             name="SelectInputScalars"
                             number_of_elements="5">
@@ -3428,5 +3422,73 @@ Every Nth Point.
       </Hints>
     </SourceProxy>
 
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkAnnotateGlobalDataFilter"
+                 label="Annotate Global Data"
+                 name="AnnotateGlobalData">
+      <Documentation short_help="Filter for annotating with global/field data">
+        Generates annotation text from global / field data.
+        provides a simpler API for creating text
+        If the field array chosen has as many elements as number of timesteps,
+        the array is assumed to be "temporal" and indexed using the current
+        timestep.
+      </Documentation>
+      <InputProperty clean_command="RemoveAllInputs"
+                     command="AddInputConnection"
+                     multiple_input="1"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataObject" />
+          <DataType value="vtkHyperTreeGrid" />
+        </DataTypeDomain>
+        <InputArrayDomain attribute_type="field"
+                          name="input_array"
+                          number_of_components="1" />
+        <Documentation>Set the input of the filter.</Documentation>
+      </InputProperty>
+      <StringVectorProperty command="SetFieldArrayName"
+                            name="SelectArrays"
+                            number_of_elements="1">
+        <ArrayListDomain name="array_list">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input" />
+          </RequiredProperties>
+        </ArrayListDomain>
+        <Documentation>Choose array that is going to be
+        displayed.</Documentation>
+      </StringVectorProperty>
+      <StringVectorProperty command="SetPrefix"
+                            default_values="Value is: "
+                            name="Prefix"
+                            number_of_elements="1">
+        <Documentation>Text that is used as a prefix to the field
+        value.</Documentation>
+      </StringVectorProperty>
+      <StringVectorProperty command="SetFormat"
+                            default_values="%7.5g"
+                            name="Format"
+                            number_of_elements="1">
+        <Documentation>Text that is used as a format string passed
+          to the Python string formatter (% operator).  Used to format
+          the data.</Documentation>
+      </StringVectorProperty>
+      <StringVectorProperty command="SetPostfix"
+                            default_values=""
+                            name="Suffix"
+                            number_of_elements="1">
+        <Documentation>Text that is used as a suffix to the field
+        value.</Documentation>
+      </StringVectorProperty>
+      <Hints>
+        <Visibility replace_input="0" />
+        <OutputPort index="0" name="Output-0" type="text" />
+      </Hints>
+      <!-- End AnnotateGlobalData -->
+    </SourceProxy>
   </ProxyGroup>
 </ServerManagerConfiguration>

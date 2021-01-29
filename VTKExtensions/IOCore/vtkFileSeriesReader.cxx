@@ -32,14 +32,15 @@
 #include "vtkInformationIntegerKey.h"
 #include "vtkInformationStringKey.h"
 #include "vtkInformationVector.h"
+#include "vtkLogger.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
-#include "vtkStdString.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkTypeTraits.h"
 
-#include <vtksys/SystemTools.hxx>
+#include "vtksys/FStream.hxx"
+#include "vtksys/SystemTools.hxx"
 
 #include "vtkSmartPointer.h"
 #define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
@@ -71,11 +72,19 @@ public:
   int ChooseInput(vtkInformation* outInfo);
   std::vector<double> GetTimesForInput(int inputId, vtkInformation* outInfo);
 
+  // When set to true, `GetAggregateTimeInfo` will not add any TIME_STEPS or
+  // TIME_RANGE keys in the output information. This is useful to avoid adding
+  // time for single-file reads where the internal reader did not report any
+  // time nor did we have any overridden time.
+  // See paraview/paraview#20314 and paraview/paraview#19777 for two apparently
+  // conflicting use-cases that need to be supported.
+  void SetSkipTimeInOutput(bool val) { this->SkipTimeInOutput = val; }
 private:
   static vtkInformationIntegerKey* INDEX();
   typedef std::map<double, vtkSmartPointer<vtkInformation> > RangeMapType;
   RangeMapType RangeMap;
   std::map<int, vtkSmartPointer<vtkInformation> > InputLookup;
+  bool SkipTimeInOutput = false;
 };
 
 vtkInformationKeyMacro(vtkFileSeriesReaderTimeRanges, INDEX, Integer);
@@ -85,6 +94,7 @@ void vtkFileSeriesReaderTimeRanges::Reset()
 {
   this->RangeMap.clear();
   this->InputLookup.clear();
+  this->SkipTimeInOutput = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -140,10 +150,8 @@ int vtkFileSeriesReaderTimeRanges::GetAggregateTimeInfo(vtkInformation* outInfo)
   timeRange[1] =
     (--this->RangeMap.end())->second->Get(vtkStreamingDemandDrivenPipeline::TIME_RANGE())[1];
 
-  // Special case: if the time range is a single value, suppress it.  This is
-  // most likely from a data set that is a single file with no time anyway.
-  // Even if it is not, how much value added is there for a single time value?
-  if (timeRange[0] >= timeRange[1])
+  // ensure time-range is valid.
+  if (timeRange[0] > timeRange[1])
   {
     outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_RANGE());
     outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
@@ -182,6 +190,15 @@ int vtkFileSeriesReaderTimeRanges::GetAggregateTimeInfo(vtkInformation* outInfo)
   else
   {
     outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+  }
+
+  // special-case: this is used to avoid making up time for non-temporal
+  // datasets as that can cause unnecessary updates (see
+  // paraview/paraview#20314).
+  if (this->SkipTimeInOutput)
+  {
+    outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+    outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_RANGE());
   }
   return 1;
 }
@@ -611,6 +628,9 @@ int vtkFileSeriesReader::RequestInformation(vtkInformation* request,
     // index.
     outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
     outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_RANGE());
+    const bool override_time =
+      numFiles > 1 || (this->UseJsonMetaFile && this->Internal->TimeValues.size() == numFiles);
+    this->Internal->TimeRanges->SetSkipTimeInOutput(override_time == false);
     for (unsigned int i = 0; i < numFiles; i++)
     {
       double time = (double)i;
@@ -641,6 +661,10 @@ int vtkFileSeriesReader::RequestInformation(vtkInformation* request,
   // Now that we have collected all of the time information, set the aggregate
   // time steps in the output.
   this->Internal->TimeRanges->GetAggregateTimeInfo(outInfo);
+
+  vtkLogF(TRACE, "%s: has time: %d", vtkLogIdentifier(this),
+    outInfo->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()));
+
   return 1;
 }
 
@@ -783,7 +807,7 @@ int vtkFileSeriesReader::ReadMetaDataFile(const char* metafilename, vtkStringArr
   std::vector<double>& timeValues, int maxFilesToRead /*= VTK_INT_MAX*/)
 {
   // Open the metafile.
-  ifstream metafile(metafilename);
+  vtksys::ifstream metafile(metafilename);
   if (metafile.bad())
   {
     return 0;
@@ -860,7 +884,7 @@ int vtkFileSeriesReader::ReadMetaDataFile(const char* metafilename, vtkStringArr
     while (
       metafile.good() && !metafile.eof() && (filesToRead->GetNumberOfTuples() < maxFilesToRead))
     {
-      vtkStdString fname;
+      std::string fname;
       metafile >> fname;
       if (fname.empty())
         continue;
@@ -874,7 +898,7 @@ int vtkFileSeriesReader::ReadMetaDataFile(const char* metafilename, vtkStringArr
           return 0;
         }
       }
-      filesToRead->InsertNextValue(FromRelativeToMetaFile(metafilename, fname));
+      filesToRead->InsertNextValue(FromRelativeToMetaFile(metafilename, fname.c_str()));
     }
     return 1;
   }

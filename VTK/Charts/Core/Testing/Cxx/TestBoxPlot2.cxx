@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkSmartPointer.h"
 
 #include "vtkAxis.h"
@@ -34,7 +37,7 @@
 
 #include "vtkTestErrorObserver.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestBoxPlot2(int, char*[])
 {
   // Set up a 2D scene, add an XY chart to it

@@ -33,7 +33,9 @@ struct VTKM_ALWAYS_EXPORT ArrayPortalExtrudePlane
   VTKM_EXEC_CONT
   ArrayPortalExtrudePlane()
     : Portal()
-    , NumberOfPlanes(0){};
+    , NumberOfPlanes(0)
+  {
+  }
 
   ArrayPortalExtrudePlane(const PortalType& p, vtkm::Int32 numOfPlanes)
     : Portal(p)
@@ -96,8 +98,7 @@ class VTKM_ALWAYS_EXPORT Storage<T, internal::StorageTagExtrudePlane>
 public:
   using ValueType = T;
 
-  using PortalConstType =
-    vtkm::exec::ArrayPortalExtrudePlane<typename HandleType::PortalConstControl>;
+  using PortalConstType = vtkm::exec::ArrayPortalExtrudePlane<typename HandleType::ReadPortalType>;
 
   // Note that this array is read only, so you really should only be getting the const
   // version of the portal. If you actually try to write to this portal, you will
@@ -124,7 +125,7 @@ public:
 
   PortalConstType GetPortalConst() const
   {
-    return PortalConstType(this->Array.GetPortalConstControl(), this->NumberOfPlanes);
+    return PortalConstType(this->Array.ReadPortal(), this->NumberOfPlanes);
   }
 
   vtkm::Id GetNumberOfValues() const
@@ -248,7 +249,9 @@ struct VTKM_ALWAYS_EXPORT ArrayPortalExtrude
     : Portal()
     , NumberOfValues(0)
     , NumberOfPlanes(0)
-    , UseCylindrical(false){};
+    , UseCylindrical(false)
+  {
+  }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
   VTKM_EXEC_CONT
@@ -287,9 +290,10 @@ struct VTKM_ALWAYS_EXPORT ArrayPortalExtrude
   vtkm::Int32 NumberOfPlanes;
   bool UseCylindrical;
 };
+
 template <typename PortalType>
-typename ArrayPortalExtrude<PortalType>::ValueType
-ArrayPortalExtrude<PortalType>::ArrayPortalExtrude::Get(vtkm::Id index) const
+VTKM_EXEC_CONT typename ArrayPortalExtrude<PortalType>::ValueType
+ArrayPortalExtrude<PortalType>::Get(vtkm::Id index) const
 {
   using CompType = typename ValueType::ComponentType;
 
@@ -310,8 +314,8 @@ ArrayPortalExtrude<PortalType>::ArrayPortalExtrude::Get(vtkm::Id index) const
 }
 
 template <typename PortalType>
-typename ArrayPortalExtrude<PortalType>::ValueType
-ArrayPortalExtrude<PortalType>::ArrayPortalExtrude::Get(vtkm::Id2 index) const
+VTKM_EXEC_CONT typename ArrayPortalExtrude<PortalType>::ValueType
+ArrayPortalExtrude<PortalType>::Get(vtkm::Id2 index) const
 {
   using CompType = typename ValueType::ComponentType;
 
@@ -332,8 +336,8 @@ ArrayPortalExtrude<PortalType>::ArrayPortalExtrude::Get(vtkm::Id2 index) const
 }
 
 template <typename PortalType>
-vtkm::Vec<typename ArrayPortalExtrude<PortalType>::ValueType, 6>
-ArrayPortalExtrude<PortalType>::ArrayPortalExtrude::GetWedge(const IndicesExtrude& index) const
+VTKM_EXEC_CONT vtkm::Vec<typename ArrayPortalExtrude<PortalType>::ValueType, 6>
+ArrayPortalExtrude<PortalType>::GetWedge(const IndicesExtrude& index) const
 {
   using CompType = typename ValueType::ComponentType;
 
@@ -373,7 +377,7 @@ class Storage<T, internal::StorageTagExtrude>
 {
   using BaseT = typename VecTraits<T>::BaseComponentType;
   using HandleType = vtkm::cont::ArrayHandle<BaseT>;
-  using TPortalType = typename HandleType::PortalConstControl;
+  using TPortalType = typename HandleType::ReadPortalType;
 
 public:
   using ValueType = T;
@@ -389,15 +393,6 @@ public:
     : Array()
     , NumberOfPlanes(0)
   {
-  }
-
-  // Create with externally managed memory
-  Storage(const BaseT* array, vtkm::Id arrayLength, vtkm::Int32 numberOfPlanes, bool cylindrical)
-    : Array(vtkm::cont::make_ArrayHandle(array, arrayLength))
-    , NumberOfPlanes(numberOfPlanes)
-    , UseCylindrical(cylindrical)
-  {
-    VTKM_ASSERT(this->Array.GetNumberOfValues() >= 0);
   }
 
   Storage(const HandleType& array, vtkm::Int32 numberOfPlanes, bool cylindrical)
@@ -417,7 +412,7 @@ public:
   PortalConstType GetPortalConst() const
   {
     VTKM_ASSERT(this->Array.GetNumberOfValues() >= 0);
-    return PortalConstType(this->Array.GetPortalConstControl(),
+    return PortalConstType(this->Array.ReadPortal(),
                            static_cast<vtkm::Int32>(this->Array.GetNumberOfValues()),
                            this->NumberOfPlanes,
                            this->UseCylindrical);
@@ -462,7 +457,8 @@ template <typename T, typename Device>
 class VTKM_ALWAYS_EXPORT ArrayTransfer<T, internal::StorageTagExtrude, Device>
 {
   using BaseT = typename VecTraits<T>::BaseComponentType;
-  using TPortalType = decltype(vtkm::cont::ArrayHandle<BaseT>{}.PrepareForInput(Device{}));
+  using TPortalType = decltype(
+    vtkm::cont::ArrayHandle<BaseT>{}.PrepareForInput(Device{}, std::declval<vtkm::cont::Token&>()));
 
 public:
   using ValueType = T;
@@ -472,7 +468,7 @@ public:
   using PortalConstControl = typename StorageType::PortalConstType;
 
   //meant to be an invalid writeable execution portal
-  using PortalExecution = typename StorageType::PortalType;
+  using PortalExecution = vtkm::exec::ArrayPortalExtrude<TPortalType>;
 
   using PortalConstExecution = vtkm::exec::ArrayPortalExtrude<TPortalType>;
 
@@ -484,24 +480,24 @@ public:
   vtkm::Id GetNumberOfValues() const { return this->ControlData->GetNumberOfValues(); }
 
   VTKM_CONT
-  PortalConstExecution PrepareForInput(bool vtkmNotUsed(updateData))
+  PortalConstExecution PrepareForInput(bool vtkmNotUsed(updateData), vtkm::cont::Token& token)
   {
     return PortalConstExecution(
-      this->ControlData->Array.PrepareForInput(Device()),
+      this->ControlData->Array.PrepareForInput(Device(), token),
       static_cast<vtkm::Int32>(this->ControlData->Array.GetNumberOfValues()),
       this->ControlData->GetNumberOfPlanes(),
       this->ControlData->GetUseCylindrical());
   }
 
   VTKM_CONT
-  PortalExecution PrepareForInPlace(bool& vtkmNotUsed(updateData))
+  PortalExecution PrepareForInPlace(bool& vtkmNotUsed(updateData), vtkm::cont::Token&)
   {
     throw vtkm::cont::ErrorBadType("StorageExtrude read only. "
                                    "Cannot be used for in-place operations.");
   }
 
   VTKM_CONT
-  PortalExecution PrepareForOutput(vtkm::Id vtkmNotUsed(numberOfValues))
+  PortalExecution PrepareForOutput(vtkm::Id vtkmNotUsed(numberOfValues), vtkm::cont::Token&)
   {
     throw vtkm::cont::ErrorBadType("StorageExtrude read only. Cannot be used as output.");
   }

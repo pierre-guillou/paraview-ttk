@@ -78,7 +78,7 @@ void vtkAMREnzoReader::ComputeStats(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkAMREnzoReader::vtkAMREnzoReader()
 {
   this->Internal = new vtkEnzoReaderInternal();
@@ -87,25 +87,22 @@ vtkAMREnzoReader::vtkAMREnzoReader()
   this->ConvertToCGS = 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkAMREnzoReader::~vtkAMREnzoReader()
 {
   delete this->Internal;
   this->Internal = nullptr;
 
   this->BlockMap.clear();
-
-  delete[] this->FileName;
-  this->FileName = nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkAMREnzoReader::PrintSelf(std::ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkAMREnzoReader::GetIndexFromArrayName(std::string arrayName)
 {
   char stringIdx[2];
@@ -114,7 +111,7 @@ int vtkAMREnzoReader::GetIndexFromArrayName(std::string arrayName)
   return (atoi(stringIdx));
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double vtkAMREnzoReader::GetConversionFactor(const std::string& name)
 {
   if (this->label2idx.find(name) != this->label2idx.end())
@@ -132,7 +129,7 @@ double vtkAMREnzoReader::GetConversionFactor(const std::string& name)
   return (1.0);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkAMREnzoReader::ParseLabel(const std::string& labelString, int& idx, std::string& label)
 {
 
@@ -152,7 +149,7 @@ void vtkAMREnzoReader::ParseLabel(const std::string& labelString, int& idx, std:
   label = strings[strings.size() - 1];
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkAMREnzoReader::ParseCFactor(const std::string& labelString, int& idx, double& factor)
 {
   std::vector<std::string> strings;
@@ -171,7 +168,7 @@ void vtkAMREnzoReader::ParseCFactor(const std::string& labelString, int& idx, do
   factor = atof(strings[strings.size() - 1].c_str());
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkAMREnzoReader::ParseConversionFactors()
 {
   assert("pre: FileName should not be nullptr" && (this->FileName != nullptr));
@@ -214,13 +211,13 @@ void vtkAMREnzoReader::ParseConversionFactors()
   ifs.close();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkAMREnzoReader::SetFileName(const char* fileName)
 {
   assert("pre: Internal Enzo AMR Reader is nullptr" && (this->Internal != nullptr));
 
-  if (fileName && strcmp(fileName, "") &&
-    ((this->FileName == nullptr) || (strcmp(fileName, this->FileName))))
+  if (fileName && strcmp(fileName, "") != 0 &&
+    ((this->FileName == nullptr) || (strcmp(fileName, this->FileName) != 0)))
   {
     std::string tempName(fileName);
     std::string bExtName(".boundary");
@@ -277,7 +274,7 @@ void vtkAMREnzoReader::SetFileName(const char* fileName)
   this->Modified();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkAMREnzoReader::ReadMetaData()
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));
@@ -290,7 +287,7 @@ void vtkAMREnzoReader::ReadMetaData()
   this->Internal->ReadMetaData();
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkAMREnzoReader::GetBlockLevel(const int blockIdx)
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));
@@ -310,7 +307,7 @@ int vtkAMREnzoReader::GetBlockLevel(const int blockIdx)
   return (this->Internal->Blocks[blockIdx + 1].Level);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkAMREnzoReader::GetNumberOfBlocks()
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));
@@ -323,7 +320,7 @@ int vtkAMREnzoReader::GetNumberOfBlocks()
   return (this->Internal->NumberOfBlocks);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkAMREnzoReader::GetNumberOfLevels()
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));
@@ -336,7 +333,7 @@ int vtkAMREnzoReader::GetNumberOfLevels()
   return (this->Internal->NumberOfLevels);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkAMREnzoReader::FillMetaData()
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));
@@ -386,7 +383,7 @@ int vtkAMREnzoReader::FillMetaData()
   return (1);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkUniformGrid* vtkAMREnzoReader::GetAMRGrid(const int blockIdx)
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));
@@ -420,7 +417,7 @@ vtkUniformGrid* vtkAMREnzoReader::GetAMRGrid(const int blockIdx)
   return (ug);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkAMREnzoReader::GetAMRGridData(const int blockIdx, vtkUniformGrid* block, const char* field)
 {
   assert("pre: AMR block is nullptr" && (block != nullptr));
@@ -448,7 +445,7 @@ void vtkAMREnzoReader::GetAMRGridData(const int blockIdx, vtkUniformGrid* block,
   }       // END if conversion to CGS units is requested
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkAMREnzoReader::SetUpDataArraySelections()
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));

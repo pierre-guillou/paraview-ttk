@@ -20,14 +20,18 @@
  * output vtkUnstructuredGrid if the ExtractSurfaces option is off. If the ExtractSurfaces option
  * is on, surfaces of non-vtkPolyData datasets in the input tree will be extracted and merged to
  * the output with vtkPolyData datasets.
+ *
+ * @deprecated ParaView 5.9. Please use vtkMergeBlocks instead.
  */
 
 #ifndef vtkDataObjectTreeToPointSetFilter_h
 #define vtkDataObjectTreeToPointSetFilter_h
 
+#include "vtkLegacy.h"                    // for legacy
 #include "vtkPVVTKExtensionsMiscModule.h" // For export macro
 #include "vtkPointSetAlgorithm.h"
 
+#if !defined(VTK_LEGACY_REMOVE)
 class vtkAppendDataSets;
 class vtkDataObjectTree;
 class vtkDataSet;
@@ -123,3 +127,4 @@ private:
 };
 
 #endif
+#endif // VTK_LEGACY_REMOVE

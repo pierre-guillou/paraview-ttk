@@ -103,7 +103,7 @@ void pqHeaderView::paintSection(QPainter* painter, const QRect& rect, int logica
       coption.state |= QStyle::State_Off;
       break;
   }
-  this->style()->drawPrimitive(QStyle::PE_IndicatorViewItemCheck, &coption, painter, this);
+  this->style()->drawPrimitive(QStyle::PE_IndicatorItemViewItemCheck, &coption, painter, this);
 
   // finally draw the header in offset by size of the checkbox.
   // let's determine the location where the "label" would be typically drawn in
@@ -186,7 +186,7 @@ void pqHeaderView::mouseClickEvent(QMouseEvent* evt)
         const auto& role = pair.second;
         if (rect.contains(this->PressPosition))
         {
-          emit this->customIndicatorClicked(logicalIndex, rect.bottomLeft(), role);
+          Q_EMIT this->customIndicatorClicked(logicalIndex, rect.bottomLeft(), role);
           return;
         }
       }

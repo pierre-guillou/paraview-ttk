@@ -41,7 +41,7 @@ void lorenz(const float* varX, float* varXDerivative)
 }
 } // end anonymous namespace
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestLinePlot3D(int, char*[])
 {
   // Create the data.
@@ -84,6 +84,7 @@ int TestLinePlot3D(int, char*[])
   // Add a line plot.
   vtkNew<vtkPlotLine3D> plot;
   plot->SetInputData(varXSolution);
+  plot->GetPen()->SetWidth(1);
   plot->GetPen()->SetColorF(0.1, 0.2, 0.8, 1.0);
   chart->AddPlot(plot);
 

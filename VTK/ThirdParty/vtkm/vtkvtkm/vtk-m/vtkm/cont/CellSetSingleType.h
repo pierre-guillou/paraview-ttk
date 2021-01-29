@@ -61,10 +61,11 @@ public:
   }
 
   VTKM_CONT
-  CellSetSingleType(Thisclass&& src) noexcept : Superclass(std::forward<Superclass>(src)),
-                                                ExpectedNumberOfCellsAdded(-1),
-                                                CellShapeAsId(src.CellShapeAsId),
-                                                NumberOfPointsPerCell(src.NumberOfPointsPerCell)
+  CellSetSingleType(Thisclass&& src) noexcept
+    : Superclass(std::forward<Superclass>(src))
+    , ExpectedNumberOfCellsAdded(-1)
+    , CellShapeAsId(src.CellShapeAsId)
+    , NumberOfPointsPerCell(src.NumberOfPointsPerCell)
   {
   }
 
@@ -144,7 +145,7 @@ public:
           "Inconsistent number of points in cells for CellSetSingleType.");
       }
     }
-    auto conn = this->Data->CellPointIds.Connectivity.GetPortalControl();
+    auto conn = this->Data->CellPointIds.Connectivity.WritePortal();
     for (vtkm::IdComponent iVert = 0; iVert < numVertices; ++iVert)
     {
       conn.Set(this->Data->ConnectivityAdded + iVert, Traits::GetComponent(ids, iVert));

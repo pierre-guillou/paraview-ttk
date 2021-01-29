@@ -26,27 +26,35 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkTextureMapToPlane.h"
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkScalarsToTextureFilter);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkScalarsToTextureFilter::vtkScalarsToTextureFilter()
 {
   this->SetNumberOfOutputPorts(2);
   this->TextureDimensions[0] = this->TextureDimensions[1] = 128;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkScalarsToTextureFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "Texture dimensions: " << this->TextureDimensions[0] << "x"
-     << this->TextureDimensions[1] << '\n'
-     << indent << "Transfer function:\n";
-  this->TransferFunction->PrintSelf(os, indent.GetNextIndent());
+     << this->TextureDimensions[1] << '\n';
+
+  if (this->TransferFunction)
+  {
+    os << indent << "Transfer function:\n";
+    this->TransferFunction->PrintSelf(os, indent.GetNextIndent());
+  }
+  else
+  {
+    os << indent << "Transfer function: (none)" << endl;
+  }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkScalarsToTextureFilter::FillOutputPortInformation(int port, vtkInformation* info)
 {
   if (port == 1)
@@ -57,7 +65,7 @@ int vtkScalarsToTextureFilter::FillOutputPortInformation(int port, vtkInformatio
   return this->Superclass::FillOutputPortInformation(port, info);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkScalarsToTextureFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -146,7 +154,7 @@ int vtkScalarsToTextureFilter::RequestData(vtkInformation* vtkNotUsed(request),
   return 1;
 }
 
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkScalarsToTextureFilter::RequestInformation(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -163,13 +171,13 @@ int vtkScalarsToTextureFilter::RequestInformation(
   return this->Superclass::RequestInformation(request, inputVector, outputVector);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkScalarsToColors* vtkScalarsToTextureFilter::GetTransferFunction()
 {
   return this->TransferFunction;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkScalarsToTextureFilter::SetTransferFunction(vtkScalarsToColors* stc)
 {
   if (this->TransferFunction.Get() != stc)

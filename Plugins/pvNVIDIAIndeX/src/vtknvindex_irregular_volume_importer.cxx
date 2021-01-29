@@ -46,16 +46,14 @@
 
 //-------------------------------------------------------------------------------------------------
 vtknvindex_irregular_volume_importer::vtknvindex_irregular_volume_importer(
-  const mi::Sint32& border_size, const std::string& scalar_type)
-  : m_border_size(border_size)
-  , m_scalar_type(scalar_type)
+  const std::string& scalar_type)
+  : m_scalar_type(scalar_type)
 {
   // empty
 }
 
 //-------------------------------------------------------------------------------------------------
 vtknvindex_irregular_volume_importer::vtknvindex_irregular_volume_importer()
-  : m_border_size(2)
 {
   // empty
 }
@@ -89,7 +87,7 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
 {
   vtkTimerLog::MarkStartEvent("NVIDIA-IndeX: Importing");
   vtkMultiProcessController* controller = vtkMultiProcessController::GetGlobalController();
-  mi::Sint32 rank_id = controller ? controller->GetLocalProcessId() : 0;
+  const mi::Sint32 rank_id = controller ? controller->GetLocalProcessId() : 0;
 
   const std::type_info* scalar_type_info =
     (m_scalar_type == "unsigned char") ? &typeid(mi::Uint8) : (m_scalar_type == "unsigned short")
@@ -97,113 +95,124 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
       : (m_scalar_type == "float") ? &typeid(mi::Float32) : &typeid(mi::Float64);
 
   // Fetch shared memory details from host properties.
-  std::string shm_memory_name;
-  mi::math::Bbox<mi::Float32, 3> shm_bbox;
-  mi::Uint64 shm_size = 0;
-  void* subset_ptr = NULL;
-  mi::Uint32 time_step = 0;
+  const mi::Uint32 time_step = 0;
+  const bool support_time_steps = false;
+  const mi::math::Bbox<mi::Float32, 3> query_bbox(
+    mi::math::Bbox<mi::Float32, 3>(bounding_box).center());
+  const vtknvindex_host_properties::shm_info* shm_info;
+  const mi::Uint8* subset_data_buffer =
+    m_cluster_properties->get_host_properties(rank_id)->get_subset_data_buffer(
+      query_bbox, time_step, &shm_info, support_time_steps);
 
-  mi::math::Bbox<mi::Float32, 3> query_bbox(bounding_box);
-  const mi::math::Vector<mi::Float32, 3> center = (query_bbox.min + query_bbox.max) * 0.5f;
-  query_bbox.min = query_bbox.max = center;
-
-  if (!m_cluster_properties->get_host_properties(rank_id)->get_shminfo(
-        query_bbox, shm_memory_name, shm_bbox, shm_size, &subset_ptr, time_step))
+  if (!shm_info)
   {
-    ERROR_LOG << "Failed to get the shared memory information for the subregion: " << query_bbox
-              << ".";
-    return 0;
+    ERROR_LOG << "Failed to retrieve shared memory info for subset " << query_bbox << " on rank "
+              << rank_id << ".";
+    return nullptr;
   }
 
-  if (shm_memory_name.empty() || shm_bbox.empty())
+  const mi::math::Bbox<mi::Float32, 3>& shm_bbox = shm_info->m_shm_bbox;
+
+  if (!subset_data_buffer)
   {
-    ERROR_LOG << "Failed to open the shared memory: " << shm_memory_name
-              << " with bbox: " << shm_bbox << ".";
-    return 0;
+    ERROR_LOG << "Could not retrieve data for shared memory: " << shm_info->m_shm_name << " box "
+              << shm_bbox << " on rank " << rank_id << ".";
+    return nullptr;
+  }
+
+  const bool data_is_local = (rank_id == shm_info->m_rank_id);
+
+  bool face_filtering = false;
+  if (bounding_box.min.x > shm_bbox.min.x || bounding_box.min.y > shm_bbox.min.y ||
+    bounding_box.min.z > shm_bbox.min.z || bounding_box.max.x < shm_bbox.max.x ||
+    bounding_box.max.y < shm_bbox.max.y || bounding_box.max.z < shm_bbox.max.z)
+  {
+    face_filtering = true;
   }
 
   vtkUnstructuredGridBase* pv_ugrid = nullptr;
 
-  mi::Uint32 num_points = 0u;
-  mi::Uint32 num_cells = 0u;
-  mi::math::Vector<mi::Float32, 3>* points = NULL;
-  mi::math::Vector<mi::Uint32, 4>* cells = NULL;
-  void* scalars = NULL;
-  mi::Uint8* shm_ivol = NULL;
+  mi::Uint32 num_cells = 0u; // only used with shared memory
+  bool per_cell_scalars = false;
+  const mi::math::Vector<mi::Float32, 3>* points = nullptr;
+  const mi::math::Vector<mi::Uint32, 4>* cells = nullptr;
+  const void* scalars = nullptr;
   mi::Float32 max_edge_length_sqr = 0.f;
 
-  INFO_LOG << "The bounding box requested by NVIDIA IndeX: " << bounding_box << ".";
+  INFO_LOG << "Importing unstructured volume data from " << (data_is_local ? "local" : "shared")
+           << " memory (" << shm_info->m_shm_name << ") on rank " << rank_id << ", "
+           << "data bbox " << shm_bbox << ", importer bbox " << bounding_box << ".";
 
-  if (subset_ptr) // The volume data is available in local memory.
+  if (data_is_local) // The data is available in local memory.
   {
-    vtknvindex_irregular_volume_data* ivol_data =
-      static_cast<vtknvindex_irregular_volume_data*>(subset_ptr);
+    const vtknvindex_irregular_volume_data* ivol_data =
+      reinterpret_cast<const vtknvindex_irregular_volume_data*>(subset_data_buffer);
 
     pv_ugrid = ivol_data->pv_unstructured_grid;
     scalars = ivol_data->scalars;
     max_edge_length_sqr = ivol_data->max_edge_length2;
+    per_cell_scalars = (ivol_data->cell_flag == 1);
   }
-  else // The volume data is in shared memory.
+  else // The data is in shared memory.
   {
-    INFO_LOG << "Using shared memory: " << shm_memory_name << " with bbox: " << shm_bbox << ".";
-
-    shm_ivol = vtknvindex::util::get_vol_shm<mi::Uint8>(shm_memory_name, shm_size);
-
-    mi::Uint8* shm_offset = shm_ivol;
+    const mi::Uint8* shm_offset = subset_data_buffer;
     size_t size_elm;
 
     // num points
+    mi::Uint32 num_points;
     size_elm = sizeof(num_points);
-    num_points = *reinterpret_cast<mi::Uint32*>(shm_offset);
+    num_points = *reinterpret_cast<const mi::Uint32*>(shm_offset);
     shm_offset += size_elm;
 
     // num cells
     size_elm = sizeof(num_cells);
-    num_cells = *reinterpret_cast<mi::Uint32*>(shm_offset);
+    num_cells = *reinterpret_cast<const mi::Uint32*>(shm_offset);
+    shm_offset += size_elm;
+
+    // num scalars
+    mi::Uint32 num_scalars;
+    size_elm = sizeof(num_scalars);
+    num_scalars = *reinterpret_cast<const mi::Uint32*>(shm_offset);
+    shm_offset += size_elm;
+
+    // cell flag
+    mi::Sint32 cell_flag;
+    size_elm = sizeof(cell_flag);
+    cell_flag = *reinterpret_cast<const mi::Sint32*>(shm_offset);
+    per_cell_scalars = (cell_flag == 1);
     shm_offset += size_elm;
 
     // points
     size_elm = sizeof(mi::Float32) * 3 * num_points;
-    points = reinterpret_cast<mi::math::Vector<mi::Float32, 3>*>(shm_offset);
+    points = reinterpret_cast<const mi::math::Vector<mi::Float32, 3>*>(shm_offset);
     shm_offset += size_elm;
 
     // cells
     size_elm = sizeof(mi::Uint32) * 4 * num_cells;
-    cells = reinterpret_cast<mi::math::Vector<mi::Uint32, 4>*>(shm_offset);
+    cells = reinterpret_cast<const mi::math::Vector<mi::Uint32, 4>*>(shm_offset);
     shm_offset += size_elm;
 
     // scalars
     if (*scalar_type_info == typeid(mi::Uint8))
-      size_elm = sizeof(mi::Uint8) * num_points;
+      size_elm = sizeof(mi::Uint8) * num_scalars;
     else if (*scalar_type_info == typeid(mi::Uint16))
-      size_elm = sizeof(mi::Uint16) * num_points;
+      size_elm = sizeof(mi::Uint16) * num_scalars;
     else if (*scalar_type_info == typeid(mi::Float32))
-      size_elm = sizeof(mi::Float32) * num_points;
+      size_elm = sizeof(mi::Float32) * num_scalars;
     else // typeid(mi::Float64)
-      size_elm = sizeof(mi::Float64) * num_points;
+      size_elm = sizeof(mi::Float64) * num_scalars;
 
-    scalars = reinterpret_cast<void*>(shm_offset);
+    scalars = reinterpret_cast<const void*>(shm_offset);
     shm_offset += size_elm;
 
     // max square edge length
-    max_edge_length_sqr = *reinterpret_cast<mi::Float32*>(shm_offset);
+    max_edge_length_sqr = *reinterpret_cast<const mi::Float32*>(shm_offset);
   }
 
-  using mi::math::Vector;
-  using mi::math::Vector_struct;
-
-  typedef Vector<mi::Uint32, 4> Vec4ui;
-  typedef Vector<mi::Float32, 3> Vec3f;
+  typedef mi::math::Vector<mi::Uint32, 4> Vec4ui;
+  typedef mi::math::Vector<mi::Float32, 3> Vec3f;
 
   // Read the tetrahedrons and collect only those that intersects the subset bounding box.
-  mi::math::Bbox<mi::Float32, 3> subset_bbox(static_cast<mi::Float32>(bounding_box.min.x),
-    static_cast<mi::Float32>(bounding_box.min.y), static_cast<mi::Float32>(bounding_box.min.z),
-    static_cast<mi::Float32>(bounding_box.max.x), static_cast<mi::Float32>(bounding_box.max.y),
-    static_cast<mi::Float32>(bounding_box.max.z));
-
-  mi::Size nb_subset_vertices = 0u;
-  mi::Size nb_subset_tetrahedrons = 0u;
-
   std::vector<Vec4ui> subset_tetrahedrons;
   std::vector<Vec3f> subset_vertices;
   std::vector<mi::Uint8> subset_scalars_uint8;
@@ -213,6 +222,7 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
 
   if (pv_ugrid != nullptr)
   {
+    // The data is available in local memory.
     bool gave_error = false;
     vtkSmartPointer<vtkCellIterator> cellIter =
       vtkSmartPointer<vtkCellIterator>::Take(pv_ugrid->NewCellIterator());
@@ -223,73 +233,83 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
       {
         if (!gave_error)
         {
-          ERROR_LOG << "Encountered non-tetrahedral cell. NVIDIA IndeX's irregular volume "
-                       "renderer supports tetrahedral cells only.";
+          ERROR_LOG << "Encountered non-tetrahedral cell with " << npts
+                    << " points. The NVIDIA IndeX plugin currently "
+                       "supports tetrahedral cells only.";
           gave_error = true;
         }
         continue;
       }
 
-      vtkIdType* cell_point_ids = cellIter->GetPointIds()->GetPointer(0);
-
-      // check for degenerated cells
-      bool invalid_cell = false;
-      for (mi::Uint32 i = 0; i < 3; i++)
-      {
-        for (mi::Uint32 j = i + 1; j < 4; j++)
-        {
-          if (cell_point_ids[i] == cell_point_ids[j])
-          {
-            invalid_cell = true;
-            break;
-          }
-        }
-
-        if (invalid_cell)
-          break;
-      }
-
-      if (invalid_cell)
-        continue;
-
+      const vtkIdType* cell_point_ids = cellIter->GetPointIds()->GetPointer(0);
       mi::math::Bbox<mi::Float32, 3> tet_bbox;
-      tet_bbox.clear();
-
       for (mi::Uint32 i = 0; i < 4; i++)
       {
-        mi::Float64 point[3];
-        pv_ugrid->GetPoint(cell_point_ids[i], point);
-        tet_bbox.insert(mi::Float32_3(static_cast<mi::Float32>(point[0]),
-          static_cast<mi::Float32>(point[1]), static_cast<mi::Float32>(point[2])));
+        mi::math::Vector<mi::Float64, 3> point;
+        pv_ugrid->GetPoint(cell_point_ids[i], point.begin());
+        tet_bbox.insert(Vec3f(point));
       }
 
-      if (tet_bbox.intersects(subset_bbox))
+      if (!face_filtering || tet_bbox.intersects(bounding_box))
       {
-        Vec4ui tet_vtx_indices(
+        const Vec4ui tet_vtx_indices(
           cell_point_ids[0], cell_point_ids[1], cell_point_ids[2], cell_point_ids[3]);
         subset_tetrahedrons.push_back(tet_vtx_indices);
+
+        if (per_cell_scalars)
+        {
+          const vtkIdType cell_id = cellIter->GetCellId();
+
+          if (*scalar_type_info == typeid(mi::Uint8))
+            subset_scalars_uint8.push_back((reinterpret_cast<const mi::Uint8*>(scalars))[cell_id]);
+          else if (*scalar_type_info == typeid(mi::Uint16))
+            subset_scalars_uint16.push_back(
+              (reinterpret_cast<const mi::Uint16*>(scalars))[cell_id]);
+          else if (*scalar_type_info == typeid(mi::Float32))
+            subset_scalars_float32.push_back(
+              (reinterpret_cast<const mi::Float32*>(scalars))[cell_id]);
+          else // typeid(mi::Float64)
+            subset_scalars_float32.push_back(
+              static_cast<mi::Float32>((reinterpret_cast<const mi::Float64*>(scalars))[cell_id]));
+        }
       }
     }
   }
   else
   {
+    // The data is in shared memory.
     for (mi::Uint32 t = 0u; t < num_cells; ++t)
     {
       const Vec4ui& tet_vtx_indices = cells[t];
 
       mi::math::Bbox<mi::Float32, 3> tet_bbox;
-      tet_bbox.clear();
-
       for (mi::Uint32 k = 0; k < 4; k++)
+      {
         tet_bbox.insert(points[tet_vtx_indices[k]]);
+      }
 
-      if (tet_bbox.intersects(subset_bbox))
+      if (!face_filtering || tet_bbox.intersects(bounding_box))
+      {
         subset_tetrahedrons.push_back(tet_vtx_indices);
+
+        if (per_cell_scalars)
+        {
+          if (*scalar_type_info == typeid(mi::Uint8))
+            subset_scalars_uint8.push_back((reinterpret_cast<const mi::Uint8*>(scalars))[t]);
+          else if (*scalar_type_info == typeid(mi::Uint16))
+            subset_scalars_uint16.push_back((reinterpret_cast<const mi::Uint16*>(scalars))[t]);
+          else if (*scalar_type_info == typeid(mi::Float32))
+            subset_scalars_float32.push_back((reinterpret_cast<const mi::Float32*>(scalars))[t]);
+          else // typeid(mi::Float64)
+            subset_scalars_float32.push_back(
+              static_cast<mi::Float32>((reinterpret_cast<const mi::Float64*>(scalars))[t]));
+        }
+      }
     }
   }
 
   // Build subset vertex list and remap indices.
-  nb_subset_tetrahedrons = subset_tetrahedrons.size();
+  const mi::Size nb_subset_tetrahedrons = subset_tetrahedrons.size();
 
   // if no tetrahedrons in this subregion then return an empty subset.
   if (nb_subset_tetrahedrons == 0)
@@ -300,12 +320,8 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
     if (!irregular_volume_subset.is_valid_interface())
     {
       ERROR_LOG << "The importer cannot create an irregular volume subset.";
-      return NULL;
+      return nullptr;
     }
-
-    // free memory space linked to shared memory
-    if (shm_ivol)
-      vtknvindex::util::unmap_shm(shm_ivol, shm_size);
 
     irregular_volume_subset->retain();
 
@@ -334,43 +350,44 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
 
         if (pv_ugrid)
         {
-          double* cur_pv_vertice = pv_ugrid->GetPoint(vtx_index);
-          Vec3f cur_vertice(static_cast<mi::Float32>(cur_pv_vertice[0]),
-            static_cast<mi::Float32>(cur_pv_vertice[1]),
-            static_cast<mi::Float32>(cur_pv_vertice[2]));
+          const mi::Float64* cur_pv_vertex = pv_ugrid->GetPoint(vtx_index);
+          const Vec3f cur_vertex(static_cast<mi::Float32>(cur_pv_vertex[0]),
+            static_cast<mi::Float32>(cur_pv_vertex[1]), static_cast<mi::Float32>(cur_pv_vertex[2]));
 
-          subset_vertices.push_back(cur_vertice);
+          subset_vertices.push_back(cur_vertex);
         }
         else
         {
           subset_vertices.push_back(points[vtx_index]);
         }
 
-        if (*scalar_type_info == typeid(mi::Uint8))
-          subset_scalars_uint8.push_back((reinterpret_cast<mi::Uint8*>(scalars))[vtx_index]);
-        else if (*scalar_type_info == typeid(mi::Uint16))
-          subset_scalars_uint16.push_back((reinterpret_cast<mi::Uint16*>(scalars))[vtx_index]);
-        else if (*scalar_type_info == typeid(mi::Float32))
-          subset_scalars_float32.push_back((reinterpret_cast<mi::Float32*>(scalars))[vtx_index]);
-        else // typeid(mi::Float64)
-          subset_scalars_float32.push_back(
-            static_cast<mi::Float32>((reinterpret_cast<mi::Float64*>(scalars))[vtx_index]));
+        if (!per_cell_scalars)
+        {
+          if (*scalar_type_info == typeid(mi::Uint8))
+            subset_scalars_uint8.push_back(
+              (reinterpret_cast<const mi::Uint8*>(scalars))[vtx_index]);
+          else if (*scalar_type_info == typeid(mi::Uint16))
+            subset_scalars_uint16.push_back(
+              (reinterpret_cast<const mi::Uint16*>(scalars))[vtx_index]);
+          else if (*scalar_type_info == typeid(mi::Float32))
+            subset_scalars_float32.push_back(
+              (reinterpret_cast<const mi::Float32*>(scalars))[vtx_index]);
+          else // typeid(mi::Float64)
+            subset_scalars_float32.push_back(
+              static_cast<mi::Float32>((reinterpret_cast<const mi::Float64*>(scalars))[vtx_index]));
+        }
 
         vtx_index = new_vtx_idx;
       }
     }
   }
 
-  // free memory space linked to shared memory
-  if (shm_ivol)
-    vtknvindex::util::unmap_shm(shm_ivol, shm_size);
+  const mi::Size nb_subset_vertices = subset_vertices.size();
+  const mi::Size nb_cells = nb_subset_tetrahedrons;
+  const mi::Size nb_cell_face_indices = nb_cells * 4u;
 
-  nb_subset_vertices = subset_vertices.size();
-  mi::Size nb_cells = nb_subset_tetrahedrons;
-  mi::Size nb_cell_face_indices = nb_cells * 4u;
-
-  mi::Size nb_faces = nb_cell_face_indices;
-  mi::Size nb_face_vtx_indices = nb_faces * 3u;
+  const mi::Size nb_faces = nb_cell_face_indices;
+  const mi::Size nb_face_vtx_indices = nb_faces * 3u;
 
   nv::index::IIrregular_volume_subset::Mesh_parameters mesh_params;
 
@@ -390,19 +407,27 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
   if (!irregular_volume_subset.is_valid_interface())
   {
     ERROR_LOG << "The importer cannot create an irregular volume subset.";
-    return NULL;
+    return nullptr;
   }
 
   nv::index::IIrregular_volume_subset::Mesh_storage mesh_storage;
   if (!irregular_volume_subset->generate_mesh_storage(mesh_params, mesh_storage))
   {
     ERROR_LOG << "The importer is unable to generate an irregular volume mesh storage.";
-    return NULL;
+    return nullptr;
   }
 
   nv::index::IIrregular_volume_subset::Attribute_parameters attrib_params;
-  attrib_params.affiliation = nv::index::IIrregular_volume_subset::ATTRIB_AFFIL_PER_VERTEX;
-  attrib_params.nb_attrib_values = nb_subset_vertices;
+  if (per_cell_scalars)
+  {
+    attrib_params.affiliation = nv::index::IIrregular_volume_subset::ATTRIB_AFFIL_PER_CELL;
+    attrib_params.nb_attrib_values = nb_cells;
+  }
+  else
+  {
+    attrib_params.affiliation = nv::index::IIrregular_volume_subset::ATTRIB_AFFIL_PER_VERTEX;
+    attrib_params.nb_attrib_values = nb_subset_vertices;
+  }
 
   if (*scalar_type_info == typeid(mi::Uint8))
     attrib_params.type = nv::index::IIrregular_volume_subset::ATTRIB_TYPE_UINT8;
@@ -415,47 +440,33 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
   if (!irregular_volume_subset->generate_attribute_storage(0u, attrib_params, attribute_storage))
   {
     ERROR_LOG << "The importer is unable to generate an irregular volume attribute storage.";
-    return NULL;
+    return nullptr;
   }
 
+  // Copy vertices.
+  memcpy(mesh_storage.vertices, subset_vertices.data(),
+    subset_vertices.size() * sizeof(mesh_storage.vertices[0]));
+
+  // Copy scalars.
+  const void* scalars_buffer;
+  mi::Size scalars_buffer_size;
   if (*scalar_type_info == typeid(mi::Uint8))
   {
-    attrib_params.type = nv::index::IIrregular_volume_subset::ATTRIB_TYPE_UINT8;
-    mi::Uint8* subset_attrib_values = reinterpret_cast<mi::Uint8*>(attribute_storage.attrib_values);
-
-    // Copy vertices and attributes.
-    for (mi::Uint32 v = 0u; v < nb_subset_vertices; ++v)
-    {
-      mesh_storage.vertices[v] = subset_vertices[v];
-      subset_attrib_values[v] = subset_scalars_uint8[v];
-    }
+    scalars_buffer = subset_scalars_uint8.data();
+    scalars_buffer_size = subset_scalars_uint8.size() * sizeof(mi::Uint8);
   }
   else if (*scalar_type_info == typeid(mi::Uint16))
   {
-    attrib_params.type = nv::index::IIrregular_volume_subset::ATTRIB_TYPE_UINT16;
-    mi::Uint16* subset_attrib_values =
-      reinterpret_cast<mi::Uint16*>(attribute_storage.attrib_values);
-
-    // Copy vertices and attributes.
-    for (mi::Uint32 v = 0u; v < nb_subset_vertices; ++v)
-    {
-      mesh_storage.vertices[v] = subset_vertices[v];
-      subset_attrib_values[v] = subset_scalars_uint16[v];
-    }
+    scalars_buffer = subset_scalars_uint16.data();
+    scalars_buffer_size = subset_scalars_uint16.size() * sizeof(mi::Uint16);
   }
   else // typeid(mi::Float32)
   {
-    attrib_params.type = nv::index::IIrregular_volume_subset::ATTRIB_TYPE_FLOAT32;
-    mi::Float32* subset_attrib_values =
-      reinterpret_cast<mi::Float32*>(attribute_storage.attrib_values);
-
-    // copy vertices and attributes
-    for (mi::Uint32 v = 0u; v < nb_subset_vertices; ++v)
-    {
-      mesh_storage.vertices[v] = subset_vertices[v];
-      subset_attrib_values[v] = subset_scalars_float32[v];
-    }
+    scalars_buffer = subset_scalars_float32.data();
+    scalars_buffer_size = subset_scalars_float32.size() * sizeof(mi::Float32);
   }
+
+  memcpy(attribute_storage.attrib_values, scalars_buffer, scalars_buffer_size);
 
   mi::Uint32 next_vidx = 0u;
   mi::Uint32 next_fidx = 0u;
@@ -530,6 +541,9 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
     ivol_add_tet_face(b, d, c, bv, dv, cv);
   }
 
+  m_cluster_properties->get_host_properties(rank_id)->set_read_flag(
+    time_step, shm_info->m_shm_name);
+
   irregular_volume_subset->retain();
 
   vtkTimerLog::MarkEndEvent("NVIDIA-IndeX: Importing");
@@ -546,24 +560,18 @@ mi::base::Uuid vtknvindex_irregular_volume_importer::subset_id() const
 //-------------------------------------------------------------------------------------------------
 void vtknvindex_irregular_volume_importer::serialize(mi::neuraylib::ISerializer* serializer) const
 {
-  serializer->write(&m_border_size, 1);
   vtknvindex::util::serialize(serializer, m_scalar_type);
 
-  m_cluster_properties->serialize(serializer);
+  const mi::Uint32 instance_id = m_cluster_properties->get_instance_id();
+  serializer->write(&instance_id);
 }
 
 //-------------------------------------------------------------------------------------------------
 void vtknvindex_irregular_volume_importer::deserialize(mi::neuraylib::IDeserializer* deserializer)
 {
-  deserializer->read(&m_border_size, 1);
   vtknvindex::util::deserialize(deserializer, m_scalar_type);
 
-  m_cluster_properties = new vtknvindex_cluster_properties();
-  m_cluster_properties->deserialize(deserializer);
-}
-
-//-------------------------------------------------------------------------------------------------
-void vtknvindex_irregular_volume_importer::get_references(mi::neuraylib::ITag_set* /*result*/) const
-{
-  // empty
+  mi::Uint32 instance_id;
+  deserializer->read(&instance_id);
+  m_cluster_properties = vtknvindex_cluster_properties::get_instance(instance_id);
 }

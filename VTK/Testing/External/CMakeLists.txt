@@ -1,6 +1,6 @@
 # This project builds the test directories from all VTK modules as a separate
 # project outside the main VTK build tree as if they were an application.
-cmake_minimum_required(VERSION 3.3...3.12 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.8...3.12 FATAL_ERROR)
 
 project(VTKTestExternal)
 if(VTK_SOURCE_DIR OR VTK_BINARY_DIR)
@@ -18,7 +18,10 @@ set(VTK_SOURCE_DIR "${VTK_TOP_DIR}")
 # One should provide VTK_DIR explicitly in our intended use cases.
 find_package(VTK REQUIRED NO_MODULE)
 # Tests use some macros only stored in VTK's source tree.
-list(APPEND CMAKE_MODULE_PATH "${VTK_TOP_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${VTK_TOP_DIR}/CMake")
+
+# Include VTK's external data settings.
+include(vtkExternalData)
 
 # This is a cross-platform project so we cannot use the MS _s API.
 if(WIN32 AND CMAKE_C_COMPILER_ID STREQUAL "Intel")

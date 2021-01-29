@@ -8,9 +8,12 @@
 #include "vtkSpyPlotBlock.h"
 #include "vtkSpyPlotIStream.h"
 #include "vtkUnsignedCharArray.h"
+
+#include "vtksys/FStream.hxx"
+#include "vtksys/RegularExpression.hxx"
+
 #include <sstream>
 #include <vector>
-#include <vtksys/RegularExpression.hxx>
 
 //=============================================================================
 //-----------------------------------------------------------------------------
@@ -212,7 +215,7 @@ int vtkSpyPlotUniReader::MakeCurrent()
   }
 
   std::vector<unsigned char> arrayBuffer;
-  ifstream ifs(this->FileName, ios::binary | ios::in);
+  vtksys::ifstream ifs(this->FileName, ios::binary | ios::in);
   vtkSpyPlotIStream spis;
   spis.SetStream(&ifs);
   int dump;
@@ -1358,7 +1361,7 @@ int vtkSpyPlotUniReader::ReadInformation()
     vtkErrorMacro("FileName not specified");
     return 0;
   }
-  ifstream ifs(this->FileName, ios::binary | ios::in);
+  vtksys::ifstream ifs(this->FileName, ios::binary | ios::in);
   if (!ifs)
   {
     vtkErrorMacro("Cannot open file: " << this->FileName);
@@ -1742,12 +1745,42 @@ int vtkSpyPlotUniReader::ReadDataDumps(vtkSpyPlotIStream* spis)
       vtkErrorMacro("Different number of blocks...");
     }
     dh->SavedBlockAllocatedStates = new unsigned char[dh->NumberOfBlocks];
-    int block;
-    int totalBlocks = 0;
+
     // Record where the state of the block definition is for this
     // time step
+
     dh->BlocksOffset = spis->Tell();
-    for (block = 0; block < dh->NumberOfBlocks; ++block)
+    //
+    // Lets read blocks in 16 at a time.  Performance code.
+    //
+
+    int block;
+    int totalBlocks = 0;
+    for (block = 0; block <= dh->NumberOfBlocks - 16; block += 16)
+    {
+      int i, j;
+      unsigned char allocated_array[16];
+
+      // Skip over the block but remember its allocated state
+      if (!vtkSpyPlotBlock::Scan16(spis, allocated_array, this->FileVersion))
+      {
+        vtkErrorMacro("Problem scanning the block information");
+        return 0;
+      }
+
+      for (i = block, j = 0; j < 16; i++, j++)
+      {
+        dh->SavedBlockAllocatedStates[i] = allocated_array[j];
+        if (allocated_array[j])
+        {
+          totalBlocks++;
+        }
+      }
+    }
+    //
+    // Now pick up any remaining blocks.  Will be 0 to 15.  Performance code.
+    //
+    for (; block < dh->NumberOfBlocks; ++block)
     {
       // Skip over the block but remember its allocated state
       if (!vtkSpyPlotBlock::Scan(spis, &(dh->SavedBlockAllocatedStates[block]), this->FileVersion))

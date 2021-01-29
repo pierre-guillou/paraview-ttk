@@ -60,6 +60,7 @@ set(vtk_cmake_module_files
   FindFreetype.cmake
   FindGL2PS.cmake
   FindGLEW.cmake
+  FindJOGL.cmake
   FindJsonCpp.cmake
   FindLibHaru.cmake
   FindLibPROJ.cmake
@@ -71,10 +72,11 @@ set(vtk_cmake_module_files
   FindNetCDF.cmake
   FindODBC.cmake
   FindOGG.cmake
-  FindOpenMP.cmake
   FindOpenSlide.cmake
   FindOpenVR.cmake
   FindOSMesa.cmake
+  FindPEGTL.cmake
+  FindSDL2.cmake
   FindTBB.cmake
   FindTHEORA.cmake
   Findutf8cpp.cmake
@@ -82,7 +84,6 @@ set(vtk_cmake_module_files
   vtkCMakeBackports.cmake
   vtkDetectLibraryType.cmake
   vtkEncodeString.cmake
-  vtkExternalData.cmake
   vtkHashSource.cmake
   vtkModule.cmake
   vtkModuleGraphviz.cmake
@@ -101,21 +102,22 @@ set(vtk_cmake_module_files
   vtk-use-file-error.cmake)
 set(vtk_cmake_patch_files
   patches/3.13/FindZLIB.cmake
-  patches/3.16/FindMPI/fortranparam_mpi.f90.in
-  patches/3.16/FindMPI/libver_mpi.c
-  patches/3.16/FindMPI/libver_mpi.f90.in
-  patches/3.16/FindMPI/mpiver.f90.in
-  patches/3.16/FindMPI/test_mpi.c
-  patches/3.16/FindMPI/test_mpi.f90.in
-  patches/3.16/FindMPI.cmake
   patches/3.16/FindPostgreSQL.cmake
+  patches/3.17/FindMPI/fortranparam_mpi.f90.in
+  patches/3.17/FindMPI/libver_mpi.c
+  patches/3.17/FindMPI/libver_mpi.f90.in
+  patches/3.17/FindMPI/mpiver.f90.in
+  patches/3.17/FindMPI/test_mpi.c
+  patches/3.17/FindMPI/test_mpi.f90.in
+  patches/3.17/FindMPI.cmake
+  patches/3.18/FindPython/Support.cmake
+  patches/3.18/FindPython2.cmake
+  patches/3.18/FindPython3.cmake
   patches/99/FindGDAL.cmake
   patches/99/FindHDF5.cmake
   patches/99/FindJPEG.cmake
+  patches/99/FindLibArchive.cmake
   patches/99/FindOpenGL.cmake
-  patches/99/FindPython/Support.cmake
-  patches/99/FindPython2.cmake
-  patches/99/FindPython3.cmake
   patches/99/FindSQLite3.cmake
   patches/99/FindX11.cmake)
 

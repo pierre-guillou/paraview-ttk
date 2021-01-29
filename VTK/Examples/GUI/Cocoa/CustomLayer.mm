@@ -24,9 +24,11 @@
 
   // Tell VTK to render.
   assert([customView renderWindowInteractor] -> GetInitialized());
-  vtkRenderWindow* renderWindow = [customView renderWindow];
+  vtkCocoaRenderWindow* renderWindow = [customView renderWindow];
   if (renderWindow && renderWindow->GetMapped())
   {
+    renderWindow->InitializeFromCurrentContext();
+    renderWindow->SetFrameBlitModeToBlitToCurrent();
     renderWindow->Render();
   }
 

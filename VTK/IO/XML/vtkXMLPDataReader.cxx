@@ -14,9 +14,9 @@
 =========================================================================*/
 #include "vtkXMLPDataReader.h"
 
+#include "vtkAbstractArray.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCellData.h"
-#include "vtkDataArray.h"
 #include "vtkDataArraySelection.h"
 #include "vtkDataSet.h"
 #include "vtkInformation.h"
@@ -29,14 +29,14 @@
 #include <cassert>
 #include <sstream>
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkXMLPDataReader::vtkXMLPDataReader()
 {
   this->GhostLevel = 0;
   this->PieceReaders = nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkXMLPDataReader::~vtkXMLPDataReader()
 {
   if (this->NumberOfPieces)
@@ -45,14 +45,14 @@ vtkXMLPDataReader::~vtkXMLPDataReader()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLPDataReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "NumberOfPieces: " << this->NumberOfPieces << "\n";
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataSet* vtkXMLPDataReader::GetPieceInputAsDataSet(int piece)
 {
   vtkXMLDataReader* reader = this->PieceReaders[piece];
@@ -67,7 +67,7 @@ vtkDataSet* vtkXMLPDataReader::GetPieceInputAsDataSet(int piece)
   return static_cast<vtkDataSet*>(reader->GetOutputDataObject(0));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLPDataReader::SetupOutputData()
 {
   this->Superclass::SetupOutputData();
@@ -134,7 +134,7 @@ void vtkXMLPDataReader::SetupOutputData()
   this->ReadAttributeIndices(eCellData, cellData);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Note that any changes (add or removing information) made to this method
 // should be replicated in CopyOutputInformation
 void vtkXMLPDataReader::SetupOutputInformation(vtkInformation* outInfo)
@@ -177,7 +177,7 @@ void vtkXMLPDataReader::SetupOutputInformation(vtkInformation* outInfo)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLPDataReader::CopyOutputInformation(vtkInformation* outInfo, int port)
 {
   vtkInformation* localInfo = this->GetExecutive()->GetOutputInformation(port);
@@ -191,7 +191,7 @@ void vtkXMLPDataReader::CopyOutputInformation(vtkInformation* outInfo, int port)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLPDataReader::ReadPrimaryElement(vtkXMLDataElement* ePrimary)
 {
   if (!this->Superclass::ReadPrimaryElement(ePrimary))
@@ -246,7 +246,7 @@ int vtkXMLPDataReader::ReadPrimaryElement(vtkXMLDataElement* ePrimary)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLPDataReader::SetupPieces(int numPieces)
 {
   this->Superclass::SetupPieces(numPieces);
@@ -259,7 +259,7 @@ void vtkXMLPDataReader::SetupPieces(int numPieces)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLPDataReader::DestroyPieces()
 {
   for (int i = 0; i < this->NumberOfPieces; ++i)
@@ -277,7 +277,7 @@ void vtkXMLPDataReader::DestroyPieces()
   this->Superclass::DestroyPieces();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLPDataReader::ReadPiece(vtkXMLDataElement* ePiece)
 {
   this->PieceElements[this->Piece] = ePiece;
@@ -304,7 +304,7 @@ int vtkXMLPDataReader::ReadPiece(vtkXMLDataElement* ePiece)
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLPDataReader::ReadPieceData(int index)
 {
   this->Piece = index;
@@ -325,7 +325,7 @@ int vtkXMLPDataReader::ReadPieceData(int index)
   return this->ReadPieceData();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLPDataReader::ReadPieceData()
 {
   vtkDataSet* input = this->GetPieceInputAsDataSet(this->Piece);
@@ -344,17 +344,18 @@ int vtkXMLPDataReader::ReadPieceData()
   for (int i = 0; i < output->GetPointData()->GetNumberOfArrays(); ++i)
   {
     this->CopyArrayForPoints(
-      input->GetPointData()->GetArray(i), output->GetPointData()->GetArray(i));
+      input->GetPointData()->GetAbstractArray(i), output->GetPointData()->GetAbstractArray(i));
   }
   for (int i = 0; i < output->GetCellData()->GetNumberOfArrays(); ++i)
   {
-    this->CopyArrayForCells(input->GetCellData()->GetArray(i), output->GetCellData()->GetArray(i));
+    this->CopyArrayForCells(
+      input->GetCellData()->GetAbstractArray(i), output->GetCellData()->GetAbstractArray(i));
   }
 
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkXMLPDataReader::CanReadPiece(int index)
 {
   // If necessary, test whether the piece can be read.
@@ -379,7 +380,7 @@ int vtkXMLPDataReader::CanReadPiece(int index)
   return (this->PieceReaders[index] ? 1 : 0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkXMLPDataReader::PieceProgressCallback()
 {
   float width = this->ProgressRange[1] - this->ProgressRange[0];

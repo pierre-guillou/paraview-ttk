@@ -64,7 +64,7 @@ class PQCOMPONENTS_EXPORT pqProxiesWidget : public QWidget
   typedef QWidget Superclass;
 
 public:
-  pqProxiesWidget(QWidget* parent = 0, Qt::WindowFlags flags = 0);
+  pqProxiesWidget(QWidget* parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags{});
   ~pqProxiesWidget() override;
 
   /**
@@ -82,7 +82,7 @@ public:
    */
   void setExpanderState(const QMap<QString, bool>& state);
 
-public slots:
+public Q_SLOTS:
   /**
   * Remove all proxy widgets added to the panel.
   */
@@ -92,7 +92,8 @@ public slots:
   * Add the widgets for a proxy.
   */
   void addProxy(vtkSMProxy*, const QString& componentName = QString(),
-    const QStringList& properties = QStringList(), bool applyChangesImmediately = false);
+    const QStringList& properties = QStringList(), bool applyChangesImmediately = false,
+    bool showHeadersFooters = true);
 
   /**
   * Call this method once after all proxies have been added (or after clear)
@@ -129,7 +130,7 @@ public slots:
   */
   void updatePanel();
 
-signals:
+Q_SIGNALS:
   /**
   * This signal is fired as soon as the user starts editing in the widget. The
   * editing may not be complete.
@@ -148,7 +149,7 @@ signals:
   */
   void restartRequired(vtkSMProxy* proxy);
 
-private slots:
+private Q_SLOTS:
   void triggerChangeFinished();
   void triggerChangeAvailable();
   void triggerRestartRequired();

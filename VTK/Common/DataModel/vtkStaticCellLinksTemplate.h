@@ -107,9 +107,21 @@ public:
   //@}
 
   /**
+   * Indicate whether the point ids provided defines at least one cell, or a
+   * portion of a cell.
+   */
+  bool MatchesCell(vtkIdType npts, const vtkIdType* pts);
+
+  /**
    * Return a list of cell ids using the point specified by ptId.
    */
   TIds* GetCells(vtkIdType ptId) { return (this->Links + this->Offsets[ptId]); }
+
+  /**
+   * Given point ids that define a cell, find the cells that contains all of
+   * these point ids. The set of linked cells is returned in cells.
+   */
+  void GetCells(vtkIdType npts, const vtkIdType* pts, vtkIdList* cells);
 
   //@{
   /**
@@ -117,6 +129,7 @@ public:
    */
   unsigned long GetActualMemorySize();
   void DeepCopy(vtkAbstractCellLinks* src);
+  void SelectCells(vtkIdType minMaxDegree[2], unsigned char* cellSelection);
   //@}
 
   //@{

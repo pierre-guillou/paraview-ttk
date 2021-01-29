@@ -34,7 +34,7 @@
  * behaviour (see vtkSMParaViewPipelineControllerWithRender).
  *
  * For an example of using vtkSMParaViewPipelineController in your application,
- * see `ParaView/ParaViewCore/ServerManager/Core/Testing/Cxx/TestParaViewPipelineController.cxx`.
+ * see `Remoting/Views/Testing/Cxx/TestParaViewPipelineController.cxx`.
  *
 */
 
@@ -42,6 +42,8 @@
 #define vtkSMParaViewPipelineController_h
 
 #include "vtkSMObject.h"
+
+#include <string>
 
 class vtkSMProxy;
 class vtkSMSession;
@@ -217,6 +219,18 @@ public:
   virtual bool RegisterTextureProxy(vtkSMProxy* proxy, const char* filename);
 
   //---------------------------------------------------------------------------
+  // *******  Methods for Extractors  *********
+
+  /**
+   * Registers an extractor.
+   */
+  virtual bool RegisterExtractorProxy(vtkSMProxy* proxy, const char* proxyname);
+  virtual bool RegisterExtractorProxy(vtkSMProxy* proxy)
+  {
+    return this->RegisterExtractorProxy(proxy, nullptr);
+  }
+
+  //---------------------------------------------------------------------------
   // *******  Methods for Animation   *********
 
   /**
@@ -282,7 +296,7 @@ public:
   /**
    * For a given proxy returns the name of the group used for helper proxies.
    */
-  static vtkStdString GetHelperProxyGroupName(vtkSMProxy*);
+  static std::string GetHelperProxyGroupName(vtkSMProxy*);
 
 protected:
   vtkSMParaViewPipelineController();

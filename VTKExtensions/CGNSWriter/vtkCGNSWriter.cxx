@@ -40,7 +40,6 @@ See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
-#include "vtkStdString.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkStructuredGrid.h"
@@ -364,6 +363,19 @@ bool vtkCGNSWriter::vtkPrivate::WritePointSet(vtkPointSet* grid, const char* fil
   {
     info.CellDim = 2;
   }
+  else if (grid->IsA("vtkUnstructuredGrid"))
+  {
+    info.CellDim = 1;
+    for (int i = 0; i < grid->GetNumberOfCells(); ++i)
+    {
+      vtkCell* cell = grid->GetCell(i);
+      int cellDim = cell->GetCellDimension();
+      if (info.CellDim < cellDim)
+      {
+        info.CellDim = cellDim;
+      }
+    }
+  }
 
   if (!InitCGNSFile(info, file, error))
   {
@@ -436,7 +448,7 @@ bool vtkCGNSWriter::vtkPrivate::WriteFieldArray(write_info& info, const char* so
       else // 1-component field data.
       {
         // force to double precision, even if data type is single precision,
-        // see https://gitlab.kitware.com/paraview/paraview/issues/18827
+        // see https://gitlab.kitware.com/paraview/paraview/-/issues/18827
         for (vtkIdType t = 0; t < da->GetNumberOfTuples(); ++t)
         {
           double* tpl = da->GetTuple(t);
@@ -503,11 +515,13 @@ bool vtkCGNSWriter::vtkPrivate::WriteBase(write_info& info, const char* basename
 bool vtkCGNSWriter::vtkPrivate::WriteStructuredGrid(
   write_info& info, vtkStructuredGrid* sg, const char* zonename, string& error)
 {
-  cgsize_t dim[3][3];
+  cgsize_t dim[9];
 
   // set the dimensions
   int* pointDims = sg->GetDimensions();
   int cellDims[3];
+  int j;
+
   sg->GetCellDims(cellDims);
 
   if (!pointDims)
@@ -516,16 +530,38 @@ bool vtkCGNSWriter::vtkPrivate::WriteStructuredGrid(
     return false;
   }
 
+  // init dimensions
   for (int i = 0; i < 3; ++i)
   {
-    dim[0][i] = pointDims[i];
-    dim[1][i] = cellDims[i];
-    dim[2][i] = 0; // always 0 for structured
+    dim[0 * 3 + i] = 1;
+    dim[1 * 3 + i] = 0;
+    dim[2 * 3 + i] = 0; // always 0 for structured
+  }
+  j = 0;
+  for (int i = 0; i < 3; ++i)
+  {
+    // skip unitary index dimension
+    if (pointDims[i] == 1)
+    {
+      continue;
+    }
+    dim[0 * 3 + j] = pointDims[i];
+    dim[1 * 3 + j] = cellDims[i];
+    j++;
+  }
+  // Repacking dimension in case j < 3 because CGNS expects a resized dim matrix
+  // For instance if j == 2 then move from 3x3 matrix to 3x2 matrix
+  for (int k = 1; (k < 3) && (j < 3); ++k)
+  {
+    for (int i = 0; i < j; ++i)
+    {
+      dim[j * k + i] = dim[3 * k + i];
+    }
   }
 
   // create the structured zone. Cells are implicit
   cg_check_operation(
-    cg_zone_write(info.F, info.B, zonename, *dim, CGNS_ENUMV(Structured), &(info.Z)));
+    cg_zone_write(info.F, info.B, zonename, dim, CGNS_ENUMV(Structured), &(info.Z)));
 
   vtkPoints* pts = sg->GetPoints();
 
@@ -550,6 +586,15 @@ bool vtkCGNSWriter::vtkPrivate::WriteStructuredGrid(
   vtkStructuredGrid* sg, const char* file, string& error)
 {
   write_info info;
+  int* dims = sg->GetDimensions();
+  info.CellDim = 0;
+  for (int n = 0; n < 3; n++)
+  {
+    if (dims[n] > 1)
+    {
+      info.CellDim += 1;
+    }
+  }
   if (!InitCGNSFile(info, file, error) || !WriteBase(info, "Base", error))
   {
     return false;
@@ -630,7 +675,42 @@ void Flatten(vtkMultiBlockDataSet* mb, vector<entry>& o2d, vector<entry>& o3d, i
     }
     else if (block)
     {
-      o3d.push_back(entry(block, zonename));
+      int CellDim = 3;
+      if (block->IsA("vtkStructuredGrid"))
+      {
+        vtkStructuredGrid* sg = vtkStructuredGrid::SafeDownCast(block);
+        int* dims = sg->GetDimensions();
+        CellDim = 0;
+        for (int n = 0; n < 3; n++)
+        {
+          if (dims[n] > 1)
+          {
+            CellDim += 1;
+          }
+        }
+      }
+      else if (block->IsA("vtkUnstructuredGrid"))
+      {
+        vtkUnstructuredGrid* ug = vtkUnstructuredGrid::SafeDownCast(block);
+        CellDim = 1;
+        for (int n = 0; n < ug->GetNumberOfCells(); ++n)
+        {
+          vtkCell* cell = ug->GetCell(n);
+          int curCellDim = cell->GetCellDimension();
+          if (CellDim < curCellDim)
+          {
+            CellDim = curCellDim;
+          }
+        }
+      }
+      if (CellDim == 3)
+      {
+        o3d.push_back(entry(block, zonename));
+      }
+      else
+      {
+        o2d.push_back(entry(block, zonename));
+      }
     }
   }
 }
@@ -688,10 +768,19 @@ bool vtkCGNSWriter::vtkPrivate::WriteMultiBlock(
 
     for (auto& e : surfaceBlocks)
     {
-      vtkPolyData* pd = vtkPolyData::SafeDownCast(e.obj);
-      if (pd)
+      vtkStructuredGrid* sg = vtkStructuredGrid::SafeDownCast(e.obj);
+      if (sg)
       {
-        if (!WritePointSet(info, pd, e.name.c_str(), error))
+        if (!WriteStructuredGrid(info, sg, e.name.c_str(), error))
+        {
+          return false;
+        }
+        continue;
+      }
+      vtkPointSet* ps = vtkPointSet::SafeDownCast(e.obj);
+      if (ps)
+      {
+        if (!WritePointSet(info, ps, e.name.c_str(), error))
         {
           return false;
         }

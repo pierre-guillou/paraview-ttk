@@ -48,7 +48,7 @@ public:
                               vtkm::Id& cellId,
                               vtkm::Vec3f& pcoords) const
     {
-      locator->FindCell(point, cellId, pcoords, *this);
+      locator->FindCell(point, cellId, pcoords);
     }
   };
 
@@ -78,7 +78,7 @@ public:
     using ControlSignature = void(CellSetIn cellset,
                                   FieldInPoint coords,
                                   WholeArrayIn points,
-                                  WholeArrayOut cellIds,
+                                  WholeArrayInOut cellIds,
                                   WholeArrayOut parametricCoords);
     using ExecutionSignature = void(InputIndex, CellShape, _2, _3, _4, _5);
     using InputDomain = _1;
@@ -124,10 +124,10 @@ public:
           for (vtkm::Id i = minp[0]; i <= maxp[0]; ++i)
           {
             auto pt = portal.Get(vtkm::Id3(i, j, k));
-            bool success = false;
-            auto pc = vtkm::exec::WorldCoordinatesToParametricCoordinates(
-              cellPoints, pt, cellShape, success, *this);
-            if (success && vtkm::exec::CellInside(pc, cellShape))
+            CoordsType pc;
+            vtkm::ErrorCode status =
+              vtkm::exec::WorldCoordinatesToParametricCoordinates(cellPoints, pt, cellShape, pc);
+            if ((status == vtkm::ErrorCode::Success) && vtkm::exec::CellInside(pc, cellShape))
             {
               auto pointId = i + portal.GetDimensions()[0] * (j + portal.GetDimensions()[1] * k);
               cellIds.Set(pointId, cellId);
@@ -178,9 +178,16 @@ public:
   }
 
   //============================================================================
+  template <typename T>
   class InterpolatePointField : public vtkm::worklet::WorkletMapField
   {
   public:
+    T InvalidValue;
+    InterpolatePointField(const T& invalidValue)
+      : InvalidValue(invalidValue)
+    {
+    }
+
     using ControlSignature = void(FieldIn cellIds,
                                   FieldIn parametricCoords,
                                   WholeCellSetIn<> inputCells,
@@ -199,7 +206,11 @@ public:
       {
         auto indices = cells.GetIndices(cellId);
         auto pointVals = vtkm::make_VecFromPortalPermute(&indices, in);
-        out = vtkm::exec::CellInterpolate(pointVals, pc, cells.GetCellShape(cellId), *this);
+        vtkm::exec::CellInterpolate(pointVals, pc, cells.GetCellShape(cellId), out);
+      }
+      else
+      {
+        out = this->InvalidValue;
       }
     }
   };
@@ -210,23 +221,32 @@ public:
             typename InputCellSetTypeList = VTKM_DEFAULT_CELL_SET_LIST>
   vtkm::cont::ArrayHandle<T> ProcessPointField(
     const vtkm::cont::ArrayHandle<T, Storage>& field,
+    const T& invalidValue,
     InputCellSetTypeList icsTypes = InputCellSetTypeList()) const
   {
     vtkm::cont::ArrayHandle<T> result;
-    vtkm::worklet::DispatcherMapField<InterpolatePointField> dispatcher;
-    dispatcher.Invoke(this->CellIds,
-                      this->ParametricCoordinates,
-                      this->InputCellSet.ResetCellSetList(icsTypes),
-                      field,
-                      result);
+    vtkm::cont::Invoker invoke;
+    invoke(InterpolatePointField<T>(invalidValue),
+           this->CellIds,
+           this->ParametricCoordinates,
+           this->InputCellSet.ResetCellSetList(icsTypes),
+           field,
+           result);
 
     return result;
   }
 
   //============================================================================
+  template <typename T>
   class MapCellField : public vtkm::worklet::WorkletMapField
   {
   public:
+    T InvalidValue;
+    MapCellField(const T& invalidValue)
+      : InvalidValue(invalidValue)
+    {
+    }
+
     using ControlSignature = void(FieldIn cellIds, WholeArrayIn inputField, FieldOut result);
     using ExecutionSignature = void(_1, _2, _3);
 
@@ -239,6 +259,10 @@ public:
       {
         out = in.Get(cellId);
       }
+      else
+      {
+        out = this->InvalidValue;
+      }
     }
   };
 
@@ -247,15 +271,17 @@ public:
   /// cell is chosen arbitrarily.
   ///
   template <typename T, typename Storage>
-  vtkm::cont::ArrayHandle<T> ProcessCellField(
-    const vtkm::cont::ArrayHandle<T, Storage>& field) const
+  vtkm::cont::ArrayHandle<T> ProcessCellField(const vtkm::cont::ArrayHandle<T, Storage>& field,
+                                              const T& invalidValue) const
   {
     vtkm::cont::ArrayHandle<T> result;
-    vtkm::worklet::DispatcherMapField<MapCellField> dispatcher;
-    dispatcher.Invoke(this->CellIds, field, result);
+    vtkm::cont::Invoker invoke;
+    invoke(MapCellField<T>(invalidValue), this->CellIds, field, result);
 
     return result;
   }
+
+  vtkm::cont::ArrayHandle<vtkm::Id> GetCellIds() const { return this->CellIds; }
 
   //============================================================================
   struct HiddenPointsWorklet : public WorkletMapField

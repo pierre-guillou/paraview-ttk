@@ -33,6 +33,7 @@
 #define vtkResourceFileLocator_h
 
 #include "vtkCommonMiscModule.h" // For export macro
+#include "vtkDeprecation.h"      // For VTK_DEPRECATED_IN_9_0_0
 #include "vtkObject.h"
 
 #include <string> // needed for std::string
@@ -54,10 +55,14 @@ public:
    * this instance should log trace information. Default is
    * `vtkLogger::VERBOSITY_TRACE`.
    */
-  VTK_LEGACY(void SetPrintDebugInformation(bool));
-  VTK_LEGACY(bool GetPrintDebugInformation());
-  VTK_LEGACY(void PrintDebugInformationOn());
-  VTK_LEGACY(void PrintDebugInformationOff());
+  VTK_DEPRECATED_IN_9_0_0("Use vtkResourceFileLocator::SetLogVerbosity")
+  void SetPrintDebugInformation(bool);
+  VTK_DEPRECATED_IN_9_0_0("Use vtkResourceFileLocator::GetLogVerbosity")
+  bool GetPrintDebugInformation();
+  VTK_DEPRECATED_IN_9_0_0("Use vtkResourceFileLocator::SetLogVerbosity")
+  void PrintDebugInformationOn();
+  VTK_DEPRECATED_IN_9_0_0("Use vtkResourceFileLocator::SetLogVerbosity")
+  void PrintDebugInformationOff();
   //@}
 
   //@{

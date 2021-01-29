@@ -22,8 +22,6 @@
 #ifndef vtkIOStreamFwd_h
 #define vtkIOStreamFwd_h
 
-#include "vtkConfigure.h"
-
 #ifdef _MSC_VER
 #pragma warning(push, 3)
 #endif
@@ -32,11 +30,9 @@
 #include <iosfwd>
 using std::filebuf;
 using std::fstream;
-using std::ifstream;
 using std::ios;
 using std::iostream;
 using std::istream;
-using std::ofstream;
 using std::ostream;
 using std::streambuf;
 

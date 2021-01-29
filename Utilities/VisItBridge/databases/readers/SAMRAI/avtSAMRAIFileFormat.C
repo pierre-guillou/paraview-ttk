@@ -1,40 +1,6 @@
-/*****************************************************************************
-*
-* Copyright (c) 2000 - 2018, Lawrence Livermore National Security, LLC
-* Produced at the Lawrence Livermore National Laboratory
-* LLNL-CODE-442911
-* All rights reserved.
-*
-* This file is  part of VisIt. For  details, see https://visit.llnl.gov/.  The
-* full copyright notice is contained in the file COPYRIGHT located at the root
-* of the VisIt distribution or at http://www.llnl.gov/visit/copyright.html.
-*
-* Redistribution  and  use  in  source  and  binary  forms,  with  or  without
-* modification, are permitted provided that the following conditions are met:
-*
-*  - Redistributions of  source code must  retain the above  copyright notice,
-*    this list of conditions and the disclaimer below.
-*  - Redistributions in binary form must reproduce the above copyright notice,
-*    this  list of  conditions  and  the  disclaimer (as noted below)  in  the
-*    documentation and/or other materials provided with the distribution.
-*  - Neither the name of  the LLNS/LLNL nor the names of  its contributors may
-*    be used to endorse or promote products derived from this software without
-*    specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT  HOLDERS AND CONTRIBUTORS "AS IS"
-* AND ANY EXPRESS OR  IMPLIED WARRANTIES, INCLUDING,  BUT NOT  LIMITED TO, THE
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND  FITNESS FOR A PARTICULAR  PURPOSE
-* ARE  DISCLAIMED. IN  NO EVENT  SHALL LAWRENCE  LIVERMORE NATIONAL  SECURITY,
-* LLC, THE  U.S.  DEPARTMENT OF  ENERGY  OR  CONTRIBUTORS BE  LIABLE  FOR  ANY
-* DIRECT,  INDIRECT,   INCIDENTAL,   SPECIAL,   EXEMPLARY,  OR   CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT  LIMITED TO, PROCUREMENT OF  SUBSTITUTE GOODS OR
-* SERVICES; LOSS OF  USE, DATA, OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER
-* CAUSED  AND  ON  ANY  THEORY  OF  LIABILITY,  WHETHER  IN  CONTRACT,  STRICT
-* LIABILITY, OR TORT  (INCLUDING NEGLIGENCE OR OTHERWISE)  ARISING IN ANY  WAY
-* OUT OF THE  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-* DAMAGE.
-*
-*****************************************************************************/
+// Copyright (c) Lawrence Livermore National Security, LLC and other VisIt
+// Project developers.  See the top-level LICENSE file for dates and other
+// details.  No copyright assignment is required to contribute to VisIt.
 
 // ***************************************************************************
 //                              avtSAMRAIFileFormat.C                         
@@ -93,8 +59,6 @@
 #include <UnexpectedValueException.h>
 #include <Utility.h>
 #include <DataNode.h>
-
-#include <snprintf.h>
 
 // Define this symbol BEFORE including hdf5.h to indicate the HDF5 code
 // in this file uses version 1.6 of the HDF5 API. This is harmless for
@@ -533,7 +497,7 @@ avtSAMRAIFileFormat::CloseFile(int f)
         {
             char msg[512];
             static bool haveIssuedWarning = false;
-            SNPRINTF(msg, sizeof(msg), "Error closing HDF5 SAMRAI file \"%s\". "
+            snprintf(msg, sizeof(msg), "Error closing HDF5 SAMRAI file \"%s\". "
                 "The file may have been left open holding HDF5 resources. "
                 "This may indicate a problem with the SAMRAI plugin or some other HDF5 based "
                 "plugin that has attempted to open this file. Please contact VisIt developers "
@@ -721,6 +685,10 @@ avtSAMRAIFileFormat::GetMesh(int patch, const char *)
 //    Mark C. Miller, Thu Sep 14 11:11:10 PDT 2017
 //    Add logic to support boundary ghosts vs. internal duplicate ghosts
 //    provided patch_bdry_type array is populated.
+//
+//    Mark C. Miller, Sun Jan 13 23:45:48 CST 2019
+//    Add specification of "avtRealDims" array to support proper ghosting.
+//    Simplified looping logic for internal/external ghosting.
 // ****************************************************************************
 vtkDataSet *
 avtSAMRAIFileFormat::ReadMesh(int patch)
@@ -866,15 +834,17 @@ avtSAMRAIFileFormat::ReadMesh(int patch)
         ghostCells->Allocate(ncells);
 
         // fill in appropriate ghost value for each cell
-        unsigned char realVal=0, internalGhost=0, externalGhost=0;
+        unsigned char internalGhost=0, externalGhost=0;
         avtGhostData::AddGhostZoneType(internalGhost, DUPLICATED_ZONE_INTERNAL_TO_PROBLEM);
         avtGhostData::AddGhostZoneType(externalGhost, ZONE_EXTERIOR_TO_PROBLEM);
         for (i = 0; i < ncells; i++)
         {
-            bool in_ghost_layers = false;
-            unsigned char ghostVal;
+            unsigned char ghostVal = 0;
 
-            // determine if cell is in ghost layers
+            // Determine if cell is in ghost layers
+            // Note: We cannot terminate the search along all of the 'dim' dimensions
+            // early because for corner cells, we need to ensure we set all possible
+            // ghost designations, both internal and external.
             int cell_idx = i;
             for (int j = 0; j < dim; j++)
             {
@@ -883,42 +853,30 @@ avtSAMRAIFileFormat::ReadMesh(int patch)
 
                 if (jidx < num_ghosts[j])
                 {
-                    in_ghost_layers = true;
-                    if (j == 0 && bdry_type && bdry_type[0]) { // xlo
-                        ghostVal = externalGhost; break;
-                    } else if (j == 1 && bdry_type && bdry_type[2]) { // ylo
-                        ghostVal = externalGhost; break;
-                    } else if (j == 2 && bdry_type && bdry_type[4]) { // zlo
-                        ghostVal = externalGhost; break;
-                    } else {
-                        ghostVal = internalGhost; break;
-                    }
+                    ghostVal |= internalGhost;
+                    if (j == 0 && bdry_type && bdry_type[0]) // xlo
+                        ghostVal |= externalGhost;
+                    else if (j == 1 && bdry_type && bdry_type[2]) // ylo
+                        ghostVal |= externalGhost;
+                    else if (j == 2 && bdry_type && bdry_type[4]) // zlo
+                        ghostVal |= externalGhost;
                 }
                 else if (jidx >= nj - num_ghosts[j])
                 {
-                    in_ghost_layers = true;
-                    if (j == 0 && bdry_type && bdry_type[1]) { // xhi
-                        ghostVal = externalGhost; break;
-                    } else if (j == 1 && bdry_type && bdry_type[3]) { // yhi
-                        ghostVal = externalGhost; break;
-                    } else if (j == 2 && bdry_type && bdry_type[5]) { // zhi
-                        ghostVal = externalGhost; break;
-                    } else {
-                        ghostVal = internalGhost; break;
-                    }
+                    ghostVal |= internalGhost;
+                    if (j == 0 && bdry_type && bdry_type[1]) // xhi
+                        ghostVal |= externalGhost;
+                    else if (j == 1 && bdry_type && bdry_type[3]) // yhi
+                        ghostVal |= externalGhost;
+                    else if (j == 2 && bdry_type && bdry_type[5]) // zhi
+                        ghostVal |= externalGhost;
                 }
                 cell_idx = cell_idx / nj;
             }
 
-            if (in_ghost_layers)
-            {
-                ghostCells->InsertNextValue(ghostVal);
+            ghostCells->InsertNextValue(ghostVal);
+            if (ghostVal)
                 nghost++;
-            }   
-            else
-            {
-                ghostCells->InsertNextValue(realVal);
-            }
         }
 
         // now, attach the ghost data to the grid
@@ -926,6 +884,26 @@ avtSAMRAIFileFormat::ReadMesh(int patch)
         retval->GetInformation()->Set(
                 vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), 0);
         ghostCells->Delete();
+
+        int iMin[3] = {0,0,0}, iMax[3] = {0,0,0};
+        for (int i = 0; i < dim; i++)
+        {
+            iMin[i] = num_ghosts[i];
+            iMax[i] = dimensions[i] - 1 - num_ghosts[i];
+        }
+
+        vtkIntArray *realDims = vtkIntArray::New();
+        realDims->SetName("avtRealDims");
+        realDims->SetNumberOfValues(6);
+        realDims->SetValue(0, iMin[0]);
+        realDims->SetValue(1, iMax[0]);
+        realDims->SetValue(2, iMin[1]);
+        realDims->SetValue(3, iMax[1]);
+        realDims->SetValue(4, iMin[2]);
+        realDims->SetValue(5, iMax[2]);
+        retval->GetFieldData()->AddArray(realDims);
+        retval->GetFieldData()->CopyFieldOn("avtRealDims");
+        realDims->Delete();
 
         debug5 << "avtSAMRAIFileFormat::ReadMesh ghosted " <<
             100*nghost/ncells << "% of cells" << endl;
@@ -946,7 +924,6 @@ avtSAMRAIFileFormat::ReadMesh(int patch)
     arr->Delete();
 
     return retval;
-
 }
 
 
@@ -1390,7 +1367,7 @@ avtSAMRAIFileFormat::ReadSparseMaterialData(int patch, const int *matnos,
     avtMaterial *mat = 0;
 
     char domName[256];
-    SNPRINTF(domName, sizeof(domName), "patch_%d", patch);
+    snprintf(domName, sizeof(domName), "patch_%d", patch);
 
     // compute logical size in each dimension of this patch
     int dim = num_dim_problem < 3 ? num_dim_problem: 3;
@@ -1718,7 +1695,7 @@ avtSAMRAIFileFormat::GetMaterial(int patch, const char *matObjName)
        // Construct the object we came here for
        //
        char domName[256];
-       SNPRINTF(domName, sizeof(domName),"%d", patch);
+       snprintf(domName, sizeof(domName),"%d", patch);
        mat = new avtMaterial(num_mats, matnos, matnames, dim, dims, 0,
                              vfracs, domName);
 
@@ -2692,7 +2669,7 @@ avtSAMRAIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
         {
             char msg[512];
             static bool haveIssuedWarning = false;
-            SNPRINTF(msg, sizeof(msg), "Ordinarily, VisIt displays a wireframe, subset "
+            snprintf(msg, sizeof(msg), "Ordinarily, VisIt displays a wireframe, subset "
                 "plot of 'levels' automatically upon opening a SAMRAI file. However, such "
                 "a plot is not applicable in the case that there is only one patch. So, "
                 "the normal subset plot is not being displayed.");
@@ -4372,6 +4349,7 @@ avtSAMRAIFileFormat::BuildDomainAuxiliaryInfo()
     void_ref_ptr dbTmp = cache->GetVoidRef("any_mesh",
                                            AUXILIARY_DATA_DOMAIN_BOUNDARY_INFORMATION,
                                            timestep, -1);
+
     if ((*dbTmp == NULL) && !has_ghost)
     {
         bool canComputeNeighborsFromExtents = true;

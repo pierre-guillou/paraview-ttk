@@ -32,7 +32,6 @@
 #include "vtkCellIntegrator.h"
 #include "vtkCleanArrays.h"
 #include "vtkCleanUnstructuredGrid.h"
-#include "vtkCompositeDataToUnstructuredGridFilter.h"
 #include "vtkDataSetToRectilinearGrid.h"
 //#include "vtkEnzoReader.h"
 #include "vtkEquivalenceSet.h"
@@ -64,7 +63,6 @@
 #include "vtkMaterialInterfaceProcessLoading.h"
 #include "vtkMaterialInterfaceProcessRing.h"
 #include "vtkMaterialInterfaceToProcMap.h"
-#include "vtkMergeArrays.h"
 #include "vtkMergeCompositeDataSet.h"
 #include "vtkMinMax.h"
 #include "vtkMultiProcessControllerHelper.h"
@@ -209,7 +207,6 @@ int ParaViewCoreVTKExtensionsPrintSelf(int, char* [])
   PRINT_SELF(vtkCellIntegrator);
   PRINT_SELF(vtkCleanArrays);
   PRINT_SELF(vtkCleanUnstructuredGrid);
-  PRINT_SELF(vtkCompositeDataToUnstructuredGridFilter);
   PRINT_SELF(vtkCSVExporter);
   PRINT_SELF(vtkCSVWriter);
   PRINT_SELF(vtkDataSetToRectilinearGrid);
@@ -243,7 +240,6 @@ int ParaViewCoreVTKExtensionsPrintSelf(int, char* [])
   // PRINT_SELF(vtkMaterialInterfaceProcessLoading);
   // PRINT_SELF(vtkMaterialInterfaceProcessRing);
   // PRINT_SELF(vtkMaterialInterfaceToProcMap);
-  PRINT_SELF(vtkMergeArrays);
   PRINT_SELF(vtkMergeCompositeDataSet);
   PRINT_SELF(vtkMinMax);
   PRINT_SELF(vtkMultiProcessControllerHelper);

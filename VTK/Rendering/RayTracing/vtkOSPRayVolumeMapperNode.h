@@ -28,7 +28,7 @@
 
 #include "RTWrapper/RTWrapper.h" // for handle types
 
-class vtkAbstractArray;
+class vtkDataArray;
 class vtkDataSet;
 class vtkVolume;
 
@@ -42,7 +42,7 @@ public:
   /**
    * Make ospray calls to render me.
    */
-  virtual void Render(bool prepass) override;
+  void Render(bool prepass) override;
 
   /**
    * TODO: fix me
@@ -54,7 +54,7 @@ public:
 
 protected:
   vtkOSPRayVolumeMapperNode();
-  ~vtkOSPRayVolumeMapperNode();
+  ~vtkOSPRayVolumeMapperNode() override;
 
   /**
    * updates internal OSPRay transfer function for volume
@@ -65,16 +65,18 @@ protected:
   int NumColors;
   double SamplingRate;
   double SamplingStep; // base sampling step of each voxel
-  bool UseSharedBuffers;
-  bool Shade; // volume shading set through volProperty
-  OSPData SharedData;
 
   vtkTimeStamp BuildTime;
   vtkTimeStamp PropertyTime;
+  vtkDataArray* LastArray;
+  int LastComponent;
 
-  OSPGeometry OSPRayIsosurface;
   OSPVolume OSPRayVolume;
+  OSPVolumetricModel OSPRayVolumeModel;
+  OSPGeometricModel Cropper;
   OSPTransferFunction TransferFunction;
+  OSPInstance OSPRayInstance;
+
   std::vector<float> TFVals;
   std::vector<float> TFOVals;
 

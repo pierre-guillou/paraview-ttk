@@ -40,13 +40,13 @@ public:
 
 protected:
   vtkImageDotProduct();
-  ~vtkImageDotProduct() override {}
+  ~vtkImageDotProduct() override = default;
 
   int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   void ThreadedRequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector, vtkImageData*** inData, vtkImageData** outData,
-    int extent[6], int threadId) override;
+    int outExt[6], int threadId) override;
 
 private:
   vtkImageDotProduct(const vtkImageDotProduct&) = delete;

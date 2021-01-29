@@ -55,7 +55,7 @@ class PQCOMPONENTS_EXPORT pqFindDataCreateSelectionFrame : public QWidget
   typedef QWidget Superclass;
 
 public:
-  pqFindDataCreateSelectionFrame(QWidget* parent = 0, Qt::WindowFlags f = 0);
+  pqFindDataCreateSelectionFrame(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags{});
   ~pqFindDataCreateSelectionFrame() override;
 
   /**
@@ -64,14 +64,14 @@ public:
   */
   static void populateSelectionTypeCombo(QComboBox* bbox, pqOutputPort* port);
 
-public slots:
+public Q_SLOTS:
   /**
   * Set the port to create a query selection on. If the port is different from
   * the current one, it clears any existing query.
   */
   void setPort(pqOutputPort*);
 
-private slots:
+private Q_SLOTS:
   /**
   * marks if the underlying data has changed
   */

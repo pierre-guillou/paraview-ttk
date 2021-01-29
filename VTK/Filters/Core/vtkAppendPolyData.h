@@ -24,8 +24,13 @@
  * attributes available.  (For example, if one dataset has point scalars but
  * another does not, point scalars will not be appended.)
  *
+ * @warning
+ * The related filter vtkRemovePolyData enables the subtraction, or removal
+ * of the cells of a vtkPolyData. Hence vtkRemovePolyData functions like the
+ * inverse operation to vtkAppendPolyData.
+ *
  * @sa
- * vtkAppendFilter
+ * vtkAppendFilter vtkRemovePolyData
  */
 
 #ifndef vtkAppendPolyData_h
@@ -135,7 +140,7 @@ protected:
   void AppendData(vtkDataArray* dest, vtkDataArray* src, vtkIdType offset);
 
   // An efficient way to append cells.
-  void AppendCells(vtkCellArray* dest, vtkCellArray* src, vtkIdType offset);
+  void AppendCells(vtkCellArray* dst, vtkCellArray* src, vtkIdType offset);
 
 private:
   // hide the superclass' AddInput() from the user and the compiler

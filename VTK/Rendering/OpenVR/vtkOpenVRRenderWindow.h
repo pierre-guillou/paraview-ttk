@@ -79,10 +79,21 @@ public:
   vtkTypeMacro(vtkOpenVRRenderWindow, vtkOpenGLRenderWindow);
   void PrintSelf(ostream& os, vtkIndent indent);
 
+  static bool IsHMDPresent();
+
   /**
    * Get the system pointer
    */
   vr::IVRSystem* GetHMD() { return this->HMD; }
+
+  //@{
+  /**
+   * Set/Get the visibility of the base stations. Defaults to false
+   */
+  vtkGetMacro(BaseStationVisibility, bool);
+  vtkSetMacro(BaseStationVisibility, bool);
+  vtkBooleanMacro(BaseStationVisibility, bool);
+  //@}
 
   /**
    * Create an interactor to control renderers in this window.
@@ -254,7 +265,7 @@ public:
   /**
    * Add a renderer to the list of renderers.
    */
-  virtual void AddRenderer(vtkRenderer*) override;
+  void AddRenderer(vtkRenderer*) override;
 
   /**
    * Begin the rendering process.
@@ -312,14 +323,14 @@ public:
   /**
    * Is this render window using hardware acceleration? 0-false, 1-true
    */
-  int IsDirect() { return 1; }
+  vtkTypeBool IsDirect() { return 1; }
 
   /**
    * Check to see if a mouse button has been pressed or mouse wheel activated.
    * All other events are ignored by this method.
    * Maybe should return 1 always?
    */
-  virtual int GetEventPending() { return 0; }
+  virtual vtkTypeBool GetEventPending() { return 0; }
 
   /**
    * Get the current size of the screen in pixels.
@@ -328,37 +339,32 @@ public:
 
   //@{
   /**
-   * Set the size of the window in pixels.
+   * Set the size of the window in screen coordinates in pixels.
+   * This resizes the operating system's window and redraws it.
+   *
+   * If the size has changed, this method will fire
+   * vtkCommand::WindowResizeEvent.
    */
-  virtual void SetSize(int, int);
-  virtual void SetSize(int a[2]) { vtkOpenGLRenderWindow::SetSize(a); }
+  void SetSize(int width, int height) override;
+  void SetSize(int a[2]) override { this->SetSize(a[0], a[1]); }
   //@}
 
   //@{
   /**
-   * Set the position of the window.
+   * Set the position (x and y) of the rendering window in
+   * screen coordinates (in pixels). This resizes the operating
+   * system's view/window and redraws it.
    */
-  virtual void SetPosition(int, int);
-  virtual void SetPosition(int a[2]) { vtkOpenGLRenderWindow::SetPosition(a); }
+  void SetPosition(int x, int y) override;
+  void SetPosition(int a[2]) override { this->SetPosition(a[0], a[1]); }
   //@}
 
   // implement required virtual functions
-  void SetWindowInfo(const char*) {}
-  void SetNextWindowInfo(const char*) {}
-  void SetParentInfo(const char*) {}
   virtual void* GetGenericDisplayId() { return (void*)this->HelperWindow->GetGenericDisplayId(); }
   virtual void* GetGenericWindowId() { return (void*)this->HelperWindow->GetGenericWindowId(); }
   virtual void* GetGenericParentId() { return (void*)nullptr; }
   virtual void* GetGenericContext() { return (void*)this->HelperWindow->GetGenericContext(); }
   virtual void* GetGenericDrawable() { return (void*)this->HelperWindow->GetGenericDrawable(); }
-  virtual void SetDisplayId(void*) {}
-  void SetWindowId(void*) {}
-  void SetParentId(void*) {}
-  void HideCursor() {}
-  void ShowCursor() {}
-  virtual void SetFullScreen(vtkTypeBool) {}
-  virtual void WindowRemap(void) {}
-  virtual void SetNextWindowId(void*) {}
 
   /**
    * Does this render window support OpenGL? 0-false, 1-true
@@ -387,6 +393,11 @@ public:
    */
   void ReleaseGraphicsResources(vtkWindow*) override;
 
+  /**
+   * Render the controller and base stattion models
+   */
+  void RenderModels();
+
 protected:
   vtkOpenVRRenderWindow();
   ~vtkOpenVRRenderWindow() override;
@@ -398,6 +409,7 @@ protected:
   std::string m_strDisplay;
   vr::IVRSystem* HMD;
   vr::IVRRenderModels* OpenVRRenderModels;
+  bool BaseStationVisibility;
 
   struct FramebufferDesc
   {
@@ -415,7 +427,6 @@ protected:
   // devices may have polygonal models
   // load them
   vtkOpenVRModel* FindOrLoadRenderModel(const char* modelName);
-  void RenderModels();
   std::vector<vtkOpenVRModel*> VTKRenderModels;
   vtkOpenVRModel* TrackedDeviceToRenderModel[vr::k_unMaxTrackedDeviceCount];
   vr::TrackedDevicePose_t TrackedDevicePose[vr::k_unMaxTrackedDeviceCount];

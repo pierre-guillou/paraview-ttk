@@ -80,8 +80,15 @@ using std::setfill;
 #include <algorithm>
 using std::min;
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+#define QT_ENDL endl
+#else
+#define QT_ENDL Qt::endl
+#endif
+
 #define pqErrorMacro(estr)                                                                         \
-  qDebug() << "Error in:" << endl << __FILE__ << ", line " << __LINE__ << endl << "" estr << endl;
+  qDebug() << "Error in:" << QT_ENDL << __FILE__ << ", line " << __LINE__ << QT_ENDL << "" estr    \
+           << QT_ENDL;
 
 // User interface
 //=============================================================================
@@ -200,13 +207,9 @@ void setMemoryUseWidgetColor(QPalette& palette, float fracUsed, float fracWarn, 
 // ****************************************************************************
 void setWidgetContainerColor(QPalette& palette, int rank)
 {
-  if (rank % 2)
+  if (rank % 2 != 0)
   {
-    palette.setColor(QPalette::Base, QColor(250, 250, 250));
-  }
-  else
-  {
-    palette.setColor(QPalette::Base, QColor(237, 237, 237));
+    palette.setColor(QPalette::Base, palette.alternateBase().color());
   }
 }
 
@@ -372,12 +375,6 @@ void RankData::InitializeMemoryUseWidget()
   QLabel* rank = new QLabel;
   rank->setText(QString("%1").arg(this->Rank));
 
-  QFrame* vline = new QFrame;
-  vline->setFrameStyle(QFrame::VLine | QFrame::Plain);
-
-  QFrame* vline2 = new QFrame;
-  vline2->setFrameStyle(QFrame::VLine | QFrame::Plain);
-
   QLabel* pid = new QLabel;
   pid->setText(QString("%1").arg(this->Pid));
 
@@ -388,16 +385,14 @@ void RankData::InitializeMemoryUseWidget()
 
   QHBoxLayout* l = new QHBoxLayout;
   l->addWidget(rank);
-  l->addWidget(vline);
   l->addWidget(pid);
-  l->addWidget(vline2);
   l->addLayout(w);
   l->setContentsMargins(1, 0, 1, 0);
   l->setSpacing(0);
 
   this->WidgetContainer = new QFrame;
   this->WidgetContainer->setLayout(l);
-  this->WidgetContainer->setFrameStyle(QFrame::Box | QFrame::Plain);
+  this->WidgetContainer->setFrameStyle(QFrame::Plain);
   this->WidgetContainer->setLineWidth(1);
   QFont font(this->WidgetContainer->font());
   font.setPointSize(8);
@@ -406,18 +401,15 @@ void RankData::InitializeMemoryUseWidget()
   QPalette palette(rank->palette());
   ::setWidgetContainerColor(palette, this->Rank);
 
-  rank->setPalette(palette);
-  rank->setAutoFillBackground(true);
-
-  pid->setPalette(palette);
-  pid->setAutoFillBackground(true);
+  this->WidgetContainer->setPalette(palette);
+  this->WidgetContainer->setAutoFillBackground(true);
 
   QFontMetrics fontMet(font);
-  int rankWid = fontMet.width("555555");
+  int rankWid = fontMet.horizontalAdvance("555555");
   rank->setMinimumWidth(rankWid);
   rank->setMaximumWidth(rankWid);
 
-  int pidWid = fontMet.width("555555555");
+  int pidWid = fontMet.horizontalAdvance("555555555");
   pid->setMinimumWidth(pidWid);
   pid->setMaximumWidth(pidWid);
 
@@ -1513,7 +1505,8 @@ void pqMemoryInspectorPanel::ExecuteRemoteCommand()
         }
 
         // select and configure a command
-        pqRemoteCommandDialog dialog(this, 0, this->ClientSystemType, serverSystemType);
+        pqRemoteCommandDialog dialog(
+          this, Qt::WindowFlags{}, this->ClientSystemType, serverSystemType);
 
         dialog.SetActiveHost(host);
         dialog.SetActivePid(pid);

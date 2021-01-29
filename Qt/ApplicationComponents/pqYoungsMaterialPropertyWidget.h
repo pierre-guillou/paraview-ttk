@@ -75,7 +75,8 @@ public:
   QList<QVariant> normalArrays() const;
   //@}
 
-signals:
+Q_SIGNALS:
+
   /**
    * Emitted when the ordering arrays change, linked ot the SMProperty
    */

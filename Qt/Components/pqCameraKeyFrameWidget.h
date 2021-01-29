@@ -54,14 +54,15 @@ public:
 
   bool usePathBasedMode() const;
 
-signals:
+Q_SIGNALS:
   /**
   * Fired when user requests the use of the current camera as the value for
   * the key frame.
   */
   void useCurrentCamera();
+  void updateCurrentCamera();
 
-public slots:
+public Q_SLOTS:
   /**
   * Initialize the widget using the values from the key frame proxy.
   */
@@ -71,6 +72,11 @@ public slots:
   * Initialize the widget using the camera.
   */
   void initializeUsingCamera(vtkCamera* camera);
+
+  /**
+   * Initialize the camera using the widget values.
+   */
+  void applyToCamera(vtkCamera* camera);
 
   /**
   * The camera keyframes have 2 modes either interpolate vtkCamera's using the
@@ -90,7 +96,7 @@ protected:
   void showEvent(QShowEvent*) override;
   void hideEvent(QHideEvent*) override;
 
-private slots:
+private Q_SLOTS:
   /**
   * called when the user clicks on an item in the left pane.
   */

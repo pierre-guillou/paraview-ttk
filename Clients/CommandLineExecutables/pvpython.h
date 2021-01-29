@@ -30,24 +30,43 @@ void vtkPVInitializePythonModules();
 #include <vector>
 #include <vtksys/SystemTools.hxx>
 
+#include "ParaView_paraview_plugins.h"
+
 namespace ParaViewPython
 {
 
 //---------------------------------------------------------------------------
 
 void ProcessArgsForPython(
-  std::vector<char*>& pythonArgs, const char* script, int argc, char* argv[])
+  std::vector<char*>& pythonArgs, const char* first_unknown_arg, int argc, char* argv[])
 {
   pythonArgs.clear();
   pythonArgs.push_back(vtksys::SystemTools::DuplicateString(argv[0]));
-  if (script)
+  if (first_unknown_arg && strcmp(first_unknown_arg, "--") == 0)
   {
-    pythonArgs.push_back(vtksys::SystemTools::DuplicateString(script));
+    // `--` causes ParaView to not process the arguments anymore and simply
+    // pass them to the Python interpreter.
   }
-  else if (argc > 1)
+  else if (first_unknown_arg && strlen(first_unknown_arg) > 0)
   {
-    pythonArgs.push_back(vtksys::SystemTools::DuplicateString("-"));
+    // here we handle a special case when the filename specified is a zip
+    // archive.
+    if (vtksys::SystemTools::GetFilenameLastExtension(first_unknown_arg) == ".zip")
+    {
+      // add the archive to sys.path
+      vtkPythonInterpreter::PrependPythonPath(first_unknown_arg);
+      pythonArgs.push_back(vtksys::SystemTools::DuplicateString("-m"));
+
+      std::string modulename = vtksys::SystemTools::GetFilenameWithoutLastExtension(
+        vtksys::SystemTools::GetFilenameName(first_unknown_arg));
+      pythonArgs.push_back(vtksys::SystemTools::DuplicateString(modulename.c_str()));
+    }
+    else
+    {
+      pythonArgs.push_back(vtksys::SystemTools::DuplicateString(first_unknown_arg));
+    }
   }
+
   for (int cc = 1; cc < argc; cc++)
   {
     pythonArgs.push_back(vtksys::SystemTools::DuplicateString(argv[cc]));
@@ -72,7 +91,7 @@ int Run(int processType, int argc, char* argv[])
     return EXIT_SUCCESS;
   }
 
-  if (processType == vtkProcessModule::PROCESS_BATCH && options->GetPythonScriptName() == 0)
+  if (processType == vtkProcessModule::PROCESS_BATCH && options->GetUnknownArgument() == nullptr)
   {
     vtkGenericWarningMacro("No script specified. "
                            "Please specify a batch script or use 'pvpython'.");
@@ -85,6 +104,9 @@ int Run(int processType, int argc, char* argv[])
   // register callback to initialize modules statically. The callback is
   // empty when BUILD_SHARED_LIBS is ON.
   vtkPVInitializePythonModules();
+
+  // register static plugins
+  ParaView_paraview_plugins_initialize();
 
   vtkPVPluginTracker::GetInstance()->LoadPluginConfigurationXMLs("paraview");
 
@@ -103,8 +125,7 @@ int Run(int processType, int argc, char* argv[])
 
     // Process arguments
     std::vector<char*> pythonArgs;
-    ProcessArgsForPython(
-      pythonArgs, options->GetPythonScriptName(), remaining_argc, remaining_argv);
+    ProcessArgsForPython(pythonArgs, options->GetUnknownArgument(), remaining_argc, remaining_argv);
     pythonArgs.push_back(nullptr);
 
     // if user specified verbosity option on command line, then we make vtkPythonInterpreter post

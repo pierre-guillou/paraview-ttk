@@ -34,9 +34,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqDoubleSliderWidget.h"
 #include "pqWidgetsModule.h"
+#include "vtkSetGet.h" // for VTK_LEGACY
 #include <QWidget>
-
-#include "vtkConfigure.h"
 
 /**
  * Extends pqDoubleSliderWidget to use it with a range of doubles : provides
@@ -47,7 +46,9 @@ class PQWIDGETS_EXPORT pqDoubleRangeWidget : public pqDoubleSliderWidget
   Q_OBJECT
   Q_PROPERTY(double minimum READ minimum WRITE setMinimum)
   Q_PROPERTY(double maximum READ maximum WRITE setMaximum)
-  Q_PROPERTY(bool strictRange READ strictRange WRITE setStrictRange)
+#if !defined(VTK_LEGACY_REMOVE)
+  Q_PROPERTY(bool strictRange READ strictRange WRITE setStrictRange);
+#endif
   Q_PROPERTY(int resolution READ resolution WRITE setResolution)
 
   typedef pqDoubleSliderWidget Superclass;
@@ -64,21 +65,26 @@ public:
   // get the max range value
   double maximum() const;
 
-  // returns whether the line edit is also limited
-  bool strictRange() const;
+  /**
+   * @deprecated strictRange is deprecated and is not working as intended
+   */
+  VTK_LEGACY(bool strictRange() const);
 
   // returns the resolution.
   int resolution() const;
 
-public slots:
+public Q_SLOTS:
   // set the min range value
   void setMinimum(double);
   // set the max range value
   void setMaximum(double);
 
-  // set the range on both the slider and line edit's validator
-  // whereas other methods just do it on the slider
+#if !defined(VTK_LEGACY_REMOVE)
+  /**
+   * @deprecated strictRange is deprecated and is not working as intended
+   */
   void setStrictRange(bool);
+#endif
 
   // set the resolution.
   void setResolution(int);
@@ -87,14 +93,16 @@ protected:
   int valueToSliderPos(double val) override;
   double sliderPosToValue(int pos) override;
 
-private slots:
+private Q_SLOTS:
   void updateValidator();
 
 private:
   int Resolution;
   double Minimum;
   double Maximum;
-  bool StrictRange;
+#if !defined(VTK_LEGACY_REMOVE)
+  bool StrictRange = false;
+#endif
 };
 
 #endif

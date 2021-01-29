@@ -54,9 +54,10 @@ void CellLocatorUniformGrid::Build()
   }
 
   UniformType uniformCoords = coords.GetData().Cast<UniformType>();
-  this->Origin = uniformCoords.GetPortalConstControl().GetOrigin();
+  auto coordsPortal = uniformCoords.ReadPortal();
+  this->Origin = coordsPortal.GetOrigin();
 
-  vtkm::Vec3f spacing = uniformCoords.GetPortalConstControl().GetSpacing();
+  vtkm::Vec3f spacing = coordsPortal.GetSpacing();
   vtkm::Vec3f unitLength;
   unitLength[0] = static_cast<vtkm::FloatDefault>(this->PointDims[0] - 1);
   unitLength[1] = static_cast<vtkm::FloatDefault>(this->PointDims[1] - 1);
@@ -91,7 +92,8 @@ struct CellLocatorUniformGridPrepareForExecutionFunctor
 }
 
 const vtkm::exec::CellLocator* CellLocatorUniformGrid::PrepareForExecution(
-  vtkm::cont::DeviceAdapterId device) const
+  vtkm::cont::DeviceAdapterId device,
+  vtkm::cont::Token& token) const
 {
   bool success = true;
   if (this->Is3D)
@@ -103,8 +105,7 @@ const vtkm::exec::CellLocator* CellLocatorUniformGrid::PrepareForExecution(
                                              this->PointDims,
                                              this->Origin,
                                              this->InvSpacing,
-                                             this->MaxPoint,
-                                             this->GetCoordinates().GetData());
+                                             this->MaxPoint);
   }
   else
   {
@@ -115,14 +116,13 @@ const vtkm::exec::CellLocator* CellLocatorUniformGrid::PrepareForExecution(
                                              this->PointDims,
                                              this->Origin,
                                              this->InvSpacing,
-                                             this->MaxPoint,
-                                             this->GetCoordinates().GetData());
+                                             this->MaxPoint);
   }
   if (!success)
   {
     throwFailedRuntimeDeviceTransfer("CellLocatorUniformGrid", device);
   }
-  return this->ExecutionObjectHandle.PrepareForExecution(device);
+  return this->ExecutionObjectHandle.PrepareForExecution(device, token);
 }
 
 } //namespace cont

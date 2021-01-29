@@ -33,6 +33,7 @@
 #include <sstream>
 
 #ifdef _WIN32
+#define NOMINMAX
 #include <windows.h>
 #endif // _WIN32
 
@@ -42,6 +43,7 @@
 #include <GL/glu.h>
 #endif
 
+#include "vtkBoundingBox.h"
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
 #include "vtkCommand.h"
@@ -50,7 +52,7 @@
 #include "vtkMultiThreader.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLRenderWindow.h"
-#include "vtkPKdTree.h"
+#include "vtkPVRenderViewSettings.h"
 #include "vtkPointData.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
@@ -70,11 +72,6 @@
 #include "vtknvindex_irregular_volume_mapper.h"
 #include "vtknvindex_utilities.h"
 
-#ifdef USE_KDTREE
-#include "vtkBSPCuts.h"
-#include "vtkKdNode.h"
-#endif
-
 static const int TET_EDGES[6][2] = { { 0, 1 }, { 1, 2 }, { 2, 0 }, { 0, 3 }, { 1, 3 }, { 2, 3 } };
 
 vtkStandardNewMacro(vtknvindex_irregular_volume_mapper);
@@ -92,11 +89,11 @@ vtknvindex_irregular_volume_mapper::vtknvindex_irregular_volume_mapper()
 {
   m_index_instance = vtknvindex_instance::get();
   m_controller = vtkMultiProcessController::GetGlobalController();
-  m_kd_tree = NULL;
   m_prev_property = "";
   m_last_MTime = 0;
 
   vtkMath::UninitializeBounds(m_whole_bounds);
+  vtkMath::UninitializeBounds(m_subregion_bounds);
 }
 
 //----------------------------------------------------------------------------
@@ -186,15 +183,12 @@ void vtknvindex_irregular_volume_mapper::volume_changed()
 //-------------------------------------------------------------------------------------------------
 bool vtknvindex_irregular_volume_mapper::initialize_mapper(vtkRenderer* /*ren*/, vtkVolume* vol)
 {
-
-#if defined(MI_VERSION_STRING) && defined(MI_DATE_STRING)
-  INFO_LOG << "NVIDIA IndeX for ParaView Plugin "
-           << "(build " << MI_VERSION_STRING << ", " << MI_DATE_STRING ").";
-#endif
-
   vtkTimerLog::MarkStartEvent("NVIDIA-IndeX: Initialization");
 
-  bool is_MPI = (m_controller->GetNumberOfProcesses() > 1);
+  // Initialize and start IndeX (if not initialized yet and if this is an IndeX rank)
+  m_index_instance->init_index();
+
+  const bool is_MPI = (m_controller->GetNumberOfProcesses() > 1);
   const mi::Sint32 cur_global_rank = is_MPI ? m_controller->GetLocalProcessId() : 0;
 
   // Update volume first to make sure that the states are current.
@@ -203,32 +197,55 @@ bool vtknvindex_irregular_volume_mapper::initialize_mapper(vtkRenderer* /*ren*/,
   // Get the unstructured_grid.
   vtkUnstructuredGridBase* unstructured_grid = this->GetInput();
 
-  mi::Sint32 use_cell_colors;
+  mi::Sint32 cell_flag;
   m_scalar_array = this->GetScalars(unstructured_grid, this->ScalarMode, this->ArrayAccessMode,
-    this->ArrayId, this->ArrayName,
-    use_cell_colors); // CellFlag
+    this->ArrayId, this->ArrayName, cell_flag);
 
-  // Check for scalar per cell values
-  if (use_cell_colors)
+  bool is_data_supported = true;
+
+  // Data can only have a single component (not RGB/HSV format)
+  const int components = m_scalar_array->GetNumberOfComponents();
+  if (components > 1)
   {
-    ERROR_LOG << "Scalars per cell are not supported by NVIDIA IndeX";
-    return false;
+    ERROR_LOG << "The data array '" << this->ArrayName << "' has " << components << " components, "
+              << "which is not supported by NVIDIA IndeX.";
+    is_data_supported = false;
   }
 
-  // check for valid data types
+  // Only per point scalars and cell scalars are allowed
+  if (cell_flag != 0 && cell_flag != 1)
+  {
+    ERROR_LOG << "The data array '" << this->ArrayName << "' uses per field scalars, but "
+              << "only per point and per cell scalars are supported by NVIDIA IndeX (cellFlag is "
+              << cell_flag << ").";
+    is_data_supported = false;
+  }
+
+  // Check for valid data types
   const std::string scalar_type = m_scalar_array->GetDataTypeAsString();
   if (scalar_type != "unsigned char" && scalar_type != "unsigned short" && scalar_type != "float" &&
     scalar_type != "double")
   {
-    ERROR_LOG << "The scalar type: " << scalar_type << " is not supported by NVIDIA IndeX.";
-    return false;
+    ERROR_LOG << "The data array '" << this->ArrayName << "' uses the scalar type '" << scalar_type
+              << "', which is not supported for unstructured grids by NVIDIA IndeX.";
+    is_data_supported = false;
   }
-  else if (scalar_type == "double")
+  else if (scalar_type == "double" && is_data_supported)
   {
-    WARN_LOG
-      << "Datasets with scalar values in double precision are not natively supported by IndeX.";
-    WARN_LOG << "The plug-in will proceed to convert those values from double to float with the "
-                "corresponding overhead.";
+    // Only print the warning once per data array, and do not repeat when switching between arrays.
+    if (m_data_array_warning_printed.find(this->ArrayName) == m_data_array_warning_printed.end())
+    {
+      WARN_LOG << "The data array '" << this->ArrayName << "' has scalar values "
+               << "in double precision format, which is not natively supported by NVIDIA IndeX. "
+               << "The plugin will proceed to convert the values from double to float with the "
+               << "corresponding overhead.";
+      m_data_array_warning_printed.emplace(this->ArrayName);
+    }
+  }
+
+  if (!is_data_supported)
+  {
+    return false;
   }
 
   if (true) //   (this->InputAnalyzedTime < this->MTime) || (this->InputAnalyzedTime <
@@ -242,40 +259,20 @@ bool vtknvindex_irregular_volume_mapper::initialize_mapper(vtkRenderer* /*ren*/,
 
     // subset subregion
     // get geometry bounds
-    mi::Float64* bounds = unstructured_grid->GetBounds();
+    const mi::Float64* bounds = unstructured_grid->GetBounds();
 
     // get subset bounds
-    if (m_kd_tree)
+    if (vtkMath::AreBoundsInitialized(m_subregion_bounds))
     {
-      /* mi::Sint32 num_datasets = m_kd_tree->GetNumberOfDataSets(); */
-      /* mi::Sint32 num_regions = m_kd_tree->GetNumberOfRegions(); */
-      // INFO_LOG << "KdTree | datasets, regions: " << num_datasets << ", " << num_regions;
+      m_volume_data.subregion_id = cur_global_rank;
 
-      vtkIntArray* region_id_array = vtkIntArray::New();
-      mi::Sint32 region_count =
-        m_kd_tree->GetRegionAssignmentList(cur_global_rank, region_id_array);
+      m_volume_data.subregion_bbox.min.x = static_cast<mi::Float32>(m_subregion_bounds[0]);
+      m_volume_data.subregion_bbox.min.y = static_cast<mi::Float32>(m_subregion_bounds[2]);
+      m_volume_data.subregion_bbox.min.z = static_cast<mi::Float32>(m_subregion_bounds[4]);
 
-      if (region_count != 1)
-      {
-        ERROR_LOG << "The subset region is not available.";
-        return true;
-      }
-
-      mi::Sint32 region_id = region_id_array->GetValue(0);
-      region_id_array->Delete();
-
-      mi::Float64 region_bb[6];
-      m_kd_tree->GetRegionBounds(region_id, region_bb);
-
-      m_volume_data.subregion_id = region_id;
-
-      m_volume_data.subregion_bbox.min.x = static_cast<mi::Float32>(region_bb[0]);
-      m_volume_data.subregion_bbox.min.y = static_cast<mi::Float32>(region_bb[2]);
-      m_volume_data.subregion_bbox.min.z = static_cast<mi::Float32>(region_bb[4]);
-
-      m_volume_data.subregion_bbox.max.x = static_cast<mi::Float32>(region_bb[1]);
-      m_volume_data.subregion_bbox.max.y = static_cast<mi::Float32>(region_bb[3]);
-      m_volume_data.subregion_bbox.max.z = static_cast<mi::Float32>(region_bb[5]);
+      m_volume_data.subregion_bbox.max.x = static_cast<mi::Float32>(m_subregion_bounds[1]);
+      m_volume_data.subregion_bbox.max.y = static_cast<mi::Float32>(m_subregion_bounds[3]);
+      m_volume_data.subregion_bbox.max.z = static_cast<mi::Float32>(m_subregion_bounds[5]);
     }
     else
     {
@@ -291,8 +288,7 @@ bool vtknvindex_irregular_volume_mapper::initialize_mapper(vtkRenderer* /*ren*/,
     }
 
     // Tetrahedral mesh points.
-    vtkIdType num_points = unstructured_grid->GetNumberOfPoints();
-    m_volume_data.num_points = static_cast<mi::Uint32>(num_points);
+    m_volume_data.num_points = static_cast<mi::Uint32>(unstructured_grid->GetNumberOfPoints());
 
     // Tetrahedral mesh cells.
     bool gave_error = 0;
@@ -307,41 +303,20 @@ bool vtknvindex_irregular_volume_mapper::initialize_mapper(vtkRenderer* /*ren*/,
       vtkSmartPointer<vtkCellIterator>::Take(unstructured_grid->NewCellIterator());
     for (cellIter->InitTraversal(); !cellIter->IsDoneWithTraversal(); cellIter->GoToNextCell())
     {
-      vtkIdType npts = cellIter->GetNumberOfPoints();
+      const vtkIdType npts = cellIter->GetNumberOfPoints();
       if (npts != 4)
       {
         if (!gave_error)
         {
-          vtkErrorMacro("Encountered non-tetrahedral cell. NVIDIA IndeX's irregular volume "
-                        "renderer supports tetrahedral cells only.");
+          ERROR_LOG << "Encountered non-tetrahedral cell with " << npts
+                    << " points. The NVIDIA IndeX plugin currently "
+                       "supports tetrahedral cells only.";
           gave_error = true;
         }
         continue;
       }
 
-      vtkIdType* cell_point_ids = cellIter->GetPointIds()->GetPointer(0);
-
-      // check for degenerated cells
-      bool invalid_cell = false;
-      for (mi::Uint32 i = 0; i < 3; i++)
-      {
-        for (mi::Uint32 j = i + 1; j < 4; j++)
-        {
-          if (cell_point_ids[i] == cell_point_ids[j])
-          {
-            invalid_cell = true;
-            break;
-          }
-        }
-
-        if (invalid_cell)
-          break;
-      }
-
-      if (invalid_cell)
-      {
-        continue;
-      }
+      const vtkIdType* cell_point_ids = cellIter->GetPointIds()->GetPointer(0);
 
       m_volume_data.num_cells++;
 
@@ -391,6 +366,9 @@ bool vtknvindex_irregular_volume_mapper::initialize_mapper(vtkRenderer* /*ren*/,
 
     // scalars
     m_volume_data.scalars = m_scalar_array->GetVoidPointer(0);
+    m_volume_data.cell_flag = cell_flag;
+    m_volume_data.num_scalars =
+      (cell_flag == 1 ? m_volume_data.num_cells : m_volume_data.num_points);
 
     if (m_index_instance->is_index_rank())
       m_volume_data.pv_unstructured_grid = unstructured_grid;
@@ -413,7 +391,7 @@ bool vtknvindex_irregular_volume_mapper::initialize_mapper(vtkRenderer* /*ren*/,
     dataset_parameters.bounds[4] = m_volume_data.subregion_bbox.min.z;
     dataset_parameters.bounds[5] = m_volume_data.subregion_bbox.max.z;
 
-    dataset_parameters.volume_data = static_cast<void*>(&m_volume_data);
+    dataset_parameters.volume_data = &m_volume_data;
 
     // clean shared memory
     m_cluster_properties->unlink_shared_memory(true);
@@ -469,9 +447,25 @@ void vtknvindex_irregular_volume_mapper::set_cluster_properties(
   m_scene.set_cluster_properties(cluster_properties);
 }
 
-void vtknvindex_irregular_volume_mapper::set_domain_kdtree(vtkPKdTree* kd_tree)
+//-------------------------------------------------------------------------------------------------
+void vtknvindex_irregular_volume_mapper::set_raw_cuts(
+  const std::vector<vtkBoundingBox>& raw_cuts, const std::vector<int>& ranks)
 {
-  m_kd_tree = kd_tree;
+  m_raw_cuts = raw_cuts;
+  m_raw_cuts_ranks = ranks;
+}
+
+//-------------------------------------------------------------------------------------------------
+void vtknvindex_irregular_volume_mapper::set_subregion_bounds(const vtkBoundingBox& bbox)
+{
+  if (bbox.IsValid())
+  {
+    bbox.GetBounds(m_subregion_bounds);
+  }
+  else
+  {
+    vtkMath::UninitializeBounds(m_subregion_bounds);
+  }
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -539,10 +533,35 @@ void vtknvindex_irregular_volume_mapper::rtc_kernel_changed(vtknvindex_rtc_kerne
 //-------------------------------------------------------------------------------------------------
 void vtknvindex_irregular_volume_mapper::Render(vtkRenderer* ren, vtkVolume* vol)
 {
+  if (!m_cluster_properties->is_active_instance())
+  {
+    return;
+  }
+
+  // Ensure IceT is disabled in MPI mode, print warning only on first rank
+  if (m_controller->GetNumberOfProcesses() > 1 && m_controller->GetLocalProcessId() == 0)
+  {
+    static bool IceT_was_enabled = false;
+    if (!vtkPVRenderViewSettings::GetInstance()->GetDisableIceT())
+    {
+      WARN_LOG << "IceT compositing must be disabled when using the NVIDIA IndeX plugin with MPI, "
+                  "otherwise nothing will be rendered. "
+               << "Please open 'Edit | Settings', go to the 'Render View' tab, activate 'Advanced "
+                  "Properties' (gear icon) and check 'Disable IceT'. "
+               << "Then restart ParaView for the setting to take effect.";
+      IceT_was_enabled = true;
+    }
+    else if (IceT_was_enabled)
+    {
+      WARN_LOG << "Please restart ParaView so that IceT compositing is fully disabled.";
+      IceT_was_enabled = false; // only print this once
+    }
+  }
+
   // check if volume data was modified
-  mi::Sint32 use_cell_colors;
+  mi::Sint32 cell_flag;
   vtkDataArray* scalar_array = this->GetScalars(this->GetInput(), this->ScalarMode,
-    this->ArrayAccessMode, this->ArrayId, this->ArrayName, use_cell_colors);
+    this->ArrayAccessMode, this->ArrayId, this->ArrayName, cell_flag);
 
   vtkMTimeType cur_MTime = scalar_array->GetMTime();
 
@@ -573,6 +592,13 @@ void vtknvindex_irregular_volume_mapper::Render(vtkRenderer* ren, vtkVolume* vol
     return;
   }
 
+  bool needs_activate = m_cluster_properties->activate();
+  if (needs_activate)
+  {
+    // Importers might be triggered again, so data must be made available
+    m_is_data_prepared = false;
+  }
+
   // Prepare data to be rendered.
   if ((!m_is_data_prepared || m_volume_changed) && !prepare_data())
   {
@@ -598,23 +624,30 @@ void vtknvindex_irregular_volume_mapper::Render(vtkRenderer* ren, vtkVolume* vol
       // Setup scene information.
       if (!m_scene.scene_created())
       {
-#ifdef USE_KDTREE
-        // Update KDtree subdivision
-        if (m_kd_tree)
+        if (!m_raw_cuts.empty())
         {
-          vtkKdNode* root = m_kd_tree->GetCuts()->GetKdNodeTree();
-
-          mi::base::Handle<vtknvindex_KDTree_affinity> affinity =
-            m_cluster_properties->get_affinity();
-
-          affinity->build_node(root);
+          vtknvindex_KDTree_affinity* affinity_vtk_kdtree =
+            m_cluster_properties->get_affinity_kdtree();
+          if (affinity_vtk_kdtree)
+          {
+            affinity_vtk_kdtree->build(m_raw_cuts, m_raw_cuts_ranks);
+          }
         }
-#endif
+
         m_scene.create_scene(ren, vol, dice_transaction, vtknvindex_scene::VOLUME_TYPE_IRREGULAR);
+        needs_activate = true;
       }
       else if (m_volume_changed)
       {
         m_scene.update_volume(dice_transaction, vtknvindex_scene::VOLUME_TYPE_IRREGULAR);
+        needs_activate = true;
+      }
+
+      if (needs_activate)
+      {
+        m_cluster_properties->warn_if_multiple_visible_instances(this->GetArrayName());
+        m_scene.activate(dice_transaction.get());
+        m_config_settings_changed = true; // force setting region-of-interest
       }
 
       // Update scene parameters.
@@ -699,6 +732,13 @@ void vtknvindex_irregular_volume_mapper::Render(vtkRenderer* ren, vtkVolume* vol
 
     vtkTimerLog::MarkEndEvent("NVIDIA-IndeX: Rendering");
   }
+  else if (m_index_instance->is_index_viewer())
+  {
+    static bool first = true;
+    if (first)
+      ERROR_LOG << "The NVIDIA IndeX plugin was not initialized! See the log output for details.";
+    first = false;
+  }
 
   m_volume_changed = false;
 
@@ -710,5 +750,5 @@ void vtknvindex_irregular_volume_mapper::Render(vtkRenderer* ren, vtkVolume* vol
 //-------------------------------------------------------------------------------------------------
 void vtknvindex_irregular_volume_mapper::set_visibility(bool visibility)
 {
-  m_scene.set_visibility(visibility);
+  m_cluster_properties->set_visibility(visibility);
 }

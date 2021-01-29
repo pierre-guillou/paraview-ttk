@@ -64,7 +64,6 @@
 
 #include "vtkNew.h"          // vtkSmartPointer
 #include "vtkSmartPointer.h" // vtkSmartPointer
-// #include "vtkPointData.h" // vtkPointData
 
 #include <cassert> // std::assert
 #include <map>     // std::map
@@ -90,7 +89,7 @@ class vtkIdTypeArray;
 class vtkLine;
 class vtkPixel;
 class vtkPoints;
-class vtkPointData;
+class vtkCellData;
 class vtkUnsignedCharArray;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkHyperTreeGrid : public vtkDataObject
@@ -425,12 +424,11 @@ private:
 
   unsigned int FindDichotomic(double value, vtkDataArray* coord) const;
 
-protected:
+public:
   virtual unsigned int FindDichotomicX(double value) const;
   virtual unsigned int FindDichotomicY(double value) const;
   virtual unsigned int FindDichotomicZ(double value) const;
 
-public:
   /**
    * JB
    */
@@ -646,64 +644,13 @@ public:
    */
   vtkUnsignedCharArray* AllocateTreeGhostArray();
 
-  //@{
-  /**
-   * A simplified hyper tree cursor, to be used by the hyper tree.
-   * grid supercursor.
-   */
-  class VTKCOMMONDATAMODEL_EXPORT vtkHyperTreeSimpleCursor
-  {
-  public:
-    vtkHyperTreeSimpleCursor();
-    ~vtkHyperTreeSimpleCursor();
-    //@}
-
-    //@{
-    /**
-     * Methods that belong to the vtkHyperTreeCursor API.
-     */
-    vtkHyperTree* GetTree() { return this->Tree; }
-    //@}
-
-    /**
-     * Only valid for leaves.
-     */
-    vtkIdType GetLeafIndex() { return this->Index; }
-
-    /**
-     * Return level at which cursor is positioned.
-     */
-    unsigned short GetLevel() { return this->Level; }
-
-  private:
-    vtkHyperTree* Tree;
-    vtkIdType Index;
-    unsigned short Level;
-  };
-
-  /**
-   * Public structure used by filters to move around the hyper
-   * tree grid and easily access neighbors to leaves.
-   * The super cursor is 'const'. Methods in vtkHyperTreeGrid
-   * initialize and compute children for moving toward leaves.
-   */
-  struct vtkHyperTreeGridSuperCursor
-  {
-    double Origin[3];
-    double Size[3];
-    int NumberOfCursors;
-    int MiddleCursorId;
-    vtkHyperTreeSimpleCursor Cursors[3 * 3 * 3];
-    vtkHyperTreeSimpleCursor* GetCursor(int);
-  };
-
   /**
    * An iterator object to iteratively access trees in the grid.
    */
   class VTKCOMMONDATAMODEL_EXPORT vtkHyperTreeGridIterator
   {
   public:
-    vtkHyperTreeGridIterator() {}
+    vtkHyperTreeGridIterator() = default;
 
     /**
      * Initialize the iterator on the tree set of the given grid.
@@ -723,7 +670,7 @@ public:
     vtkHyperTree* GetNextTree();
 
   protected:
-    std::map<vtkIdType, vtkSmartPointer<vtkHyperTree> >::iterator Iterator;
+    std::map<vtkIdType, vtkSmartPointer<vtkHyperTree>>::iterator Iterator;
     vtkHyperTreeGrid* Grid;
   };
 
@@ -767,13 +714,25 @@ public:
    */
   void GetCenter(double center[3]);
 
-  //@{
   /**
-   * Return a pointer to this dataset's point/tree data.
+   * Return a pointer to this dataset's hypertree node data.
    * THIS METHOD IS THREAD SAFE
    */
-  vtkPointData* GetPointData();
-  //@}
+  vtkCellData* GetCellData();
+
+  /**
+   * Returns the hypertree node field data stored as cell data.
+   * If type != vtkDataObject::AttributeTypes::CELL,
+   * it defers to vtkDataObject;
+   */
+  vtkFieldData* GetAttributesAsFieldData(int type) override;
+
+  /**
+   * Returns the number of nodes.
+   * Ii type == vtkDataObject::AttributeTypes::CELL,
+   * it defers to vtkDataObject.
+   */
+  vtkIdType GetNumberOfElements(int type) override;
 
 protected:
   /**
@@ -784,7 +743,7 @@ protected:
   /**
    * Destructor
    */
-  virtual ~vtkHyperTreeGrid() override;
+  ~vtkHyperTreeGrid() override;
 
   /**
    * JB ModeSqueeze
@@ -838,9 +797,9 @@ protected:
   char* InterfaceNormalsName;
   char* InterfaceInterceptsName;
 
-  std::map<vtkIdType, vtkSmartPointer<vtkHyperTree> > HyperTrees;
+  std::map<vtkIdType, vtkSmartPointer<vtkHyperTree>> HyperTrees;
 
-  vtkNew<vtkPointData> PointData; // Scalars, vectors, etc. associated w/ each point
+  vtkNew<vtkCellData> CellData; // Scalars, vectors, etc. associated w/ each point
 
   unsigned int DepthLimiter;
 

@@ -35,6 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqApplicationComponentsModule.h"
 #include <QToolBar>
 
+class pqView;
+
 /**
 * pqAxesToolbar is the toolbar that has buttons for setting the center
 * rotation axes, toggling its visibility etc.
@@ -57,7 +59,8 @@ public:
   }
   ~pqAxesToolbar() override;
 
-protected slots:
+protected Q_SLOTS:
+  void setView(pqView* view);
   void updateEnabledState();
   void showCenterAxes(bool);
   void showOrientationAxes(bool);

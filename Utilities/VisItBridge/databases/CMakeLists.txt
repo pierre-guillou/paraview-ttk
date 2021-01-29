@@ -122,8 +122,10 @@ visit_include_reader_source(Boxlib3D OFF)
 visit_include_reader_source(Mili OFF)
 if(VISIT_BUILD_READER_Mili)
   vtk_module_find_package(PACKAGE Mili)
+  vtk_module_find_package(PACKAGE RapidJSON)
   list(APPEND visit_libraries
-    Mili::Mili)
+    Mili::Mili
+    rapidjson)
   list(APPEND visit_readers_xmls
     visit_mili_reader.xml)
 endif()

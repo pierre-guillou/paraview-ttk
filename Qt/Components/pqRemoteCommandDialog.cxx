@@ -18,8 +18,15 @@
 
 #include <string>
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+#define QT_ENDL endl
+#else
+#define QT_ENDL Qt::endl
+#endif
+
 #define pqErrorMacro(estr)                                                                         \
-  qDebug() << "Error in:" << endl << __FILE__ << ", line " << __LINE__ << endl << "" estr << endl;
+  qDebug() << "Error in:" << QT_ENDL << __FILE__ << ", line " << __LINE__ << QT_ENDL << "" estr    \
+           << QT_ENDL;
 
 // User interface
 //=============================================================================
@@ -400,7 +407,7 @@ void pqRemoteCommandDialog::AddCommandTemplate()
     toks += tokens[i];
   }
 
-  pqRemoteCommandTemplateDialog dialog(this, 0);
+  pqRemoteCommandTemplateDialog dialog(this, Qt::WindowFlags{});
   dialog.SetCommandName(QString("new command"));
   dialog.SetCommandTemplate(toks);
 
@@ -432,7 +439,7 @@ void pqRemoteCommandDialog::EditCommandTemplate()
   QString commandName = this->Ui->commandTemplates->itemText(itemId);
   QString commandTemplate = this->Ui->commandTemplates->itemData(itemId).toString();
 
-  pqRemoteCommandTemplateDialog dialog(this, 0);
+  pqRemoteCommandTemplateDialog dialog(this, Qt::WindowFlags{});
   dialog.SetCommandName(commandName);
   dialog.SetCommandTemplate(commandTemplate);
 

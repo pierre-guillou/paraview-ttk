@@ -32,13 +32,9 @@
 
 #include "vtkIndeXRepresentationsModule.h"
 #include "vtkPVConfig.h"
-#include "vtkPVDataRepresentation.h"
+#include "vtkVolumeRepresentation.h"
 
 #include "vtknvindex_rtc_kernel_params.h"
-
-//#if PARAVIEW_VERSION_MAJOR == 5 && PARAVIEW_VERSION_MINOR >= 2
-#define PARAVIEW_UGRID_USE_PARTITIONS
-//#endif
 
 class vtkColorTransferFunction;
 class vtkMultiProcessController;
@@ -54,12 +50,6 @@ class vtkUnstructuredGridVolumeMapper;
 class vtkVolumeProperty;
 class vtkVolumeRepresentationPreprocessor;
 
-#ifdef USE_KDTREE
-class vtknvindex_KDTree_affinity;
-#else
-class vtknvindex_affinity;
-#endif
-
 class vtknvindex_config_settings;
 class vtknvindex_cluster_properties;
 class vtknvindex_irregular_volume_mapper;
@@ -68,11 +58,11 @@ class vtknvindex_irregular_volume_mapper;
 // of irregular volume data (unstructured volume grids) in NVIDIA IndeX.
 
 class VTKINDEXREPRESENTATIONS_EXPORT vtknvindex_irregular_volume_representation
-  : public vtkPVDataRepresentation
+  : public vtkVolumeRepresentation
 {
 public:
   static vtknvindex_irregular_volume_representation* New();
-  vtkTypeMacro(vtknvindex_irregular_volume_representation, vtkPVDataRepresentation);
+  vtkTypeMacro(vtknvindex_irregular_volume_representation, vtkVolumeRepresentation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Register a volume mapper with the representation.
@@ -106,25 +96,11 @@ public:
   }
 
   void SetSamplingDimensions(int xdim, int ydim, int zdim);
-  //***************************************************************************
-  // Forwarded to Actor.
-  void SetOrientation(double, double, double);
-  void SetOrigin(double, double, double);
-  void SetPickable(int val);
-  void SetPosition(double, double, double);
-  void SetScale(double, double, double);
 
   //***************************************************************************
   // Forwarded to vtkVolumeProperty and vtkProperty (when applicable).
-  void SetInterpolationType(int val);
-  void SetColor(vtkColorTransferFunction* lut);
-  void SetScalarOpacity(vtkPiecewiseFunction* pwf);
   void SetScalarOpacityUnitDistance(double val);
 
-  // Provides access to the actor used by this representation.
-  vtkPVLODVolume* GetActor() { return this->Actor; }
-
-#ifdef PARAVIEW_UGRID_USE_PARTITIONS
   //@{
   /**
    * Specify whether or not to redistribute the data. The default is false
@@ -134,9 +110,7 @@ public:
    */
   vtkSetMacro(UseDataPartitions, bool);
   vtkGetMacro(UseDataPartitions, bool);
-//@}
-
-#endif // PARAVIEW_UGRID_USE_PARTITIONS
+  //@}
 
   //
   // Configuration options set from ParaView GUI.
@@ -148,12 +122,6 @@ public:
 
   // Set subcube border size.
   void set_subcube_border(int border);
-
-  // Set filtering mode.
-  void set_filter_mode(int filter_mode);
-
-  // Set pre-integration mode.
-  void set_preintegration(bool enable_preint);
 
   // Set dump internal state of NVIDIA IndeX.
   void set_dump_internal_state(bool is_dump);
@@ -240,18 +208,12 @@ protected:
   // Passes on parameters to the active volume mapper.
   virtual void UpdateMapperParameters();
 
-  vtkVolumeRepresentationPreprocessor* Preprocessor;
-
-  vtknvindex_irregular_volume_mapper* DefaultMapper;
-
-  vtkVolumeProperty* Property;
-  vtkPVLODVolume* Actor;
+  vtkNew<vtkVolumeRepresentationPreprocessor> Preprocessor;
+  vtkNew<vtknvindex_irregular_volume_mapper> DefaultMapper;
 
   double DataBounds[6];
 
-#ifdef PARAVIEW_UGRID_USE_PARTITIONS
-  bool UseDataPartitions;
-#endif // PARAVIEW_UGRID_USE_PARTITIONS
+  bool UseDataPartitions = false;
 
 private:
   vtknvindex_irregular_volume_representation(
@@ -269,13 +231,17 @@ private:
   double m_roi_range_J[2];
   double m_roi_range_K[2];
 
-  vtkResampleToImage* ResampleToImageFilter;
+  vtkNew<vtkResampleToImage> ResampleToImageFilter;
   vtkMultiProcessController* m_controller;           // MPI controller from ParaView.
   vtknvindex_config_settings* m_app_config_settings; // Application side config settings.
   vtknvindex_cluster_properties*
     m_cluster_properties; // Cluster wide properties, refer class documentation.
   mi::math::Bbox_struct<mi::Float32, 3> m_roi_gui;    // Region of interest set in the GUI.
   mi::math::Bbox<mi::Float32, 3> m_volume_dimensions; // Cached volume dimensions
+
+  // backup of original Image Reduction Factors
+  mi::Sint32 m_still_image_reduction_factor;
+  mi::Sint32 m_interactive_image_reduction_factor;
 
   mi::Float32 m_prev_time_step;
 

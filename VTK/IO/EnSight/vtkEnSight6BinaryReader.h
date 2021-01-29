@@ -88,6 +88,12 @@ protected:
     vtkMultiBlockDataSet* output, int measured = 0) override;
 
   /**
+   * Not implemented, always return 0;
+   */
+  int ReadAsymmetricTensorsPerNode(const char* fileName, const char* description, int timeStep,
+    vtkMultiBlockDataSet* output) override;
+
+  /**
    * Read tensors per node for this dataset.  If an error occurred, 0 is
    * returned; otherwise 1.
    */
@@ -107,6 +113,12 @@ protected:
    * returned; otherwise 1.
    */
   int ReadVectorsPerElement(const char* fileName, const char* description, int timeStep,
+    vtkMultiBlockDataSet* output) override;
+
+  /**
+   * Not implemented, always return 0;
+   */
+  int ReadAsymmetricTensorsPerElement(const char* fileName, const char* description, int timeStep,
     vtkMultiBlockDataSet* output) override;
 
   /**
@@ -174,7 +186,7 @@ protected:
   // The size of the file is used to choose byte order.
   vtkTypeUInt64 FileSize;
 
-  ifstream* BinaryIFile;
+  istream* BinaryIFile;
 
 private:
   vtkEnSight6BinaryReader(const vtkEnSight6BinaryReader&) = delete;

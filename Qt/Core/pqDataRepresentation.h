@@ -125,7 +125,7 @@ public:
   */
   pqDataRepresentation* getRepresentationForUpstreamSource() const;
 
-signals:
+Q_SIGNALS:
   /**
   * Fired when the representation proxy fires the vtkCommand::UpdateDataEvent.
   */
@@ -144,7 +144,14 @@ signals:
   */
   void colorArrayNameModified();
 
-public slots:
+  /**
+  * Signal fired to indicate that the rendering attribute arrays properties
+  * (Normals, TCoords, Tangents) were modified.
+  * These properties control the shading and texture mapping.
+  */
+  void attrArrayNameModified();
+
+public Q_SLOTS:
   /**
   * Slot to update the lookup table if the application setting to
   * reset it on visibility changes is on.
@@ -158,7 +165,7 @@ public slots:
   */
   void onVisibilityChanged() override;
 
-protected slots:
+protected Q_SLOTS:
   /**
   * called when input property on display changes. We must detect if
   * (and when) the display is connected to a new proxy.

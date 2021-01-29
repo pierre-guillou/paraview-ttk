@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkGenericAdaptorCell.h"
 
 #include <cassert>
@@ -68,7 +72,7 @@ vtkGenericAdaptorCell::vtkGenericAdaptorCell()
   this->TuplesCapacity = 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkGenericAdaptorCell::~vtkGenericAdaptorCell()
 {
   this->Tetra->Delete();
@@ -92,13 +96,13 @@ vtkGenericAdaptorCell::~vtkGenericAdaptorCell()
   delete[] this->Tuples;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 void vtkGenericAdaptorCell::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Does the cell have no higher-order interpolation for geometry?
 // \post definition: result==(GetGeometryOrder()==1)
@@ -107,7 +111,7 @@ int vtkGenericAdaptorCell::IsGeometryLinear()
   return this->GetGeometryOrder() == 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Return the index of the first point centered attribute with the highest
 // order in `ac'.
@@ -140,7 +144,7 @@ int vtkGenericAdaptorCell::GetHighestOrderAttribute(vtkGenericAttributeCollectio
   return result;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Does the attribute `a' have no higher-order interpolation for the cell?
 // \pre a_exists: a!=0
@@ -150,7 +154,7 @@ vtkTypeBool vtkGenericAdaptorCell::IsAttributeLinear(vtkGenericAttribute* a)
   return this->GetAttributeOrder(a) == 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGenericAdaptorCell::GetBounds(double bounds[6])
 {
 #if 0
@@ -182,7 +186,7 @@ void vtkGenericAdaptorCell::GetBounds(double bounds[6])
   vtkErrorMacro("TO BE DONE");
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 double* vtkGenericAdaptorCell::GetBounds()
 {
   this->GetBounds(this->Bounds);
@@ -190,7 +194,7 @@ double* vtkGenericAdaptorCell::GetBounds()
   return this->Bounds;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Return the bounding box diagonal squared of the current cell.
 // \post positive_result: result>=0
@@ -208,7 +212,7 @@ double vtkGenericAdaptorCell::GetLength2()
   return l;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Reset
 void vtkGenericAdaptorCell::Reset()
 {
@@ -217,7 +221,7 @@ void vtkGenericAdaptorCell::Reset()
   this->InternalScalars->Reset();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGenericAdaptorCell::Contour(vtkContourValues* contourValues, vtkImplicitFunction* f,
   vtkGenericAttributeCollection* attributes, vtkGenericCellTessellator* tess,
   vtkIncrementalPointLocator* locator, vtkCellArray* verts, vtkCellArray* lines,
@@ -458,7 +462,7 @@ void vtkGenericAdaptorCell::Contour(vtkContourValues* contourValues, vtkImplicit
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGenericAdaptorCell::Clip(double value, vtkImplicitFunction* f,
   vtkGenericAttributeCollection* attributes, vtkGenericCellTessellator* tess, int insideOut,
   vtkIncrementalPointLocator* locator, vtkCellArray* connectivity, vtkPointData* outPd,
@@ -659,7 +663,7 @@ void vtkGenericAdaptorCell::Clip(double value, vtkImplicitFunction* f,
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Tessellate the cell if it is not linear or if at least one attribute of
 // `attributes' is not linear. The output are linear cells of the same
@@ -896,7 +900,7 @@ void vtkGenericAdaptorCell::Tessellate(vtkGenericAttributeCollection* attributes
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGenericAdaptorCell::TriangulateFace(vtkGenericAttributeCollection* attributes,
   vtkGenericCellTessellator* tess, int index, vtkPoints* points,
   vtkIncrementalPointLocator* locator, vtkCellArray* cellArray, vtkPointData* internalPd,
@@ -1062,7 +1066,7 @@ void vtkGenericAdaptorCell::TriangulateFace(vtkGenericAttributeCollection* attri
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Description:
 // Allocate some memory if Tuples does not exist or is smaller than size.
 // \pre positive_size: size>0

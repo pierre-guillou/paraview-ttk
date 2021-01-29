@@ -96,8 +96,29 @@ set(PARAVIEW_USE_EXTERNAL_VTK OFF)
 endif ()
 
 option(PARAVIEW_USE_MPI "Enable MPI support for parallel computing" OFF)
+option(PARAVIEW_SERIAL_TESTS_USE_MPIEXEC
+  "Used on HPC to run serial tests on compute nodes" OFF)
+mark_as_advanced(PARAVIEW_SERIAL_TESTS_USE_MPIEXEC)
 option(PARAVIEW_USE_CUDA "Support CUDA compilation" OFF)
 option(PARAVIEW_USE_VTKM "Enable VTK-m accelerated algorithms" "${PARAVIEW_ENABLE_NONESSENTIAL}")
+if (UNIX AND NOT APPLE)
+  option(PARAVIEW_USE_MEMKIND  "Build support for extended memory" OFF)
+endif ()
+
+# Add option to disable Fortran
+if (NOT WIN32)
+  include(CheckFortran)
+  check_fortran_support()
+  if (CMAKE_Fortran_COMPILER)
+    set(_has_fortran TRUE)
+  else()
+    set(_has_fortran FALSE)
+  endif()
+  cmake_dependent_option(PARAVIEW_USE_FORTRAN "Enable Fortran support" ON
+    "_has_fortran" OFF)
+  mark_as_advanced(PARAVIEW_USE_FORTRAN)
+  unset(_has_fortran)
+endif()
 
 vtk_deprecated_setting(python_default PARAVIEW_USE_PYTHON PARAVIEW_ENABLE_PYTHON OFF)
 option(PARAVIEW_USE_PYTHON "Enable/Disable Python scripting support" "${python_default}")
@@ -162,6 +183,8 @@ option(PARAVIEW_ENABLE_MOTIONFX "Enable MotionFX support." OFF)
 
 option(PARAVIEW_ENABLE_MOMENTINVARIANTS "Enable MomentInvariants filters" OFF)
 
+option(PARAVIEW_ENABLE_LOOKINGGLASS "Enable LookingGlass displays" OFF)
+
 option(PARAVIEW_ENABLE_VISITBRIDGE "Enable VisIt readers." OFF)
 
 # default to ON for CANONICAL builds, else OFF.
@@ -174,6 +197,8 @@ option(PARAVIEW_ENABLE_XDMF2 "Enable Xdmf2 support." "${xdmf2_default}")
 option(PARAVIEW_ENABLE_XDMF3 "Enable Xdmf3 support." OFF)
 
 option(PARAVIEW_ENABLE_ADIOS2 "Enable ADIOS 2.x support." OFF)
+
+option(PARAVIEW_ENABLE_FIDES "Enable Fides support." OFF)
 
 cmake_dependent_option(PARAVIEW_ENABLE_FFMPEG "Enable FFMPEG Support." OFF
   "UNIX" OFF)
@@ -288,7 +313,7 @@ paraview_require_module(
 
 paraview_require_module(
   CONDITION PARAVIEW_USE_VTKM
-  MODULES   VTK::AcceleratorsVTKm
+  MODULES   VTK::AcceleratorsVTKmFilters
   EXCLUSIVE)
 
 paraview_require_module(
@@ -337,6 +362,11 @@ paraview_require_module(
   EXCLUSIVE)
 
 paraview_require_module(
+  CONDITION PARAVIEW_ENABLE_LOOKINGGLASS
+  MODULES   VTK::RenderingLookingGlass
+  EXCLUSIVE)
+
+paraview_require_module(
   CONDITION PARAVIEW_ENABLE_VISITBRIDGE
   MODULES   ParaView::IOVisItBridge
             ParaView::VisItLib
@@ -355,6 +385,11 @@ paraview_require_module(
 paraview_require_module(
   CONDITION PARAVIEW_ENABLE_ADIOS2
   MODULES   VTK::IOADIOS2
+  EXCLUSIVE)
+
+paraview_require_module(
+  CONDITION PARAVIEW_ENABLE_FIDES
+  MODULES   VTK::IOFides
   EXCLUSIVE)
 
 paraview_require_module(
@@ -410,6 +445,8 @@ paraview_require_module(
   CONDITION PARAVIEW_BUILD_CANONICAL AND PARAVIEW_ENABLE_NONESSENTIAL
   MODULES   VTK::IOAMR
             VTK::IOCityGML
+            VTK::IOCONVERGECFD
+            VTK::IOIoss
             VTK::IOH5part
             VTK::IONetCDF
             VTK::IOOggTheora
@@ -448,9 +485,10 @@ paraview_require_module(
             ParaView::RemotingLive
             ParaView::RemotingAnimation)
 
+# Legacy Catalyst Python modules depends on paraview.tpl.cinema_python
 paraview_require_module(
-  CONDITION PARAVIEW_BUILD_CANONICAL AND PARAVIEW_ENABLE_RENDERING AND PARAVIEW_USE_PYTHON
-  MODULES   ParaView::RemotingCinema)
+  CONDITION PARAVIEW_USE_PYTHON
+  MODULES   ParaView::CinemaPython)
 
 if (NOT PARAVIEW_ENABLE_NONESSENTIAL)
   # This ensures that we don't ever enable certain problematic

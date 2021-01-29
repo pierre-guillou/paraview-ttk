@@ -260,6 +260,17 @@ foreach(var
     FILES_MATCHING PATTERN "*.h"
     )
 endforeach()
+file(COPY "${SOURCE_DIR}/CMake"
+  DESTINATION "${INTERMEDIATE_DOX_DIR}"
+  FILES_MATCHING
+  PATTERN "vtkDetectLibraryType.cmake"
+  PATTERN "vtkEncodeString.cmake"
+  PATTERN "vtkHashSource.cmake"
+  PATTERN "vtkModule*.cmake"
+  PATTERN "vtkModuleDebugging.cmake" EXCLUDE
+  PATTERN "vtkModuleRemote.cmake" EXCLUDE
+  PATTERN "vtkObjectFactory.cmake"
+  )
 
 # ----------------------------------------------------------------------------
 # Build the Events invocation list.
@@ -304,7 +315,7 @@ step(4 "extract VTK version")
 execute_process(COMMAND ${PERL}
   "${PATH_TO_VTK_DOX_SCRIPTS}/doc_version.pl"
   --version_file "${SOURCE_DIR}/${REL_PATH_TO_TOP}/CMake/vtkVersion.cmake"
-  --logo "${PATH_TO_VTK_DOX_SCRIPTS}/vtk-logo.gif"
+  --logo "${SOURCE_DIR}/vtkLogo.ico"
   --store "doc_${PROJECT_NAME}_version.dox"
   --to "${INTERMEDIATE_DOX_DIR}"
   RESULT_VARIABLE rv

@@ -32,6 +32,7 @@
 #include "vtkIntArray.h"
 #include "vtkJPEGReader.h"
 #include "vtkMath.h"
+#include "vtkMatrix3x3.h"
 #include "vtkPNGReader.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
@@ -64,7 +65,7 @@
 
 namespace
 {
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Replacement for std::to_string as it is not supported by certain compilers
 template <typename T>
 std::string value_to_string(const T& val)
@@ -74,7 +75,7 @@ std::string value_to_string(const T& val)
   return ss.str();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIdType GetNumberOfCellsForPrimitive(int mode, int cellSize, int numberOfIndices)
 {
   if (cellSize <= 0)
@@ -101,7 +102,7 @@ vtkIdType GetNumberOfCellsForPrimitive(int mode, int cellSize, int numberOfIndic
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void GenerateIndicesForPrimitive(vtkGLTFDocumentLoader::Primitive& primitive)
 {
   primitive.Indices = vtkSmartPointer<vtkCellArray>::New();
@@ -147,16 +148,16 @@ void GenerateIndicesForPrimitive(vtkGLTFDocumentLoader::Primitive& primitive)
 }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const std::vector<std::string> vtkGLTFDocumentLoader::SupportedExtensions = {
   "KHR_lights_punctual"
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkGLTFDocumentLoader);
 
 /** Metadata loading **/
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::LoadModelMetaDataFromFile(std::string fileName)
 {
   vtkGLTFDocumentLoaderInternals impl;
@@ -181,7 +182,7 @@ bool vtkGLTFDocumentLoader::LoadModelMetaDataFromFile(std::string fileName)
 }
 
 /** Data loading **/
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 template <typename Type>
 struct vtkGLTFDocumentLoader::BufferDataExtractionWorker
 {
@@ -282,12 +283,12 @@ struct vtkGLTFDocumentLoader::BufferDataExtractionWorker
   }
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 struct vtkGLTFDocumentLoader::AccessorLoadingWorker
 {
   const std::vector<Accessor>* Accessors;
   const std::vector<BufferView>* BufferViews;
-  const std::vector<std::vector<char> >* Buffers;
+  const std::vector<std::vector<char>>* Buffers;
   int AccessorId;
   AccessorType ExpectedType;
   bool NormalizeTuples = false;
@@ -471,7 +472,7 @@ struct vtkGLTFDocumentLoader::AccessorLoadingWorker
 
 namespace
 {
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 /**
  * Extracts a primitive's connectivity indices, and stores the corresponding cells into a
  * vtkCellArray.
@@ -576,7 +577,7 @@ void ExtractAndCastCellBufferData(const std::vector<char>& inbuf,
 }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::ExtractPrimitiveAccessorData(Primitive& primitive)
 {
   // Load connectivity
@@ -630,7 +631,7 @@ bool vtkGLTFDocumentLoader::ExtractPrimitiveAccessorData(Primitive& primitive)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::ExtractPrimitiveAttributes(Primitive& primitive)
 {
   AccessorLoadingWorker worker;
@@ -701,7 +702,7 @@ bool vtkGLTFDocumentLoader::ExtractPrimitiveAttributes(Primitive& primitive)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::LoadAnimationData()
 {
   AccessorLoadingWorker worker;
@@ -772,7 +773,7 @@ bool vtkGLTFDocumentLoader::LoadAnimationData()
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::LoadImageData()
 {
   vtkNew<vtkImageReader2Factory> factory;
@@ -859,7 +860,7 @@ bool vtkGLTFDocumentLoader::LoadImageData()
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::LoadSkinMatrixData()
 {
   AccessorLoadingWorker worker;
@@ -876,7 +877,7 @@ bool vtkGLTFDocumentLoader::LoadSkinMatrixData()
       // Default is an identity matrix
       vtkNew<vtkMatrix4x4> id;
       id->Identity();
-      skin.InverseBindMatrices.push_back(id);
+      skin.InverseBindMatrices.emplace_back(id);
       continue;
     }
     vtkNew<vtkFloatArray> matrixValues;
@@ -897,13 +898,13 @@ bool vtkGLTFDocumentLoader::LoadSkinMatrixData()
       vtkNew<vtkMatrix4x4> matrix;
       matrix->DeepCopy(matrixValues->GetTuple(matrixId));
       matrix->Transpose();
-      skin.InverseBindMatrices.push_back(matrix);
+      skin.InverseBindMatrices.emplace_back(matrix);
     }
   }
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::LoadModelData(const std::vector<char>& glbBuffer)
 {
   vtkGLTFDocumentLoaderInternals impl;
@@ -916,7 +917,7 @@ bool vtkGLTFDocumentLoader::LoadModelData(const std::vector<char>& glbBuffer)
   }
 
   // Push optional glB buffer
-  if (glbBuffer.size() > 0)
+  if (!glbBuffer.empty())
   {
     this->InternalModel->Buffers.push_back(glbBuffer);
   }
@@ -947,7 +948,7 @@ bool vtkGLTFDocumentLoader::LoadModelData(const std::vector<char>& glbBuffer)
 }
 
 /** vtk object building and animation operations **/
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::ApplyAnimation(float t, int animationId, bool forceStep)
 {
   const Animation& animation = this->InternalModel->Animations[animationId];
@@ -1001,7 +1002,7 @@ bool vtkGLTFDocumentLoader::ApplyAnimation(float t, int animationId, bool forceS
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFDocumentLoader::ResetAnimation(int animationId)
 {
   const Animation& animation = this->InternalModel->Animations[animationId];
@@ -1030,7 +1031,7 @@ void vtkGLTFDocumentLoader::ResetAnimation(int animationId)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::BuildPolyDataFromPrimitive(Primitive& primitive)
 {
   // Positions
@@ -1071,7 +1072,7 @@ bool vtkGLTFDocumentLoader::BuildPolyDataFromPrimitive(Primitive& primitive)
   // Other attributes
 
   // Set array names
-  for (auto it : primitive.AttributeValues)
+  for (const auto& it : primitive.AttributeValues)
   {
     it.second->SetName(it.first.c_str());
   }
@@ -1129,7 +1130,7 @@ bool vtkGLTFDocumentLoader::BuildPolyDataFromPrimitive(Primitive& primitive)
   int targetId = 0;
   for (auto& target : primitive.Targets)
   {
-    std::string name = "";
+    std::string name;
     if (target.AttributeValues.count("POSITION"))
     {
       name = "target" + value_to_string(targetId) + "_position";
@@ -1153,11 +1154,10 @@ bool vtkGLTFDocumentLoader::BuildPolyDataFromPrimitive(Primitive& primitive)
   return true;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFDocumentLoader::Node::UpdateTransform()
 {
   this->Transform->Identity();
-  this->Transform->PostMultiply();
 
   if (this->TRSLoaded)
   {
@@ -1182,24 +1182,29 @@ void vtkGLTFDocumentLoader::Node::UpdateTransform()
       std::begin(rotationValues), std::begin(rotationValues) + 3, std::end(rotationValues));
     // Initialize quaternion
     vtkQuaternion<float> rotation;
-    rotation.Set(rotationValues.data());
-    float axis[3];
     rotation.Normalize();
-    float angle = rotation.GetRotationAngleAndAxis(axis);
-    angle = vtkMath::DegreesFromRadians(angle);
+    rotation.Set(rotationValues.data());
+
+    float rotationMatrix[3][3];
+    rotation.ToMatrix3x3(rotationMatrix);
 
     // Apply transformations
-    this->Transform->Scale(scale.data());
-    this->Transform->RotateWXYZ(angle, axis);
-    this->Transform->Translate(translation.data());
+    for (int i = 0; i < 3; i++)
+    {
+      for (int j = 0; j < 3; j++)
+      {
+        this->Transform->SetElement(i, j, scale[j] * rotationMatrix[i][j]);
+      }
+      this->Transform->SetElement(i, 3, translation[i]);
+    }
   }
   else
   {
-    this->Transform->SetMatrix(this->Matrix);
+    this->Transform->DeepCopy(this->Matrix);
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFDocumentLoader::Animation::Sampler::GetInterpolatedData(float t,
   size_t numberOfComponents, std::vector<float>* output, bool forceStep, bool isRotation) const
 {
@@ -1342,7 +1347,7 @@ void vtkGLTFDocumentLoader::Animation::Sampler::GetInterpolatedData(float t,
 }
 
 /** File operations **/
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::LoadFileBuffer(
   const std::string& fileName, std::vector<char>& glbBuffer)
 {
@@ -1386,7 +1391,7 @@ bool vtkGLTFDocumentLoader::LoadFileBuffer(
   return false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkGLTFDocumentLoader::BuildModelVTKGeometry()
 {
   if (this->InternalModel == nullptr)
@@ -1415,21 +1420,21 @@ bool vtkGLTFDocumentLoader::BuildModelVTKGeometry()
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkGLTFDocumentLoader::BuildGlobalTransforms(
-  unsigned int nodeIndex, vtkSmartPointer<vtkTransform> parentTransform)
+  unsigned int nodeIndex, vtkSmartPointer<vtkMatrix4x4> parentTransform)
 {
   if (nodeIndex >= this->InternalModel->Nodes.size())
   {
     return;
   }
   Node& node = this->InternalModel->Nodes[nodeIndex];
-  node.GlobalTransform = vtkSmartPointer<vtkTransform>::New();
-  node.GlobalTransform->PostMultiply();
-  node.GlobalTransform->Concatenate(node.Transform);
+
+  node.GlobalTransform = vtkSmartPointer<vtkMatrix4x4>::New();
+  node.GlobalTransform->DeepCopy(node.Transform);
   if (parentTransform != nullptr)
   {
-    node.GlobalTransform->Concatenate(parentTransform);
+    vtkMatrix4x4::Multiply4x4(parentTransform, node.GlobalTransform, node.GlobalTransform);
   }
   for (auto childId : node.Children)
   {
@@ -1438,32 +1443,44 @@ void vtkGLTFDocumentLoader::BuildGlobalTransforms(
   return;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void vtkGLTFDocumentLoader::BuildGlobalTransforms()
+{
+  for (const auto& scene : this->InternalModel->Scenes)
+  {
+    for (unsigned int node : scene.Nodes)
+    {
+      this->BuildGlobalTransforms(node, nullptr);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 void vtkGLTFDocumentLoader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::shared_ptr<vtkGLTFDocumentLoader::Model> vtkGLTFDocumentLoader::GetInternalModel()
 {
   return std::shared_ptr<Model>(this->InternalModel);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const std::vector<std::string>& vtkGLTFDocumentLoader::GetSupportedExtensions()
 {
   return vtkGLTFDocumentLoader::SupportedExtensions;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const std::vector<std::string>& vtkGLTFDocumentLoader::GetUsedExtensions()
 {
   return this->UsedExtensions;
 }
 
 /** types and enums **/
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned int vtkGLTFDocumentLoader::GetNumberOfComponentsForType(
   vtkGLTFDocumentLoader::AccessorType type)
 {
@@ -1485,5 +1502,42 @@ unsigned int vtkGLTFDocumentLoader::GetNumberOfComponentsForType(
       return 16;
     default:
       return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkGLTFDocumentLoader::ComputeJointMatrices(const Model& model, const Skin& skin, Node& node,
+  std::vector<vtkSmartPointer<vtkMatrix4x4>>& jointMats)
+{
+  jointMats.clear();
+  jointMats.reserve(skin.Joints.size());
+
+  vtkNew<vtkMatrix4x4> inverseMeshGlobal;
+  vtkMatrix4x4::Invert(node.GlobalTransform, inverseMeshGlobal);
+
+  for (unsigned int jointId = 0; jointId < skin.Joints.size(); jointId++)
+  {
+    const Node& jointNode = model.Nodes[skin.Joints[jointId]];
+
+    /**
+     * Joint matrices:
+     * jointMatrix(j) =
+     * globalTransformOfNodeThatTheMeshIsAttachedTo^-1 *
+     * globalTransformOfJointNode(j) *
+     * inverseBindMatrixForJoint(j);
+     * The mesh will be transformed (using vtkWeightedTransformFilter) using this matrix:
+     * mat4 skinMat =
+     * weight.x * jointMatrix[joint.x] +
+     * weight.y * jointMatrix[joint.y] +
+     * weight.z * jointMatrix[joint.z] +
+     * weight.w * jointMatrix[joint.w];
+     */
+
+    vtkNew<vtkMatrix4x4> jointMat;
+    vtkMatrix4x4::Multiply4x4(
+      jointNode.GlobalTransform, skin.InverseBindMatrices[jointId], jointMat);
+    vtkMatrix4x4::Multiply4x4(inverseMeshGlobal, jointMat, jointMat);
+
+    jointMats.emplace_back(jointMat);
   }
 }

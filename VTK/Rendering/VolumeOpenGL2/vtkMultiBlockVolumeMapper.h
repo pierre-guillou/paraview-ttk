@@ -38,13 +38,13 @@
 #include <vector> // For DataBlocks
 
 #include "vtkRenderingVolumeOpenGL2Module.h" // For export macro
-#include "vtkTimeStamp.h"                    // For BlockLoadingTime
 #include "vtkVolumeMapper.h"
 
 class vtkDataObjectTree;
 class vtkDataSet;
 class vtkImageData;
 class vtkMultiBlockDataSet;
+class vtkRenderWindow;
 class vtkSmartVolumeMapper;
 
 class VTKRENDERINGVOLUMEOPENGL2_EXPORT vtkMultiBlockVolumeMapper : public vtkVolumeMapper
@@ -120,6 +120,14 @@ public:
   void SetCroppingRegionFlags(int mode) override;
   //@}
 
+  //@{
+  /**
+   * Forwarded to internal vtkSmartVolumeMappers used.
+   * @sa vtkSmartVolumeMapper::SetRequestedRenderMode.
+   */
+  void SetRequestedRenderMode(int);
+  //@}
+
 protected:
   vtkMultiBlockVolumeMapper();
   ~vtkMultiBlockVolumeMapper() override;
@@ -132,6 +140,9 @@ protected:
    * \sa vtkAlgorithm::FillInputPortInformation
    */
   int FillInputPortInformation(int port, vtkInformation* info) override;
+
+  vtkRenderWindow* DebugWin;
+  vtkRenderer* DebugRen;
 
 private:
   /**
@@ -179,10 +190,11 @@ private:
   MapperVec Mappers;
   vtkSmartVolumeMapper* FallBackMapper;
 
-  vtkTimeStamp BlockLoadingTime;
-  vtkTimeStamp BoundsComputeTime;
+  vtkMTimeType BlockLoadingTime;
+  vtkMTimeType BoundsComputeTime;
 
   int VectorMode;
   int VectorComponent;
+  int RequestedRenderMode;
 };
 #endif

@@ -153,6 +153,7 @@ int vtkAvtMTMDFileFormatAlgorithm::RequestData(vtkInformation *request,
       }
     }
   this->CleanupAVTReader();
+  this->SetupGhostInformation(outInfo);
   return 1;
 }
 

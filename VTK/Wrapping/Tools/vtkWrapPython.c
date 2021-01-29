@@ -154,6 +154,10 @@ static void vtkWrapPython_GenerateSpecialHeaders(
             {
               classname = 0;
             }
+            else if ((aType & VTK_PARSE_REF) != 0)
+            {
+              classname = 0;
+            }
           }
           else
           {
@@ -358,7 +362,6 @@ int main(int argc, char* argv[])
   fprintf(fp,
     "#include \"vtkPythonArgs.h\"\n"
     "#include \"vtkPythonOverload.h\"\n"
-    "#include \"vtkConfigure.h\"\n"
     "#include <cstddef>\n"
     "#include <sstream>\n");
 

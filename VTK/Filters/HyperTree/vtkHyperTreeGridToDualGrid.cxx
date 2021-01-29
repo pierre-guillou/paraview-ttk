@@ -15,6 +15,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkHyperTreeGridToDualGrid.h"
 
 #include "vtkBitArray.h"
+#include "vtkCellData.h"
 #include "vtkCellType.h"
 #include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
@@ -49,7 +50,7 @@ static const unsigned int* CornerNeighborCursorsTable3D[8] = {
   CornerNeighborCursorsTable3D7,
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridToDualGrid::vtkHyperTreeGridToDualGrid()
 {
   // Dual grid corners (primal grid leaf centers)
@@ -57,7 +58,7 @@ vtkHyperTreeGridToDualGrid::vtkHyperTreeGridToDualGrid()
   this->Connectivity = nullptr;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkHyperTreeGridToDualGrid::~vtkHyperTreeGridToDualGrid()
 {
   if (this->Points)
@@ -71,7 +72,7 @@ vtkHyperTreeGridToDualGrid::~vtkHyperTreeGridToDualGrid()
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -79,14 +80,14 @@ void vtkHyperTreeGridToDualGrid::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Connectivity: " << this->Connectivity << endl;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridToDualGrid::FillOutputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkUnstructuredGrid");
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkHyperTreeGridToDualGrid::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject* outputDO)
 {
   // Downcast output data object to hyper tree grid
@@ -148,7 +149,7 @@ int vtkHyperTreeGridToDualGrid::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObj
 
   // Compute and store reduction factors for speed
   double factor = 1.;
-  for (unsigned short p = 0; p < gridDepth; ++p)
+  for (unsigned int p = 0; p < gridDepth; ++p)
   {
     this->ReductionFactors[p] = .5 * factor;
     factor /= input->GetBranchFactor();
@@ -200,7 +201,7 @@ int vtkHyperTreeGridToDualGrid::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObj
 
   // now populate my output from the mesh internals made above
   output->SetPoints(this->Points);
-  output->GetPointData()->ShallowCopy(input->GetPointData());
+  output->GetPointData()->ShallowCopy(input->GetCellData());
 
   int numPts = 1 << input->GetDimension();
   int type = VTK_VOXEL;
@@ -223,7 +224,7 @@ int vtkHyperTreeGridToDualGrid::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObj
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::TraverseDualRecursively(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkHyperTreeGrid* input)
 {
@@ -259,7 +260,7 @@ void vtkHyperTreeGridToDualGrid::TraverseDualRecursively(
   }   // else
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf1D(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkHyperTreeGrid* input)
 {
@@ -319,7 +320,7 @@ void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf1D(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf2D(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkHyperTreeGrid* input)
 {
@@ -443,7 +444,7 @@ void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf2D(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf3D(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkHyperTreeGrid* vtkNotUsed(input))
 {
@@ -453,7 +454,7 @@ void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf3D(
   //   (d-2)-faces are corners, neighbor cursors are 0, 2, 6, 8, 18, 20, 24, 26
 
   // Retrieve cursors
-  std::vector<vtkSmartPointer<vtkHyperTreeGridOrientedGeometryCursor> > cursors;
+  std::vector<vtkSmartPointer<vtkHyperTreeGridOrientedGeometryCursor>> cursors;
   cursors.resize(27);
   for (unsigned int c = 0; c < 27; ++c)
   {
@@ -544,7 +545,7 @@ void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf3D(
   }   // c
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::TraverseDualRecursively(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkBitArray* mask, vtkHyperTreeGrid* input)
 {
@@ -596,7 +597,7 @@ void vtkHyperTreeGridToDualGrid::TraverseDualRecursively(
   }   // else
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::ShiftDualCornerFromMaskedLeaf2D(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkBitArray* mask, vtkHyperTreeGrid* input)
 {
@@ -747,7 +748,7 @@ void vtkHyperTreeGridToDualGrid::ShiftDualCornerFromMaskedLeaf2D(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::ShiftDualCornerFromMaskedLeaf3D(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkBitArray* mask,
   vtkHyperTreeGrid* vtkNotUsed(input))
@@ -856,7 +857,7 @@ void vtkHyperTreeGridToDualGrid::ShiftDualCornerFromMaskedLeaf3D(
   }     // o3
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf2D(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkBitArray* mask, vtkHyperTreeGrid* input)
 {
@@ -1090,7 +1091,7 @@ void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf2D(
   }
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridToDualGrid::GenerateDualCornerFromLeaf3D(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, vtkBitArray* mask,
   vtkHyperTreeGrid* vtkNotUsed(input))

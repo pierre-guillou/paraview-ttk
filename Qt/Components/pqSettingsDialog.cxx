@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMProxyIterator.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSettings.h"
+#include "vtkSMTrace.h"
 #include "vtkSmartPointer.h"
 
 #include <QKeyEvent>
@@ -74,7 +75,8 @@ public:
 bool pqSettingsDialog::ShowRestartRequired = false;
 
 //-----------------------------------------------------------------------------
-pqSettingsDialog::pqSettingsDialog(QWidget* parentObject, Qt::WindowFlags f)
+pqSettingsDialog::pqSettingsDialog(
+  QWidget* parentObject, Qt::WindowFlags f, const QStringList& proxyLabelsToShow)
   : Superclass(parentObject, f | Qt::WindowStaysOnTopHint)
   , Internals(new pqSettingsDialog::pqInternals())
 {
@@ -99,7 +101,7 @@ pqSettingsDialog::pqSettingsDialog(QWidget* parentObject, Qt::WindowFlags f)
   for (iter->Begin("settings"); !iter->IsAtEnd(); iter->Next())
   {
     vtkSMProxy* proxy = iter->GetProxy();
-    if (proxy)
+    if (proxy && (proxyLabelsToShow.isEmpty() || proxyLabelsToShow.contains(proxy->GetXMLLabel())))
     {
       proxies_to_show.push_back(proxy);
     }
@@ -209,12 +211,12 @@ void pqSettingsDialog::clicked(QAbstractButton* button)
   {
     case QDialogButtonBox::AcceptRole:
     case QDialogButtonBox::ApplyRole:
-      emit this->accepted();
+      Q_EMIT this->accepted();
       break;
 
     case QDialogButtonBox::ResetRole:
     case QDialogButtonBox::RejectRole:
-      emit this->rejected();
+      Q_EMIT this->rejected();
       break;
     default:
       break;
@@ -235,6 +237,7 @@ void pqSettingsDialog::onAccepted()
   for (iter->Begin("settings"); !iter->IsAtEnd(); iter->Next())
   {
     vtkSMProxy* proxy = iter->GetProxy();
+    SM_SCOPED_TRACE(PropertiesModified).arg("proxy", proxy);
     settings->SetProxySettings(proxy);
     vtkSmartPointer<vtkSMPropertyIterator> iter2;
     iter2.TakeReference(proxy->NewPropertyIterator());
@@ -284,7 +287,7 @@ void pqSettingsDialog::onTabIndexChanged(int index)
 void pqSettingsDialog::filterPanelWidgets()
 {
   Ui::SettingsDialog& ui = this->Internals->Ui;
-  emit this->filterWidgets(ui.SearchBox->isAdvancedSearchActive(), ui.SearchBox->text());
+  Q_EMIT this->filterWidgets(ui.SearchBox->isAdvancedSearchActive(), ui.SearchBox->text());
 }
 
 //-----------------------------------------------------------------------------

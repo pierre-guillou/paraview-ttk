@@ -39,7 +39,7 @@
 #include "vtkTestUtilities.h"
 #include "vtkTexture.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestPBRMaterials(int argc, char* argv[])
 {
   vtkNew<vtkOpenGLRenderer> renderer;
@@ -55,9 +55,6 @@ int TestPBRMaterials(int argc, char* argv[])
 
   vtkSmartPointer<vtkPBRIrradianceTexture> irradiance = renderer->GetEnvMapIrradiance();
   irradiance->SetIrradianceStep(0.3);
-  vtkSmartPointer<vtkPBRPrefilterTexture> prefilter = renderer->GetEnvMapPrefiltered();
-  prefilter->SetPrefilterSamples(64);
-  prefilter->SetPrefilterSize(64);
 
   vtkNew<vtkOpenGLTexture> textureCubemap;
   textureCubemap->CubeMapOn();
@@ -78,8 +75,9 @@ int TestPBRMaterials(int argc, char* argv[])
     textureCubemap->SetInputConnection(i, flip->GetOutputPort());
   }
 
-  renderer->SetEnvironmentCubeMap(textureCubemap, true);
+  renderer->SetEnvironmentTexture(textureCubemap, true);
   renderer->UseImageBasedLightingOn();
+  renderer->UseSphericalHarmonicsOff();
 
   vtkNew<vtkSphereSource> sphere;
   sphere->SetThetaResolution(100);
@@ -95,7 +93,6 @@ int TestPBRMaterials(int argc, char* argv[])
     actorSphere->SetMapper(pdSphere);
     actorSphere->GetProperty()->SetInterpolationToPBR();
     actorSphere->GetProperty()->SetColor(1.0, 1.0, 1.0);
-    actorSphere->GetProperty()->SetOpacity(1.0);
     actorSphere->GetProperty()->SetMetallic(1.0);
     actorSphere->GetProperty()->SetRoughness(i / 5.0);
     renderer->AddActor(actorSphere);
@@ -108,7 +105,6 @@ int TestPBRMaterials(int argc, char* argv[])
     actorSphere->SetMapper(pdSphere);
     actorSphere->GetProperty()->SetInterpolationToPBR();
     actorSphere->GetProperty()->SetColor(0.72, 0.45, 0.2);
-    actorSphere->GetProperty()->SetOpacity(1.0);
     actorSphere->GetProperty()->SetMetallic(1.0);
     actorSphere->GetProperty()->SetRoughness(i / 5.0);
     renderer->AddActor(actorSphere);
@@ -121,8 +117,6 @@ int TestPBRMaterials(int argc, char* argv[])
     actorSphere->SetMapper(pdSphere);
     actorSphere->GetProperty()->SetInterpolationToPBR();
     actorSphere->GetProperty()->SetColor(0.0, 0.0, 0.0);
-    actorSphere->GetProperty()->SetOpacity(1.0);
-    actorSphere->GetProperty()->SetMetallic(0.0);
     actorSphere->GetProperty()->SetRoughness(i / 5.0);
     renderer->AddActor(actorSphere);
   }
@@ -134,8 +128,6 @@ int TestPBRMaterials(int argc, char* argv[])
     actorSphere->SetMapper(pdSphere);
     actorSphere->GetProperty()->SetInterpolationToPBR();
     actorSphere->GetProperty()->SetColor(0.0, 1.0, 1.0);
-    actorSphere->GetProperty()->SetOpacity(1.0);
-    actorSphere->GetProperty()->SetMetallic(0.0);
     actorSphere->GetProperty()->SetRoughness(i / 5.0);
     renderer->AddActor(actorSphere);
   }
@@ -147,8 +139,6 @@ int TestPBRMaterials(int argc, char* argv[])
     actorSphere->SetMapper(pdSphere);
     actorSphere->GetProperty()->SetInterpolationToPBR();
     actorSphere->GetProperty()->SetColor(1.0, 0.0, 0.0);
-    actorSphere->GetProperty()->SetOpacity(1.0);
-    actorSphere->GetProperty()->SetMetallic(0.0);
     actorSphere->GetProperty()->SetRoughness(i / 5.0);
     renderer->AddActor(actorSphere);
   }

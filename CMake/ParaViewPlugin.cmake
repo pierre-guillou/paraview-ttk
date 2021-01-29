@@ -102,7 +102,7 @@ paraview_plugin_scan(
   PROVIDES_PLUGINS          <variable>
   [ENABLE_BY_DEFAULT        <ON|OFF>]
   [HIDE_PLUGINS_FROM_CACHE  <ON|OFF>]
-  [REQUIRES_MODULES         <variable>])
+  [REQUIRES_MODULES         <module>...])
 ```
 
   * `PLUGIN_FILES`: (Required) The list of plugin files to scan.
@@ -289,7 +289,7 @@ paraview_plugin_build(
     themselves. Each plugin lives in a directory of its name in
     `<RUNTIME_DESTINATION>/<LIBRARY_SUBDIRECTORY>` (for Windows) or
     `<LIBRARY_DESTINATION>/<LIBRARY_SUBDIRECTORY>` for other platforms.
-  * `ADD_INSTALL_RPATHS`: (Defaults to `OFF`) If specified, an RPATH to load
+  * `ADD_INSTALL_RPATHS`: (Defaults to `ON`) If specified, an RPATH to load
     dependent libraries from the `LIBRARY_DESTINATION` from the plugins will be
     added.
   * `PLUGINS_FILE_NAME`: The name of the XML plugin file to generate for the
@@ -334,7 +334,7 @@ function (paraview_plugin_build)
   endif ()
 
   if (NOT DEFINED _paraview_build_ADD_INSTALL_RPATHS)
-    set(_paraview_build_ADD_INSTALL_RPATHS OFF)
+    set(_paraview_build_ADD_INSTALL_RPATHS ON)
   endif ()
   if (_paraview_build_ADD_INSTALL_RPATHS)
     if (NOT _paraview_build_LIBRARY_SUBDIRECTORY STREQUAL "")
@@ -455,6 +455,7 @@ function (paraview_plugin_build)
 
       set(_paraview_build_declarations)
       set(_paraview_build_calls)
+      set(_paraview_build_names)
       foreach (_paraview_build_plugin IN LISTS _paraview_static_plugins)
         string(APPEND _paraview_build_declarations
           "PV_PLUGIN_IMPORT_INIT(${_paraview_build_plugin});\n")
@@ -471,6 +472,8 @@ function (paraview_plugin_build)
     }
     return true;
   }\n\n")
+        string(APPEND _paraview_build_names
+          "  names.push_back(\"${_paraview_build_plugin}\");\n")
       endforeach ()
 
       set(_paraview_build_include_content
@@ -487,26 +490,35 @@ function (paraview_plugin_build)
 ${_paraview_build_declarations}
 static bool ${_paraview_build_target_safe}_static_plugins_load(const char* name);
 static bool ${_paraview_build_target_safe}_static_plugins_search(const char* name);
+static void ${_paraview_build_target_safe}_static_plugins_list(const char* appname, std::vector<std::string>& names);
 
-void ${_paraview_build_target_safe}_initialize()
+static void ${_paraview_build_target_safe}_initialize()
 {
   vtkPVPluginLoader::RegisterLoadPluginCallback(${_paraview_build_target_safe}_static_plugins_load);
   vtkPVPluginTracker::RegisterStaticPluginSearchFunction(${_paraview_build_target_safe}_static_plugins_search);
+  vtkPVPluginTracker::RegisterStaticPluginListFunction(${_paraview_build_target_safe}_static_plugins_list);
 }
 
 static bool ${_paraview_build_target_safe}_static_plugins_func(const char* name, bool load);
 
-bool ${_paraview_build_target_safe}_static_plugins_load(const char* name)
+static bool ${_paraview_build_target_safe}_static_plugins_load(const char* name)
 {
   return ${_paraview_build_target_safe}_static_plugins_func(name, true);
 }
 
-bool ${_paraview_build_target_safe}_static_plugins_search(const char* name)
+static bool ${_paraview_build_target_safe}_static_plugins_search(const char* name)
 {
   return ${_paraview_build_target_safe}_static_plugins_func(name, false);
 }
 
-bool ${_paraview_build_target_safe}_static_plugins_func(const char* name, bool load)
+static void ${_paraview_build_target_safe}_static_plugins_list(const char* appname, std::vector<std::string>& names)
+{
+${_paraview_build_names}
+  (void) appname;
+  (void) names;
+}
+
+static bool ${_paraview_build_target_safe}_static_plugins_func(const char* name, bool load)
 {
   std::string const sname = name;
 
@@ -552,7 +564,34 @@ void ${_paraview_build_target_safe}_initialize()
       if (_paraview_build_required_exports)
         foreach (_paraview_build_required_export IN LISTS _paraview_build_required_exports)
           string(APPEND _paraview_build_required_exports_include_contents
-            "include(\"\${CMAKE_CURRENT_LIST_DIR}/${_paraview_build_required_export}-targets.cmake\")\n")
+            "include(\"\${CMAKE_CURRENT_LIST_DIR}/${_paraview_build_required_export}-targets.cmake\")\n"
+            "include(\"\${CMAKE_CURRENT_LIST_DIR}/${_paraview_build_required_export}-vtk-module-properties.cmake\")\n"
+            "\n")
+
+          get_property(_paraview_build_modules GLOBAL
+            PROPERTY "paraview_plugin_${_paraview_build_required_export}_modules")
+          if (_paraview_build_modules)
+            vtk_module_export_find_packages(
+              CMAKE_DESTINATION "${_paraview_build_CMAKE_DESTINATION}"
+              FILE_NAME         "${_paraview_build_required_export}-vtk-module-find-packages.cmake"
+              MODULES           ${_paraview_build_modules})
+
+            # TODO: The list of modules should be checked for their `_FOUND`
+            # variables being false and propagate it up through the parent
+            # project's `_FOUND` variable.
+            string(APPEND _paraview_build_required_exports_include_contents
+              "set(CMAKE_FIND_PACKAGE_NAME_save \"\${CMAKE_FIND_PACKAGE_NAME}\")\n"
+              "set(${_paraview_build_required_export}_FIND_QUIETLY \"\${\${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY}\")\n"
+              "set(${_paraview_build_required_export}_FIND_COMPONENTS)\n"
+              "set(CMAKE_FIND_PACKAGE_NAME \"${_paraview_build_required_export}\")\n"
+              "include(\"\${CMAKE_CURRENT_LIST_DIR}/${_paraview_build_required_export}-vtk-module-find-packages.cmake\")\n"
+              "set(CMAKE_FIND_PACKAGE_NAME \"\${CMAKE_FIND_PACKAGE_NAME_save}\")\n"
+              "unset(${_paraview_build_required_export}_FIND_QUIETLY)\n"
+              "unset(${_paraview_build_required_export}_FIND_COMPONENTS)\n"
+              "unset(CMAKE_FIND_PACKAGE_NAME_save)\n"
+              "\n"
+              "\n")
+          endif ()
         endforeach ()
       endif ()
       file(GENERATE
@@ -567,7 +606,7 @@ void ${_paraview_build_target_safe}_initialize()
 
       set(_paraview_build_namespace_args)
       if (_paraview_build_NAMESPACE)
-        set(_paraview_build_namespace_args
+        list(APPEND _paraview_build_namespace_args
           NAMESPACE "${_paraview_build_NAMESPACE}::")
       endif ()
 
@@ -931,6 +970,16 @@ function (paraview_add_plugin name)
         "The `MODULE_FILES` argument requires `MODULES` to be provided.")
     endif ()
 
+    if (_paraview_build_ADD_INSTALL_RPATHS)
+      if (APPLE)
+        list(INSERT CMAKE_INSTALL_RPATH 0
+          "@loader_path")
+      elseif (UNIX)
+        list(INSERT CMAKE_INSTALL_RPATH 0
+          "$ORIGIN")
+      endif ()
+    endif ()
+
     set(_paraview_add_plugin_module_install_export_args)
     if (DEFINED _paraview_add_plugin_MODULE_INSTALL_EXPORT)
       list(APPEND _paraview_add_plugin_module_install_export_args
@@ -988,6 +1037,10 @@ function (paraview_add_plugin name)
       RUNTIME_DESTINATION "${_paraview_plugin_subdir}"
       CMAKE_DESTINATION   "${_paraview_build_CMAKE_DESTINATION}"
       ${_paraview_add_plugin_MODULE_ARGS})
+
+    set_property(GLOBAL APPEND
+      PROPERTY
+        "paraview_plugin_${_paraview_add_plugin_MODULE_INSTALL_EXPORT}_modules" "${plugin_modules}")
 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${_paraview_plugin_CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${_paraview_plugin_CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
@@ -1084,7 +1137,7 @@ function (paraview_add_plugin name)
 
     set(_paraview_build_plugin_doc_source_args)
     if (DEFINED _paraview_add_plugin_DOCUMENTATION_DIR)
-      set(_paraview_build_plugin_doc_source_args
+      list(APPEND _paraview_build_plugin_doc_source_args
         SOURCE_DIR "${_paraview_add_plugin_DOCUMENTATION_DIR}")
     endif ()
 

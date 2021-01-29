@@ -109,7 +109,7 @@ int CompareSelections(vtkSelectionNode* a, vtkSelectionNode* b)
     cerr << "ERROR: Array name a is null but b is not" << endl;
     errors++;
   }
-  else if (arra->GetName() && strcmp(arra->GetName(), arrb->GetName()))
+  else if (arra->GetName() && strcmp(arra->GetName(), arrb->GetName()) != 0)
   {
     cerr << "ERROR: Array name " << arra->GetName() << " does not match " << arrb->GetName()
          << endl;
@@ -140,7 +140,7 @@ int CompareSelections(vtkSelectionNode* a, vtkSelectionNode* b)
   return errors;
 }
 
-int TestConvertSelectionType(std::map<int, vtkSmartPointer<vtkSelection> >& selMap,
+int TestConvertSelectionType(std::map<int, vtkSmartPointer<vtkSelection>>& selMap,
   vtkDataObject* data, int inputType, int outputType, vtkStringArray* arr = nullptr,
   bool allowMissingArray = false)
 {
@@ -199,7 +199,7 @@ void GraphConvertSelections(int& errors, int size)
     g->AddEdge(i, i);
   }
 
-  std::map<int, vtkSmartPointer<vtkSelection> > selMap;
+  std::map<int, vtkSmartPointer<vtkSelection>> selMap;
 
   VTK_CREATE(vtkSelection, globalIdsSelection);
   VTK_CREATE(vtkSelectionNode, globalIdsSelectionNode);
@@ -419,7 +419,7 @@ void PolyDataConvertSelections(int& errors, int size)
   }
   g->SetLines(newLines);
 
-  std::map<int, vtkSmartPointer<vtkSelection> > selMap;
+  std::map<int, vtkSmartPointer<vtkSelection>> selMap;
 
   VTK_CREATE(vtkSelection, globalIdsSelection);
   VTK_CREATE(vtkSelectionNode, globalIdsSelectionNode);

@@ -31,31 +31,31 @@ vtkStandardNewMacro(vtkTreeReader);
 #undef read
 #endif
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTreeReader::vtkTreeReader() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTreeReader::~vtkTreeReader() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTree* vtkTreeReader::GetOutput()
 {
   return this->GetOutput(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkTree* vtkTreeReader::GetOutput(int idx)
 {
   return vtkTree::SafeDownCast(this->GetOutputDataObject(idx));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTreeReader::SetOutput(vtkTree* output)
 {
   this->GetExecutive()->SetOutputData(0, output);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTreeReader::ReadMeshSimple(const std::string& fname, vtkDataObject* doOutput)
 {
   vtkDebugMacro(<< "Reading vtk tree ...");
@@ -74,7 +74,7 @@ int vtkTreeReader::ReadMeshSimple(const std::string& fname, vtkDataObject* doOut
     return 1;
   }
 
-  if (strncmp(this->LowerCase(line), "dataset", (unsigned long)7))
+  if (strncmp(this->LowerCase(line), "dataset", 7) != 0)
   {
     vtkErrorMacro(<< "Unrecognized keyword: " << line);
     this->CloseVTKFile();
@@ -88,7 +88,7 @@ int vtkTreeReader::ReadMeshSimple(const std::string& fname, vtkDataObject* doOut
     return 1;
   }
 
-  if (strncmp(this->LowerCase(line), "tree", 4))
+  if (strncmp(this->LowerCase(line), "tree", 4) != 0)
   {
     vtkErrorMacro(<< "Cannot read dataset type: " << line);
     this->CloseVTKFile();
@@ -209,14 +209,14 @@ int vtkTreeReader::ReadMeshSimple(const std::string& fname, vtkDataObject* doOut
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkTreeReader::FillOutputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkTree");
   return 1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkTreeReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

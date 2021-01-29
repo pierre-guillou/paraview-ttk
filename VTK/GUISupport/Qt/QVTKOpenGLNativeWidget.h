@@ -18,14 +18,9 @@
  * application.
  *
  * QVTKOpenGLNativeWidget extends QOpenGLWidget to make it work with a
- * vtkGenericOpenGLRenderWindow. This is akin to QVTKWidget except it uses Qt to create and
- * manage the OpenGL context using QOpenGLWidget (added in Qt 5.4).
+ * vtkGenericOpenGLRenderWindow.
  *
- * While QVTKOpenGLNativeWidget is intended to be a replacement for QVTKWidget when
- * using Qt 5, there are a few difference between QVTKOpenGLNativeWidget and
- * QVTKWidget.
- *
- * Unlike QVTKWidget, QVTKOpenGLNativeWidget only works with vtkGenericOpenGLRenderWindow.
+ * Please note that QVTKOpenGLNativeWidget only works with vtkGenericOpenGLRenderWindow.
  * This is necessary since QOpenGLWidget wants to take over the window management as
  * well as the OpenGL context creation. Getting that to work reliably with
  * vtkXRenderWindow or vtkWin32RenderWindow (and other platform specific
@@ -97,11 +92,12 @@
  * `QVTKOpenGLNativeWidget::renderVTK`.
  *
  * @section Caveats
- * QVTKOpenGLNativeWidget only supports **OpenGL2** rendering backend.
  * QVTKOpenGLNativeWidget does not support stereo,
- * please use QVTKOpenGLWidget if you need support for stereo rendering
+ * please use QVTKOpenGLStereoWidget if you need support for stereo rendering
  *
  * QVTKOpenGLNativeWidget is targeted for Qt version 5.5 and above.
+ *
+ * @sa QVTKOpenGLStereoWidget QVTKRenderWidget
  *
  */
 #ifndef QVTKOpenGLNativeWidget_h
@@ -111,6 +107,7 @@
 #include <QScopedPointer> // for QScopedPointer.
 
 #include "QVTKInteractor.h"        // needed for QVTKInteractor
+#include "vtkDeprecation.h"        // For VTK_DEPRECATED_IN_9_0_0
 #include "vtkGUISupportQtModule.h" // for export macro
 #include "vtkNew.h"                // needed for vtkNew
 #include "vtkSmartPointer.h"       // needed for vtkSmartPointer
@@ -206,10 +203,12 @@ public:
 
   //@{
   /**
-   * @deprecated in VTK 8.3
+   * @deprecated in VTK 9.0
    */
-  VTK_LEGACY(void SetRenderWindow(vtkGenericOpenGLRenderWindow* win));
-  VTK_LEGACY(void SetRenderWindow(vtkRenderWindow* win));
+  VTK_DEPRECATED_IN_9_0_0("Use QVTKOpenGLNativeWidget::setRenderWindow")
+  void SetRenderWindow(vtkGenericOpenGLRenderWindow* win);
+  VTK_DEPRECATED_IN_9_0_0("Use QVTKOpenGLNativeWidget::setRenderWindow")
+  void SetRenderWindow(vtkRenderWindow* win);
   //@}
 
   //@{
@@ -218,28 +217,33 @@ public:
    * QVTKOpenGLNativeWidget is QObject subclass, we follow Qt naming conventions
    * rather than VTK's.
    */
-  VTK_LEGACY(vtkRenderWindow* GetRenderWindow());
-  VTK_LEGACY(QVTKInteractor* GetInteractor());
+  VTK_DEPRECATED_IN_9_0_0("Use QVTKOpenGLNativeWidget::renderWindow")
+  vtkRenderWindow* GetRenderWindow();
+  VTK_DEPRECATED_IN_9_0_0("Removed in 9.0.0 (internal)")
+  QVTKInteractor* GetInteractor();
   //@}
 
   /**
-   * @deprecated in VTK 8.3
+   * @deprecated in VTK 9.0
    * QVTKInteractorAdapter is an internal helper. Hence the API was removed.
    */
-  VTK_LEGACY(QVTKInteractorAdapter* GetInteractorAdapter());
+  VTK_DEPRECATED_IN_9_0_0("Removed in 9.0.0 (internal)")
+  QVTKInteractorAdapter* GetInteractorAdapter();
 
   /**
-   * @deprecated in VTK 8.3. Simply use `QWidget::setCursor` API to change
+   * @deprecated in VTK 9.0. Simply use `QWidget::setCursor` API to change
    * cursor.
    */
-  VTK_LEGACY(void setQVTKCursor(const QCursor& cursor));
+  VTK_DEPRECATED_IN_9_0_0("Use QWidget::setCursor")
+  void setQVTKCursor(const QCursor& cursor);
 
   /**
-   * @deprecated in VTK 8.3. Use `setDefaultCursor` instead.
+   * @deprecated in VTK 9.0. Use `setDefaultCursor` instead.
    */
-  VTK_LEGACY(void setDefaultQVTKCursor(const QCursor& cursor));
+  VTK_DEPRECATED_IN_9_0_0("Use QWidget::setDefaultCursor")
+  void setDefaultQVTKCursor(const QCursor& cursor);
 
-protected slots:
+protected Q_SLOTS:
   /**
    * Called as a response to `QOpenGLContext::aboutToBeDestroyed`. This may be
    * called anytime during the widget lifecycle. We need to release any OpenGL

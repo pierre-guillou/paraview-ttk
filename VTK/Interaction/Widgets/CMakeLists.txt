@@ -65,6 +65,7 @@ set(classes
   vtkImageTracerWidget
   vtkImplicitCylinderRepresentation
   vtkImplicitCylinderWidget
+  vtkImplicitImageRepresentation
   vtkImplicitPlaneRepresentation
   vtkImplicitPlaneWidget
   vtkImplicitPlaneWidget2
@@ -76,6 +77,8 @@ set(classes
   vtkLineWidget2
   vtkLogoRepresentation
   vtkLogoWidget
+  vtkMagnifierRepresentation
+  vtkMagnifierWidget
   vtkMeasurementCubeHandleRepresentation3D
   vtkOrientationMarkerWidget
   vtkOrientedGlyphContourRepresentation
@@ -86,6 +89,8 @@ set(classes
   vtkPlaneWidget
   vtkPlaybackRepresentation
   vtkPlaybackWidget
+  vtkPointCloudRepresentation
+  vtkPointCloudWidget
   vtkPointHandleRepresentation2D
   vtkPointHandleRepresentation3D
   vtkPointPlacer
@@ -126,6 +131,8 @@ set(classes
   vtkSplineRepresentation
   vtkSplineWidget
   vtkSplineWidget2
+  vtkTensorRepresentation
+  vtkTensorWidget
   vtkTensorProbeRepresentation
   vtkTensorProbeWidget
   vtkTerrainContourLineInterpolator

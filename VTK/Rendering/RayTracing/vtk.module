@@ -6,6 +6,7 @@ IMPLEMENTS
   VTK::RenderingVolume
 DEPENDS
   VTK::CommonDataModel
+  VTK::DomainsChemistry
   VTK::RenderingCore
   VTK::RenderingOpenGL2
   VTK::RenderingSceneGraph
@@ -31,6 +32,7 @@ TEST_DEPENDS
   VTK::FiltersTexture
   VTK::IOGeometry
   VTK::IOImage
+  VTK::IOImport
   VTK::IOLegacy
   VTK::IOPLY
   VTK::IOXML

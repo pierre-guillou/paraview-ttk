@@ -16,7 +16,6 @@
 #include <vtkm/cont/ExecutionObjectBase.h>
 
 #include <vtkm/cont/ArrayHandle.h>
-#include <vtkm/cont/StorageBasic.h>
 
 namespace vtkm
 {
@@ -90,10 +89,11 @@ public:
   VTKM_CONT
   TriangulateTablesExecutionObject(const TriangulateArrayHandle& counts,
                                    const TriangulateArrayHandle& offsets,
-                                   const TriangulateArrayHandle& indices)
-    : Counts(counts.PrepareForInput(DeviceAdapter()))
-    , Offsets(offsets.PrepareForInput(DeviceAdapter()))
-    , Indices(indices.PrepareForInput(DeviceAdapter()))
+                                   const TriangulateArrayHandle& indices,
+                                   vtkm::cont::Token& token)
+    : Counts(counts.PrepareForInput(DeviceAdapter(), token))
+    , Offsets(offsets.PrepareForInput(DeviceAdapter(), token))
+    , Indices(indices.PrepareForInput(DeviceAdapter(), token))
   {
   }
 
@@ -140,13 +140,16 @@ class TriangulateTablesExecutionObjectFactory : public vtkm::cont::ExecutionObje
 {
 public:
   template <typename Device>
-  VTKM_CONT TriangulateTablesExecutionObject<Device> PrepareForExecution(Device) const
+  VTKM_CONT TriangulateTablesExecutionObject<Device> PrepareForExecution(
+    Device,
+    vtkm::cont::Token& token) const
   {
     if (BasicImpl)
     {
       return TriangulateTablesExecutionObject<Device>();
     }
-    return TriangulateTablesExecutionObject<Device>(this->Counts, this->Offsets, this->Indices);
+    return TriangulateTablesExecutionObject<Device>(
+      this->Counts, this->Offsets, this->Indices, token);
   }
   VTKM_CONT
   TriangulateTablesExecutionObjectFactory()
@@ -178,10 +181,14 @@ public:
   VTKM_CONT
   TriangulateTables()
     : Counts(vtkm::cont::make_ArrayHandle(vtkm::worklet::internal::TriangleCountData,
-                                          vtkm::NUMBER_OF_CELL_SHAPES))
+                                          vtkm::NUMBER_OF_CELL_SHAPES,
+                                          vtkm::CopyFlag::Off))
     , Offsets(vtkm::cont::make_ArrayHandle(vtkm::worklet::internal::TriangleOffsetData,
-                                           vtkm::NUMBER_OF_CELL_SHAPES))
-    , Indices(vtkm::cont::make_ArrayHandle(vtkm::worklet::internal::TriangleIndexData, vtkm::Id(9)))
+                                           vtkm::NUMBER_OF_CELL_SHAPES,
+                                           vtkm::CopyFlag::Off))
+    , Indices(vtkm::cont::make_ArrayHandle(vtkm::worklet::internal::TriangleIndexData,
+                                           vtkm::Id(9),
+                                           vtkm::CopyFlag::Off))
   {
   }
 
@@ -301,10 +308,11 @@ public:
   VTKM_CONT
   TetrahedralizeTablesExecutionObject(const TriangulateArrayHandle& counts,
                                       const TriangulateArrayHandle& offsets,
-                                      const TriangulateArrayHandle& indices)
-    : Counts(counts.PrepareForInput(DeviceAdapter()))
-    , Offsets(offsets.PrepareForInput(DeviceAdapter()))
-    , Indices(indices.PrepareForInput(DeviceAdapter()))
+                                      const TriangulateArrayHandle& indices,
+                                      vtkm::cont::Token& token)
+    : Counts(counts.PrepareForInput(DeviceAdapter(), token))
+    , Offsets(offsets.PrepareForInput(DeviceAdapter(), token))
+    , Indices(indices.PrepareForInput(DeviceAdapter(), token))
   {
   }
 
@@ -336,13 +344,16 @@ class TetrahedralizeTablesExecutionObjectFactory : public vtkm::cont::ExecutionO
 {
 public:
   template <typename Device>
-  VTKM_CONT TetrahedralizeTablesExecutionObject<Device> PrepareForExecution(Device) const
+  VTKM_CONT TetrahedralizeTablesExecutionObject<Device> PrepareForExecution(
+    Device,
+    vtkm::cont::Token& token) const
   {
     if (BasicImpl)
     {
       return TetrahedralizeTablesExecutionObject<Device>();
     }
-    return TetrahedralizeTablesExecutionObject<Device>(this->Counts, this->Offsets, this->Indices);
+    return TetrahedralizeTablesExecutionObject<Device>(
+      this->Counts, this->Offsets, this->Indices, token);
   }
 
   VTKM_CONT
@@ -375,11 +386,14 @@ public:
   VTKM_CONT
   TetrahedralizeTables()
     : Counts(vtkm::cont::make_ArrayHandle(vtkm::worklet::internal::TetrahedronCountData,
-                                          vtkm::NUMBER_OF_CELL_SHAPES))
+                                          vtkm::NUMBER_OF_CELL_SHAPES,
+                                          vtkm::CopyFlag::Off))
     , Offsets(vtkm::cont::make_ArrayHandle(vtkm::worklet::internal::TetrahedronOffsetData,
-                                           vtkm::NUMBER_OF_CELL_SHAPES))
-    , Indices(
-        vtkm::cont::make_ArrayHandle(vtkm::worklet::internal::TetrahedronIndexData, vtkm::Id(44)))
+                                           vtkm::NUMBER_OF_CELL_SHAPES,
+                                           vtkm::CopyFlag::Off))
+    , Indices(vtkm::cont::make_ArrayHandle(vtkm::worklet::internal::TetrahedronIndexData,
+                                           vtkm::Id(44),
+                                           vtkm::CopyFlag::Off))
   {
   }
 

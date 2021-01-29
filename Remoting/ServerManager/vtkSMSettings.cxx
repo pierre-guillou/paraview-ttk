@@ -32,9 +32,11 @@
 #include "vtkSmartPointer.h"
 #include "vtkStringList.h"
 
+#include "vtksys/FStream.hxx"
+#include "vtksys/SystemTools.hxx"
+
 #include "vtk_jsoncpp.h"
 #include <sstream>
-#include <vtksys/SystemTools.hxx>
 
 #include <algorithm>
 #include <cfloat>
@@ -337,8 +339,8 @@ public:
     vtkSmartPointer<vtkStringList> stringList = vtkSmartPointer<vtkStringList>::New();
     for (size_t i = 0; i < vector.size(); ++i)
     {
-      vtkStdString vtk_string(vector[i]);
-      stringList->AddString(vtk_string);
+      std::string vtk_string(vector[i]);
+      stringList->AddString(vtk_string.c_str());
     }
 
     if (property->GetRepeatable())
@@ -1002,7 +1004,7 @@ bool vtkSMSettings::AddCollectionFromString(const std::string& settings, double 
 bool vtkSMSettings::AddCollectionFromFile(const std::string& fileName, double priority)
 {
   std::string settingsFileName(fileName);
-  std::ifstream settingsFile(settingsFileName.c_str(), ios::in | ios::binary | ios::ate);
+  vtksys::ifstream settingsFile(settingsFileName.c_str(), ios::in | ios::binary | ios::ate);
   if (settingsFile.is_open())
   {
     std::streampos size = settingsFile.tellg();
@@ -1115,7 +1117,7 @@ bool vtkSMSettings::SaveSettingsToFile(const std::string& filePath)
     return false;
   }
 
-  std::ofstream settingsFile(filePath.c_str(), ios::out | ios::binary);
+  vtksys::ofstream settingsFile(filePath.c_str(), ios::out | ios::binary);
   if (settingsFile.is_open())
   {
     std::string output = this->Internal->SettingCollections[0].Value.toStyledString();
@@ -1438,7 +1440,7 @@ Json::Value vtkConvertXMLElementToJSON(
 // not needed, because `vtkIdType` represents plain (Int32)
 // integers in this case.
 //
-// See: https://gitlab.kitware.com/paraview/paraview/issues/16938
+// See: https://gitlab.kitware.com/paraview/paraview/-/issues/16938
 #ifdef VTK_USE_64BIT_IDS
 template <>
 Json::Value vtkConvertXMLElementToJSON<vtkIdType>(
@@ -1471,7 +1473,7 @@ Json::Value vtkConvertXMLElementToJSON<vtkIdType>(
 #endif // VTK_USE_64BIT_IDS
 
 template <>
-Json::Value vtkConvertXMLElementToJSON<vtkStdString>(
+Json::Value vtkConvertXMLElementToJSON<std::string>(
   vtkSMVectorProperty* vp, const std::vector<vtkSmartPointer<vtkPVXMLElement> >& elements)
 {
   Json::Value value(Json::arrayValue);

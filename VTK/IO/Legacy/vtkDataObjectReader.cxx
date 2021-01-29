@@ -26,19 +26,19 @@ vtkStandardNewMacro(vtkDataObjectReader);
 vtkDataObjectReader::vtkDataObjectReader() = default;
 vtkDataObjectReader::~vtkDataObjectReader() = default;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObject* vtkDataObjectReader::GetOutput()
 {
   return this->GetOutput(0);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDataObject* vtkDataObjectReader::GetOutput(int port)
 {
   return vtkDataObject::SafeDownCast(this->GetOutputDataObject(port));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkDataObjectReader::SetOutput(vtkDataObject* output)
 {
   this->GetExecutive()->SetOutputData(0, output);
@@ -70,7 +70,7 @@ int vtkDataObjectReader::ReadMeshSimple(const std::string& fname, vtkDataObject*
       }
     }
 
-    else if (!strncmp(this->LowerCase(line), "dataset", (unsigned long)7))
+    else if (!strncmp(this->LowerCase(line), "dataset", 7))
     {
       vtkErrorMacro(<< "Field reader cannot read datasets");
       this->CloseVTKFile();

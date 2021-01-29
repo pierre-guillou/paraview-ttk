@@ -96,11 +96,12 @@ public:
 
   /**
    * Extract datasets from the given data object. This method returns a vector
-   * of vtkDataSet* from the `dobj`. If dobj is a vtkDataSet, the returned
-   * vector will have just 1 vtkDataSet. If dobj is a vtkCompositeDataSet, then
+   * of DataSetT* from the `dobj`. If dobj is a DataSetT, the returned
+   * vector will have just 1 DataSetT. If dobj is a vtkCompositeDataSet, then
    * we iterate over it and add all non-null leaf nodes to the returned vector.
    */
-  static std::vector<vtkDataSet*> GetDataSets(vtkDataObject* dobj);
+  template <class DataSetT = vtkDataSet>
+  static std::vector<DataSetT*> GetDataSets(vtkDataObject* dobj);
 
   //@{
   /**
@@ -109,9 +110,15 @@ public:
    * true, cell-centers will be computed and extracted instead of the dataset
    * points.
    */
-  static std::vector<vtkSmartPointer<vtkPoints> > ExtractPoints(
+  static std::vector<vtkSmartPointer<vtkPoints>> ExtractPoints(
     const std::vector<vtkDataSet*>& datasets, bool use_cell_centers);
   //@}
+
+  /**
+   * Convenience method to get local bounds for the data object.
+   */
+  static vtkBoundingBox GetLocalBounds(vtkDataObject* dobj);
+
 protected:
   vtkDIYUtilities();
   ~vtkDIYUtilities() override;
@@ -143,6 +150,8 @@ private:
   void operator=(const vtkDIYUtilitiesCleanup&) = delete;
 };
 static vtkDIYUtilitiesCleanup vtkDIYUtilitiesCleanupInstance;
+
+#include "vtkDIYUtilities.txx"
 
 #endif
 // VTK-HeaderTest-Exclude: vtkDIYUtilities.h

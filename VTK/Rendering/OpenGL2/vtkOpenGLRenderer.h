@@ -23,12 +23,14 @@
 #ifndef vtkOpenGLRenderer_h
 #define vtkOpenGLRenderer_h
 
+#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_0_0
 #include "vtkRenderer.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkSmartPointer.h"           // For vtkSmartPointer
 #include <string>                      // Ivars
 #include <vector>                      // STL Header
 
+class vtkFloatArray;
 class vtkOpenGLFXAAFilter;
 class vtkRenderPass;
 class vtkOpenGLState;
@@ -41,6 +43,7 @@ class vtkPBRLUTTexture;
 class vtkPBRPrefilterTexture;
 class vtkShaderProgram;
 class vtkShadowMapPass;
+class vtkSSAOPass;
 
 class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLRenderer : public vtkRenderer
 {
@@ -88,6 +91,8 @@ public:
    * The bug is fixed on macOS 10.11 and later, and this method
    * will return false when the OS is new enough.
    */
+  VTK_DEPRECATED_IN_9_1_0(
+    "Removed in 9.1.0 as this bug does not affect any macOS release that VTK supports")
   bool HaveApplePrimitiveIdBug();
 
   /**
@@ -151,9 +156,23 @@ public:
   //@}
 
   /**
-   * Overriden in order to connect the cubemap to the environment map textures.
+   * Get spherical harmonics coefficients used for irradiance
    */
-  void SetEnvironmentCubeMap(vtkTexture* cubemap, bool isSRGB = false) override;
+  vtkFloatArray* GetSphericalHarmonics();
+
+  //@{
+  /**
+   * Use spherical harmonics instead of irradiance texture
+   */
+  vtkSetMacro(UseSphericalHarmonics, bool);
+  vtkGetMacro(UseSphericalHarmonics, bool);
+  vtkBooleanMacro(UseSphericalHarmonics, bool);
+  //@}
+
+  /**
+   * Overriden in order to connect the texture to the environment map textures.
+   */
+  void SetEnvironmentTexture(vtkTexture* texture, bool isSRGB = false) override;
 
   // Method to release graphics resources
   void ReleaseGraphicsResources(vtkWindow* w) override;
@@ -206,6 +225,11 @@ protected:
    */
   vtkShadowMapPass* ShadowMapPass;
 
+  /**
+   * SSAO is delegated to an instance of vtkSSAOPass
+   */
+  vtkSSAOPass* SSAOPass;
+
   // Is rendering at translucent geometry stage using depth peeling and
   // rendering a layer other than the first one? (Boolean value)
   // If so, the uniform variables UseTexture and Texture can be set.
@@ -227,6 +251,8 @@ protected:
   vtkPBRLUTTexture* EnvMapLookupTable;
   vtkPBRIrradianceTexture* EnvMapIrradiance;
   vtkPBRPrefilterTexture* EnvMapPrefiltered;
+  vtkSmartPointer<vtkFloatArray> SphericalHarmonics;
+  bool UseSphericalHarmonics;
 
 private:
   vtkOpenGLRenderer(const vtkOpenGLRenderer&) = delete;

@@ -22,9 +22,11 @@ PRIVATE_DEPENDS
   VTK::FiltersGeneric
   VTK::FiltersHyperTree
   VTK::FiltersParallel
+  VTK::FiltersParallelDIY2
   VTK::IOLegacy
   VTK::lz4
   VTK::ParallelCore
+  VTK::RenderingVolume
   VTK::zlib
 OPTIONAL_DEPENDS
   VTK::FiltersParallelMPI

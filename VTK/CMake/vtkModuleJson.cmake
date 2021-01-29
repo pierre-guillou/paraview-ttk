@@ -101,11 +101,10 @@ Example output:
 ~~~
 #]==]
 function (vtk_module_json)
-  cmake_parse_arguments(_vtk_json
+  cmake_parse_arguments(PARSE_ARGV 0 _vtk_json
     ""
     "OUTPUT"
-    "MODULES"
-    ${ARGN})
+    "MODULES")
 
   if (_vtk_json_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR
@@ -123,7 +122,7 @@ function (vtk_module_json)
   endif ()
 
   if (NOT IS_ABSOLUTE "${_vtk_json_OUTPUT}")
-    set(_vtk_json_OUTPUT "${CMAKE_BINARY_DIR}/${_vtk_json_OUTPUT}")
+    string(PREPEND _vtk_json_OUTPUT "${CMAKE_BINARY_DIR}/")
   endif ()
 
   set(_vtk_json_kits)

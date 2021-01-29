@@ -167,5 +167,65 @@
       <!-- End RedistributeDataSetFilter -->
     </SourceProxy>
 
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkOverlappingCellsDetector"
+                 label="Overlapping Cells Detector"
+                 name="OverlappingCellsDetector">
+      <Documentation short_help="Detects overlapping cells.">
+        Generates overlap count between cells of the input in a cell array named
+        "NumberOfCollisionsPerCell".
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkPointSet" />
+          <DataType value="vtkCompositeDataSet" />
+        </DataTypeDomain>
+        <Documentation>This property specifies the input.</Documentation>
+      </InputProperty>
+      <!-- End GenerateGlobalIds -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkAdaptiveResampleToImage"
+                 name="AdaptiveResampleToImage"
+                 label="Adaptive Resample To Image">
+      <Documentation
+        long_help="Resample to image adaptively">
+      </Documentation>
+      <InputProperty name="Input"
+                     command="SetInputConnection">
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet"/>
+        </DataTypeDomain>
+      </InputProperty>
+
+      <IntVectorProperty name="NumberOfImages"
+        command="SetNumberOfImages"
+        number_of_elements="1"
+        default_values="0">
+        <IntRangeDomain min="0"
+                        name="range" />
+        <Documentation>
+          Specify the number of partitions to split the dataset into.
+          Set to 0 to indicate that the partitions should match the number of ranks.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="SetSamplingDimensions"
+                         default_values="64 64 64"
+                         name="SamplingDimensions"
+                         number_of_elements="3"
+                         panel_visibility="default">
+                         <IntRangeDomain name="range" min="1 1 1"/>
+        <Documentation>
+        </Documentation>
+      </IntVectorProperty>
+    </SourceProxy>
+
   </ProxyGroup>
 </ServerManagerConfiguration>

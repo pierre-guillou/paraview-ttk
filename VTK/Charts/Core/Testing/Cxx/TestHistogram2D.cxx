@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkChartHistogram2D.h"
 #include "vtkColorTransferFunction.h"
 #include "vtkContextMouseEvent.h"
@@ -29,7 +32,7 @@
 #include "vtkTable.h"
 #include "vtkVector.h"
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int TestHistogram2D(int, char*[])
 {
   // Set up a 2D scene, add an XY chart to it

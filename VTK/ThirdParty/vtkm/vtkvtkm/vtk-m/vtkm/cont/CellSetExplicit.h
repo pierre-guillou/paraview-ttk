@@ -46,6 +46,7 @@ struct NumIndicesDecorator
   {
     OffsetsPortal Offsets;
 
+    VTKM_SUPPRESS_EXEC_WARNINGS
     VTKM_EXEC_CONT
     vtkm::IdComponent operator()(vtkm::Id cellId) const
     {
@@ -130,9 +131,8 @@ class VTKM_ALWAYS_EXPORT CellSetExplicit : public CellSet
   struct ConnectivityChooser
   {
   private:
-    using Chooser = typename detail::CellSetExplicitConnectivityChooser<Thisclass,
-                                                                        VisitTopology,
-                                                                        IncidentTopology>;
+    using Chooser = typename detail::
+      CellSetExplicitConnectivityChooser<Thisclass, VisitTopology, IncidentTopology>;
 
   public:
     using ConnectivityType = typename Chooser::ConnectivityType;
@@ -185,6 +185,9 @@ public:
 
   VTKM_CONT vtkm::IdComponent GetNumberOfPointsInCell(vtkm::Id cellid) const override;
   VTKM_CONT void GetCellPointIds(vtkm::Id id, vtkm::Id* ptids) const override;
+
+  VTKM_CONT typename vtkm::cont::ArrayHandle<vtkm::UInt8, ShapesStorageTag>::ReadPortalType
+  ShapesReadPortal() const;
 
   VTKM_CONT vtkm::UInt8 GetCellShape(vtkm::Id cellid) const override;
 
@@ -239,7 +242,18 @@ public:
 
   template <typename Device, typename VisitTopology, typename IncidentTopology>
   VTKM_CONT typename ExecutionTypes<Device, VisitTopology, IncidentTopology>::ExecObjectType
-    PrepareForInput(Device, VisitTopology, IncidentTopology) const;
+  PrepareForInput(Device, VisitTopology, IncidentTopology, vtkm::cont::Token&) const;
+
+  template <typename Device, typename VisitTopology, typename IncidentTopology>
+  VTKM_DEPRECATED(1.6, "Provide a vtkm::cont::Token object when calling PrepareForInput.")
+  VTKM_CONT typename ExecutionTypes<Device, VisitTopology, IncidentTopology>::ExecObjectType
+    PrepareForInput(Device device,
+                    VisitTopology visitTopology,
+                    IncidentTopology incidentTopology) const
+  {
+    vtkm::cont::Token token;
+    return this->PrepareForInput(device, visitTopology, incidentTopology, token);
+  }
 
   template <typename VisitTopology, typename IncidentTopology>
   VTKM_CONT const typename ConnectivityChooser<VisitTopology, IncidentTopology>::ShapesArrayType&
@@ -464,6 +478,8 @@ public:
 } // diy
 /// @endcond SERIALIZATION
 
+#ifndef vtk_m_cont_CellSetExplicit_hxx
 #include <vtkm/cont/CellSetExplicit.hxx>
+#endif //vtk_m_cont_CellSetExplicit_hxx
 
 #endif //vtk_m_cont_CellSetExplicit_h

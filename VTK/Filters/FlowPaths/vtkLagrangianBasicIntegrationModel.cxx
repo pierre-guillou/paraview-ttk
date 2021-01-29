@@ -25,6 +25,7 @@
 #include "vtkIntArray.h"
 #include "vtkLagrangianParticle.h"
 #include "vtkLagrangianParticleTracker.h"
+#include "vtkLagrangianThreadedData.h"
 #include "vtkLongLongArray.h"
 #include "vtkMath.h"
 #include "vtkNew.h"
@@ -46,18 +47,18 @@
 
 #define USER_SURFACE_TYPE 100 // Minimal value for user defined surface type
 
-//----------------------------------------------------------------------------
-typedef std::vector<vtkSmartPointer<vtkAbstractCellLocator> > LocatorsTypeBase;
+//------------------------------------------------------------------------------
+typedef std::vector<vtkSmartPointer<vtkAbstractCellLocator>> LocatorsTypeBase;
 class vtkLocatorsType : public LocatorsTypeBase
 {
 };
 
-typedef std::vector<vtkSmartPointer<vtkDataSet> > DataSetsTypeBase;
+typedef std::vector<vtkSmartPointer<vtkDataSet>> DataSetsTypeBase;
 class vtkDataSetsType : public DataSetsTypeBase
 {
 };
 
-typedef std::pair<unsigned int, vtkSmartPointer<vtkDataSet> > SurfaceItem;
+typedef std::pair<unsigned int, vtkSmartPointer<vtkDataSet>> SurfaceItem;
 typedef std::vector<SurfaceItem> SurfaceTypeBase;
 class vtkSurfaceType : public SurfaceTypeBase
 {
@@ -66,7 +67,7 @@ class vtkSurfaceType : public SurfaceTypeBase
 typedef std::pair<unsigned int, double> PassThroughItem;
 typedef std::set<PassThroughItem> PassThroughSetType;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLagrangianBasicIntegrationModel::vtkLagrangianBasicIntegrationModel()
   : Locator(nullptr)
   , Tolerance(1.0e-8)
@@ -77,11 +78,11 @@ vtkLagrangianBasicIntegrationModel::vtkLagrangianBasicIntegrationModel()
   SurfaceArrayDescription surfaceTypeDescription;
   surfaceTypeDescription.nComp = 1;
   surfaceTypeDescription.type = VTK_INT;
-  surfaceTypeDescription.enumValues.push_back(std::make_pair(SURFACE_TYPE_MODEL, "ModelDefined"));
-  surfaceTypeDescription.enumValues.push_back(std::make_pair(SURFACE_TYPE_TERM, "Terminate"));
-  surfaceTypeDescription.enumValues.push_back(std::make_pair(SURFACE_TYPE_BOUNCE, "Bounce"));
-  surfaceTypeDescription.enumValues.push_back(std::make_pair(SURFACE_TYPE_BREAK, "BreakUp"));
-  surfaceTypeDescription.enumValues.push_back(std::make_pair(SURFACE_TYPE_PASS, "PassThrough"));
+  surfaceTypeDescription.enumValues.emplace_back(SURFACE_TYPE_MODEL, "ModelDefined");
+  surfaceTypeDescription.enumValues.emplace_back(SURFACE_TYPE_TERM, "Terminate");
+  surfaceTypeDescription.enumValues.emplace_back(SURFACE_TYPE_BOUNCE, "Bounce");
+  surfaceTypeDescription.enumValues.emplace_back(SURFACE_TYPE_BREAK, "BreakUp");
+  surfaceTypeDescription.enumValues.emplace_back(SURFACE_TYPE_PASS, "PassThrough");
   this->SurfaceArrayDescriptions["SurfaceType"] = surfaceTypeDescription;
 
   this->SeedArrayNames->InsertNextValue("ParticleInitialVelocity");
@@ -102,7 +103,7 @@ vtkLagrangianBasicIntegrationModel::vtkLagrangianBasicIntegrationModel()
   this->LocatorsBuilt = false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLagrangianBasicIntegrationModel::~vtkLagrangianBasicIntegrationModel()
 {
   this->ClearDataSets();
@@ -114,7 +115,7 @@ vtkLagrangianBasicIntegrationModel::~vtkLagrangianBasicIntegrationModel()
   delete this->SurfaceLocators;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -127,16 +128,17 @@ void vtkLagrangianBasicIntegrationModel::PrintSelf(ostream& os, vtkIndent indent
   {
     os << indent << "Locator: " << this->Locator << endl;
   }
+  os << indent << "WeightsSize: " << this->WeightsSize << endl;
   os << indent << "Tolerance: " << this->Tolerance << endl;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::SetTracker(vtkLagrangianParticleTracker* tracker)
 {
   this->Tracker = tracker;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::AddDataSet(
   vtkDataSet* dataset, bool surface, unsigned int surfaceFlatIndex)
 {
@@ -184,7 +186,7 @@ void vtkLagrangianBasicIntegrationModel::AddDataSet(
     {
       locator.TakeReference(this->Locator->NewInstance());
     }
-
+    locator->SetTolerance(this->LocatorTolerance);
     locator->SetDataSet(datasetCpy);
     locator->CacheCellBoundsOn();
     locator->AutomaticOn();
@@ -215,16 +217,11 @@ void vtkLagrangianBasicIntegrationModel::AddDataSet(
   else
   {
     this->Locators->push_back(locator);
-
-    int size = dataset->GetMaxCellSize();
-    if (size > static_cast<int>(this->SharedWeights.size()))
-    {
-      this->SharedWeights.resize(size);
-    }
+    this->WeightsSize = std::max(this->WeightsSize, dataset->GetMaxCellSize());
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::ClearDataSets(bool surface)
 {
   if (surface)
@@ -236,11 +233,11 @@ void vtkLagrangianBasicIntegrationModel::ClearDataSets(bool surface)
   {
     this->DataSets->clear();
     this->Locators->clear();
-    this->SharedWeights.clear();
+    this->WeightsSize = 0;
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkLagrangianBasicIntegrationModel::FunctionValues(double* x, double* f, void* userData)
 {
   // Sanity check
@@ -258,23 +255,18 @@ int vtkLagrangianBasicIntegrationModel::FunctionValues(double* x, double* f, voi
   vtkAbstractCellLocator* loc;
   vtkDataSet* ds;
   vtkIdType cellId;
-  double* weights = particle->GetLastWeights();
+  double* weights;
   if (this->FindInLocators(x, particle, ds, cellId, loc, weights))
   {
     // Evaluate integration model velocity field with the found cell
-    if (this->FunctionValues(particle, ds, cellId, weights, x, f) != 0)
-    {
-      // Found a cell, keep an hand to it in the particle
-      particle->SetLastCell(loc, ds, cellId);
-      return 1;
-    }
+    return this->FunctionValues(particle, ds, cellId, weights, x, f);
   }
 
   // Can't evaluate
   return 0;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::SetLocator(vtkAbstractCellLocator* locator)
 {
   if (this->Locator != locator)
@@ -294,7 +286,7 @@ void vtkLagrangianBasicIntegrationModel::SetLocator(vtkAbstractCellLocator* loca
   }
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkLagrangianParticle* vtkLagrangianBasicIntegrationModel::ComputeSurfaceInteraction(
   vtkLagrangianParticle* particle, std::queue<vtkLagrangianParticle*>& particles,
   unsigned int& surfaceFlatIndex, PassThroughParticlesType& passThroughParticles)
@@ -313,8 +305,8 @@ vtkLagrangianParticle* vtkLagrangianBasicIntegrationModel::ComputeSurfaceInterac
     {
       vtkAbstractCellLocator* loc = (*this->SurfaceLocators)[iDs];
       vtkDataSet* tmpSurface = (*this->Surfaces)[iDs].second;
-      vtkGenericCell* cell = particle->GetThreadedGenericCell();
-      vtkIdList* cellList = particle->GetThreadedIdList();
+      vtkGenericCell* cell = particle->GetThreadedData()->GenericCell;
+      vtkIdList* cellList = particle->GetThreadedData()->IdList;
       cellList->Reset();
       loc->FindCellsAlongLine(
         particle->GetPosition(), particle->GetNextPosition(), this->Tolerance, cellList);
@@ -456,7 +448,7 @@ vtkLagrangianParticle* vtkLagrangianBasicIntegrationModel::ComputeSurfaceInterac
   return interactionParticle;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::TerminateParticle(vtkLagrangianParticle* particle)
 {
   particle->SetTermination(vtkLagrangianParticle::PARTICLE_TERMINATION_SURF_TERMINATED);
@@ -464,7 +456,7 @@ bool vtkLagrangianBasicIntegrationModel::TerminateParticle(vtkLagrangianParticle
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::BounceParticle(
   vtkLagrangianParticle* particle, vtkDataSet* surface, vtkIdType cellId)
 {
@@ -486,7 +478,7 @@ bool vtkLagrangianBasicIntegrationModel::BounceParticle(
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::BreakParticle(vtkLagrangianParticle* particle,
   vtkDataSet* surface, vtkIdType cellId, std::queue<vtkLagrangianParticle*>& particles)
 {
@@ -540,7 +532,7 @@ bool vtkLagrangianBasicIntegrationModel::BreakParticle(vtkLagrangianParticle* pa
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::InteractWithSurface(int vtkNotUsed(surfaceType),
   vtkLagrangianParticle* particle, vtkDataSet* vtkNotUsed(surface), vtkIdType vtkNotUsed(cellId),
   std::queue<vtkLagrangianParticle*>& vtkNotUsed(particles))
@@ -548,7 +540,7 @@ bool vtkLagrangianBasicIntegrationModel::InteractWithSurface(int vtkNotUsed(surf
   return this->TerminateParticle(particle);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::IntersectWithLine(vtkLagrangianParticle* particle,
   vtkCell* cell, double p1[3], double p2[3], double tol, double& t, double x[3])
 {
@@ -566,7 +558,7 @@ bool vtkLagrangianBasicIntegrationModel::IntersectWithLine(vtkLagrangianParticle
 
       // create 4 points and fill the bqi
       vtkPoints* points = quad->GetPoints();
-      vtkBilinearQuadIntersection* bqi = particle->GetThreadedBilinearQuadIntersection();
+      vtkBilinearQuadIntersection* bqi = particle->GetThreadedData()->BilinearQuadIntersection;
       points->GetPoint(0, bqi->GetP00Data());
       points->GetPoint(3, bqi->GetP01Data());
       points->GetPoint(1, bqi->GetP10Data());
@@ -622,7 +614,7 @@ bool vtkLagrangianBasicIntegrationModel::IntersectWithLine(vtkLagrangianParticle
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InterpolateNextParticleVariables(
   vtkLagrangianParticle* particle, double interpolationFactor, bool forceInside)
 {
@@ -643,7 +635,7 @@ void vtkLagrangianBasicIntegrationModel::InterpolateNextParticleVariables(
   stepTime *= interpolationFactor;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::CheckSurfacePerforation(
   vtkLagrangianParticle* particle, vtkDataSet* surface, vtkIdType cellId)
 {
@@ -682,7 +674,7 @@ bool vtkLagrangianBasicIntegrationModel::CheckSurfacePerforation(
   return false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::SetInputArrayToProcess(
   int idx, int port, int connection, int fieldAssociation, const char* name)
 {
@@ -696,24 +688,26 @@ void vtkLagrangianBasicIntegrationModel::SetInputArrayToProcess(
   this->Modified();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::FindInLocators(double* x, vtkLagrangianParticle* particle)
 {
   vtkIdType cellId;
   vtkDataSet* dataset;
-  return this->FindInLocators(x, particle, dataset, cellId);
+  vtkAbstractCellLocator* loc;
+  double* weights;
+  return this->FindInLocators(x, particle, dataset, cellId, loc, weights);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::FindInLocators(
   double* x, vtkLagrangianParticle* particle, vtkDataSet*& dataset, vtkIdType& cellId)
 {
   vtkAbstractCellLocator* loc;
-  double* weights = this->SharedWeights.data();
+  double* weights;
   return this->FindInLocators(x, particle, dataset, cellId, loc, weights);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::FindInLocators(double* x, vtkLagrangianParticle* particle,
   vtkDataSet*& dataset, vtkIdType& cellId, vtkAbstractCellLocator*& loc, double*& weights)
 {
@@ -723,41 +717,80 @@ bool vtkLagrangianBasicIntegrationModel::FindInLocators(double* x, vtkLagrangian
     return false;
   }
 
-  vtkGenericCell* cell = particle->GetThreadedGenericCell();
+  vtkLagrangianThreadedData* data = particle->GetThreadedData();
+  vtkGenericCell* cell = data->GenericCell;
 
-  // Try the provided particle cache
-  dataset = particle->GetLastDataSet();
-  loc = particle->GetLastLocator();
-  if (dataset)
+  cellId = data->LastCellId;
+  double* lastPosition = data->LastCellPosition;
+
+  weights = &data->LastWeights[0];
+
+  if (data->LastDataSetIndex != -1)
   {
+    loc = (*this->Locators)[data->LastDataSetIndex];
+    dataset = (*this->DataSets)[data->LastDataSetIndex];
+
+    // Check the last cell
+    if (cellId != -1)
+    {
+      // Check if previous call was the same
+      if (lastPosition[0] == x[0] && lastPosition[1] == x[1] && lastPosition[2] == x[2])
+      {
+        return true;
+      }
+
+      // If not, check if new position is in the same cell
+      double pcoords[3];
+      int subId;
+      double dist2;
+      dataset->GetCell(cellId, cell);
+      if (cell->EvaluatePosition(x, nullptr, subId, pcoords, dist2, weights) == 1)
+      {
+        std::copy(x, x + 3, data->LastCellPosition);
+        return true;
+      }
+    }
+
+    // Not in provided cell cache, try the whole dataset
     cellId = this->FindInLocator(dataset, loc, x, cell, weights);
     if (cellId != -1)
     {
+      data->LastCellId = cellId;
+      std::copy(x, x + 3, data->LastCellPosition);
       return true;
     }
   }
 
   // No cache or Cache miss, try other datasets
-  vtkDataSet* lastDataSet = dataset;
   for (size_t iDs = 0; iDs < this->DataSets->size(); iDs++)
   {
     loc = (*this->Locators)[iDs];
     dataset = (*this->DataSets)[iDs];
-    if (dataset != lastDataSet)
+
+    if (static_cast<int>(iDs) != data->LastDataSetIndex)
     {
       cellId = this->FindInLocator(dataset, loc, x, cell, weights);
       if (cellId != -1)
       {
+        // Store the found cell for caching purpose
+        data->LastDataSetIndex = static_cast<int>(iDs);
+        data->LastCellId = cellId;
+        std::copy(x, x + 3, data->LastCellPosition);
         return true;
       }
     }
   }
+
+  data->LastCellId = -1;
+  loc = nullptr;
+  dataset = nullptr;
+
   return false;
 }
 
-//----------------------------------------------------------------------------
-vtkIdType vtkLagrangianBasicIntegrationModel::FindInLocator(
-  vtkDataSet* ds, vtkAbstractCellLocator* loc, double* x, vtkGenericCell* cell, double* weights)
+//------------------------------------------------------------------------------
+vtkIdType vtkLagrangianBasicIntegrationModel::FindInLocator(vtkDataSet* dataSet,
+  vtkAbstractCellLocator* loc, double* x, vtkGenericCell* cell, double* weights)
 {
   double pcoords[3];
   vtkIdType cellId;
@@ -768,29 +801,29 @@ vtkIdType vtkLagrangianBasicIntegrationModel::FindInLocator(
   }
   else
   {
-    // No locator, ds is vtkImageData or vtkRectilinearGrid,
+    // No locator, dataSet is vtkImageData or vtkRectilinearGrid,
     // which does not require any cellToUse when calling FindCell.
     int subId;
-    cellId = ds->FindCell(x, nullptr, cell, 0, this->Tolerance, subId, pcoords, weights);
+    cellId = dataSet->FindCell(x, nullptr, cell, 0, this->Tolerance, subId, pcoords, weights);
   }
 
   // Ignore Ghost cells
-  if (cellId != -1 && ds->GetCellGhostArray() &&
-    ds->GetCellGhostArray()->GetValue(cellId) & vtkDataSetAttributes::DUPLICATECELL)
+  if (cellId != -1 && dataSet->GetCellGhostArray() &&
+    dataSet->GetCellGhostArray()->GetValue(cellId) & vtkDataSetAttributes::DUPLICATECELL)
   {
     return -1;
   }
   return cellId;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkAbstractArray* vtkLagrangianBasicIntegrationModel::GetSeedArray(
   int idx, vtkLagrangianParticle* particle)
 {
   return this->GetSeedArray(idx, particle->GetSeedData());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkAbstractArray* vtkLagrangianBasicIntegrationModel::GetSeedArray(int idx, vtkPointData* pointData)
 {
   // Check the provided index
@@ -837,7 +870,7 @@ vtkAbstractArray* vtkLagrangianBasicIntegrationModel::GetSeedArray(int idx, vtkP
   return nullptr;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkLagrangianBasicIntegrationModel::GetFlowOrSurfaceDataNumberOfComponents(
   int idx, vtkDataSet* dataSet)
 {
@@ -917,7 +950,7 @@ int vtkLagrangianBasicIntegrationModel::GetFlowOrSurfaceDataNumberOfComponents(
   return -1;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::GetFlowOrSurfaceData(vtkLagrangianParticle* particle,
   int idx, vtkDataSet* dataSet, vtkIdType tupleId, double* weights, double* data)
 {
@@ -980,7 +1013,7 @@ bool vtkLagrangianBasicIntegrationModel::GetFlowOrSurfaceData(vtkLagrangianParti
       }
 
       // Manual interpolation of data at particle location
-      vtkIdList* idList = particle->GetThreadedIdList();
+      vtkIdList* idList = particle->GetThreadedData()->IdList;
       dataSet->GetCellPoints(tupleId, idList);
       for (int j = 0; j < array->GetNumberOfComponents(); j++)
       {
@@ -1031,7 +1064,7 @@ bool vtkLagrangianBasicIntegrationModel::GetFlowOrSurfaceData(vtkLagrangianParti
   return false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkLagrangianBasicIntegrationModel::GetFlowOrSurfaceDataFieldAssociation(int idx)
 {
   // Check index
@@ -1061,25 +1094,25 @@ int vtkLagrangianBasicIntegrationModel::GetFlowOrSurfaceDataFieldAssociation(int
   return arrayIndexes.first.val[2];
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStringArray* vtkLagrangianBasicIntegrationModel::GetSeedArrayNames()
 {
   return this->SeedArrayNames;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIntArray* vtkLagrangianBasicIntegrationModel::GetSeedArrayComps()
 {
   return this->SeedArrayComps;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIntArray* vtkLagrangianBasicIntegrationModel::GetSeedArrayTypes()
 {
   return this->SeedArrayTypes;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStringArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayNames()
 {
   this->SurfaceArrayNames->SetNumberOfValues(0);
@@ -1091,7 +1124,7 @@ vtkStringArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayNames()
   return this->SurfaceArrayNames;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIntArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayComps()
 {
   this->SurfaceArrayComps->SetNumberOfValues(0);
@@ -1104,13 +1137,13 @@ vtkIntArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayComps()
   return this->SurfaceArrayComps;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkLagrangianBasicIntegrationModel::GetWeightsSize()
 {
-  return static_cast<int>(this->SharedWeights.size());
+  return this->WeightsSize;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkStringArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayEnumValues()
 {
   this->SurfaceArrayEnumValues->SetNumberOfValues(0);
@@ -1130,7 +1163,7 @@ vtkStringArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayEnumValues()
   return this->SurfaceArrayEnumValues;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkDoubleArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayDefaultValues()
 {
   this->SurfaceArrayDefaultValues->SetNumberOfValues(0);
@@ -1149,7 +1182,7 @@ vtkDoubleArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayDefaultValues
   return this->SurfaceArrayDefaultValues;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 vtkIntArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayTypes()
 {
   this->SurfaceArrayTypes->SetNumberOfValues(0);
@@ -1162,7 +1195,7 @@ vtkIntArray* vtkLagrangianBasicIntegrationModel::GetSurfaceArrayTypes()
   return this->SurfaceArrayTypes;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool vtkLagrangianBasicIntegrationModel::ManualIntegration(
   vtkInitialValueProblemSolver* vtkNotUsed(integrator), double* vtkNotUsed(xcur),
   double* vtkNotUsed(xnext), double vtkNotUsed(t), double& vtkNotUsed(delT),
@@ -1173,7 +1206,7 @@ bool vtkLagrangianBasicIntegrationModel::ManualIntegration(
   return false;
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::ComputeSurfaceDefaultValues(
   const char* arrayName, vtkDataSet* vtkNotUsed(dataset), int nComponents, double* defaultValues)
 {
@@ -1182,7 +1215,22 @@ void vtkLagrangianBasicIntegrationModel::ComputeSurfaceDefaultValues(
   std::fill(defaultValues, defaultValues + nComponents, defVal);
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+vtkLagrangianThreadedData* vtkLagrangianBasicIntegrationModel::InitializeThreadedData()
+{
+  vtkLagrangianThreadedData* data = new vtkLagrangianThreadedData();
+  data->LastWeights.resize(this->GetWeightsSize());
+  return data;
+}
+
+//------------------------------------------------------------------------------
+void vtkLagrangianBasicIntegrationModel::FinalizeThreadedData(vtkLagrangianThreadedData*& data)
+{
+  delete data;
+  data = nullptr;
+}
+
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InitializeParticleData(
   vtkFieldData* particleData, int maxTuple)
 {
@@ -1205,7 +1253,7 @@ void vtkLagrangianBasicIntegrationModel::InitializeParticleData(
   particleData->AddArray(particleIntegrationTimeArray);
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InitializePathData(vtkFieldData* data)
 {
   vtkNew<vtkLongLongArray> particleIdArray;
@@ -1229,7 +1277,7 @@ void vtkLagrangianBasicIntegrationModel::InitializePathData(vtkFieldData* data)
   data->AddArray(particleTerminationArray);
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InitializeInteractionData(vtkFieldData* data)
 {
   vtkNew<vtkIntArray> interactionArray;
@@ -1238,7 +1286,7 @@ void vtkLagrangianBasicIntegrationModel::InitializeInteractionData(vtkFieldData*
   data->AddArray(interactionArray);
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InsertParticleSeedData(
   vtkLagrangianParticle* particle, vtkFieldData* data)
 {
@@ -1258,12 +1306,12 @@ void vtkLagrangianBasicIntegrationModel::InsertParticleSeedData(
     vtkDataArray* arr = data->GetArray(name);
     if (arr->GetNumberOfTuples() < maxTuples)
     {
-      arr->InsertNextTuple(0, seedData->GetArray(i));
+      arr->InsertNextTuple(particle->GetSeedArrayTupleIndex(), seedData->GetArray(i));
     }
   }
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InsertPathData(
   vtkLagrangianParticle* particle, vtkFieldData* data)
 {
@@ -1275,7 +1323,7 @@ void vtkLagrangianBasicIntegrationModel::InsertPathData(
     ->InsertNextValue(particle->GetTermination());
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InsertInteractionData(
   vtkLagrangianParticle* particle, vtkFieldData* data)
 {
@@ -1283,7 +1331,7 @@ void vtkLagrangianBasicIntegrationModel::InsertInteractionData(
     ->InsertNextValue(particle->GetInteraction());
 }
 
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InsertParticleData(
   vtkLagrangianParticle* particle, vtkFieldData* data, int stepEnum)
 {

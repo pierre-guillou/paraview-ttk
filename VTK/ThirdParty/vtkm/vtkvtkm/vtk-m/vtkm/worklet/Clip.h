@@ -33,7 +33,7 @@
 #include <utility>
 #include <vtkm/exec/FunctorBase.h>
 
-#if defined(THRUST_MAJOR_VERSION) && THRUST_MAJOR_VERSION == 1 && THRUST_MINOR_VERSION == 8 &&     \
+#if defined(THRUST_MAJOR_VERSION) && THRUST_MAJOR_VERSION == 1 && THRUST_MINOR_VERSION == 8 && \
   THRUST_SUBMINOR_VERSION < 3
 // Workaround a bug in thrust 1.8.0 - 1.8.2 scan implementations which produces
 // wrong results
@@ -139,11 +139,12 @@ public:
                                 vtkm::cont::ArrayHandle<vtkm::IdComponent> numberOfIndices,
                                 vtkm::cont::ArrayHandle<vtkm::Id> connectivity,
                                 vtkm::cont::ArrayHandle<vtkm::Id> offsets,
-                                ClipStats stats)
-    : Shapes(shapes.PrepareForOutput(stats.NumberOfCells, Device()))
-    , NumberOfIndices(numberOfIndices.PrepareForOutput(stats.NumberOfCells, Device()))
-    , Connectivity(connectivity.PrepareForOutput(stats.NumberOfIndices, Device()))
-    , Offsets(offsets.PrepareForOutput(stats.NumberOfCells, Device()))
+                                ClipStats stats,
+                                vtkm::cont::Token& token)
+    : Shapes(shapes.PrepareForOutput(stats.NumberOfCells, Device(), token))
+    , NumberOfIndices(numberOfIndices.PrepareForOutput(stats.NumberOfCells, Device(), token))
+    , Connectivity(connectivity.PrepareForOutput(stats.NumberOfIndices, Device(), token))
+    , Offsets(offsets.PrepareForOutput(stats.NumberOfCells, Device(), token))
   {
   }
 
@@ -196,10 +197,12 @@ public:
   }
 
   template <typename Device>
-  VTKM_CONT ExecutionConnectivityExplicit<Device> PrepareForExecution(Device) const
+  VTKM_CONT ExecutionConnectivityExplicit<Device> PrepareForExecution(
+    Device,
+    vtkm::cont::Token& token) const
   {
     ExecutionConnectivityExplicit<Device> execConnectivity(
-      this->Shapes, this->NumberOfIndices, this->Connectivity, this->Offsets, this->Stats);
+      this->Shapes, this->NumberOfIndices, this->Connectivity, this->Offsets, this->Stats, token);
     return execConnectivity;
   }
 
@@ -896,6 +899,11 @@ public:
     vtkm::cont::ArrayCopy(tmp, result);
 
     return result;
+  }
+
+  vtkm::cont::ArrayHandle<vtkm::Id> GetCellMapOutputToInput() const
+  {
+    return this->CellMapOutputToInput;
   }
 
 private:
