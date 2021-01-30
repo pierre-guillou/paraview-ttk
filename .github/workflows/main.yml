@@ -131,7 +131,7 @@ jobs:
     - name: Install qt with conda
       shell: bash
       run: |
-        conda install -c anaconda qt
+        conda install -c conda-forge qt
 
     - name: Configure ParaView build
       shell: cmd
