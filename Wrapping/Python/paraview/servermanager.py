@@ -46,7 +46,7 @@ A simple example::
 #
 #==============================================================================
 from __future__ import print_function
-import paraview, re, os, os.path, types, sys
+import paraview, re, os, os.path, types, sys, time
 
 # prefer `vtk` from `paraview` since it doesn't import all
 # vtk modules.
@@ -429,6 +429,12 @@ class Proxy(object):
                 newArgs.append(arg.SMProxy)
             else:
                 newArgs.append(arg)
+        if self.__LastAttrName == "WriteImage":
+            print(args)
+            print(newArgs)
+            print(dir(self))
+            print(dir(self.SMProxy))
+            time.sleep(2)
         func = getattr(self.SMProxy, self.__LastAttrName)
         retVal = func(*newArgs)
         if isinstance(retVal, vtkSMProxy):
