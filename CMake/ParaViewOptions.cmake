@@ -100,7 +100,7 @@ option(PARAVIEW_SERIAL_TESTS_USE_MPIEXEC
   "Used on HPC to run serial tests on compute nodes" OFF)
 mark_as_advanced(PARAVIEW_SERIAL_TESTS_USE_MPIEXEC)
 option(PARAVIEW_USE_CUDA "Support CUDA compilation" OFF)
-option(PARAVIEW_USE_VTKM "Enable VTK-m accelerated algorithms" "${PARAVIEW_ENABLE_NONESSENTIAL}")
+option(PARAVIEW_USE_VTKM "Enable VTK-m accelerated algorithms" OFF)
 if (UNIX AND NOT APPLE)
   option(PARAVIEW_USE_MEMKIND  "Build support for extended memory" OFF)
 endif ()
@@ -120,7 +120,7 @@ if (NOT WIN32)
   unset(_has_fortran)
 endif()
 
-vtk_deprecated_setting(python_default PARAVIEW_USE_PYTHON PARAVIEW_ENABLE_PYTHON OFF)
+vtk_deprecated_setting(python_default PARAVIEW_USE_PYTHON PARAVIEW_ENABLE_PYTHON ON)
 option(PARAVIEW_USE_PYTHON "Enable/Disable Python scripting support" "${python_default}")
 
 # Currently, we're making `PARAVIEW_USE_QT` available only when doing CANONICAL
