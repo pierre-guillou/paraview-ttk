@@ -8,6 +8,7 @@ on:
     tags:
       - 'v*'
       - 'dev*'
+      - '*.*.*'
 
 jobs:
 
@@ -183,8 +184,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ github.ref }}-headless
+        release_name: Release ${{ github.ref }} headless
         draft: false
         prerelease: false
 
@@ -195,7 +196,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}
+        tag: ${{ github.ref }}-headless
         file: ttk-paraview-headless-ubuntu-18.04.deb/ttk-paraview.deb
         asset_name: ttk-paraview-headless-$tag-ubuntu-18.04.deb
 
@@ -203,7 +204,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}
+        tag: ${{ github.ref }}-headless
         file: ttk-paraview-headless-ubuntu-20.04.deb/ttk-paraview.deb
         asset_name: ttk-paraview-headless-$tag-ubuntu-20.04.deb
 
@@ -211,7 +212,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}
+        tag: ${{ github.ref }}-headless
         file: ttk-paraview-headless-macOS/ttk-paraview.pkg
         asset_name: ttk-paraview-headless-$tag.pkg
 
@@ -219,6 +220,6 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}
+        tag: ${{ github.ref }}-headless
         file: ttk-paraview-headless-windows/ttk-paraview.exe
         asset_name: ttk-paraview-headless-$tag.exe
