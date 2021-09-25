@@ -6,9 +6,7 @@ on:
     branch-ignore:
       - '*'
     tags:
-      - 'v*'
-      - 'dev*'
-      - '*.*.*'
+      - '\d+.\d+.\d+-headless'
 
 jobs:
 
@@ -184,8 +182,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}-headless
-        release_name: Release ${{ github.ref }} headless
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
         draft: false
         prerelease: false
 
@@ -196,30 +194,30 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}-headless
-        file: ttk-paraview-headless-ubuntu-18.04.deb/ttk-paraview.deb
-        asset_name: ttk-paraview-headless-$tag-ubuntu-18.04.deb
+        tag: ${{ github.ref }}
+        file: ttk-paraview-headless-ubuntu-18.04/ttk-paraview.deb
+        asset_name: ttk-paraview-headless-ubuntu-18.04.deb
 
     - name: Upload Ubuntu Focal .deb as Release Asset
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}-headless
-        file: ttk-paraview-headless-ubuntu-20.04.deb/ttk-paraview.deb
-        asset_name: ttk-paraview-headless-$tag-ubuntu-20.04.deb
+        tag: ${{ github.ref }}
+        file: ttk-paraview-headless-ubuntu-20.04/ttk-paraview.deb
+        asset_name: ttk-paraview-headless-ubuntu-20.04.deb
 
     - name: Upload .pkg as Release Asset
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}-headless
-        file: ttk-paraview-headless-macOS/ttk-paraview.pkg
-        asset_name: ttk-paraview-headless-$tag.pkg
+        tag: ${{ github.ref }}
+        file: ttk-paraview-headless-macOS/ttk-paraview.tar.gz
+        asset_name: ttk-paraview-headless.tar.gz
 
     - name: Upload .exe as Release Asset
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}-headless
+        tag: ${{ github.ref }}
         file: ttk-paraview-headless-windows/ttk-paraview.exe
-        asset_name: ttk-paraview-headless-$tag.exe
+        asset_name: ttk-paraview-headless.exe
