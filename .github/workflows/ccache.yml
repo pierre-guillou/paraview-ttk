@@ -10,12 +10,13 @@ on:
 
 jobs:
 
-
   # -------#
   # Ubuntu #
   # -------#
   ccache-ubuntu:
     runs-on: ${{ matrix.os }}
+    env:
+      CXXFLAGS: -Werror
     strategy:
       matrix:
         os: [ubuntu-18.04, ubuntu-20.04]
@@ -100,6 +101,7 @@ jobs:
     runs-on: macos-latest
     env:
       CCACHE_DIR: /Users/runner/work/ttk/.ccache
+      CXXFLAGS: -Werror
     steps:
     - uses: actions/checkout@v2
       name: Checkout TTK source code
