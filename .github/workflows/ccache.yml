@@ -83,13 +83,14 @@ jobs:
 
     - name: Archive cache
       run: |
-        tar czvf ttk-ccache.tar.gz /home/runner/.ccache
+        cd /home/runner
+        tar czvf ttk-ccache.tar.gz .ccache
 
     - name: Upload ccache archive
       uses: actions/upload-artifact@v2
       with:
         name: ttk-ccache-${{ matrix.os }}
-        path: ttk-ccache.tar.gz
+        path: /home/runner/ttk-ccache.tar.gz
 
 
   # ------#
@@ -158,13 +159,14 @@ jobs:
 
     - name: Archive cache
       run: |
-        tar czvf ttk-ccache.tar.gz /Users/runner/work/ttk/.ccache
+        cd /Users/runner/work/ttk
+        tar czvf ttk-ccache.tar.gz .ccache
 
     - name: Upload ccache archive
       uses: actions/upload-artifact@v2
       with:
         name: ttk-ccache-macOS
-        path: ttk-ccache.tar.gz
+        path: /Users/runner/work/ttk/ttk-ccache.tar.gz
 
   # --------------------- #
   # Upload release assets #
