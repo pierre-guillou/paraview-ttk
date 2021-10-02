@@ -84,7 +84,7 @@ jobs:
     - name: Archive cache
       run: |
         cd /home/runner
-        tar czvf ttk-ccache.tar.gz .ccache
+        tar czf ttk-ccache.tar.gz .ccache
 
     - name: Upload ccache archive
       uses: actions/upload-artifact@v2
@@ -131,7 +131,7 @@ jobs:
 
     - name: Install ParaView
       run: |
-        tar xzvf ttk-paraview-headless.tar.gz
+        tar xzf ttk-paraview-headless.tar.gz
         sudo cp -r ttk-paraview/* /usr/local
 
     - name: Create & configure TTK build directory
@@ -160,7 +160,7 @@ jobs:
     - name: Archive cache
       run: |
         cd /Users/runner/work/ttk
-        tar czvf ttk-ccache.tar.gz .ccache
+        tar czf ttk-ccache.tar.gz .ccache
 
     - name: Upload ccache archive
       uses: actions/upload-artifact@v2
