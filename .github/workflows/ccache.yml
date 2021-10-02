@@ -47,7 +47,7 @@ jobs:
         sudo python3 -m pip install scikit-learn
 
     - name: Install optional dependencies
-      uses: ./.github/actions/install-deps-unix
+      uses: topology-tool-kit/ttk/.github/actions/install-deps-unix@dev
 
     - uses: dsaltares/fetch-gh-release-asset@0.0.5
       name: Fetch TTK-ParaView headless Debian package
@@ -120,7 +120,7 @@ jobs:
         echo "$(brew --prefix)/opt/ccache/libexec" >> $GITHUB_PATH
 
     - name: Install optional dependencies
-      uses: ./.github/actions/install-deps-unix
+      uses: topology-tool-kit/ttk/.github/actions/install-deps-unix@dev
 
     - name: Fetch TTK-ParaView headless macOS binary archive
       run: |
