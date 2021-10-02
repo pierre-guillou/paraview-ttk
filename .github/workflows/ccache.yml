@@ -26,7 +26,6 @@ jobs:
       with:
         repository: "topology-tool-kit/ttk"
         ref: "dev"
-        path: "ttk"
 
     - name: Install Ubuntu dependencies
       run: |
@@ -103,6 +102,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       name: Checkout TTK source code
+      with:
+        repository: "topology-tool-kit/ttk"
+        ref: "dev"
 
     - name: Remove hosted Python
       run: |
