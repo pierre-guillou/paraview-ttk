@@ -673,6 +673,7 @@ OSPGeometricModel RenderAsTriangles(OSPData vertices, std::vector<unsigned int>&
   }
   ospCommit(ospMesh);
   ospCommit(ospGeoModel);
+  ospRelease(ospMesh);
   ospRelease(index);
   ospRelease(_normals);
   ospRelease(tcs);
@@ -788,8 +789,8 @@ OSPMaterial MakeActorMaterial(vtkOSPRayRendererNode* orn, OSPRenderer oRenderer,
     {
       ospSetVec3f(oMaterial, "kd", diffusef[0], diffusef[1], diffusef[2]);
     }
-    ospSetVec3f(oMaterial, "Ks", specularf[0], specularf[1], specularf[2]);
-    ospSetFloat(oMaterial, "Ns", specPower);
+    ospSetVec3f(oMaterial, "ks", specularf[0], specularf[1], specularf[2]);
+    ospSetFloat(oMaterial, "ns", specPower);
     ospSetFloat(oMaterial, "d", static_cast<float>(opacity));
   }
 
@@ -1311,15 +1312,15 @@ void vtkOSPRayPolyDataMapperNode::ORenderPoly(void* renderer, vtkOSPRayActorNode
   for (auto g : this->GeometricModels)
   {
     OSPGroup group = ospNewGroup();
-    OSPInstance instance = ospNewInstance(group); // valgrind reports instance is lost
-    ospCommit(instance);
-    ospRelease(group);
     OSPData data = ospNewCopyData1D(&g, OSP_GEOMETRIC_MODEL, 1);
-    ospRelease(&(*g));
     ospCommit(data);
+    ospRelease(g);
     ospSetObject(group, "geometry", data);
     ospCommit(group);
     ospRelease(data);
+    OSPInstance instance = ospNewInstance(group); // valgrind reports instance is lost
+    ospCommit(instance);
+    ospRelease(group);
     this->Instances.emplace_back(instance);
   }
 
@@ -1403,6 +1404,8 @@ void vtkOSPRayPolyDataMapperNode::ClearGeometricModels()
   RTW::Backend* backend = orn->GetBackend();
 
   for (auto instance : this->Instances)
-    ospRelease(&(*instance));
+  {
+    ospRelease(instance);
+  }
   this->Instances.clear();
 }

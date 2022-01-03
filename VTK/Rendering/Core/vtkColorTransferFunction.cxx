@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <limits>
 #include <set>
 #include <vector>
 
@@ -453,7 +454,8 @@ int vtkColorTransferFunction::AddHSVPoint(
 // the Range
 void vtkColorTransferFunction::SortAndUpdateRange()
 {
-  std::sort(
+  // Use stable_sort to avoid shuffling of DuplicateScalars
+  std::stable_sort(
     this->Internal->Nodes.begin(), this->Internal->Nodes.end(), this->Internal->CompareNodes);
   bool modifiedInvoked = this->UpdateRange();
   // If range is updated, Modified() has been called, don't call it again.

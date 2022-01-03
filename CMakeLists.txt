@@ -64,7 +64,7 @@ if (NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
 endif ()
 
 set(CMAKE_INSTALL_LICENSEDIR ""
-  CACHE PATH "License files (DATAROOTDIR/licenses/${CMAKE_PROJECT_NAME}")
+  CACHE STRING "License files (DATAROOTDIR/licenses/${CMAKE_PROJECT_NAME}")
 mark_as_advanced(CMAKE_INSTALL_LICENSEDIR)
 if (NOT CMAKE_INSTALL_LICENSEDIR)
   set(CMAKE_INSTALL_LICENSEDIR
@@ -85,6 +85,7 @@ include(ParaViewServerManager)
 include(ParaViewTesting)
 include(ParaViewClient)
 include(ParaViewPlugin)
+include(ParaViewPluginDebugging)
 include(vtkModuleWrapClientServer)
 include(CTest)
 set_property(CACHE BUILD_TESTING
@@ -99,6 +100,7 @@ include(vtkSupportMacros)
 
 include(CMakeDependentOption)
 include(ParaViewOptions)
+include(ParaViewMigrations)
 
 #------------------------------------------------------------------------------
 # Choose static or shared libraries.
@@ -110,9 +112,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 #------------------------------------------------------------------------------
 # Protect against a stampede of static links at the same time.
 if (NOT PARAVIEW_BUILD_SHARED_LIBS)
-  set(pv_exe_job_link_pool static_exe_link)
+  set(CMAKE_JOB_POOL_LINK static_exe_link)
   set_property(GLOBAL APPEND PROPERTY
-    JOB_POOLS static_exe_link=1)
+    JOB_POOLS "${CMAKE_JOB_POOL_LINK}=1")
 endif ()
 
 #-----------------------------------------------------------------------------
@@ -261,11 +263,12 @@ set(paraview_default_plugins
   GeodesicMeasurement
   GMVReader
   HyperTreeGridADR
-  IOSSReader
   LagrangianParticleTracker
+  LegacyExodusReader
   Moments
   MooseXfemClip
   NetCDFTimeAnnotationPlugin
+  NodeEditor
   NonOrthogonalSource
   PacMan
   PanoramicProjectionView
@@ -439,9 +442,16 @@ else ()
   set(VTK_USE_CUDA "${PARAVIEW_USE_CUDA}")
   # Forward Memkind option to VTK.
   set(VTK_USE_MEMKIND "${PARAVIEW_USE_MEMKIND}")
+  # Forward OpenVDB option to VTK.
+  set(VTK_ENABLE_OPENVDB "${PARAVIEW_ENABLE_OPENVDB}")
 
   # Forward logging option to VTK.
   set(VTK_ENABLE_LOGGING ON)
+
+  # ParaView assumes these are created. These should probably be moved to
+  # distinct modules for easier handling however.
+  set(VTK_USE_VIDEO_FOR_WINDOWS ON)
+  set(VTK_USE_MICROSOFT_MEDIA_FOUNDATION ON)
 
   if (use_vtk_remote_modules)
     if (PARAVIEW_ENABLE_MOMENTINVARIANTS)
@@ -519,6 +529,12 @@ else ()
   cmake_dependent_option(VTK_USE_TK "Build VTK with Tk support" OFF
     "PARAVIEW_USE_PYTHON" OFF)
 
+  cmake_dependent_option(PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE
+    "Explicitly indicate that the Python library is debuggable" OFF
+    "WIN32;PARAVIEW_USE_PYTHON" OFF)
+  mark_as_advanced(PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE)
+  set(VTK_WINDOWS_PYTHON_DEBUGGABLE ${PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE})
+
   vtk_module_build(
     MODULES             ${vtk_modules}
     KITS                ${vtk_kits}
@@ -543,6 +559,13 @@ else ()
     FILES       "${CMAKE_CURRENT_SOURCE_DIR}/VTK/Copyright.txt"
     DESTINATION "${CMAKE_INSTALL_LICENSEDIR}/VTK"
     COMPONENT   "license")
+endif ()
+
+# Determine whether the ParaView GUI will be built or not.
+set(paraview_will_be_built 0)
+if (PARAVIEW_USE_QT AND
+    (WIN32 OR VTK_USE_X OR VTK_USE_COCOA))
+  set(paraview_will_be_built 1)
 endif ()
 
 if (NOT PARAVIEW_USE_EXTERNAL_VTK AND PARAVIEW_INSTALL_DEVELOPMENT_FILES)
@@ -575,6 +598,36 @@ vtk_module_build(
   USE_EXTERNAL        "${PARAVIEW_BUILD_WITH_EXTERNAL}"
   TEST_INPUT_DATA_DIRECTORY   "${paraview_test_data_directory_input}"
   TEST_OUTPUT_DATA_DIRECTORY  "${paraview_test_data_directory_output}")
+
+# Catalyst sanity check. See `ThirdParty/catalyst/CMakeLists.txt` for details.
+if (TARGET ParaView::vtkcatalyst)
+  get_property(catalyst_dir_primary GLOBAL PROPERTY paraview_catalyst_dir_primary)
+  set(catalyst_using_modules)
+  foreach (catalyst_using_module IN LISTS catalyst_using_modules)
+    get_property(catalyst_dir_module GLOBAL PROPERTY "paraview_catalyst_dir_${catalyst_using_module}")
+    if (NOT catalyst_using_module)
+      continue ()
+    endif ()
+
+    if (NOT catalyst_dir_primary)
+      message(FATAL_ERROR
+        "ParaView's `catalyst` module is using its internal catalyst but the "
+        "`${catalyst_using_module}` is using a copy from "
+        "`${catalyst_dir_module}`. Due to the way `libcatalyst` works, all "
+        "modules which use it must agree on a single installation of it. "
+        "Either ParaView must use an external catalyst (using "
+        "`VTK_MODULE_USE_EXTERNAL_ParaView_vtkcatalyst`) or external packages "
+        "must be configured without `libcatalyst` support.")
+    elseif (NOT catalyst_dir_primary STREQUAL catalyst_dir_module)
+      message(FATAL_ERROR
+        "ParaView's `catalyst` module is using an external catalyst from "
+        "`${catalyst_dir_primary}` but the `${catalyst_using_module}` found "
+        "its copy at `${catalyst_dir_module}`. Due to the way `libcatalyst` "
+        "works, all modules which use it must agree on a single installation "
+        "of it.")
+    endif ()
+  endforeach ()
+endif ()
 
 vtk_module_build(
   MODULES             ${paraview_client_modules}
@@ -667,6 +720,7 @@ if (PARAVIEW_USE_PYTHON)
       MODULE_DESTINATION  "${PARAVIEW_PYTHON_SITE_PACKAGES_SUFFIX}"
       CMAKE_DESTINATION   "${paraview_cmake_destination}/vtk"
       LIBRARY_DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+      USE_DEBUG_SUFFIX    "${PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE}"
       WRAPPED_MODULES vtk_python_wrapped_modules
       TARGET          VTK::vtkpythonmodules)
 
@@ -704,6 +758,7 @@ if (PARAVIEW_USE_PYTHON)
     MODULE_DESTINATION  "${PARAVIEW_PYTHON_SITE_PACKAGES_SUFFIX}"
     CMAKE_DESTINATION   "${paraview_cmake_destination}"
     LIBRARY_DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    USE_DEBUG_SUFFIX    "${PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE}"
     WRAPPED_MODULES paraview_python_wrapped_modules
     TARGET          ParaView::pvpythonmodules
     DEPENDS         VTK::vtkpythonmodules)
@@ -814,6 +869,7 @@ if (BUILD_TESTING AND PARAVIEW_INSTALL_DEVELOPMENT_FILES)
     -DPARAVIEW_SOURCE_DIR:PATH=${CMAKE_SOURCE_DIR}
     -DPARAVIEW_TEST_DIR:PATH=${CMAKE_BINARY_DIR}/Testing/Temporary
     -DPARAVIEW_CMAKE_DESTINATION:STRING=${paraview_cmake_destination}
+    -DPARAVIEW_BINDIR:STRING=${CMAKE_INSTALL_BINDIR}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     -DCMAKE_GENERATOR:STRING=${CMAKE_GENERATOR}
     -DCMAKE_GENERATOR_PLATFORM:STRING=${CMAKE_GENERATOR_PLATFORM}
@@ -824,24 +880,6 @@ if (BUILD_TESTING AND PARAVIEW_INSTALL_DEVELOPMENT_FILES)
     ENVIRONMENT "DESTDIR=${CMAKE_BINARY_DIR}/test-install"
     # 10 minutes should be enough time.
     TIMEOUT 600)
-endif()
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-# Test to check that we can process all of the Catalyst editions
-#------------------------------------------------------------------------------
-if (BUILD_TESTING AND PARAVIEW_USE_PYTHON AND UNIX AND NOT APPLE)
-if (FALSE) # XXX(FIXME)
-  # disabling till we Catalyst editions are fixed post modularization
-  add_test( NAME GenerateCatalystEditions
-    COMMAND ${CMAKE_COMMAND}
-    -DPYTHON_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE}
-    -DPARAVIEW_SOURCE_DIR:PATH=${CMAKE_SOURCE_DIR}
-    -DPARAVIEW_TEST_DIR:PATH=${CMAKE_BINARY_DIR}/Testing/Temporary
-    -P ${CMAKE_SOURCE_DIR}/CMake/ParaViewTestCatalystCodeGeneration.cmake)
-  set_tests_properties(GenerateCatalystEditions PROPERTIES
-    LABELS "paraview;catalyst")
-endif()
 endif()
 #------------------------------------------------------------------------------
 
