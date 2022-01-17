@@ -14,6 +14,7 @@ jobs:
   # ------ #
   build-ubuntu:
     runs-on: ${{ matrix.os }}
+    if: false
     strategy:
       matrix:
         os: [ubuntu-18.04, ubuntu-20.04]
@@ -112,6 +113,7 @@ jobs:
   # ------- #
   build-windows:
     runs-on: windows-latest
+    if: false
     env:
       CONDA_ROOT: C:\Miniconda
       VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
