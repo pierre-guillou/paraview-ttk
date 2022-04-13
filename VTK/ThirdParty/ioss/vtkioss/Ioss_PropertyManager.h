@@ -1,11 +1,10 @@
-// Copyright(C) 1999-2020 National Technology & Engineering Solutions
+// Copyright(C) 1999-2022 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
 // See packages/seacas/LICENSE for details
 
-#ifndef IOSS_Ioss_PropertyManager_h
-#define IOSS_Ioss_PropertyManager_h
+#pragma once
 
 #include "vtk_ioss_mangle.h"
 
@@ -45,10 +44,12 @@ namespace Ioss {
                              const std::string &optional_value) const;
 
     // Returns the names of all properties
-    int describe(NameList *names) const;
+    int      describe(NameList *names) const;
+    NameList describe() const;
 
     // Returns the names of all properties or origin `origin`
-    int describe(Ioss::Property::Origin origin, NameList *names) const;
+    int      describe(Ioss::Property::Origin origin, NameList *names) const;
+    NameList describe(Ioss::Property::Origin origin) const;
 
     size_t count() const;
 
@@ -59,4 +60,3 @@ namespace Ioss {
 #endif
   };
 } // namespace Ioss
-#endif

@@ -1,11 +1,10 @@
-// Copyright(C) 1999-2021 National Technology & Engineering Solutions
+// Copyright(C) 1999-2022 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
 // See packages/seacas/LICENSE for details
 
-#ifndef IOSS_Ioss_StructuredBlock_h
-#define IOSS_Ioss_StructuredBlock_h
+#pragma once
 
 #include "vtk_ioss_mangle.h"
 
@@ -234,7 +233,7 @@ namespace Ioss {
 
     std::vector<IOSS_SB_INT> get_cell_node_ids(bool add_offset) const
     {
-      size_t           node_count = get_property("node_count").get_int();
+      size_t                   node_count = get_property("node_count").get_int();
       std::vector<IOSS_SB_INT> ids(node_count);
       get_cell_node_ids(ids.data(), add_offset);
       return ids;
@@ -360,4 +359,3 @@ namespace Ioss {
     }
   };
 } // namespace Ioss
-#endif

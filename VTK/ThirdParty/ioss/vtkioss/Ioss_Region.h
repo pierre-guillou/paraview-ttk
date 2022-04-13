@@ -1,11 +1,10 @@
-// Copyright(C) 1999-2021 National Technology & Engineering Solutions
+// Copyright(C) 1999-2022 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
 // See packages/seacas/LICENSE for details
 
-#ifndef IOSS_Ioss_Region_h
-#define IOSS_Ioss_Region_h
+#pragma once
 
 #include "vtk_ioss_mangle.h"
 
@@ -202,10 +201,11 @@ namespace Ioss {
 
     const CoordinateFrame &get_coordinate_frame(int64_t id) const;
 
-    // Add the name 'alias' as an alias for the database entity with the
-    // name 'db_name'. Returns true if alias added; false if problems
-    // adding alias.
+    // Add the name 'alias' as an alias for the database entity of
+    // type 'type' with the name 'db_name'. Returns true if alias
+    // added; false if problems adding alias.
     bool        add_alias(const std::string &db_name, const std::string &alias, EntityType type);
+    bool        add_alias(const std::string &db_name, const std::string &alias);
     bool        add_alias(const GroupingEntity *ge);
     std::string get_alias(const std::string &alias, EntityType type) const;
     std::string get_alias__(const std::string &alias, EntityType type) const; // Not locked by mutex
@@ -390,5 +390,3 @@ inline const std::vector<std::string> &Ioss::Region::get_qa_records() const
   IOSS_FUNC_ENTER(m_);
   return get_database()->get_qa_records();
 }
-
-#endif

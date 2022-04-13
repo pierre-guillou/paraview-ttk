@@ -29,7 +29,8 @@
 #include <algorithm>              // for copy
 #include <cassert>                // for assert
 #include <cmath>                  // for sqrt
-#include <fmt/ostream.h>
+#include "vtk_fmt.h"
+#include VTK_FMT(fmt/ostream.h)
 #include <generated/Iogn_DatabaseIO.h>
 #include <generated/Iogn_GeneratedMesh.h> // for GeneratedMesh
 #include <iostream>                       // for ostringstream
@@ -125,10 +126,7 @@ namespace Iogn {
     }
   }
 
-  void DatabaseIO::setGeneratedMesh(Iogn::GeneratedMesh *generatedMesh)
-  {
-    m_generatedMesh.reset(generatedMesh);
-  }
+  DatabaseIO::~DatabaseIO() { delete m_generatedMesh; }
 
   void DatabaseIO::read_meta_data__()
   {
@@ -140,8 +138,8 @@ namespace Iogn {
         IOSS_ERROR(errmsg);
       }
       else {
-        m_generatedMesh.reset(new Iogn::GeneratedMesh(
-            get_filename(), util().parallel_size(), util().parallel_rank()));
+        m_generatedMesh =
+	  new GeneratedMesh(get_filename(), util().parallel_size(), util().parallel_rank());
       }
     }
 

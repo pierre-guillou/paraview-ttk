@@ -1,11 +1,10 @@
-// Copyright(C) 1999-2021 National Technology & Engineering Solutions
+// Copyright(C) 1999-2022 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
 // See packages/seacas/LICENSE for details
 
-#ifndef IOSS_Ioss_ZoneConnectivity_h
-#define IOSS_Ioss_ZoneConnectivity_h
+#pragma once
 
 #include "vtk_ioss_mangle.h"
 
@@ -83,8 +82,8 @@ namespace Ioss {
     bool retain_original() const; // True if need to retain in parallel decomp
 
     std::array<IOSS_ZC_INT, 9> transform_matrix() const;
-    Ioss::IJK_t        transform(const Ioss::IJK_t &index_1) const;
-    Ioss::IJK_t        inverse_transform(const Ioss::IJK_t &index_1) const;
+    Ioss::IJK_t                transform(const Ioss::IJK_t &index_1) const;
+    Ioss::IJK_t                inverse_transform(const Ioss::IJK_t &index_1) const;
 
     std::vector<int>     get_range(int ordinal) const;
     friend std::ostream &operator<<(std::ostream &os, const ZoneConnectivity &zgc);
@@ -146,5 +145,3 @@ namespace Ioss {
     bool equal_(const Ioss::ZoneConnectivity &rhs, bool quiet) const;
   };
 } // namespace Ioss
-
-#endif

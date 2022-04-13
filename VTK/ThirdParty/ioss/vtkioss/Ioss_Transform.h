@@ -1,11 +1,10 @@
-// Copyright(C) 1999-2021 National Technology & Engineering Solutions
+// Copyright(C) 1999-2022 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
 // See packages/seacas/LICENSE for details
 
-#ifndef IOSS_Ioss_Transform_h
-#define IOSS_Ioss_Transform_h
+#pragma once
 
 #include "vtk_ioss_mangle.h"
 
@@ -50,7 +49,8 @@ namespace Iotr {
     virtual ~Factory() = default;
     static Ioss::Transform *create(const std::string &type);
 
-    static int describe(Ioss::NameList *names);
+    static int            describe(Ioss::NameList *names);
+    static Ioss::NameList describe();
 
   protected:
     explicit Factory(const std::string &type);
@@ -58,8 +58,6 @@ namespace Iotr {
     static void              alias(const std::string &base, const std::string &syn);
 
   private:
-    static FactoryMap *registry();
+    static FactoryMap &registry();
   };
 } // namespace Iotr
-
-#endif // IOSS_Ioss_Transform_h

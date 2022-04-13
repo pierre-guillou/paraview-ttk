@@ -11,7 +11,8 @@
 
 #include <cassert> // for assert
 #include <cstddef> // for size_t
-#include <fmt/ostream.h>
+#include "vtk_fmt.h"
+#include VTK_FMT(fmt/ostream.h)
 #include <ostream> // for basic_ostream, etc
 #include <string>  // for string, char_traits, etc
 #include <utility> // for pair
@@ -143,7 +144,18 @@ unsigned int Ioss::ElementTopology::get_unique_id(const std::string &type)
 
 /** \brief Get the names of element topologies known to Ioss.
  *
- *  \param[out] names The list of known element topoloty names.
+ *  \returns The list of known element topology names.
+ */
+Ioss::NameList Ioss::ElementTopology::describe()
+{
+  Ioss::NameList names;
+  describe(&names);
+  return names;
+}
+
+/** \brief Get the names of element topologies known to Ioss.
+ *
+ *  \param[out] names The list of known element topology names.
  *  \returns The number of known element topologies.
  */
 int Ioss::ElementTopology::describe(NameList *names)

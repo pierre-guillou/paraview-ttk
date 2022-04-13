@@ -1,11 +1,10 @@
-// Copyright(C) 1999-2020 National Technology & Engineering Solutions
+// Copyright(C) 1999-2022 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
 // See packages/seacas/LICENSE for details
 
-#ifndef IOSS_Ioss_Tet16_h
-#define IOSS_Ioss_Tet16_h
+#pragma once
 
 #include "vtk_ioss_mangle.h"
 
@@ -22,7 +21,7 @@ namespace Ioss {
     static const char *name;
 
     static void factory();
-    ~Tet16() override;
+    ~Tet16() override = default;
 
     ElementShape shape() const override { return ElementShape::TET; }
     int          spatial_dimension() const override;
@@ -57,4 +56,3 @@ namespace Ioss {
     Tet16(const Tet16 &) = delete;
   };
 } // namespace Ioss
-#endif

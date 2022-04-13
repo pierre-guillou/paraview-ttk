@@ -1,11 +1,10 @@
-// Copyright(C) 1999-2020 National Technology & Engineering Solutions
+// Copyright(C) 1999-2022 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
 // See packages/seacas/LICENSE for details
 
-#ifndef IOSS_Ioss_Element_Topology_h
-#define IOSS_Ioss_Element_Topology_h
+#pragma once
 
 #include "vtk_ioss_mangle.h"
 
@@ -114,6 +113,7 @@ namespace Ioss {
     static ElementTopology *factory(unsigned int unique_id);
     static unsigned int     get_unique_id(const std::string &type);
     static int              describe(NameList *names);
+    static NameList         describe();
 
     bool operator==(const Ioss::ElementTopology &rhs) const;
     bool operator!=(const Ioss::ElementTopology &rhs) const;
@@ -130,4 +130,3 @@ namespace Ioss {
     static ETRegistry &registry();
   };
 } // namespace Ioss
-#endif

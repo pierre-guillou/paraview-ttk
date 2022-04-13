@@ -11,12 +11,13 @@
 #include <cassert> // for assert
 #include <cmath>   // for atan2, cos, sin
 #include <cstdlib> // for nullptr, exit, etc
-#include <fmt/ostream.h>
+#include "vtk_fmt.h"
+#include VTK_FMT(fmt/ostream.h)
 #include <gen_struc/Iogs_GeneratedMesh.h>
 #include <numeric>
 #include <string>
-#include <tokenize.h>  // for tokenize
-#include <vector>      // for vector
+#include <tokenize.h> // for tokenize
+#include <vector>     // for vector
 
 namespace Iogs {
   GeneratedMesh::GeneratedMesh(int64_t /*num_x */, int64_t /* num_y */, int64_t /* num_z */,

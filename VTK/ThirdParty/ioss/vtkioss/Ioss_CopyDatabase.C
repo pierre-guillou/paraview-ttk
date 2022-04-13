@@ -1,4 +1,4 @@
-// Copyright(C) 2021 National Technology & Engineering Solutions
+// Copyright(C) 2021, 2022 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
@@ -11,7 +11,8 @@
 #include <Ioss_MeshCopyOptions.h>
 #include <Ioss_SubSystem.h>
 
-#include <fmt/ostream.h>
+#include "vtk_fmt.h"
+#include VTK_FMT(fmt/ostream.h)
 #include <limits>
 
 // For Sleep...
@@ -95,8 +96,7 @@ namespace {
     size_t      max_size = max_field.first;
     std::string max_name = max_field.second;
     for (const auto &entity : entities) {
-      Ioss::NameList fields;
-      entity->field_describe(&fields);
+      Ioss::NameList fields = entity->field_describe();
       for (const auto &field_name : fields) {
         Ioss::Field field = entity->get_field(field_name);
         if (field.get_size() > max_size) {
@@ -410,10 +410,6 @@ namespace {
       else {
         std::exit(EXIT_FAILURE);
       }
-    }
-
-    if (rank == 0) {
-      fmt::print(std::cout, "\n\n Input Region summary for rank 0:\n");
     }
 
     // Get all properties of input database...
@@ -1101,8 +1097,7 @@ namespace {
                        Ioss::Field::RoleType role, const std::string &prefix)
   {
     // Check for transient fields...
-    Ioss::NameList fields;
-    ige->field_describe(role, &fields);
+    Ioss::NameList fields = ige->field_describe(role);
 
     // Iterate through results fields and transfer to output
     // database...  If a prefix is specified, only transfer fields
@@ -1123,8 +1118,7 @@ namespace {
   {
     // Iterate through the TRANSIENT-role fields of the input
     // database and transfer to output database.
-    Ioss::NameList state_fields;
-    ige->field_describe(role, &state_fields);
+    Ioss::NameList state_fields = ige->field_describe(role);
 
     // Complication here is that if the 'role' is 'Ioss::Field::MESH',
     // then the 'ids' field must be transferred first...
@@ -1413,8 +1407,7 @@ namespace {
 
   void transfer_properties(const Ioss::GroupingEntity *ige, Ioss::GroupingEntity *oge)
   {
-    Ioss::NameList properties;
-    ige->property_describe(&properties);
+    Ioss::NameList properties = ige->property_describe();
 
     // Iterate through properties and transfer to output database...
     for (const auto &property : properties) {

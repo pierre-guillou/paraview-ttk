@@ -17,9 +17,10 @@
 #include <Ioss_Utils.h>
 #include <cgns/Iocgns_DecompositionData.h>
 #include <cgns/Iocgns_Utils.h>
-#include <fmt/color.h>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
+#include "vtk_fmt.h"
+#include VTK_FMT(fmt/color.h)
+#include VTK_FMT(fmt/format.h)
+#include VTK_FMT(fmt/ostream.h)
 #include <tokenize.h>
 
 #include VTK_CGNS(pcgnslib.h)
@@ -753,8 +754,8 @@ namespace Iocgns {
       offset += block.file_count();
       size_t b_end = b_start + block.file_count();
 
-      ioss_ssize_t overlap = std::min(b_end, p_end) - std::max(b_start, p_start);
-      overlap              = std::max(overlap, (ioss_ssize_t)0);
+      int64_t overlap      = std::min(b_end, p_end) - std::max(b_start, p_start);
+      overlap              = std::max(overlap, (int64_t)0);
       block.fileCount      = overlap;
       size_t element_nodes = block.nodesPerEntity;
       int    zone          = block.zone_;
@@ -778,7 +779,7 @@ namespace Iocgns {
       size_t el          = 0;
       INT    zone_offset = block.zoneNodeOffset;
 
-      for (ioss_ssize_t elem = 0; elem < overlap; elem++) {
+      for (size_t elem = 0; elem < static_cast<size_t>(overlap); elem++) {
         decomposition.m_pointer.push_back(decomposition.m_adjacency.size());
         for (size_t k = 0; k < element_nodes; k++) {
           INT node = connectivity[el++] - 1 + zone_offset; // 0-based node
