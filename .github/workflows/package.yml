@@ -34,7 +34,10 @@ jobs:
         sudo apt update
         # ParaView dependencies
         sudo apt install -y \
-          qt5-default \
+          qtbase5-dev \
+          qtchooser \
+          qt5-qmake \
+          qtbase5-dev-tools \
           qttools5-dev \
           qtxmlpatterns5-dev-tools \
           libqt5x11extras5-dev \
