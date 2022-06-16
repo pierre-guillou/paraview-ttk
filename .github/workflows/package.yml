@@ -84,7 +84,7 @@ jobs:
     - name: Upload .deb package
       uses: actions/upload-artifact@v2
       with:
-        name: ttk-paraview-ubuntu-20.04.deb
+        name: ttk-paraview-${{ matrix.os }}
         path: build/ttk-paraview.deb
 
 
@@ -129,7 +129,7 @@ jobs:
     - name: Upload .pgk package
       uses: actions/upload-artifact@v2
       with:
-        name: ttk-paraview.pkg
+        name: ttk-paraview-macOS
         path: build/ttk-paraview.pkg
 
 
@@ -188,7 +188,7 @@ jobs:
     - name: Upload .exe installer
       uses: actions/upload-artifact@v2
       with:
-        name: ttk-paraview.exe
+        name: ttk-paraview-windows
         path: ttk-paraview.exe
 
   create-release:
@@ -214,7 +214,7 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        file: ttk-paraview-ubuntu-20.04.deb/ttk-paraview.deb
+        file: ttk-paraview-ubuntu-20.04/ttk-paraview.deb
         asset_name: ttk-paraview-$tag-ubuntu-20.04.deb
 
     - name: Upload Ubuntu Jammy .deb as Release Asset
@@ -222,7 +222,7 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        file: ttk-paraview-ubuntu-22.04.deb/ttk-paraview.deb
+        file: ttk-paraview-ubuntu-22.04/ttk-paraview.deb
         asset_name: ttk-paraview-$tag-ubuntu-22.04.deb
 
     - name: Upload .pkg as Release Asset
@@ -230,7 +230,7 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        file: ttk-paraview.pkg/ttk-paraview.pkg
+        file: ttk-paraview-macOS/ttk-paraview.pkg
         asset_name: ttk-paraview-$tag.pkg
 
     - name: Upload .exe as Release Asset
@@ -238,5 +238,5 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        file: ttk-paraview.exe/ttk-paraview.exe
+        file: ttk-paraview-windows/ttk-paraview.exe
         asset_name: ttk-paraview-$tag.exe
