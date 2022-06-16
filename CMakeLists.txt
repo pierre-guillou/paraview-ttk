@@ -924,7 +924,7 @@ set(CPACK_PACKAGE_CONTACT "Julien Tierny <julien.tierny@sorbonne-universite.fr>"
 set(CPACK_PACKAGE_VENDOR "CNRS, Sorbonne University and contributors")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://topology-tool-kit.github.io/")
 set(CPACK_DEBIAN_PACKAGE_DEPENDS
-  "qt5-default, qttools5-dev, libqt5x11extras5-dev, qtxmlpatterns5-dev-tools, libqt5svg5-dev, libxt-dev"
+  "qtbase5-dev, qtchooser, qt5-qmake, qtbase5-dev-tools, qttools5-dev, libqt5x11extras5-dev, qtxmlpatterns5-dev-tools, libqt5svg5-dev, libxt-dev"
   )
 set(CPACK_PACKAGE_VERSION_MAJOR ${PARAVIEW_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PARAVIEW_VERSION_MINOR})
