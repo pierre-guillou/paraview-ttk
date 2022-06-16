@@ -19,8 +19,10 @@ jobs:
   # Ubuntu #
   # ------ #
   build-linux:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -211,6 +213,14 @@ jobs:
         tag: ${{ github.ref }}
         file: ttk-paraview-ubuntu-20.04.deb/ttk-paraview.deb
         asset_name: ttk-paraview-$tag-ubuntu-20.04.deb
+
+    - name: Upload Ubuntu Jammy .deb as Release Asset
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        file: ttk-paraview-ubuntu-22.04.deb/ttk-paraview.deb
+        asset_name: ttk-paraview-$tag-ubuntu-22.04.deb
 
     - name: Upload .pkg as Release Asset
       uses: svenstaro/upload-release-action@v2
