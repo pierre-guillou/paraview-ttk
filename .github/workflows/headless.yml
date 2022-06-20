@@ -45,7 +45,7 @@ jobs:
           -DVTK_USE_X=OFF \
           -DVTK_OPENGL_HAS_OSMESA=ON \
           -GNinja \
-          ..
+          $GITHUB_WORKSPACE
 
     - name: Build ParaView
       run: |
@@ -62,6 +62,7 @@ jobs:
       with:
         name: ttk-paraview-headless-${{ matrix.os }}
         path: build/ttk-paraview.deb
+
 
   # ----- #
   # macOS #
@@ -91,7 +92,7 @@ jobs:
           -DPARAVIEW_USE_QT=OFF \
           -DPython3_ROOT_DIR=$(brew --prefix python) \
           -GNinja \
-          ..
+          $GITHUB_WORKSPACE
 
     - name: Build ParaView
       run: |

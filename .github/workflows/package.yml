@@ -1,9 +1,5 @@
-# This is a basic workflow to help you get started with Actions
-
 name: packaging
 
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
 on:
   push:
     branch-ignore:
@@ -18,21 +14,19 @@ jobs:
   # ------ #
   # Ubuntu #
   # ------ #
-  build-linux:
+  build-ubuntu:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
+      name: Checkout TTK-ParaView source code
 
     - name: Install Ubuntu dependencies
       run: |
         sudo apt update
-        # ParaView dependencies
+        # TTK-ParaView dependencies
         sudo apt install -y \
           qtbase5-dev \
           qtchooser \
@@ -47,7 +41,7 @@ jobs:
           ninja-build \
           dpkg-dev
 
-    - name: Configure ParaView build
+    - name: Create & configure ParaView build directory
       run: |
         mkdir build && cd build
         cmake \
@@ -57,12 +51,12 @@ jobs:
           -GNinja \
           $GITHUB_WORKSPACE
 
-    - name: Build patched ParaView
+    - name: Build ParaView
       run: |
         cd build
         cmake --build . --parallel
 
-    - name: Create package
+    - name: Create ParaView package
       run: |
         cd build
         cpack -G DEB
@@ -81,7 +75,7 @@ jobs:
         # replace old package with new
         mv ttk-paraview.deb.new ttk-paraview.deb
 
-    - name: Upload .deb package
+    - name: Upload Debian package
       uses: actions/upload-artifact@v2
       with:
         name: ttk-paraview-${{ matrix.os }}
@@ -95,6 +89,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
+      name: Checkout TTK-ParaView source code
 
     - name: Remove hosted Python
       run: |
@@ -102,10 +97,11 @@ jobs:
 
     - name: Install macOS dependencies
       run: |
+        # ParaView dependencies
         brew install --cask xquartz
         brew install wget libomp mesa glew boost qt@5 ninja python
 
-    - name: Configure ParaView build
+    - name: Create & configure ParaView build directory
       run: |
         mkdir build && cd build
         cmake \
@@ -116,12 +112,12 @@ jobs:
           -GNinja \
           $GITHUB_WORKSPACE
 
-    - name: Build patched ParaView
+    - name: Build ParaView
       run: |
         cd build
         cmake --build . --parallel
 
-    - name: Create package
+    - name: Create ParaView package
       run: |
         cd build
         cpack -G productbuild
@@ -158,7 +154,7 @@ jobs:
       run: |
         rm -rf C:/hostedtoolcache/windows/Python
 
-    - name: Configure ParaView build
+    - name: Create & configure ParaView build directory
       shell: cmd
       run: |
         call "%VCVARS%"
@@ -171,29 +167,33 @@ jobs:
           -GNinja ^
           %GITHUB_WORKSPACE%
 
-    - name: Build patched ParaView
+    - name: Build ParaView
       shell: cmd
       run: |
         call "%VCVARS%"
         cd ..\b
         cmake --build . --config Release --parallel
 
-    - name: Create package
+    - name: Create ParaView package
       shell: bash
       run: |
         cd ../b
         cpack -G NSIS64
         mv ttk-paraview.exe $GITHUB_WORKSPACE
 
-    - name: Upload .exe installer
+    - name: Upload install executable
       uses: actions/upload-artifact@v2
       with:
         name: ttk-paraview-windows
         path: ttk-paraview.exe
 
+
+  # --------------------- #
+  # Upload release assets #
+  # --------------------- #
   create-release:
     runs-on: ubuntu-latest
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-ubuntu, build-macos, build-windows]
     steps:
     - name: Create Release
       id: create_release
