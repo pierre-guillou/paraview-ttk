@@ -119,10 +119,10 @@ jobs:
   # Windows #
   # ------- #
   build-windows:
-    runs-on: windows-2019
+    runs-on: windows-2022
     env:
       CONDA_ROOT: C:\Miniconda
-      VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
+      VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat
 
     steps:
     - uses: actions/checkout@v2
@@ -133,7 +133,7 @@ jobs:
     - name: Install dependencies with conda
       shell: bash
       run: |
-        conda install -c conda-forge qt ninja
+        conda install -c conda-forge qt
 
     - name: Remove hosted Python
       shell: bash
@@ -150,7 +150,7 @@ jobs:
         cmake ^
           -DPython3_ROOT_DIR="%CONDA_ROOT%" ^
           -DCMAKE_BUILD_TYPE=Release ^
-          -GNinja ^
+          -G"Visual Studio 17 2022" ^
           %GITHUB_WORKSPACE%
 
     - name: Build ParaView
