@@ -122,7 +122,6 @@ jobs:
     runs-on: windows-2022
     env:
       CONDA_ROOT: C:\Miniconda
-      VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat
 
     steps:
     - uses: actions/checkout@v2
@@ -143,7 +142,6 @@ jobs:
     - name: Create & configure ParaView build directory
       shell: cmd
       run: |
-        call "%VCVARS%"
         cd ..
         mkdir b
         cd b
@@ -156,7 +154,6 @@ jobs:
     - name: Build ParaView
       shell: cmd
       run: |
-        call "%VCVARS%"
         cd ..\b
         cmake --build . --config Release --parallel
 
