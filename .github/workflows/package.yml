@@ -132,7 +132,7 @@ jobs:
     - name: Install dependencies with conda
       shell: bash
       run: |
-        conda install -c conda-forge qt
+        conda install -c conda-forge "qt>=5.12"
 
     - name: Remove hosted Python
       shell: bash
@@ -142,6 +142,7 @@ jobs:
     - name: Create & configure ParaView build directory
       shell: cmd
       run: |
+        # workaround for NSIS long path issue...
         cd ..
         mkdir b
         cd b
