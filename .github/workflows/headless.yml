@@ -57,17 +57,26 @@ jobs:
       run: |
         cd build
         cpack -G DEB
+        sudo apt install -f ./ttk-paraview.deb
 
-    - name: Test Python modules
+    - name: Test Python VTK module import
       run: |
-        sudo apt install -f ./build/ttk-paraview.deb
-        echo "Testing Python VTK module"
         python3 -m vtk
-        echo "Testing Python paraview.simple module"
+    - name: Test Python paraview.simple module import
+      run: |
         python3 -m paraview.simple
-        echo "Testing pvpython VTK module"
+
+    - name: Set PYTHONPATH for Ubuntu 22.04 pvpython
+      if: matrix.os == 'ubuntu-22.04'
+      run: |
+        # pvpython does not embed the correct PYTHONPATH
+        echo "PYTHONPATH=/usr/lib/python3/dist-packages:$PYTHONPATH" >> $GITHUB_ENV
+
+    - name: Test pvpython VTK module import
+      run: |
         pvpython -m vtk
-        echo "Testing pvpython paraview.simple module"
+    - name: Test pvpython paraview.simple module import
+      run: |
         pvpython -m paraview.simple
 
     - name: Upload Debian package
@@ -109,15 +118,23 @@ jobs:
         cmake --build . --parallel
         sudo cmake --build . --target install
 
-    - name: Test Python modules
+    - name: Test Python VTK module import
       run: |
-        echo "Testing Python VTK module"
         python3 -m vtk
-        echo "Testing Python paraview.simple module"
+    - name: Test Python paraview.simple module import
+      run: |
         python3 -m paraview.simple
-        echo "Testing pvpython VTK module"
+
+    - name: Set PYTHONPATH for pvpython
+      run: |
+        # pvpython does not embed the correct PYTHONPATH
+        echo "PYTHONPATH=/usr/local/lib/python3.10/site-packages:$PYTHONPATH" >> $GITHUB_ENV
+
+    - name: Test pvpython VTK module import
+      run: |
         pvpython -m vtk
-        echo "Testing pvpython paraview.simple module"
+    - name: Test pvpython paraview.simple module import
+      run: |
         pvpython -m paraview.simple
 
     - name: Create ParaView package
