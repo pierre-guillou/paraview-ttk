@@ -1,6 +1,7 @@
 name: build_headless_packages
 
 on:
+  workflow_dispatch:
   push:
     branch-ignore:
       - '*'
