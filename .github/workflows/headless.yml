@@ -110,6 +110,7 @@ jobs:
           -DPARAVIEW_USE_MPI=ON \
           -DPARAVIEW_USE_QT=OFF \
           -DPython3_ROOT_DIR=$(brew --prefix python) \
+          -DPython3_FIND_STRATEGY=VERSION \
           -GNinja \
           $GITHUB_WORKSPACE
 
@@ -129,7 +130,7 @@ jobs:
     - name: Set PYTHONPATH for pvpython
       run: |
         # pvpython does not embed the correct PYTHONPATH
-        echo "PYTHONPATH=/usr/local/lib/python3.10/site-packages:$PYTHONPATH" >> $GITHUB_ENV
+        echo "PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH" >> $GITHUB_ENV
 
     - name: Test pvpython VTK module import
       run: |
