@@ -16,7 +16,6 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include "vtkCamera.h"
 #include "vtkCommand.h"
-#include "vtkDataObject.h"
 #include "vtkHardwareSelector.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderer.h"
@@ -25,6 +24,11 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkVRRenderWindow.h"
 
 vtkStandardNewMacro(vtkVRHardwarePicker);
+
+vtkSelection* vtkVRHardwarePicker::GetSelection()
+{
+  return this->Selection;
+}
 
 // set up for a pick
 void vtkVRHardwarePicker::Initialize()
@@ -71,11 +75,6 @@ int vtkVRHardwarePicker::PickProp(
 
   sel->SetArea(size[0] / 2 - 5, size[1] / 2 - 5, size[0] / 2 + 5, size[1] / 2 + 5);
 
-  if (this->Selection)
-  {
-    this->Selection->Delete();
-  }
-
   this->Selection = nullptr;
   if (sel->CaptureBuffers())
   {
@@ -86,7 +85,8 @@ int vtkVRHardwarePicker::PickProp(
     vtkHardwareSelector::PixelInformation pinfo = sel->GetPixelInformation(inPos, 5, outPos);
     if (pinfo.Valid)
     {
-      this->Selection = sel->GenerateSelection(outPos[0], outPos[1], outPos[0], outPos[1]);
+      this->Selection.TakeReference(
+        sel->GenerateSelection(outPos[0], outPos[1], outPos[0], outPos[1]));
     }
   }
 

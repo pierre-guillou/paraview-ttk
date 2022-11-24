@@ -25,6 +25,7 @@
 #define vtkQWidgetWidget_h
 
 #include "vtkAbstractWidget.h"
+#include "vtkDeprecation.h"        // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkGUISupportQtModule.h" // For export macro
 #include <QPointF>                 // for ivar
 
@@ -75,6 +76,7 @@ public:
    * Set the QWidget that will receive the events.
    */
   void SetWidget(QWidget* w);
+  QWidget* GetWidget() { return this->Widget; }
 
 protected:
   vtkQWidgetWidget();
@@ -82,14 +84,20 @@ protected:
 
   // Manage the state of the widget
   int WidgetState;
-  enum _WidgetState
+  enum WidgetStateType
   {
     Start = 0,
     Active
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef WidgetStateType _WidgetState;
+#endif
 
   QWidget* Widget;
   QPointF LastWidgetCoordinates;
+  QPointF SteadyWidgetCoordinates;
+  double SelectStartTime;
 
   // These methods handle events
   static void SelectAction3D(vtkAbstractWidget*);

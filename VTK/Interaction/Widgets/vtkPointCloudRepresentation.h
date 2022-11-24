@@ -27,6 +27,7 @@
 #ifndef vtkPointCloudRepresentation_h
 #define vtkPointCloudRepresentation_h
 
+#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
 
@@ -116,13 +117,17 @@ public:
   // Enums define the state of the representation relative to the mouse pointer
   // position. Used by ComputeInteractionState() to communicate with the
   // widget.
-  enum _InteractionState
+  enum InteractionStateType
   {
     Outside = 0, // no points nor outline selected
     OverOutline, // mouse is over the bounding box of the point cloud
     Over,        // mouse is over a point
     Selecting    // user has selected the point
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef InteractionStateType _InteractionState;
+#endif
 
   ///@{
   /**
@@ -150,6 +155,7 @@ public:
    * These methods are necessary to make this representation behave as
    * a vtkProp (i.e., support rendering).
    */
+  void GetActors(vtkPropCollection* pc) override;
   void GetActors2D(vtkPropCollection* pc) override;
   int RenderOpaqueGeometry(vtkViewport* viewport) override;
   int RenderTranslucentPolygonalGeometry(vtkViewport* viewport) override;
@@ -174,14 +180,18 @@ public:
    * thousands of points. (See vtkHardwareSelector and vtkPointPicker for
    * further information.) The choice of picker also has implications on the
    * type of tolerancing used (as described in the following documentation).
-   * (Note also that the pickers may return slighty different results, this
+   * (Note also that the pickers may return slightly different results, this
    * is expected due to the different way tolerancing works.)
    */
-  enum _Picking_Mode
+  enum PickingModeType
   {
     HARDWARE_PICKING = 0,
     SOFTWARE_PICKING
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef PickingModeType _Picking_Mode;
+#endif
   vtkSetClampMacro(PickingMode, int, HARDWARE_PICKING, SOFTWARE_PICKING);
   vtkGetMacro(PickingMode, int);
   void SetPickingModeToHardware() { this->SetPickingMode(HARDWARE_PICKING); }

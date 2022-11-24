@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqColorSelectorPropertyWidget_h
-#define _pqColorSelectorPropertyWidget_h
+#ifndef pqColorSelectorPropertyWidget_h
+#define pqColorSelectorPropertyWidget_h
 
 #include "pqApplicationComponentsModule.h"
 
@@ -51,8 +51,8 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqColorSelectorPropertyWidget : public pqPr
 
 public:
   pqColorSelectorPropertyWidget(
-    vtkSMProxy* proxy, vtkSMProperty* property, bool withPalette, QWidget* parent = 0);
+    vtkSMProxy* proxy, vtkSMProperty* property, bool withPalette, QWidget* parent = nullptr);
   ~pqColorSelectorPropertyWidget() override;
 };
 
-#endif // _pqColorSelectorPropertyWidget_h
+#endif // pqColorSelectorPropertyWidget_h

@@ -91,14 +91,14 @@ vtkAxis::vtkAxis()
   this->RangeLabelFormat = "%g";
   this->Notation = vtkAxis::STANDARD_NOTATION;
   this->Behavior = vtkAxis::AUTO;
-  this->Pen = vtkPen::New();
   this->TitleAppended = false;
   this->ScalingFactor = 1.0;
   this->Shift = 0.0;
 
+  this->Pen = vtkSmartPointer<vtkPen>::New();
   this->Pen->SetColor(0, 0, 0);
   this->Pen->SetWidth(1.0);
-  this->GridPen = vtkPen::New();
+  this->GridPen = vtkSmartPointer<vtkPen>::New();
   this->GridPen->SetColor(242, 242, 242);
   this->GridPen->SetWidth(1.0);
   this->TickPositions = vtkSmartPointer<vtkDoubleArray>::New();
@@ -118,8 +118,6 @@ vtkAxis::~vtkAxis()
 {
   this->TitleProperties->Delete();
   this->LabelProperties->Delete();
-  this->Pen->Delete();
-  this->GridPen->Delete();
 }
 
 void vtkAxis::SetPosition(int position)
@@ -383,8 +381,8 @@ bool vtkAxis::Paint(vtkContext2D* painter)
     vtkStdString maxString =
       this->GenerateSprintfLabel(this->UnscaledMaximum, this->RangeLabelFormat);
 
-    painter->ComputeJustifiedStringBounds(minString, minLabelBounds);
-    painter->ComputeJustifiedStringBounds(maxString, maxLabelBounds);
+    painter->ComputeJustifiedStringBounds(minString.c_str(), minLabelBounds);
+    painter->ComputeJustifiedStringBounds(maxString.c_str(), maxLabelBounds);
 
     float minLabelShift[2] = { 0, 0 };
     float maxLabelShift[2] = { 0, 0 };
@@ -460,7 +458,7 @@ bool vtkAxis::Paint(vtkContext2D* painter)
       if (this->LabelsVisible)
       {
         float bounds[4];
-        painter->ComputeJustifiedStringBounds(tickLabel[i], bounds);
+        painter->ComputeJustifiedStringBounds(tickLabel[i].c_str(), bounds);
         float pos[2] = { this->Point1[0] + labelOffset, tickPos[i] };
         bounds[0] += pos[0];
         bounds[1] += pos[1];
@@ -494,7 +492,7 @@ bool vtkAxis::Paint(vtkContext2D* painter)
       if (this->LabelsVisible)
       {
         float bounds[4];
-        painter->ComputeJustifiedStringBounds(tickLabel[i], bounds);
+        painter->ComputeJustifiedStringBounds(tickLabel[i].c_str(), bounds);
         float pos[2] = { tickPos[i], this->Point1[1] + labelOffset };
         bounds[0] += pos[0];
         bounds[1] += pos[1];
@@ -1021,7 +1019,7 @@ vtkRectf vtkAxis::GetBoundingRect(vtkContext2D* painter)
 
   // Then, if there is an axis label, add that in.
   vtkRectf titleBounds(0, 0, 0, 0);
-  if (this->Title && !this->Title.empty())
+  if (!this->Title.empty())
   {
     painter->ApplyTextProp(this->TitleProperties);
     painter->ComputeStringBounds(this->Title, titleBounds.GetData());
@@ -1136,7 +1134,7 @@ void vtkAxis::UpdateLogScaleActive(bool alwaysUpdateMinMaxFromUnscaled)
 //------------------------------------------------------------------------------
 void vtkAxis::GenerateTickLabels(double min, double max)
 {
-  if (this->CustomTickLabels == true)
+  if (this->CustomTickLabels)
   {
     // Never generate new tick labels if custom tick labels are being used.
     return;
@@ -1875,25 +1873,14 @@ inline bool vtkAxis::InRange(double value)
     min = max;
     max = this->Minimum;
   }
-  if (value < min || value > max)
-  {
-    return false;
-  }
-  else
-  {
-    return true;
-  }
+  return min <= value && value <= max;
 }
 
 //------------------------------------------------------------------------------
 void vtkAxis::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  if (this->Title)
-  {
-    os << indent << "Title: \"" << *this->Title << "\""
-       << "\n";
-  }
+  os << indent << "Title: \"" << this->Title << "\"\n";
   os << indent << "Point1: " << this->Point1[0] << ", " << this->Point1[1] << "\n";
   os << indent << "Point2: " << this->Point2[0] << ", " << this->Point2[1] << "\n";
   os << indent << "Minimum: " << this->Minimum << "\n";

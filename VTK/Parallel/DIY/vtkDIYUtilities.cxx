@@ -18,7 +18,6 @@
 #include "vtkArrayDispatch.h"
 #include "vtkBoundingBox.h"
 #include "vtkCellCenters.h"
-#include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataSet.h"
 #include "vtkDataArray.h"
 #include "vtkDataObjectTypes.h"
@@ -28,11 +27,10 @@
 #include "vtkLogger.h"
 #include "vtkMultiProcessController.h"
 #include "vtkNew.h"
-#include "vtkObjectFactory.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkRectilinearGridToPointSet.h"
+#include "vtkSOADataArrayTemplate.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkXMLDataObjectWriter.h"
@@ -61,11 +59,38 @@ struct SaveArrayWorker
   template <class ArrayT>
   void operator()(ArrayT* array)
   {
-    using ValueType = typename ArrayT::ValueType;
+    using ValueType = vtk::GetAPIType<ArrayT>;
+    ValueType* data(nullptr);
+    if (array->HasStandardMemoryLayout())
+    {
+      // get the void pointer, this is OK for standard memory layout
+      data = static_cast<ValueType*>(array->GetVoidPointer(0));
+    }
+    else
+    {
+      // create a temporary data array for saving.
+      data = new ValueType[array->GetNumberOfValues()];
 
-    const ValueType* data = array->GetPointer(0);
+      const auto range = vtk::DataArrayTupleRange(array);
+      using ConstTupleRef = typename decltype(range)::ConstTupleReferenceType;
+      using ComponentType = typename decltype(range)::ComponentType;
+
+      vtkIdType i(0);
+      for (ConstTupleRef tpl : range)
+      {
+        for (ComponentType comp : tpl)
+        {
+          data[i++] = comp;
+        }
+      }
+      assert(i == array->GetNumberOfValues());
+    }
 
     diy::save(this->BB, data, array->GetNumberOfValues());
+    if (!array->HasStandardMemoryLayout())
+    {
+      delete[] data;
+    }
   }
 
   diy::BinaryBuffer& BB;
@@ -79,10 +104,10 @@ struct LoadArrayWorker
   {
   }
 
-  template <class ArrayT>
+  template <typename ArrayT>
   void operator()(ArrayT* array)
   {
-    using ValueType = typename ArrayT::ValueType;
+    using ValueType = vtk::GetAPIType<ArrayT>;
 
     int numberOfComponents;
     vtkIdType numberOfTuples;
@@ -95,8 +120,40 @@ struct LoadArrayWorker
     array->SetNumberOfTuples(numberOfTuples);
     array->SetName(name.c_str());
 
-    ValueType* data = array->GetPointer(0);
+    ValueType* data(nullptr);
+    if (array->HasStandardMemoryLayout())
+    {
+      // get the void pointer, this is OK for standard memory layout
+      data = static_cast<ValueType*>(array->GetVoidPointer(0));
+    }
+    else
+    {
+      // create a temporary array for loading
+      data = new ValueType[numberOfComponents * numberOfTuples];
+    }
+
     diy::load(this->BB, data, array->GetNumberOfValues());
+
+    if (!array->HasStandardMemoryLayout())
+    {
+      // read the data into the non-standard array.
+      auto range = vtk::DataArrayTupleRange(array);
+
+      using TupleRef = typename decltype(range)::TupleReferenceType;
+      using ComponentRef = typename decltype(range)::ComponentReferenceType;
+
+      vtkIdType i(0);
+      for (TupleRef tpl : range)
+      {
+        for (ComponentRef comp : tpl)
+        {
+          comp = data[i++];
+        }
+      }
+
+      assert(i == numberOfComponents * numberOfTuples);
+      delete[] data;
+    }
   }
 
   diy::BinaryBuffer& BB;
@@ -176,15 +233,15 @@ void vtkDIYUtilities::AllReduce(diy::mpi::communicator& comm, vtkBoundingBox& bb
   if (comm.size() > 1)
   {
     std::vector<double> local_minpoint(3), local_maxpoint(3);
-    bbox.GetMinPoint(&local_minpoint[0]);
-    bbox.GetMaxPoint(&local_maxpoint[0]);
+    bbox.GetMinPoint(local_minpoint.data());
+    bbox.GetMaxPoint(local_maxpoint.data());
 
     std::vector<double> global_minpoint(3), global_maxpoint(3);
     diy::mpi::all_reduce(comm, local_minpoint, global_minpoint, diy::mpi::minimum<float>());
     diy::mpi::all_reduce(comm, local_maxpoint, global_maxpoint, diy::mpi::maximum<float>());
 
-    bbox.SetMinPoint(&global_minpoint[0]);
-    bbox.SetMaxPoint(&global_maxpoint[0]);
+    bbox.SetMinPoint(global_minpoint.data());
+    bbox.SetMaxPoint(global_maxpoint.data());
   }
 }
 
@@ -210,7 +267,10 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkDataArray* array)
     }
 
     SaveArrayWorker worker(bb);
-    vtkArrayDispatch::Dispatch::Execute(array, worker);
+    if (!vtkArrayDispatch::Dispatch::Execute(array, worker))
+    {
+      worker(array);
+    }
   }
 }
 
@@ -248,7 +308,7 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkFieldData* fd)
 {
   if (!fd)
   {
-    diy::save(bb, 0);
+    diy::save(bb, static_cast<int>(0));
   }
   else
   {
@@ -258,12 +318,12 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkFieldData* fd)
       vtkAbstractArray* aa = fd->GetAbstractArray(id);
       if (auto da = vtkArrayDownCast<vtkDataArray>(aa))
       {
-        diy::save(bb, 0); // vtkDataArray flag
+        diy::save(bb, static_cast<int>(0)); // vtkDataArray flag
         vtkDIYUtilities::Save(bb, da);
       }
       else if (auto sa = vtkArrayDownCast<vtkStringArray>(aa))
       {
-        diy::save(bb, 1); // vtkStringArray flag
+        diy::save(bb, static_cast<int>(1)); // vtkStringArray flag
         vtkDIYUtilities::Save(bb, sa);
       }
       else
@@ -317,7 +377,11 @@ void vtkDIYUtilities::Load(diy::BinaryBuffer& bb, vtkDataArray*& array)
   {
     array = vtkArrayDownCast<vtkDataArray>(vtkAbstractArray::CreateArray(type));
     LoadArrayWorker worker(bb);
-    vtkArrayDispatch::Dispatch::Execute(array, worker);
+
+    if (!vtkArrayDispatch::Dispatch::Execute(array, worker))
+    {
+      worker(array);
+    }
   }
 }
 
@@ -391,7 +455,7 @@ void vtkDIYUtilities::Load(diy::BinaryBuffer& bb, vtkFieldData*& fd)
           break;
         }
         default:
-          vtkLog(ERROR, "Error while receiving array: wrong flag.");
+          vtkLog(ERROR, "Error while receiving array: wrong flag: " << flag << ".");
           break;
       }
       if (aa)

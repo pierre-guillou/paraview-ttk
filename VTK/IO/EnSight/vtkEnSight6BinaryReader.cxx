@@ -151,7 +151,7 @@ int vtkEnSight6BinaryReader::ReadGeometryFile(
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to geometry file: " << sfilename.c_str());
+    vtkDebugMacro("full path to geometry file: " << sfilename);
   }
   else
   {
@@ -160,7 +160,7 @@ int vtkEnSight6BinaryReader::ReadGeometryFile(
 
   if (this->OpenFile(sfilename.c_str()) == 0)
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     return 0;
   }
 
@@ -737,7 +737,7 @@ int vtkEnSight6BinaryReader::ReadMeasuredGeometryFile(
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to measured geometry file: " << sfilename.c_str());
+    vtkDebugMacro("full path to measured geometry file: " << sfilename);
   }
   else
   {
@@ -746,7 +746,7 @@ int vtkEnSight6BinaryReader::ReadMeasuredGeometryFile(
 
   if (this->OpenFile(sfilename.c_str()) == 0)
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     points->Delete();
     pd->Delete();
     return 0;
@@ -890,7 +890,7 @@ int vtkEnSight6BinaryReader::ReadScalarsPerNode(const char* fileName, const char
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to scalar per node file: " << sfilename.c_str());
+    vtkDebugMacro("full path to scalar per node file: " << sfilename);
   }
   else
   {
@@ -899,7 +899,7 @@ int vtkEnSight6BinaryReader::ReadScalarsPerNode(const char* fileName, const char
 
   if (this->OpenFile(sfilename.c_str()) == 0)
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     return 0;
   }
 
@@ -1146,7 +1146,7 @@ int vtkEnSight6BinaryReader::ReadVectorsPerNode(const char* fileName, const char
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to vector per node file: " << sfilename.c_str());
+    vtkDebugMacro("full path to vector per node file: " << sfilename);
   }
   else
   {
@@ -1155,7 +1155,7 @@ int vtkEnSight6BinaryReader::ReadVectorsPerNode(const char* fileName, const char
 
   if (this->OpenFile(sfilename.c_str()) == 0)
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     return 0;
   }
 
@@ -1233,6 +1233,7 @@ int vtkEnSight6BinaryReader::ReadVectorsPerNode(const char* fileName, const char
     vectors = vtkFloatArray::New();
     vectors->SetNumberOfTuples(numPts);
     vectors->SetNumberOfComponents(3);
+    vectors->SetName(description);
     vectors->Allocate(numPts * 3);
     vectorsRead = new float[numPts * 3];
     this->ReadFloatArray(vectorsRead, numPts * 3);
@@ -1250,17 +1251,18 @@ int vtkEnSight6BinaryReader::ReadVectorsPerNode(const char* fileName, const char
       {
         partId = this->UnstructuredPartIds->GetId(i);
         output = this->GetDataSetFromBlock(compositeOutput, partId);
-        vectors->SetName(description);
-        output->GetPointData()->AddArray(vectors);
-        if (!output->GetPointData()->GetVectors())
+        if (output)
         {
-          output->GetPointData()->SetVectors(vectors);
+          output->GetPointData()->AddArray(vectors);
+          if (!output->GetPointData()->GetVectors())
+          {
+            output->GetPointData()->SetVectors(vectors);
+          }
         }
       }
     }
     else
     {
-      vectors->SetName(description);
       output = this->GetDataSetFromBlock(compositeOutput, this->NumberOfGeometryParts);
       output->GetPointData()->AddArray(vectors);
       if (!output->GetPointData()->GetVectors())
@@ -1285,6 +1287,7 @@ int vtkEnSight6BinaryReader::ReadVectorsPerNode(const char* fileName, const char
     vectors = vtkFloatArray::New();
     vectors->SetNumberOfTuples(numPts);
     vectors->SetNumberOfComponents(3);
+    vectors->SetName(description);
     vectors->Allocate(numPts * 3);
     vectorsRead = new float[numPts * 3];
 
@@ -1297,7 +1300,6 @@ int vtkEnSight6BinaryReader::ReadVectorsPerNode(const char* fileName, const char
       vectors->InsertTuple(i, vector);
     }
 
-    vectors->SetName(description);
     output->GetPointData()->AddArray(vectors);
     if (!output->GetPointData()->GetVectors())
     {
@@ -1352,7 +1354,7 @@ int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to tensor symm per node file: " << sfilename.c_str());
+    vtkDebugMacro("full path to tensor symm per node file: " << sfilename);
   }
   else
   {
@@ -1361,7 +1363,7 @@ int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char
 
   if (this->OpenFile(sfilename.c_str()) == 0)
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     return 0;
   }
 
@@ -1422,6 +1424,7 @@ int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char
     tensors = vtkFloatArray::New();
     tensors->SetNumberOfTuples(numPts);
     tensors->SetNumberOfComponents(6);
+    tensors->SetName(description);
     tensors->Allocate(numPts * 6);
     tensorsRead = new float[numPts * 6];
     this->ReadFloatArray(tensorsRead, numPts * 6);
@@ -1439,8 +1442,11 @@ int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char
     for (i = 0; i < this->UnstructuredPartIds->GetNumberOfIds(); i++)
     {
       partId = this->UnstructuredPartIds->GetId(i);
-      tensors->SetName(description);
-      this->GetDataSetFromBlock(compositeOutput, partId)->GetPointData()->AddArray(tensors);
+      output = this->GetDataSetFromBlock(compositeOutput, partId);
+      if (output)
+      {
+        output->GetPointData()->AddArray(tensors);
+      }
     }
     tensors->Delete();
     delete[] tensorsRead;
@@ -1458,6 +1464,7 @@ int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char
     tensors = vtkFloatArray::New();
     tensors->SetNumberOfTuples(numPts);
     tensors->SetNumberOfComponents(6);
+    tensors->SetName(description);
     tensors->Allocate(numPts * 6);
     tensorsRead = new float[numPts * 6];
     this->ReadFloatArray(tensorsRead, numPts * 6);
@@ -1473,7 +1480,6 @@ int vtkEnSight6BinaryReader::ReadTensorsPerNode(const char* fileName, const char
       tensors->InsertTuple(i, tensor);
     }
 
-    tensors->SetName(description);
     output->GetPointData()->AddArray(tensors);
     tensors->Delete();
     delete[] tensorsRead;
@@ -1515,7 +1521,7 @@ int vtkEnSight6BinaryReader::ReadScalarsPerElement(const char* fileName, const c
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to scalar per element file: " << sfilename.c_str());
+    vtkDebugMacro("full path to scalar per element file: " << sfilename);
   }
   else
   {
@@ -1524,7 +1530,7 @@ int vtkEnSight6BinaryReader::ReadScalarsPerElement(const char* fileName, const c
 
   if (this->OpenFile(sfilename.c_str()) == 0)
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     return 0;
   }
 
@@ -1707,7 +1713,7 @@ int vtkEnSight6BinaryReader::ReadVectorsPerElement(const char* fileName, const c
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to vector per element file: " << sfilename.c_str());
+    vtkDebugMacro("full path to vector per element file: " << sfilename);
   }
   else
   {
@@ -1716,7 +1722,7 @@ int vtkEnSight6BinaryReader::ReadVectorsPerElement(const char* fileName, const c
 
   if (this->OpenFile(sfilename.c_str()) == 0)
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     return 0;
   }
 
@@ -1795,6 +1801,7 @@ int vtkEnSight6BinaryReader::ReadVectorsPerElement(const char* fileName, const c
     lineRead = this->ReadLine(line); // element type or "block"
     vectors->SetNumberOfTuples(numCells);
     vectors->SetNumberOfComponents(3);
+    vectors->SetName(description);
     vectors->Allocate(numCells * 3);
 
     // need to find out from CellIds how many cells we have of this element
@@ -1841,7 +1848,6 @@ int vtkEnSight6BinaryReader::ReadVectorsPerElement(const char* fileName, const c
       delete[] vectorsRead;
       lineRead = this->ReadLine(line);
     }
-    vectors->SetName(description);
     output->GetCellData()->AddArray(vectors);
     if (!output->GetCellData()->GetVectors())
     {
@@ -1894,7 +1900,7 @@ int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const c
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to tensor per element file: " << sfilename.c_str());
+    vtkDebugMacro("full path to tensor per element file: " << sfilename);
   }
   else
   {
@@ -1903,7 +1909,7 @@ int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const c
 
   if (this->OpenFile(sfilename.c_str()) == 0)
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     return 0;
   }
 
@@ -1984,6 +1990,7 @@ int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const c
     lineRead = this->ReadLine(line); // element type or "block"
     tensors->SetNumberOfTuples(numCells);
     tensors->SetNumberOfComponents(6);
+    tensors->SetName(description);
     tensors->Allocate(numCells * 6);
 
     // need to find out from CellIds how many cells we have of this element
@@ -2038,7 +2045,6 @@ int vtkEnSight6BinaryReader::ReadTensorsPerElement(const char* fileName, const c
       delete[] tensorsRead;
       lineRead = this->ReadLine(line);
     }
-    tensors->SetName(description);
     output->GetCellData()->AddArray(tensors);
     tensors->Delete();
   }

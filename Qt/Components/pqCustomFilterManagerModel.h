@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * \date 6/23/2006
  */
 
-#ifndef _pqCustomFilterManagerModel_h
-#define _pqCustomFilterManagerModel_h
+#ifndef pqCustomFilterManagerModel_h
+#define pqCustomFilterManagerModel_h
 
 #include "pqComponentsModule.h"
 #include <QAbstractListModel>
@@ -60,7 +60,7 @@ class PQCOMPONENTS_EXPORT pqCustomFilterManagerModel : public QAbstractListModel
   Q_OBJECT
 
 public:
-  pqCustomFilterManagerModel(QObject* parent = 0);
+  pqCustomFilterManagerModel(QObject* parent = nullptr);
   ~pqCustomFilterManagerModel() override;
 
   /**
@@ -133,7 +133,7 @@ public:
   QModelIndex getIndexFor(const QString& filter) const;
   //@}
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * \brief
    *   Adds a new custom filter definition to the model.

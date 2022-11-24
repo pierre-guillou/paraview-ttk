@@ -70,6 +70,7 @@ set(classes
   pqProgressWidget
   pqQuickLaunchDialog
   pqScaleByButton
+  pqScaledSpinBox
   pqSectionVisibilityContextMenu
   pqSeriesGeneratorDialog
   pqSetData
@@ -88,7 +89,17 @@ set(classes
   pqTreeWidgetItemObject
   pqTreeWidgetSelectionHelper
   pqVectorWidget
-  pqWaitCursor)
+  pqWaitCursor
+  pqWidgetsInit)
+
+set(headers)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/pqQtWidgetsConfig.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/pqQtWidgetsConfig.h"
+  @ONLY)
+list(APPEND headers
+  "${CMAKE_CURRENT_BINARY_DIR}/pqQtWidgetsConfig.h")
 
 set(qt_components
   Core
@@ -135,11 +146,7 @@ source_group("Resources" FILES
   ${ui_files}
   ${resource_files})
 
-##########################################################################
-# import Qt build settings
-set(${vtk-module}_NO_HeaderTest 1)
-
-set(headers
+list(APPEND headers
   pqQtDeprecated.h
 )
 
@@ -160,6 +167,7 @@ vtk_module_link(ParaView::pqWidgets
     Qt5::Widgets
   PRIVATE
     Qt5::Network)
+vtk_module_definitions(ParaView::pqWidgets PRIVATE QT_NO_KEYWORDS)
 
 if (APPLE)
   vtk_module_link(ParaView::pqWidgets

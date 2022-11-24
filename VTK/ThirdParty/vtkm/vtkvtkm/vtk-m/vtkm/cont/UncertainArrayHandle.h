@@ -10,6 +10,7 @@
 #ifndef vtk_m_cont_UncertainArrayHandle_h
 #define vtk_m_cont_UncertainArrayHandle_h
 
+#include <vtkm/cont/CastAndCall.h>
 #include <vtkm/cont/UnknownArrayHandle.h>
 
 namespace vtkm
@@ -62,8 +63,6 @@ public:
   {
   }
 
-  UncertainArrayHandle(const Thisclass&) = default;
-
   template <typename OtherValues, typename OtherStorage>
   VTKM_CONT UncertainArrayHandle(const UncertainArrayHandle<OtherValues, OtherStorage>& src)
     : Superclass(src)
@@ -107,6 +106,21 @@ public:
     this->CastAndCallForTypes<ValueTypeList, StorageTypeList>(std::forward<Functor>(functor),
                                                               std::forward<Args>(args)...);
   }
+
+  /// \brief Call a functor using the underlying array type with a float cast fallback.
+  ///
+  /// `CastAndCallWithFloatFallback` attempts to cast the held array to a specific value type,
+  /// and then calls the given functor with the cast array. If the underlying array
+  /// does not match any of the requested array types, the array is copied to a new
+  /// `ArrayHandleBasic` with `FloatDefault` components in its value and attempts to
+  /// cast to those types.
+  ///
+  template <typename Functor, typename... Args>
+  VTKM_CONT void CastAndCallWithFloatFallback(Functor&& functor, Args&&... args) const
+  {
+    this->template CastAndCallForTypesWithFloatFallback<ValueTypeList, StorageTypeList>(
+      std::forward<Functor>(functor), std::forward<Args>(args)...);
+  }
 };
 
 // Defined here to avoid circular dependencies between UnknownArrayHandle and UncertainArrayHandle.
@@ -143,10 +157,7 @@ namespace cont
 template <typename ValueTypeList, typename StorageTypeList>
 struct SerializableTypeString<vtkm::cont::UncertainArrayHandle<ValueTypeList, StorageTypeList>>
 {
-  static VTKM_CONT std::string Get()
-  {
-    return SerializableTypeString<vtkm::cont::UnknownArrayHandle>::Get();
-  }
+  static VTKM_CONT std::string Get() { return "UncertainAH"; }
 };
 }
 } // namespace vtkm::cont
@@ -208,7 +219,7 @@ public:
 
     bool success = false;
     vtkm::ListForEach(internal::UncertainArrayHandleDeserializeFunctor{},
-                      vtkm::cont::detail::ListAllArrayTypes<ValueTypeList, StorageTypeList>{},
+                      vtkm::cont::internal::ListAllArrayTypes<ValueTypeList, StorageTypeList>{},
                       obj,
                       typeString,
                       success,

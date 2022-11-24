@@ -308,7 +308,7 @@ PointDataType vtkOpenGLPointGaussianMapperHelperGetComponent(
     component = 0;
   }
 
-  // If we request a non-existing componeent, return the magnitude of the tuple
+  // If we request a non-existing component, return the magnitude of the tuple
   PointDataType compVal = 0.0;
   if (component < 0 || component >= nComponent)
   {
@@ -507,14 +507,7 @@ void vtkOpenGLPointGaussianMapperHelper::BuildBufferObjects(
   bool hasScaleArray = this->Owner->GetScaleArray() != nullptr &&
     poly->GetPointData()->HasArray(this->Owner->GetScaleArray());
 
-  if (this->Owner->GetScaleFactor() == 0.0)
-  {
-    this->UsingPoints = true;
-  }
-  else
-  {
-    this->UsingPoints = false;
-  }
+  this->UsingPoints = this->Owner->GetScaleFactor() == 0.0;
 
   // if we have an opacity array then get it and if we have
   // a ScalarOpacityFunction map the array through it

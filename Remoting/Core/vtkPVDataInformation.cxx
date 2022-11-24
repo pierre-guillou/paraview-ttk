@@ -12,6 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
+
 #include "vtkPVDataInformation.h"
 
 #include "vtkAlgorithm.h"
@@ -39,6 +43,7 @@
 #include "vtkHyperTreeGrid.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
+#include "vtkLegacy.h"
 #include "vtkMath.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
@@ -175,7 +180,7 @@ vtkPVDataInformation::~vtkPVDataInformation()
 void vtkPVDataInformation::CopyParametersToStream(vtkMultiProcessStream& str)
 {
   str << 828792 << this->PortNumber << std::string(this->SubsetSelector ? SubsetSelector : "")
-      << std::string(this->SubsetAssemblyName ? this->SubsetAssemblyName : "");
+      << std::string(this->SubsetAssemblyName ? this->SubsetAssemblyName : "") << this->Rank;
 }
 
 //----------------------------------------------------------------------------
@@ -183,7 +188,7 @@ void vtkPVDataInformation::CopyParametersFromStream(vtkMultiProcessStream& str)
 {
   int magic_number;
   std::string path, name;
-  str >> magic_number >> this->PortNumber >> path >> name;
+  str >> magic_number >> this->PortNumber >> path >> name >> this->Rank;
   if (magic_number != 828792)
   {
     vtkErrorMacro("Magic number mismatch.");
@@ -200,6 +205,7 @@ void vtkPVDataInformation::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
 
   os << indent << "PortNumber: " << this->PortNumber << endl;
+  os << indent << "Rank: " << this->Rank << endl;
   os << indent << "SubsetSelector: " << (this->SubsetSelector ? this->SubsetSelector : "(nullptr)")
      << endl;
   os << indent << "SubsetAssemblyName: "
@@ -579,9 +585,8 @@ void vtkPVDataInformation::CopyFromDataObject(vtkDataObject* dobj)
     this->NumberOfTrees = htg->GetMaxNumberOfTrees();
     this->NumberOfLeaves = htg->GetNumberOfLeaves();
 
-    // I don't understand this clunkiness; why doesn't HTG return number of
-    // vertices when GetNumberOfElements(vtkDataObject::VERTEX) is called? Oh well.
-    this->NumberOfElements[vtkDataObject::VERTEX] = htg->GetNumberOfVertices();
+    htg->GetBounds(this->Bounds);
+    htg->GetExtent(this->Extent);
   }
 }
 
@@ -593,7 +598,7 @@ void vtkPVDataInformation::AddInformation(vtkPVInformation* oinfo)
   {
     return;
   }
-  if (this->DataSetType == -1)
+  if (this->CompositeDataSetType == -1 && this->DataSetType == -1)
   {
     this->DeepCopy(other);
     return;
@@ -852,6 +857,7 @@ bool vtkPVDataInformation::HasDataSetType(int typeId) const
   {
     for (auto& leafType : this->UniqueBlockTypes)
     {
+      // NOLINTNEXTLINE(readability-suspicious-call-argument)
       if (vtkDataObjectTypes::TypeIdIsA(leafType, typeId))
       {
         return true;
@@ -949,8 +955,7 @@ bool vtkPVDataInformation::IsAttributeValid(int fieldAssociation) const
           vtkDataObjectTypes::TypeIdIsA(dtype, VTK_HYPER_TREE_GRID);
 
       case vtkDataObject::FIELD_ASSOCIATION_VERTICES:
-        return vtkDataObjectTypes::TypeIdIsA(dtype, VTK_GRAPH) ||
-          vtkDataObjectTypes::TypeIdIsA(dtype, VTK_HYPER_TREE_GRID);
+        return vtkDataObjectTypes::TypeIdIsA(dtype, VTK_GRAPH);
 
       case vtkDataObject::FIELD_ASSOCIATION_EDGES:
         return vtkDataObjectTypes::TypeIdIsA(dtype, VTK_GRAPH);
@@ -1349,7 +1354,6 @@ unsigned int vtkPVDataInformation::ComputeCompositeIndexForAMR(
 }
 
 //============================================================================
-#if !defined(VTK_LEGACY_REMOVE)
 vtkTypeUInt64 vtkPVDataInformation::GetPolygonCount()
 {
   VTK_LEGACY_REPLACED_BODY(
@@ -1406,5 +1410,3 @@ void vtkPVDataInformation::RegisterHelper(const char*, const char*)
 {
   VTK_LEGACY_BODY(vtkPVDataInformation::RegisterHelper, "ParaView 5.10");
 }
-
-#endif

@@ -34,6 +34,7 @@
 #include "vtkvpic/VPICView.h"
 
 vtkStandardNewMacro(vtkVPICReader);
+vtkCxxSetObjectMacro(vtkVPICReader, MPIController, vtkMultiProcessController);
 
 //------------------------------------------------------------------------------
 // Constructor for VPIC Reader
@@ -78,7 +79,8 @@ vtkVPICReader::vtkVPICReader()
   this->YLayout[1] = -1;
   this->ZLayout[1] = -1;
 
-  this->MPIController = vtkMultiProcessController::GetGlobalController();
+  this->MPIController = nullptr;
+  this->SetMPIController(vtkMultiProcessController::GetGlobalController());
 
   if (this->MPIController)
   {
@@ -130,9 +132,7 @@ vtkVPICReader::~vtkVPICReader()
 
   this->SelectionObserver->Delete();
 
-  // Do not delete the MPIController it is Singleton like and will
-  // cleanup itself;
-  this->MPIController = nullptr;
+  this->SetMPIController(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -248,7 +248,7 @@ int vtkVPICReader::RequestInformation(vtkInformation* vtkNotUsed(reqInfo),
   // Repartition only has to be done when the stride changes
   // To handle the loading for the very first time, vpicData stride is set
   // to 0 so that by setting to the default of 1, the partition has be to done
-  if (this->vpicData->needsGridCalculation() == true)
+  if (this->vpicData->needsGridCalculation())
   {
 
     // If grid is recalculated all data must be realoaded

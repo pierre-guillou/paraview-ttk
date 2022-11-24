@@ -46,12 +46,16 @@
 #include VTK_IOSS(Ioss_Region.h)
 #include VTK_IOSS(Ioss_Transform.h)
 #include VTK_IOSS(Ioss_StructuredBlock.h)
+#include VTK_IOSS(Ioss_SideSet.h)
+#include VTK_IOSS(Ioss_SideBlock.h)
 // clang-format on
 
 #include <cassert>
 #include <set>
 
 class vtkCellArray;
+class vtkDataSet;
+
 namespace vtkIOSSUtilities
 {
 
@@ -97,6 +101,27 @@ private:
 
   class CacheInternals;
   CacheInternals* Internals;
+};
+
+/**
+ * A helper to instantiate on stack to temporarily redirect non-critical messages
+ * emanating from IOSS. See paraview/paraview#21193
+ */
+class CaptureNonErrorMessages
+{
+public:
+  CaptureNonErrorMessages();
+  ~CaptureNonErrorMessages();
+
+  /**
+   * Provides access to the accumulated messages.
+   */
+  std::string GetMessages() const;
+
+private:
+  std::ostringstream Stream;
+  std::ostream* DebugStream;
+  std::ostream* WarningStream;
 };
 
 using EntityNameType = std::pair<vtkTypeUInt64, std::string>;
@@ -147,6 +172,13 @@ void GetEntityAndFieldNames(const Ioss::Region* region, const std::vector<Entity
       attributeNames.begin(), attributeNames.end(), std::inserter(field_names, field_names.end()));
   }
 }
+/**
+ * Specialization for Ioss::SideSet (see paraview/paraview#21231).
+ */
+template <>
+void GetEntityAndFieldNames<Ioss::SideSet>(const Ioss::Region* region,
+  const std::vector<Ioss::SideSet*>& entities, std::set<EntityNameType>& entity_names,
+  std::set<std::string>& field_names);
 
 /**
  * For the given vtkIOSSReader::EntityType return the corresponding
@@ -186,6 +218,15 @@ vtkSmartPointer<vtkDataArray> GetData(const Ioss::GroupingEntity* entity,
 int GetCellType(const Ioss::ElementTopology* topology);
 
 /**
+ * Returns an Ioss topology element, if possible, given a VTK cell type.
+ *
+ * This is inverse of GetCellType.
+ *
+ * Throws `std::runtime_error` for unknown and unsupported element types.
+ */
+const Ioss::ElementTopology* GetElementTopology(int vtk_cell_type);
+
+/**
  * Read connectivity information from the group_entity.
  *
  * Returns the `vtkCellArray` and the element type for all elements in this
@@ -214,10 +255,13 @@ vtkSmartPointer<vtkPoints> GetMeshModelCoordinates(
  */
 bool IsFieldTransient(Ioss::GroupingEntity* entity, const std::string& fieldname);
 
+///@{
 /**
  * Finds a displacement field name. Returns empty string if none can be found.
  */
 std::string GetDisplacementFieldName(Ioss::GroupingEntity* nodeblock);
+std::string GetDisplacementFieldName(vtkDataSet* dataset);
+///@}
 
 /**
  * Must be called before using any Ioss library functions. Necessary to

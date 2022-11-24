@@ -22,13 +22,14 @@
 #include <pqNodeEditorUtils.h>
 
 #include <pqProxy.h>
+
 #include <vtkSMProxy.h>
 
 #include <chrono>
 #include <iostream>
 
 // ----------------------------------------------------------------------------
-int pqNodeEditorUtils::getID(pqProxy* proxy)
+vtkIdType pqNodeEditorUtils::getID(pqProxy* proxy)
 {
   if (proxy == nullptr)
   {
@@ -47,22 +48,4 @@ std::string pqNodeEditorUtils::getLabel(pqProxy* proxy)
   }
 
   return proxy->getSMName().toStdString() + "<" + std::to_string(getID(proxy)) + ">";
-};
-
-// ----------------------------------------------------------------------------
-unsigned long pqNodeEditorUtils::getTimeDelta()
-{
-  using namespace std::chrono;
-  static unsigned long t0 = 0;
-
-  unsigned long t1 = high_resolution_clock::now().time_since_epoch().count();
-  unsigned long delta = t1 - t0;
-  t0 = t1;
-  return delta;
-};
-
-// ----------------------------------------------------------------------------
-bool pqNodeEditorUtils::isDoubleClick()
-{
-  return getTimeDelta() < pqNodeEditorUtils::CONSTS::DOUBLE_CLICK_DELAY;
 };

@@ -73,6 +73,7 @@ vtkAnimateModes::vtkAnimateModes()
   , ModeShapesRange{ 1, 1 }
   , ModeShape{ 1 }
   , DisplacementMagnitude{ 1.0 }
+  , DisplacementPreapplied(false)
   , TimeRange{ 0.0, 1.0 }
 {
   // the displacement array
@@ -94,7 +95,7 @@ int vtkAnimateModes::RequestInformation(
   {
     const auto length = inInfo->Length(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
     this->InputTimeSteps.resize(length);
-    inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->InputTimeSteps[0]);
+    inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->InputTimeSteps.data());
     this->ModeShapesRange[0] = 1;
     this->ModeShapesRange[1] = length;
   }

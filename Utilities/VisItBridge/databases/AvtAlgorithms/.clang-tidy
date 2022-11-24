@@ -3,6 +3,7 @@ Checks: "-*,\
 boost-*,\
 bugprone-*,\
 -bugprone-branch-clone,\
+-bugprone-easily-swappable-parameters,\
 -bugprone-narrowing-conversions,\
 clang-analyzer-*,\
 misc-*,\
@@ -15,6 +16,7 @@ openmp-*,\
 performance-*,\
 portability-*,\
 readability-*,\
+-readability-function-cognitive-complexity,\
 -readability-implicit-bool-conversion,\
 -readability-magic-numbers,\
 -readability-named-parameter,\

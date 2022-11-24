@@ -42,6 +42,7 @@
 #include "vtkParseExtras.h"
 #include "vtkParseMain.h"
 #include "vtkParsePreprocess.h"
+#include "vtkParseSystem.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -371,7 +372,7 @@ static char** append_class_contents(char** lines, size_t* np, ClassInfo* data, c
     {
       line = append_scope_to_line(line, &m, &maxlen, scope);
       line = append_enum_to_line(line, &m, &maxlen, data->Enums[data->Items[i].Index]);
-      if (data->Enums[data->Items[i].Index]->IsExcluded)
+      if (data->Enums[data->Items[i].Index]->IsExcluded || new_scope)
       {
         tmpflags = "WRAPEXCLUDE";
       }
@@ -393,7 +394,7 @@ static char** append_class_contents(char** lines, size_t* np, ClassInfo* data, c
     /* append the line to the file */
     lines = append_unique_line(lines, line, np);
 
-    /* for classes, add all typed defined within the class */
+    /* for classes, add all types defined within the class */
     if ((data->Items[i].Type == VTK_CLASS_INFO || data->Items[i].Type == VTK_STRUCT_INFO) &&
       data->Classes[data->Items[i].Index]->Name)
     {
@@ -462,7 +463,7 @@ static char** append_namespace_contents(char** lines, size_t* np, NamespaceInfo*
     if (data->Items[i].Type == VTK_CLASS_INFO || data->Items[i].Type == VTK_STRUCT_INFO)
     {
       ClassInfo* class_info = data->Classes[data->Items[i].Index];
-      if (class_info->IsExcluded)
+      if (class_info->IsExcluded || scope)
       {
         tmpflags = "WRAPEXCLUDE";
       }
@@ -473,7 +474,7 @@ static char** append_namespace_contents(char** lines, size_t* np, NamespaceInfo*
     else if (data->Items[i].Type == VTK_ENUM_INFO)
     {
       EnumInfo* enum_info = data->Enums[data->Items[i].Index];
-      if (enum_info->IsExcluded)
+      if (enum_info->IsExcluded || new_scope)
       {
         tmpflags = "WRAPEXCLUDE";
       }
@@ -512,8 +513,8 @@ static char** append_namespace_contents(char** lines, size_t* np, NamespaceInfo*
     /* for namespaces, add all types in the namespace */
     if (data->Items[i].Type == VTK_NAMESPACE_INFO && data->Namespaces[data->Items[i].Index]->Name)
     {
-      lines = append_namespace_contents(lines, np, data->Namespaces[data->Items[i].Index], scope,
-        header_file, module_name, "WRAPEXCLUDE");
+      lines = append_namespace_contents(
+        lines, np, data->Namespaces[data->Items[i].Index], scope, header_file, module_name, flags);
     }
   }
 
@@ -778,7 +779,7 @@ static char** vtkWrapHierarchy_TryParseHeaderFile(
 {
   FILE* input_file;
 
-  input_file = fopen(file_name, "r");
+  input_file = vtkParse_FileOpen(file_name, "r");
 
   if (!input_file)
   {
@@ -805,7 +806,7 @@ static char** vtkWrapHierarchy_TryReadHierarchyFile(const char* file_name, char*
 {
   FILE* input_file;
 
-  input_file = fopen(file_name, "r");
+  input_file = vtkParse_FileOpen(file_name, "r");
   if (!input_file)
   {
     fprintf(stderr, "vtkWrapHierarchy: couldn't open file %s\n", file_name);
@@ -832,7 +833,7 @@ static int vtkWrapHierarchy_TryWriteHierarchyFile(const char* file_name, char* l
   FILE* output_file;
   int matched = 0;
 
-  output_file = fopen(file_name, "r");
+  output_file = vtkParse_FileOpen(file_name, "r");
   if (output_file && vtkWrapHierarchy_CompareHierarchyFile(output_file, lines))
   {
     matched = 1;
@@ -845,7 +846,7 @@ static int vtkWrapHierarchy_TryWriteHierarchyFile(const char* file_name, char* l
   if (!matched)
   {
     int tries = 1;
-    output_file = fopen(file_name, "w");
+    output_file = vtkParse_FileOpen(file_name, "w");
     while (!output_file && tries < 5)
     {
       /* There are two CMAKE_CUSTOM_COMMANDS for vtkWrapHierarchy,
@@ -856,7 +857,7 @@ static int vtkWrapHierarchy_TryWriteHierarchyFile(const char* file_name, char* l
 #else
       sleep(1);
 #endif
-      output_file = fopen(file_name, "r+");
+      output_file = vtkParse_FileOpen(file_name, "r+");
       if (output_file && vtkWrapHierarchy_CompareHierarchyFile(output_file, lines))
       {
         /* if the contents match, no need to write it */
@@ -867,7 +868,7 @@ static int vtkWrapHierarchy_TryWriteHierarchyFile(const char* file_name, char* l
       {
         /* close and open in order to truncate the file */
         fclose(output_file);
-        output_file = fopen(file_name, "w");
+        output_file = vtkParse_FileOpen(file_name, "w");
       }
     }
     if (!output_file)
@@ -892,7 +893,7 @@ static int string_compare(const void* vp1, const void* vp2)
   return strcmp(*(const char**)vp1, *(const char**)vp2);
 }
 
-int main(int argc, char* argv[])
+int VTK_PARSE_MAIN(int argc, char* argv[])
 {
   OptionInfo* options;
   int i;

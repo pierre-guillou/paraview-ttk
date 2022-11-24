@@ -45,7 +45,7 @@
 #ifndef vtkArrayListTemplate_h
 #define vtkArrayListTemplate_h
 
-#include "vtkDataArray.h"
+#include "vtkAbstractArray.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkSmartPointer.h"
 #include "vtkStdString.h"
@@ -59,9 +59,9 @@ struct BaseArrayPair
 {
   vtkIdType Num;
   int NumComp;
-  vtkSmartPointer<vtkDataArray> OutputArray;
+  vtkSmartPointer<vtkAbstractArray> OutputArray;
 
-  BaseArrayPair(vtkIdType num, int numComp, vtkDataArray* outArray)
+  BaseArrayPair(vtkIdType num, int numComp, vtkAbstractArray* outArray)
     : Num(num)
     , NumComp(numComp)
     , OutputArray(outArray)
@@ -72,7 +72,11 @@ struct BaseArrayPair
   virtual void Copy(vtkIdType inId, vtkIdType outId) = 0;
   virtual void Interpolate(
     int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) = 0;
+  virtual void InterpolateOutput(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) = 0;
   virtual void Average(int numPts, const vtkIdType* ids, vtkIdType outId) = 0;
+  virtual void WeightedAverage(
+    int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) = 0;
   virtual void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId) = 0;
   virtual void AssignNullValue(vtkIdType outId) = 0;
   virtual void Realloc(vtkIdType sze) = 0;
@@ -86,7 +90,7 @@ struct ArrayPair : public BaseArrayPair
   T* Output;
   T NullValue;
 
-  ArrayPair(T* in, T* out, vtkIdType num, int numComp, vtkDataArray* outArray, T null)
+  ArrayPair(T* in, T* out, vtkIdType num, int numComp, vtkAbstractArray* outArray, T null)
     : BaseArrayPair(num, numComp, outArray)
     , Input(in)
     , Output(out)
@@ -117,6 +121,20 @@ struct ArrayPair : public BaseArrayPair
     }
   }
 
+  void InterpolateOutput(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    for (int j = 0; j < this->NumComp; ++j)
+    {
+      double v = 0.0;
+      for (vtkIdType i = 0; i < numWeights; ++i)
+      {
+        v += weights[i] * static_cast<double>(this->Output[ids[i] * this->NumComp + j]);
+      }
+      this->Output[outId * this->NumComp + j] = static_cast<T>(v);
+    }
+  }
+
   void Average(int numPts, const vtkIdType* ids, vtkIdType outId) override
   {
     for (int j = 0; j < this->NumComp; ++j)
@@ -127,6 +145,20 @@ struct ArrayPair : public BaseArrayPair
         v += static_cast<double>(this->Input[ids[i] * this->NumComp + j]);
       }
       v /= static_cast<double>(numPts);
+      this->Output[outId * this->NumComp + j] = static_cast<T>(v);
+    }
+  }
+
+  void WeightedAverage(
+    int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    for (int j = 0; j < this->NumComp; ++j)
+    {
+      double v = 0.0;
+      for (vtkIdType i = 0; i < numPts; ++i)
+      {
+        v += (weights[i] * static_cast<double>(this->Input[ids[i] * this->NumComp + j]));
+      }
       this->Output[outId * this->NumComp + j] = static_cast<T>(v);
     }
   }
@@ -153,7 +185,8 @@ struct ArrayPair : public BaseArrayPair
 
   void Realloc(vtkIdType sze) override
   {
-    this->OutputArray->WriteVoidPointer(0, sze * this->NumComp);
+    this->OutputArray->Resize(sze);
+    this->OutputArray->SetNumberOfTuples(sze);
     this->Output = static_cast<T*>(this->OutputArray->GetVoidPointer(0));
   }
 };
@@ -168,7 +201,7 @@ struct RealArrayPair : public BaseArrayPair
   TOutput NullValue;
 
   RealArrayPair(
-    TInput* in, TOutput* out, vtkIdType num, int numComp, vtkDataArray* outArray, TOutput null)
+    TInput* in, TOutput* out, vtkIdType num, int numComp, vtkAbstractArray* outArray, TOutput null)
     : BaseArrayPair(num, numComp, outArray)
     , Input(in)
     , Output(out)
@@ -200,6 +233,20 @@ struct RealArrayPair : public BaseArrayPair
     }
   }
 
+  void InterpolateOutput(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    for (int j = 0; j < this->NumComp; ++j)
+    {
+      double v = 0.0;
+      for (vtkIdType i = 0; i < numWeights; ++i)
+      {
+        v += weights[i] * static_cast<double>(this->Output[ids[i] * this->NumComp + j]);
+      }
+      this->Output[outId * this->NumComp + j] = static_cast<TOutput>(v);
+    }
+  }
+
   void Average(int numPts, const vtkIdType* ids, vtkIdType outId) override
   {
     for (int j = 0; j < this->NumComp; ++j)
@@ -210,6 +257,20 @@ struct RealArrayPair : public BaseArrayPair
         v += static_cast<double>(this->Input[ids[i] * this->NumComp + j]);
       }
       v /= static_cast<double>(numPts);
+      this->Output[outId * this->NumComp + j] = static_cast<TOutput>(v);
+    }
+  }
+
+  void WeightedAverage(
+    int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    for (int j = 0; j < this->NumComp; ++j)
+    {
+      double v = 0.0;
+      for (vtkIdType i = 0; i < numPts; ++i)
+      {
+        v += (weights[i] * static_cast<double>(this->Input[ids[i] * this->NumComp + j]));
+      }
       this->Output[outId * this->NumComp + j] = static_cast<TOutput>(v);
     }
   }
@@ -236,7 +297,8 @@ struct RealArrayPair : public BaseArrayPair
 
   void Realloc(vtkIdType sze) override
   {
-    this->OutputArray->WriteVoidPointer(0, sze * this->NumComp);
+    this->OutputArray->Resize(sze);
+    this->OutputArray->SetNumberOfTuples(sze);
     this->Output = static_cast<TOutput*>(this->OutputArray->GetVoidPointer(0));
   }
 };
@@ -253,7 +315,7 @@ struct ArrayList
 {
   // The list of arrays, and the arrays not to process
   std::vector<BaseArrayPair*> Arrays;
-  std::vector<vtkDataArray*> ExcludedArrays;
+  std::vector<vtkAbstractArray*> ExcludedArrays;
 
   // Add the arrays to interpolate here (from attribute data). Note that this method is
   // not thread-safe due to its use of vtkDataSetAttributes.
@@ -267,13 +329,13 @@ struct ArrayList
   // Add a pair of arrays (manual insertion). Returns the output array created,
   // if any. No array may be created if \c inArray was previously marked as
   // excluded using ExcludeArray().
-  vtkDataArray* AddArrayPair(vtkIdType numTuples, vtkDataArray* inArray, vtkStdString& outArrayName,
-    double nullValue, vtkTypeBool promote);
+  vtkAbstractArray* AddArrayPair(vtkIdType numTuples, vtkAbstractArray* inArray,
+    vtkStdString& outArrayName, double nullValue, vtkTypeBool promote);
 
   // Any array excluded here is not added by AddArrays() or AddArrayPair, hence not
   // processed. Also check whether an array is excluded.
-  void ExcludeArray(vtkDataArray* da);
-  vtkTypeBool IsExcluded(vtkDataArray* da);
+  void ExcludeArray(vtkAbstractArray* da);
+  vtkTypeBool IsExcluded(vtkAbstractArray* da);
 
   // Loop over the array pairs and copy data from one to another. This (and the following methods)
   // can be used within threads.
@@ -294,12 +356,31 @@ struct ArrayList
     }
   }
 
+  // Loop over the arrays and have them interpolate themselves based on the output arrays
+  void InterpolateOutput(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId)
+  {
+    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
+    {
+      (*it)->InterpolateOutput(numWeights, ids, weights, outId);
+    }
+  }
+
   // Loop over the arrays and have them averaged
   void Average(int numPts, const vtkIdType* ids, vtkIdType outId)
   {
     for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
     {
       (*it)->Average(numPts, ids, outId);
+    }
+  }
+
+  // Loop over the arrays and weighted average the attributes. The weights should sum to 1.0.
+  void WeightedAverage(int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId)
+  {
+    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
+    {
+      (*it)->WeightedAverage(numPts, ids, weights, outId);
     }
   }
 

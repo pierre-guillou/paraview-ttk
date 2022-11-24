@@ -159,6 +159,7 @@ std::string GetRequiredVariableName(std::shared_ptr<InternalMetadataSource> sour
 }
 
 const std::string DataModelAttrName = "Fides_Data_Model";
+const std::string TimeVariableAttrName = "Fides_Time_Variable";
 const std::string OriginAttrName = "Fides_Origin";
 const std::string SpacingAttrName = "Fides_Spacing";
 const std::string DimensionsAttrName = "Fides_Dimensions";
@@ -276,6 +277,13 @@ void PredefinedDataModel::AddStepInformation(rapidjson::Value& parent)
   rapidjson::Value stepInfo(rapidjson::kObjectType);
   auto srcName = SetString(this->Doc.GetAllocator(), this->DataSourceName);
   stepInfo.AddMember("data_source", srcName, this->Doc.GetAllocator());
+
+  auto timeVar = GetOptionalVariableName(this->MetadataSource, TimeVariableAttrName);
+  if (timeVar.first)
+  {
+    auto timeStr = SetString(this->Doc.GetAllocator(), timeVar.second);
+    stepInfo.AddMember("variable", timeStr, this->Doc.GetAllocator());
+  }
   parent.AddMember("step_information", stepInfo, this->Doc.GetAllocator());
 }
 
@@ -646,7 +654,7 @@ UnstructuredSingleTypeDataModel::GetAttributes()
   attrMap[CoordinatesAttrName] = std::vector<std::string>(1, "coordinates");
   attrMap[ConnectivityAttrName] = std::vector<std::string>(1, "connectivity");
 
-  const auto& cellSet = this->DataSetSource.GetCellSet().Cast<UnstructuredSingleType>();
+  const auto& cellSet = this->DataSetSource.GetCellSet().AsCellSet<UnstructuredSingleType>();
   vtkm::UInt8 shapeId = cellSet.GetCellShape(0);
   std::string cellType = fides::ConvertVTKmCellTypeToFides(shapeId);
   attrMap[CellTypeAttrName] = std::vector<std::string>(1, cellType);
@@ -663,7 +671,7 @@ void UnstructuredSingleTypeDataModel::CreateCellSet(rapidjson::Value& parent)
     {
       throw std::runtime_error("Cellset is not UnstructuredSingleType");
     }
-    const auto& cellSet = this->DataSetSource.GetCellSet().Cast<UnstructuredSingleType>();
+    const auto& cellSet = this->DataSetSource.GetCellSet().AsCellSet<UnstructuredSingleType>();
     vtkm::UInt8 shapeId = cellSet.GetCellShape(0);
     std::string cellType = fides::ConvertVTKmCellTypeToFides(shapeId);
 

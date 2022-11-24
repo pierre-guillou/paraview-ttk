@@ -22,6 +22,7 @@
 
 #include "vtkAcceleratorsVTKmDataModelModule.h" // For export macro
 #include "vtkDataSet.h"
+#include "vtkmlib/vtkmInitializer.h" // Need for initializing vtk-m
 
 #include <memory> // for std::shared_ptr
 
@@ -99,6 +100,7 @@ public:
   /**
    * Topological inquiry to get points defining cell.
    */
+  using vtkDataSet::GetCellPoints;
   void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override;
 
   /**
@@ -190,6 +192,7 @@ private:
 
   struct DataMembers;
   std::shared_ptr<DataMembers> Internals;
+  vtkmInitializer Initializer;
 };
 
 #endif // vtkmDataSet_h

@@ -63,7 +63,7 @@ struct Slot
   StoragePointerType Storage;
 
   Slot();
-  virtual ~Slot();
+  ~Slot() = default;
 
 private:
   // not copyable
@@ -79,7 +79,7 @@ struct HashTableArray
   HashTableArray* Prev;
 
   explicit HashTableArray(size_t sizeLg);
-  virtual ~HashTableArray();
+  ~HashTableArray();
 
 private:
   // disallow copying
@@ -87,11 +87,11 @@ private:
   void operator=(const HashTableArray&);
 };
 
-class VTKCOMMONCORE_EXPORT ThreadSpecific
+class VTKCOMMONCORE_EXPORT ThreadSpecific final
 {
 public:
   explicit ThreadSpecific(unsigned numThreads);
-  virtual ~ThreadSpecific();
+  ~ThreadSpecific();
 
   StoragePointerType& GetStorage();
   size_t GetSize() const;

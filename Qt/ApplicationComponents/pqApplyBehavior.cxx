@@ -35,6 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqApplicationCore.h"
 #include "pqDataRepresentation.h"
 #include "pqLiveInsituManager.h"
+#include "pqObjectBuilder.h"
+#include "pqPVApplicationCore.h"
 #include "pqPipelineFilter.h"
 #include "pqPropertiesPanel.h"
 #include "pqProxyModifiedStateUndoElement.h"
@@ -71,6 +73,9 @@ class pqApplyBehavior::pqInternals
 public:
   typedef QPair<vtkWeakPointer<vtkSMRepresentationProxy>, vtkWeakPointer<vtkSMViewProxy>> PairType;
   QList<PairType> NewlyCreatedRepresentations;
+  pqTimer AutoApplyTimer;
+  int PanelCount = 0;
+  QMetaObject::Connection ShortcutApplyConnection;
 };
 
 //-----------------------------------------------------------------------------
@@ -78,6 +83,25 @@ pqApplyBehavior::pqApplyBehavior(QObject* parentObject)
   : Superclass(parentObject)
   , Internals(new pqApplyBehavior::pqInternals())
 {
+  // Connect auto apply timer to triggerApply signal
+  this->Internals->AutoApplyTimer.setSingleShot(true);
+  QObject::connect(
+    &this->Internals->AutoApplyTimer, &pqTimer::timeout, this, &pqApplyBehavior::triggerApply);
+
+  // Connect pqPVApplicationCore::triggerApply to triggerApply signal
+  QObject::connect(pqPVApplicationCore::instance(), &pqPVApplicationCore::triggerApply, this,
+    &pqApplyBehavior::triggerApply);
+
+  // Connect the shortcut triggerApply signal to onApplied, used only if no panel are registered
+  // later.
+  this->Internals->ShortcutApplyConnection = QObject::connect(
+    this, &pqApplyBehavior::triggerApply, this, QOverload<>::of(&pqApplyBehavior::onApplied));
+
+  // Connect builder creation signals to onModified
+  // to allow using auto apply without registered properties panels
+  const auto* builder = pqApplicationCore::instance()->getObjectBuilder();
+  QObject::connect(builder, &pqObjectBuilder::sourceCreated, this, &pqApplyBehavior::onModified);
+  QObject::connect(builder, &pqObjectBuilder::filterCreated, this, &pqApplyBehavior::onModified);
 }
 
 //-----------------------------------------------------------------------------
@@ -88,15 +112,37 @@ void pqApplyBehavior::registerPanel(pqPropertiesPanel* panel)
 {
   assert(panel);
 
-  this->connect(panel, SIGNAL(applied(pqProxy*)), SLOT(onApplied(pqProxy*)));
-  this->connect(panel, SIGNAL(applied()), SLOT(onApplied()));
+  // Disconnect to rely on panel behavior
+  QObject::disconnect(this->Internals->ShortcutApplyConnection);
+
+  // Connect both overload on applied to onApplied
+  QObject::connect(panel, QOverload<pqProxy*>::of(&pqPropertiesPanel::applied), this,
+    QOverload<pqProxy*>::of(&pqApplyBehavior::onApplied));
+  QObject::connect(panel, QOverload<>::of(&pqPropertiesPanel::applied), this,
+    QOverload<>::of(&pqApplyBehavior::onApplied));
+
+  // Connect modified and resetDone
+  QObject::connect(panel, &pqPropertiesPanel::modified, this, &pqApplyBehavior::onModified);
+  QObject::connect(panel, &pqPropertiesPanel::resetDone, this, &pqApplyBehavior::onResetDone);
+
+  // Connect triggerApply to the panel apply
+  QObject::connect(this, &pqApplyBehavior::triggerApply, panel, &pqPropertiesPanel::apply);
+
+  this->Internals->PanelCount++;
 }
 
 //-----------------------------------------------------------------------------
 void pqApplyBehavior::unregisterPanel(pqPropertiesPanel* panel)
 {
   assert(panel);
+  this->Internals->PanelCount--;
   this->disconnect(panel);
+  if (this->Internals->PanelCount == 0)
+  {
+    // If there is no panel, restore the behavior without panel
+    this->Internals->ShortcutApplyConnection = QObject::connect(
+      this, &pqApplyBehavior::triggerApply, this, QOverload<>::of(&pqApplyBehavior::onApplied));
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -112,16 +158,29 @@ void pqApplyBehavior::onApplied(pqProxy* proxy)
 //-----------------------------------------------------------------------------
 void pqApplyBehavior::onApplied()
 {
-  pqPropertiesPanel* panel = qobject_cast<pqPropertiesPanel*>(this->sender());
-  if (panel)
+  this->applied();
+}
+
+//-----------------------------------------------------------------------------
+void pqApplyBehavior::onModified()
+{
+  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
+  if (generalSettings->GetAutoApply())
   {
-    this->applied(panel);
+    this->Internals->AutoApplyTimer.start(generalSettings->GetAutoApplyDelay());
   }
+}
+
+//-----------------------------------------------------------------------------
+void pqApplyBehavior::onResetDone()
+{
+  this->Internals->AutoApplyTimer.stop();
 }
 
 //-----------------------------------------------------------------------------
 void pqApplyBehavior::applied(pqPropertiesPanel*, pqProxy* pqproxy)
 {
+  this->Internals->AutoApplyTimer.stop();
   if (pqproxy->modifiedState() == pqProxy::UNINITIALIZED)
   {
     if (auto pqsource = qobject_cast<pqPipelineSource*>(pqproxy))
@@ -169,8 +228,22 @@ void pqApplyBehavior::applied(pqPropertiesPanel*, pqProxy* pqproxy)
 }
 
 //-----------------------------------------------------------------------------
-void pqApplyBehavior::applied(pqPropertiesPanel*)
+void pqApplyBehavior::applied(pqPropertiesPanel* panel)
 {
+  this->Internals->AutoApplyTimer.stop();
+
+  // Update all proxies if needed
+  if (this->Internals->PanelCount == 0)
+  {
+    pqServerManagerModel* model = pqApplicationCore::instance()->getServerManagerModel();
+    QList<pqPipelineSource*> sources =
+      model->findItems<pqPipelineSource*>(pqActiveObjects::instance().activeServer());
+    for (pqPipelineSource* source : sources)
+    {
+      this->applied(panel, source);
+    }
+  }
+
   //---------------------------------------------------------------------------
   // Update animation timesteps.
   vtkNew<vtkSMParaViewPipelineControllerWithRendering> controller;
@@ -181,7 +254,7 @@ void pqApplyBehavior::applied(pqPropertiesPanel*)
 
   //---------------------------------------------------------------------------
   // If there is a catalyst session, push its updates to the server
-  foreach (pqServer* server, smmodel->findItems<pqServer*>())
+  Q_FOREACH (pqServer* server, smmodel->findItems<pqServer*>())
   {
     if (pqLiveInsituManager::isInsituServer(server))
     {
@@ -193,7 +266,7 @@ void pqApplyBehavior::applied(pqPropertiesPanel*)
 
   //---------------------------------------------------------------------------
   // find views that need updating and update them.
-  foreach (pqView* view, smmodel->findItems<pqView*>())
+  Q_FOREACH (pqView* view, smmodel->findItems<pqView*>())
   {
     if (view && view->getViewProxy()->GetNeedsUpdate())
     {
@@ -205,7 +278,7 @@ void pqApplyBehavior::applied(pqPropertiesPanel*)
   // Update all the views separately. This ensures that all pipelines are
   // up-to-date before we render as we may need to change some rendering
   // properties like color transfer functions before the actual render.
-  foreach (pqView* view, dirty_views)
+  Q_FOREACH (pqView* view, dirty_views)
   {
     SM_SCOPED_TRACE(CallMethod)
       .arg(view->getViewProxy())
@@ -217,7 +290,7 @@ void pqApplyBehavior::applied(pqPropertiesPanel*)
   vtkPVGeneralSettings* gsettings = vtkPVGeneralSettings::GetInstance();
   if (gsettings->GetColorByBlockColorsOnApply())
   {
-    foreach (const pqInternals::PairType& pair, this->Internals->NewlyCreatedRepresentations)
+    Q_FOREACH (const pqInternals::PairType& pair, this->Internals->NewlyCreatedRepresentations)
     {
       vtkSMRepresentationProxy* reprProxy = pair.first;
       vtkSMViewProxy* viewProxy = pair.second;
@@ -253,7 +326,7 @@ void pqApplyBehavior::applied(pqPropertiesPanel*)
 
   //---------------------------------------------------------------------------
   // Perform the render on visible views.
-  foreach (pqView* view, dirty_views)
+  Q_FOREACH (pqView* view, dirty_views)
   {
     if (view->widget()->isVisible())
     {
@@ -372,7 +445,7 @@ void pqApplyBehavior::hideInputIfRequired(pqPipelineFilter* filter, pqView* view
 
     // hide input source.
     QList<pqOutputPort*> inputs = filter->getAllInputs();
-    foreach (pqOutputPort* input, inputs)
+    Q_FOREACH (pqOutputPort* input, inputs)
     {
       pqDataRepresentation* inputRepr = input->getRepresentation(view);
       if (inputRepr)

@@ -154,7 +154,7 @@ void vtkOMETIFFReader::vtkOMEInternals::UpdateCache(vtkImageData* source)
     for (int c = 0; c < this->SizeC; ++c)
     {
       vtkVector2d range;
-      scalar_arrays[c]->GetRange(range.GetData(), -1);
+      pd->GetRange(scalar_arrays[c]->GetName(), range.GetData(), -1);
       if (range[0] <= range[1])
       {
         channel_ranges[c][0] = std::min(channel_ranges[c][0], range[0]);
@@ -377,7 +377,8 @@ int vtkOMETIFFReader::RequestInformation(
       start += increment;
       return ret;
     });
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &timesteps[0], omeinternals.SizeT);
+    outInfo->Set(
+      vtkStreamingDemandDrivenPipeline::TIME_STEPS(), timesteps.data(), omeinternals.SizeT);
 
     double range[2] = { timesteps.front(), timesteps.back() };
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), range, 2);

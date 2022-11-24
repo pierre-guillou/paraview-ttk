@@ -22,14 +22,11 @@
 #include "vtkCellArray.h"
 #include "vtkCommand.h"
 #include "vtkDataSet.h"
-#include "vtkFloatArray.h"
 #include "vtkIdList.h"
 #include "vtkIdTypeArray.h"
-#include "vtkIntArray.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkOctreePointLocatorNode.h"
-#include "vtkPointSet.h"
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 
@@ -280,7 +277,7 @@ void vtkOctreePointLocator::DivideRegion(vtkOctreePointLocatorNode* node, int* o
     counter += subOctantNumberOfPoints[i];
     if (!points[i].empty())
     {
-      memcpy(ordering + counter, &(points[i][0]), subOctantNumberOfPoints[i + 1] * sizeOfInt);
+      memcpy(ordering + counter, points[i].data(), subOctantNumberOfPoints[i + 1] * sizeOfInt);
     }
   }
   counter = 0;
@@ -295,18 +292,37 @@ void vtkOctreePointLocator::DivideRegion(vtkOctreePointLocatorNode* node, int* o
 //------------------------------------------------------------------------------
 void vtkOctreePointLocator::BuildLocator()
 {
-  if (!this->GetDataSet())
+  // don't rebuild if build time is newer than modified and dataset modified time
+  if (this->Top && this->BuildTime > this->MTime && this->BuildTime > this->DataSet->GetMTime())
   {
-    vtkErrorMacro("Must set a valid data set first.");
+    return;
+  }
+  // don't rebuild if UseExistingSearchStructure is ON and a search structure already exists
+  if (this->Top && this->UseExistingSearchStructure)
+  {
+    this->BuildTime.Modified();
+    vtkDebugMacro(<< "BuildLocator exited - UseExistingSearchStructure");
+    return;
+  }
+  this->BuildLocatorInternal();
+}
+
+//------------------------------------------------------------------------------
+void vtkOctreePointLocator::ForceBuildLocator()
+{
+  this->BuildLocatorInternal();
+}
+
+//------------------------------------------------------------------------------
+void vtkOctreePointLocator::BuildLocatorInternal()
+{
+  if (!this->DataSet || this->DataSet->GetNumberOfPoints() == 0)
+  {
+    vtkErrorMacro("No data set");
+    return;
   }
 
   int numPoints = this->GetDataSet()->GetNumberOfPoints();
-
-  if (numPoints < 1)
-  {
-    vtkErrorMacro(<< "No points to build from.");
-    return;
-  }
 
   if (numPoints >= VTK_INT_MAX)
   {
@@ -320,11 +336,6 @@ void vtkOctreePointLocator::BuildLocator()
   }
 
   vtkDebugMacro(<< "Creating octree");
-
-  if ((this->BuildTime > this->MTime) && (this->BuildTime > this->DataSet->GetMTime()))
-  {
-    return;
-  }
   this->FreeSearchStructure();
 
   // Fix bounds - (1) push out a little if flat
@@ -470,8 +481,8 @@ vtkIdType vtkOctreePointLocator::FindClosestPoint(double x, double y, double z, 
     double pt[3];
     this->Top->GetDistance2ToBoundary(x, y, z, pt, this->Top, 1);
 
-    double* min = this->Top->GetMinBounds();
-    double* max = this->Top->GetMaxBounds();
+    const double* min = this->Top->GetMinBounds();
+    const double* max = this->Top->GetMaxBounds();
 
     // GetDistance2ToBoundary will sometimes return a point *just*
     // *barely* outside the bounds of the region.  Move that point to
@@ -504,7 +515,7 @@ vtkIdType vtkOctreePointLocator::FindClosestPoint(double x, double y, double z, 
 
     regionId = this->GetRegionContainingPoint(pt[0], pt[1], pt[2]);
 
-    closeId = this->_FindClosestPointInRegion(regionId, x, y, z, dist2);
+    closeId = this->FindClosestPointInRegion_(regionId, x, y, z, dist2);
 
     closePointId = static_cast<vtkIdType>(this->LocatorIds[closeId]);
 
@@ -521,7 +532,7 @@ vtkIdType vtkOctreePointLocator::FindClosestPoint(double x, double y, double z, 
   }
   else // Point is inside an octree region
   {
-    closeId = this->_FindClosestPointInRegion(regionId, x, y, z, dist2);
+    closeId = this->FindClosestPointInRegion_(regionId, x, y, z, dist2);
     closePointId = static_cast<vtkIdType>(this->LocatorIds[closeId]);
 
     if (dist2 > 0.0)
@@ -571,7 +582,7 @@ vtkIdType vtkOctreePointLocator::FindClosestPointInRegion(
     vtkErrorMacro("vtkOctreePointLocator::FindClosestPointInRegion - must build locator first");
     return -1;
   }
-  int localId = this->_FindClosestPointInRegion(regionId, x, y, z, dist2);
+  int localId = this->FindClosestPointInRegion_(regionId, x, y, z, dist2);
 
   vtkIdType originalId = -1;
 
@@ -584,7 +595,7 @@ vtkIdType vtkOctreePointLocator::FindClosestPointInRegion(
 }
 
 //------------------------------------------------------------------------------
-int vtkOctreePointLocator::_FindClosestPointInRegion(
+int vtkOctreePointLocator::FindClosestPointInRegion_(
   int leafNodeId, double x, double y, double z, double& dist2)
 {
   int minId = 0;
@@ -657,7 +668,7 @@ int vtkOctreePointLocator::FindClosestPointInSphere(
     else
     {
       double tempDist2 = dist2;
-      int tempId = this->_FindClosestPointInRegion(region->GetID(), x, y, z, tempDist2);
+      int tempId = this->FindClosestPointInRegion_(region->GetID(), x, y, z, tempDist2);
 
       if (tempDist2 < dist2)
       {
@@ -1066,8 +1077,8 @@ void vtkOctreePointLocator::AddPolys(
   vtkIdType idList[4];
   double x[3];
 
-  double* min = node->GetMinBounds();
-  double* max = node->GetMaxBounds();
+  const double* min = node->GetMinBounds();
+  const double* max = node->GetMaxBounds();
 
   x[0] = min[0];
   x[1] = max[1];

@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqFileDialogFavoriteModel_h
-#define _pqFileDialogFavoriteModel_h
+#ifndef pqFileDialogFavoriteModel_h
+#define pqFileDialogFavoriteModel_h
 
 #include "pqCoreModule.h"
 #include <QAbstractListModel>
@@ -135,4 +135,4 @@ protected:
   QString SettingsKey;
 };
 
-#endif // !_pqFileDialogFavoriteModel_h
+#endif // !pqFileDialogFavoriteModel_h

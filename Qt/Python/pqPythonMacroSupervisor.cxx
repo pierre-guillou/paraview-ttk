@@ -121,7 +121,7 @@ void removePlaceHolderIfNeeded(QWidget* widget)
 }
 void addActionToWidgets(QAction* action, QList<QPointer<QWidget>>& widgets)
 {
-  foreach (QWidget* widget, widgets)
+  Q_FOREACH (QWidget* widget, widgets)
   {
     removePlaceHolderIfNeeded(widget);
     if (widget)
@@ -132,7 +132,7 @@ void addActionToWidgets(QAction* action, QList<QPointer<QWidget>>& widgets)
 }
 void removeActionFromWidgets(QAction* action, QList<QPointer<QWidget>>& widgets)
 {
-  foreach (QWidget* widget, widgets)
+  Q_FOREACH (QWidget* widget, widgets)
   {
     if (widget)
     {
@@ -251,21 +251,21 @@ void pqPythonMacroSupervisor::updateMacroList()
 void pqPythonMacroSupervisor::resetActions()
 {
   // Delete RUN
-  foreach (QAction* action, this->Internal->RunActionMap.values())
+  Q_FOREACH (QAction* action, this->Internal->RunActionMap.values())
   {
     removeActionFromWidgets(action, this->Internal->RunWidgetContainers);
     delete action;
   }
   this->Internal->RunActionMap.clear();
   // Delete EDIT
-  foreach (QAction* action, this->Internal->EditActionMap.values())
+  Q_FOREACH (QAction* action, this->Internal->EditActionMap.values())
   {
     removeActionFromWidgets(action, this->Internal->EditWidgetContainers);
     delete action;
   }
   this->Internal->EditActionMap.clear();
   // Delete DELETE
-  foreach (QAction* action, this->Internal->DeleteActionMap.values())
+  Q_FOREACH (QAction* action, this->Internal->DeleteActionMap.values())
   {
     removeActionFromWidgets(action, this->Internal->DeleteWidgetContainers);
     delete action;
@@ -359,14 +359,19 @@ void pqPythonMacroSupervisor::removeMacro(const QString& fileName)
 void pqPythonMacroSupervisor::onMacroTriggered()
 {
   QObject* action = this->sender();
+  // Get the filenames before executing the corresponding scripts. (See #18261)
+  QList<QString> filenames;
   QMap<QString, QAction*>::const_iterator itr = this->Internal->RunActionMap.constBegin();
   for (; itr != this->Internal->RunActionMap.constEnd(); ++itr)
   {
     if (itr.value() == action)
     {
-      const QString& filename = itr.key();
-      Q_EMIT this->executeScriptRequested(filename);
+      filenames.append(itr.key());
     }
+  }
+  Q_FOREACH (QString filename, filenames)
+  {
+    Q_EMIT this->executeScriptRequested(filename);
   }
 }
 //----------------------------------------------------------------------------
@@ -384,7 +389,7 @@ void pqPythonMacroSupervisor::onDeleteMacroTriggered()
       listOfMacroToDelete.append(filename);
     }
   }
-  foreach (QString fileName, listOfMacroToDelete)
+  Q_FOREACH (QString fileName, listOfMacroToDelete)
   {
     pqPythonMacroSupervisor::removeStoredMacro(fileName);
     pqPythonMacroSupervisor::removeMacro(fileName);
@@ -432,7 +437,7 @@ QStringList pqPythonMacroSupervisor::getMacrosFilePaths()
     macroDirs << macroPathDirs;
   }
 
-  foreach (QString dirPath, macroDirs)
+  Q_FOREACH (QString dirPath, macroDirs)
   {
     if (QFile::exists(dirPath))
     {

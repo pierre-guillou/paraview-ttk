@@ -36,6 +36,7 @@
 #include "vtkObject.h"
 #include "vtkSmartPointer.h"  // needed for vtkSmartPointer
 #include "vtkWebCoreModule.h" // needed for exports
+#include <memory>             // for std::unique_ptr
 
 class vtkUnsignedCharArray;
 class vtkImageData;
@@ -47,12 +48,14 @@ public:
   vtkTypeMacro(vtkDataEncoder, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
+  ///@{
   /**
-   * Define the number of worker threads to use.
+   * Define the number of worker threads to use. Default is 3.
    * Initialize() needs to be called after changing the thread count.
    */
   void SetMaxThreads(vtkTypeUInt32);
   vtkGetMacro(MaxThreads, vtkTypeUInt32);
+  ///@}
 
   /**
    * Re-initializes the encoder. This will abort any on going encoding threads
@@ -61,15 +64,12 @@ public:
   void Initialize();
 
   /**
-   * Push an image into the encoder. It is not safe to modify the image
-   * after this point, including changing the reference counts for it.
-   * You may run into thread safety issues. Typically,
-   * the caller code will simply release reference to the data and stop using
-   * it. vtkDataEncoder takes over the reference for the image and will call
-   * vtkObject::UnRegister() on it when it's done.
-   * encoding can be set to 0 to skip encoding.
+   * Push an image into the encoder. The data is considered unchanging and thus
+   * should not be modified once pushed. Reference count changes are now thread safe
+   * and hence callers should ensure they release the reference held, if
+   * appropriate.
    */
-  void PushAndTakeReference(vtkTypeUInt32 key, vtkImageData*& data, int quality, int encoding = 1);
+  void Push(vtkTypeUInt32 key, vtkImageData* data, int quality, int encoding = 1);
 
   /**
    * Get access to the most-recent fully encoded result corresponding to the
@@ -114,7 +114,7 @@ private:
   void operator=(const vtkDataEncoder&) = delete;
 
   class vtkInternals;
-  vtkInternals* Internals;
+  std::unique_ptr<vtkInternals> Internals;
 };
 
 #endif

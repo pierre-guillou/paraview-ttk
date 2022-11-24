@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * \date 3/28/2007
  */
 
-#ifndef _pqRescaleRange_h
-#define _pqRescaleRange_h
+#ifndef pqRescaleRange_h
+#define pqRescaleRange_h
 
 #include "pqComponentsModule.h"
 #include <QDialog>
@@ -47,7 +47,7 @@ class PQCOMPONENTS_EXPORT pqRescaleRange : public QDialog
 {
   Q_OBJECT
 public:
-  pqRescaleRange(QWidget* parent = 0);
+  pqRescaleRange(QWidget* parent = nullptr);
   ~pqRescaleRange() override;
 
   // Get the minimum of the color map range
@@ -77,7 +77,7 @@ protected Q_SLOTS:
   void validate();
   void rescaleAndLock();
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   pqRescaleRangeForm* Form;
   bool Lock;
 };

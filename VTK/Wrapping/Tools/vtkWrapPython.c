@@ -21,6 +21,7 @@
 
 #include "vtkParseExtras.h"
 #include "vtkParseMain.h"
+#include "vtkParseSystem.h"
 #include "vtkWrap.h"
 
 #include <ctype.h>
@@ -102,6 +103,8 @@ static void vtkWrapPython_GenerateSpecialHeaders(
   const char* ownincfile = "";
   ClassInfo* data;
   ValueInfo* val;
+  const char** includedHeaders = NULL;
+  size_t nIncludedHeaders = 0;
 
   types = (const char**)malloc(1000 * sizeof(const char*));
 
@@ -190,6 +193,8 @@ static void vtkWrapPython_GenerateSpecialHeaders(
     ownincfile = vtkWrapPython_ClassHeader(hinfo, data->Name);
   }
 
+  includedHeaders = (const char**)malloc(numTypes * sizeof(const char*));
+
   /* for each unique type found in the file */
   for (i = 0; i < numTypes; i++)
   {
@@ -198,6 +203,26 @@ static void vtkWrapPython_GenerateSpecialHeaders(
 
     if (incfile)
     {
+      /* make sure it hasn't been included before. */
+      size_t nHeader;
+      int uniqueInclude = 1;
+      for (nHeader = 0; nHeader < nIncludedHeaders; ++nHeader)
+      {
+        if (!strcmp(incfile, includedHeaders[nHeader]))
+        {
+          uniqueInclude = 0;
+        }
+      }
+
+      /* ignore duplicate includes. */
+      if (!uniqueInclude)
+      {
+        continue;
+      }
+
+      includedHeaders[nIncludedHeaders] = incfile;
+      ++nIncludedHeaders;
+
       /* make sure it doesn't share our header file */
       if (ownincfile == 0 || strcmp(incfile, ownincfile) != 0)
       {
@@ -205,6 +230,9 @@ static void vtkWrapPython_GenerateSpecialHeaders(
       }
     }
   }
+
+  free((char**)includedHeaders);
+  includedHeaders = NULL;
 
   /* special case for the way vtkGenericDataArray template is used */
   if (data && strcmp(data->Name, "vtkGenericDataArray") == 0)
@@ -226,7 +254,7 @@ static void vtkWrapPython_GenerateSpecialHeaders(
 
 #define MAX_WRAPPED_CLASSES 256
 
-int main(int argc, char* argv[])
+int VTK_PARSE_MAIN(int argc, char* argv[])
 {
   ClassInfo* wrappedClasses[MAX_WRAPPED_CLASSES];
   unsigned char wrapAsVTKObject[MAX_WRAPPED_CLASSES];
@@ -263,7 +291,7 @@ int main(int argc, char* argv[])
   }
 
   /* get the output file */
-  fp = fopen(options->OutputFileName, "w");
+  fp = vtkParse_FileOpen(options->OutputFileName, "w");
 
 #ifdef _WIN32
   if (!fp)
@@ -274,7 +302,7 @@ int main(int argc, char* argv[])
     for (tries = 0; !fp && tries < 5 && errno == EACCES; tries++)
     {
       Sleep(1000);
-      fp = fopen(options->OutputFileName, "w");
+      fp = vtkParse_FileOpen(options->OutputFileName, "w");
     }
   }
 #endif

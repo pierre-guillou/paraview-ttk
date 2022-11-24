@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqCollaborationManager_h
-#define _pqCollaborationManager_h
+#ifndef pqCollaborationManager_h
+#define pqCollaborationManager_h
 
 #include "pqCoreModule.h"
 #include "vtkSMMessageMinimal.h"
@@ -186,11 +186,11 @@ private Q_SLOTS:
    */
   void showMousePointer(vtkTypeUInt32 viewId, double x, double y, int ratioToUse);
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   Q_DISABLE_COPY(pqCollaborationManager)
 
   class pqInternals;
   pqInternals* Internals;
 };
 
-#endif // !_pqCollaborationManager_h
+#endif // !pqCollaborationManager_h

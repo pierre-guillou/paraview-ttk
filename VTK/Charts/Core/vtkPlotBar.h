@@ -60,11 +60,6 @@ public:
   static vtkPlotBar* New();
 
   /**
-   * Perform any updates to the item that may be necessary before rendering.
-   */
-  void Update() override;
-
-  /**
    * Paint event for the XY plot, called whenever the chart needs to be drawn
    */
   bool Paint(vtkContext2D* painter) override;
@@ -77,13 +72,30 @@ public:
    */
   bool PaintLegend(vtkContext2D* painter, const vtkRectf& rect, int legendIndex) override;
 
-  ///@{
   /**
-   * Set the plot color
+   * Set the plot color with integer values (comprised between 0 and 255)
    */
   void SetColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a) override;
-  void SetColor(double r, double g, double b) override;
-  void GetColor(double rgb[3]) override;
+
+  ///@{
+  /**
+   * Set the plot color with floating values (comprised between 0.0 and 1.0)
+   */
+  void SetColorF(double r, double g, double b, double a) override;
+  void SetColorF(double r, double g, double b) override;
+
+  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous SetColorF method instead.")
+  void SetColor(double r, double g, double b) override { this->SetColorF(r, g, b); };
+  ///@}
+
+  ///@{
+  /**
+   * Get the plot color as floating rgb values (comprised between 0.0 and 1.0)
+   */
+  void GetColorF(double rgb[3]) override;
+
+  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous GetColorF method instead.")
+  void GetColor(double rgb[3]) override { this->GetColorF(rgb); };
   ///@}
 
   ///@{
@@ -258,14 +270,22 @@ public:
    */
   void GetDataBounds(double bounds[2]);
 
+  /**
+   * Update the internal cache. Returns true if cache was successfully updated. Default does
+   * nothing.
+   * This method is called by Update() when either the plot's data has changed or
+   * CacheRequiresUpdate() returns true. It is not necessary to call this method explicitly.
+   */
+  bool UpdateCache() override;
+
 protected:
   vtkPlotBar();
   ~vtkPlotBar() override;
 
   /**
-   * Update the table cache.
+   * Test if the internal cache requires an update.
    */
-  bool UpdateTableCache(vtkTable* table);
+  virtual bool CacheRequiresUpdate() override;
 
   /**
    * Store a well packed set of XY coordinates for this data series.
@@ -276,11 +296,6 @@ protected:
   float Offset;
 
   int Orientation;
-
-  /**
-   * The point cache is marked dirty until it has been initialized.
-   */
-  vtkTimeStamp BuildTime;
 
   /**
    * The color series to use if this becomes a stacked bar

@@ -43,6 +43,13 @@
  * kd-trees. These are often more efficient for the operations described
  * here.
  *
+ * @warning
+ * Frequently vtkStaticPointLocator is used in lieu of vtkPointLocator.
+ * They are very similar in terms of algorithmic approach, however
+ * vtkStaticCellLocator is threaded and is typically much faster for
+ * a large number of points (on the order of 3-5x faster). For small numbers
+ * of points, vtkPointLocator is just as fast as vtkStaticPointLocator.
+ *
  * @sa
  * vtkPointLocator vtkCellLocator vtkLocator vtkAbstractPointLocator
  */
@@ -55,6 +62,7 @@
 
 class vtkIdList;
 struct vtkBucketList;
+class vtkDataArray;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkStaticPointLocator : public vtkAbstractPointLocator
 {
@@ -156,12 +164,27 @@ public:
 
   /**
    * Merge points in the locator given a tolerance. Return a merge map which
-   * represents the mapping of "concident" point ids to a single point. Note
-   * the number of points in the merge map is the number of points the
-   * locator was built with. The user is expected to pass in an allocated
-   * mergeMap.
+   * maps all points to the points to which they were merged. Note the number
+   * of points in the merge map is the number of points the locator was built
+   * with. The user is expected to pass in an allocated mergeMap. Note that
+   * when tol!=0, the traversal order of threading can be specified using the
+   * SetTraversalOrder() method. The traversal order is needed to generate
+   * deterministic output (i.e., output independent of thread execution
+   * order).
    */
   void MergePoints(double tol, vtkIdType* mergeMap);
+
+  /**
+   * Merge points and associated data in the locator. Return a merge map
+   * which maps all points to the points to which they were merged. Note the
+   * number of points in the merge map is the number of points the locator
+   * was built with. Merging occurs when both the points and the associated
+   * point data (represented by the data array) are equal. The user is
+   * expected to pass in an allocated mergeMap, and the size of the data
+   * array should be number of points in the locator. The data array may
+   * have an arbitrary number of components.
+   */
+  void MergePointsWithData(vtkDataArray* data, vtkIdType* mergeMap);
 
   ///@{
   /**
@@ -171,6 +194,7 @@ public:
   void Initialize() override;
   void FreeSearchStructure() override;
   void BuildLocator() override;
+  void ForceBuildLocator() override;
   void BuildLocator(const double* inBounds);
   ///@}
 
@@ -236,9 +260,44 @@ public:
   }
   ///@}
 
+  /**
+   * Point merging is inherently an order-dependent process. Because naive
+   * threaded execution can non-deterministically change the ordering of
+   * merged points, threaded point merging for tolerances != 0.0 requires
+   * some level of serialization of the merging process to produce
+   * deterministic results. POINT_ORDER is completely serialized: two
+   * points with ids p0,p1 are merged if they are within tolerance of one
+   * another, with p1->p0 (p1 merged to p0) if p0<p1. IN BIN_ORDER, a
+   * threaded checkerboarding approach is used so that p1->p0 when p0<p1 in
+   * the local bin neighborhood and p1 not yet merged.
+   */
+  enum TraversalOrderType
+  {
+    POINT_ORDER = 0,
+    BIN_ORDER = 1
+  };
+
+  ///@{
+  /**
+   * Specify the manner in which points are processed when a non-zero merge
+   * tolerance is specified. By default, BIN_ORDER is used (i.e., threaded
+   * using bin checkerboard traversal) versus POINT_ORDER, which is a serial traversal.
+   */
+  vtkSetClampMacro(
+    TraversalOrder, int, vtkStaticPointLocator::POINT_ORDER, vtkStaticPointLocator::BIN_ORDER);
+  vtkGetMacro(TraversalOrder, int);
+  void SetTraversalOrderToPointOrder()
+  {
+    this->SetTraversalOrder(vtkStaticPointLocator::POINT_ORDER);
+  }
+  void SetTraversalOrderToBinOrder() { this->SetTraversalOrder(vtkStaticPointLocator::BIN_ORDER); }
+  ///@}
+
 protected:
   vtkStaticPointLocator();
   ~vtkStaticPointLocator() override;
+
+  void BuildLocatorInternal() override;
 
   int NumberOfPointsPerBucket;  // Used with AutomaticOn to control subdivide
   int Divisions[3];             // Number of sub-divisions in x-y-z directions
@@ -246,6 +305,7 @@ protected:
   vtkBucketList* Buckets;       // Lists of point ids in each bucket
   vtkIdType MaxNumberOfBuckets; // Maximum number of buckets in locator
   bool LargeIds;                // indicate whether integer ids are small or large
+  int TraversalOrder;           // Control traversal order when threading
 
 private:
   vtkStaticPointLocator(const vtkStaticPointLocator&) = delete;

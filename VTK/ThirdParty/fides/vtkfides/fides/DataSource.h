@@ -95,9 +95,19 @@ struct DataSource
   /// using the inline engine and must be called before attempting to read.
   void SetDataSourceIO(void* io);
 
+  /// Set the IO object for this data source. The \c ioAddress argument is
+  /// the pointer address to an ADIOS::IO object stored in a string.
+  /// This call is only required when
+  /// using the inline engine and must be called before attempting to read.
+  void SetDataSourceIO(const std::string& ioAddress);
+
   /// Prepare data source for reading. This needs to be called before
   /// any meta-data or heavy-data operations can be performed.
-  void OpenSource(const std::string& fname);
+  /// In most cases, useMPI should be true (the default value), but in some
+  /// cases it is useful to open a source without using MPI
+  /// (See DataSetReader::CheckForDataModelAttribute for details).
+  /// useMPI is ignored if Fides is built without MPI support.
+  void OpenSource(const std::string& fname, bool useMPI = true);
 
   /// Returns the number of blocks (partitions) available from the
   /// data source for the given variable name.
@@ -124,6 +134,10 @@ struct DataSource
   /// Reads a scalar variable and can be used when when an
   /// actual value is needed immediately.
   std::vector<vtkm::cont::UnknownArrayHandle> GetScalarVariable(
+    const std::string& varName,
+    const fides::metadata::MetaData& selections);
+
+  std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArray(
     const std::string& varName,
     const fides::metadata::MetaData& selections);
 
@@ -176,6 +190,7 @@ private:
   EngineType AdiosEngineType = EngineType::BPFile;
   DataSourceParams SourceParams;
   std::string ReaderID = "inline-reader"; // Only used for Inline Engine
+  StepStatus MostRecentStepStatus = StepStatus::NotReady;
 
   enum class VarType
   {

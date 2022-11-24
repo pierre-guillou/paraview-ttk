@@ -29,16 +29,15 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqPropertyWidget_h
-#define _pqPropertyWidget_h
+#ifndef pqPropertyWidget_h
+#define pqPropertyWidget_h
 
 #include "pqComponentsModule.h"
-#include "vtkSetGet.h" // for VTK_LEGACY_REMOVE.
 
 #include "pqPropertyLinks.h"
+#include <QFrame>
 #include <QPointer>
 #include <QScopedPointer>
-#include <QWidget>
 
 class pqPropertyWidgetDecorator;
 class pqTimer;
@@ -51,28 +50,34 @@ class vtkSMProxy;
  * pqPropertyWidget represents a widget created for each property of a proxy on
  * the pqPropertiesPanel (for the proxy's properties or display properties).
  */
-class PQCOMPONENTS_EXPORT pqPropertyWidget : public QWidget
+class PQCOMPONENTS_EXPORT pqPropertyWidget : public QFrame
 {
   Q_OBJECT
   typedef QWidget Superclass;
 
 public:
-  pqPropertyWidget(vtkSMProxy* proxy, QWidget* parent = 0);
+  pqPropertyWidget(vtkSMProxy* proxy, QWidget* parent = nullptr);
   ~pqPropertyWidget() override;
 
   virtual void apply();
   virtual void reset();
 
+  //@{
   /**
    * These methods are called by pqPropertiesPanel when the panel for proxy
    * becomes active/deactive.
-   * Only widgets that have 3D widgets need to
-   * override these methods to select/deselect the 3D widgets.
+   * Only widgets that have interactive widgets need to
+   * override these methods to select/deselect the interactive widgets.
+   * `selectPort(int)` allows to specify an output port index and conditionnaly
+   * select the interactive widget if the XML hint `WidgetVisibilityLink`
+   * has been set.
    * Default implementation does nothing.
    */
   virtual void select() { this->Selected = true; }
+  virtual void selectPort(int portIndex) { Q_UNUSED(portIndex); }
   virtual void deselect() { this->Selected = false; }
   bool isSelected() const { return this->Selected; }
+  //@}
 
   // This method is called on pqPropertyWidget instances that pqProxyWidget
   // deems that should be shown in current configuration. Subclasses can
@@ -230,13 +235,13 @@ private:
   friend class pqPropertyWidgetDecorator;
   friend class pqProxyWidget;
 
-private Q_SLOTS:
+private Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * check if changeFinished() must be fired as well.
    */
   void onChangeAvailable();
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   vtkSMProxy* Proxy;
   vtkSMProperty* Property;
   QPointer<pqView> View;
@@ -257,9 +262,4 @@ private:
   void editingFinished();
 };
 
-#if !defined(VTK_LEGACY_REMOVE)
-#include "pqDebug.h"
-#define PV_DEBUG_PANELS() pqDebug("PV_DEBUG_PANELS")
-#endif
-
-#endif // _pqPropertyWidget_h
+#endif // pqPropertyWidget_h

@@ -25,16 +25,15 @@ PURPOSE.  See the above copyright notice for more information.
 #ifndef vtkVRModel_h
 #define vtkVRModel_h
 
-#include "vtkEventData.h" // for vtkEventDataDevice
-#include "vtkNew.h"       // for ivar
+#include "vtkNew.h" // for ivar
 #include "vtkObject.h"
 #include "vtkOpenGLHelper.h"      // ivar
 #include "vtkRenderingVRModule.h" // For export macro
 
+class vtkMatrix4x4;
 class vtkOpenGLRenderWindow;
 class vtkOpenGLVertexBufferObject;
 class vtkTextureObject;
-class vtkMatrix4x4;
 class vtkVRRay;
 
 class VTKRENDERINGVR_EXPORT vtkVRModel : public vtkObject
@@ -45,7 +44,7 @@ public:
 
   bool Build(vtkOpenGLRenderWindow* win);
 
-  void Render(vtkOpenGLRenderWindow* win, const float poseInTrackingCoordinates[][4]);
+  void Render(vtkOpenGLRenderWindow* win, vtkMatrix4x4* poseInTrackingCoordinates);
 
   const std::string& GetName() const { return this->ModelName; }
   void SetName(const std::string& modelName) { this->ModelName = modelName; }
@@ -61,9 +60,6 @@ public:
   vtkVRRay* GetRay() { return this->Ray; }
 
   void ReleaseGraphicsResources(vtkWindow* win);
-
-  // The tracked device this model represents if any
-  vtkEventDataDevice TrackedDevice = vtkEventDataDevice::Unknown;
 
 protected:
   vtkVRModel();
@@ -83,7 +79,7 @@ protected:
   vtkOpenGLHelper ModelHelper;
   vtkOpenGLVertexBufferObject* ModelVBO;
   vtkNew<vtkTextureObject> TextureObject;
-  vtkNew<vtkMatrix4x4> PoseMatrix;
+  vtkNew<vtkMatrix4x4> ModelToProjectionMatrix;
 
   // Controller ray
   vtkNew<vtkVRRay> Ray;

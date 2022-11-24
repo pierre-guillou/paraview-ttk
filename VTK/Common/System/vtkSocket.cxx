@@ -72,8 +72,7 @@
   do                                                                                               \
   {                                                                                                \
     (_ret) = (_call);                                                                              \
-  } while (                                                                                        \
-    ((_ret) == vtkSocketErrorReturnMacro) && (vtkErrnoMacro == vtkSocketErrorIdMacro(EINTR)));
+  } while (((_ret) == vtkSocketErrorReturnMacro) && (vtkErrnoMacro == vtkSocketErrorIdMacro(EINTR)))
 
 // use when _str may be a null pointer but _fallback is not.
 #define vtkSafeStrMacro(_str, _fallback) ((_str) ? (_str) : (_fallback))
@@ -81,20 +80,21 @@
 // convert error number to string and report via vtkErrorMacro.
 #define vtkSocketErrorMacro(_eno, _message)                                                        \
   vtkErrorMacro(<< (_message) << " " << vtkSafeStrMacro(vtkStrerrorMacro(_eno), "unknown error")   \
-                << ".");
+                << ".")
 
 // convert error number to string and report via vtkGenericWarningMacro
 #define vtkSocketGenericErrorMacro(_message)                                                       \
   vtkGenericWarningMacro(<< (_message) << " "                                                      \
                          << vtkSafeStrMacro(vtkStrerrorMacro(vtkErrnoMacro), "unknown error")      \
-                         << ".");
+                         << ".")
 
 // on windows strerror doesn't handle socket error codes
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static const char* wsaStrerror(int wsaeid)
 {
   wchar_t wbuf[256];
-  int ok = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM, 0, wsaeid, 0, wbuf, sizeof(wbuf), 0);
+  int ok = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, wsaeid, 0,
+    wbuf, sizeof(wbuf), 0);
   if (!ok)
   {
     return nullptr;

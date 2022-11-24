@@ -76,11 +76,21 @@ public:
   int GetElementComponentSize() const override { return this->GetDataTypeSize(); }
 
   // Reimplemented virtuals (doc strings are inherited from superclass):
+  ///@{
+  /**
+   * See documentation from parent class.
+   * This method assumes that the `source` inherits from `vtkDataArray`, but its value type doesn't
+   * have to match the type of the current instance.
+   */
   void InsertTuple(vtkIdType dstTupleIdx, vtkIdType srcTupleIdx, vtkAbstractArray* source) override;
   vtkIdType InsertNextTuple(vtkIdType srcTupleIdx, vtkAbstractArray* source) override;
   void InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source) override;
   void InsertTuples(
     vtkIdType dstStart, vtkIdType n, vtkIdType srcStart, vtkAbstractArray* source) override;
+  void InsertTuplesStartingAt(
+    vtkIdType dstStart, vtkIdList* srcIds, vtkAbstractArray* source) override;
+  void SetTuple(vtkIdType dstTupleIdx, vtkIdType srcTupleIdx, vtkAbstractArray* source) override;
+  ///@}
   void GetTuples(vtkIdList* tupleIds, vtkAbstractArray* output) override;
   void GetTuples(vtkIdType p1, vtkIdType p2, vtkAbstractArray* output) override;
   void InterpolateTuple(vtkIdType dstTupleIdx, vtkIdList* ptIndices, vtkAbstractArray* source,
@@ -122,8 +132,6 @@ public:
   double* GetTuple9(vtkIdType tupleIdx) VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
     VTK_SIZEHINT(9);
   ///@}
-
-  void SetTuple(vtkIdType dstTupleIdx, vtkIdType srcTupleIdx, vtkAbstractArray* source) override;
 
   ///@{
   /**
@@ -334,6 +342,7 @@ public:
   vtkGetObjectMacro(LookupTable, vtkLookupTable);
   ///@}
 
+  ///@{
   /**
    * The range of the data array values for the given component will be
    * returned in the provided range array argument. If comp is -1, the range
@@ -341,9 +350,22 @@ public:
    * range is computed and then cached, and will not be re-computed on
    * subsequent calls to GetRange() unless the array is modified or the
    * requested component changes.
+   *
+   * The version of this method with `ghosts` and `ghostsToSkip` allows to skip
+   * values in the computation of the range. At a given id, if `ghosts[id] & ghostsToSkip != 0`,
+   * then the corresponding tuple is not accounted for when computing the range.
+   * Note that when the ghost array is provided, no cached value is stored inside
+   * this instance. See `vtkFieldData::GetRange`, which caches the computated range
+   * when using a ghost array.
+   *
    * THIS METHOD IS NOT THREAD SAFE.
    */
   void GetRange(double range[2], int comp) { this->ComputeRange(range, comp); }
+  void GetRange(double range[2], int comp, const unsigned char* ghosts, unsigned char ghostsToSkip)
+  {
+    this->ComputeRange(range, comp, ghosts, ghostsToSkip);
+  }
+  ///@}
 
   ///@{
   /**
@@ -380,6 +402,7 @@ public:
    */
   void GetRange(double range[2]) { this->GetRange(range, 0); }
 
+  ///@{
   /**
    * The range of the data array values for the given component will be
    * returned in the provided range array argument. If comp is -1, the range
@@ -387,9 +410,24 @@ public:
    * range is computed and then cached, and will not be re-computed on
    * subsequent calls to GetRange() unless the array is modified or the
    * requested component changes.
+   *
+   * The version of this method with `ghosts` and `ghostsToSkip` allows to skip
+   * values in the computation of the range. At a given id, if `ghosts[id] & ghostsToSkip != 0`,
+   * then the corresponding tuple is not accounted for when computing the range.
+   *
+   * Note that when the ghost array is provided, no cached value is stored inside
+   * this instance. See `vtkFieldData::GetRange`, which caches the computated range
+   * when using a ghost array.
+   *
    * THIS METHOD IS NOT THREAD SAFE.
    */
   void GetFiniteRange(double range[2], int comp) { this->ComputeFiniteRange(range, comp); }
+  void GetFiniteRange(
+    double range[2], int comp, const unsigned char* ghosts, unsigned char ghostsToSkip)
+  {
+    this->ComputeFiniteRange(range, comp, ghosts, ghostsToSkip);
+  }
+  ///@}
 
   ///@{
   /**
@@ -510,52 +548,128 @@ public:
 
 protected:
   friend class vtkPoints;
+  friend class vtkFieldData;
 
+  ///@{
   /**
    * Compute the range for a specific component. If comp is set -1
    * then L2 norm is computed on all components. Call ClearRange
    * to force a recomputation if it is needed. The range is copied
    * to the range argument.
+   *
+   * The version of this method with `ghosts` and `ghostsToSkip` allows to skip
+   * values in the computation of the range. At a given id, if `ghosts[id] & ghostsToSkip != 0`,
+   * then the corresponding tuple is not accounted for when computing the range.
+   *
+   * Note that when the ghost array is provided, no cached value is stored inside
+   * this instance. See `vtkFieldData::GetRange`, which caches the computated range
+   * when using a ghost array.
+   *
    * THIS METHOD IS NOT THREAD SAFE.
    */
   virtual void ComputeRange(double range[2], int comp);
+  virtual void ComputeRange(
+    double range[2], int comp, const unsigned char* ghosts, unsigned char ghostsToSkip = 0xff);
+  ///@}
 
+  ///@{
   /**
    * Compute the range for a specific component. If comp is set -1
    * then L2 norm is computed on all components. Call ClearRange
    * to force a recomputation if it is needed. The range is copied
    * to the range argument.
+   *
+   * The version of this method with `ghosts` and `ghostsToSkip` allows to skip
+   * values in the computation of the range. At a given id, if `ghosts[id] & ghostsToSkip != 0`,
+   * then the corresponding tuple is not accounted for when computing the range.
+   *
+   * Note that when the ghost array is provided, no cached value is stored inside
+   * this instance. See `vtkFieldData::GetFiniteRange`, which caches the computated range
+   * when using a ghost array.
+   *
    * THIS METHOD IS NOT THREAD SAFE.
    */
   virtual void ComputeFiniteRange(double range[2], int comp);
+  virtual void ComputeFiniteRange(
+    double range[2], int comp, const unsigned char* ghosts, unsigned char ghostsToSkip = 0xff);
+  ///@}
 
+  ///@{
   /**
    * Computes the range for each component of an array, the length
    * of \a ranges must be two times the number of components.
    * Returns true if the range was computed. Will return false
    * if you try to compute the range of an array of length zero.
+   *
+   * The version of this method with `ghosts` and `ghostsToSkip` allows to skip
+   * values in the computation of the range. At a given id, if `ghosts[id] & ghostsToSkip != 0`,
+   * then the corresponding tuple is not accounted for when computing the range.
+   *
+   * Note that when the ghost array is provided, no cached value is stored inside
+   * this instance. See `vtkFieldData::GetRange`, which caches the computated range
+   * when using a ghost array.
+   *
    */
   virtual bool ComputeScalarRange(double* ranges);
+  virtual bool ComputeScalarRange(
+    double* ranges, const unsigned char* ghosts, unsigned char ghostsToSkip = 0xff);
+  ///@}
 
+  ///@{
   /**
    * Returns true if the range was computed. Will return false
    * if you try to compute the range of an array of length zero.
+   *
+   * The version of this method with `ghosts` and `ghostsToSkip` allows to skip
+   * values in the computation of the range. At a given id, if `ghosts[id] & ghostsToSkip != 0`,
+   * then the corresponding tuple is not accounted for when computing the range.
+   *
+   * Note that when the ghost array is provided, no cached value is stored inside
+   * this instance. See `vtkFieldData::GetRange`, which caches the computated range
+   * when using a ghost array.
    */
   virtual bool ComputeVectorRange(double range[2]);
+  virtual bool ComputeVectorRange(
+    double range[2], const unsigned char* ghosts, unsigned char ghostsToSkip = 0xff);
+  ///@}
 
+  ///@{
   /**
    * Computes the range for each component of an array, the length
    * of \a ranges must be two times the number of components.
    * Returns true if the range was computed. Will return false
    * if you try to compute the range of an array of length zero.
+   *
+   * The version of this method with `ghosts` and `ghostsToSkip` allows to skip
+   * values in the computation of the range. At a given id, if `ghosts[id] & ghostsToSkip != 0`,
+   * then the corresponding tuple is not accounted for when computing the range.
+   *
+   * Note that when the ghost array is provided, no cached value is stored inside
+   * this instance. See `vtkFieldData::GetFiniteRange`, which caches the computated range
+   * when using a ghost array.
    */
   virtual bool ComputeFiniteScalarRange(double* ranges);
+  virtual bool ComputeFiniteScalarRange(
+    double* ranges, const unsigned char* ghosts, unsigned char ghostsToSkip = 0xff);
+  ///@}
 
+  ///@{
   /**
    * Returns true if the range was computed. Will return false
    * if you try to compute the range of an array of length zero.
+   *
+   * The version of this method with `ghosts` and `ghostsToSkip` allows to skip
+   * values in the computation of the range. At a given id, if `ghosts[id] & ghostsToSkip != 0`,
+   * then the corresponding tuple is not accounted for when computing the range.
+   *
+   * Note that when the ghost array is provided, no cached value is stored inside
+   * this instance. See `vtkFieldData::GetFiniteRange`, which caches the computated range
+   * when using a ghost array.
    */
   virtual bool ComputeFiniteVectorRange(double range[2]);
+  virtual bool ComputeFiniteVectorRange(
+    double range[2], const unsigned char* ghosts, unsigned char ghostsToSkip = 0xff);
+  ///@}
 
   // Construct object with default tuple dimension (number of components) of 1.
   vtkDataArray();

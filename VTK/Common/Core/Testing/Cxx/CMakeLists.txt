@@ -121,7 +121,6 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestBitArray.cxx
   TestCLI11.cxx
   TestCollection.cxx
-  TestConditionVariable.cxx
   # TestCxxFeatures.cxx # This is in its own exe too.
   TestDataArray.cxx
   TestDataArrayComponentNames.cxx
@@ -134,6 +133,7 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestGenericDataArrayAPI.cxx
   TestInformationKeyLookup.cxx
   TestLogger.cxx
+  TestLoggerThreadName.cxx
   TestLookupTable.cxx
   TestLookupTableThreaded.cxx
   TestMath.cxx
@@ -147,13 +147,12 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestOStreamWrapper.cxx
   TestSMP.cxx
   TestSmartPointer.cxx
+  TestSOADataArray.cxx
   TestSortDataArray.cxx
   TestSparseArrayValidation.cxx
   TestSystemInformation.cxx
   TestTemplateMacro.cxx
   TestTimePointUtility.cxx
-  TestUnicodeStringAPI.cxx
-  TestUnicodeStringArrayAPI.cxx
   TestVariant.cxx
   TestVariantComparison.cxx
   TestWeakPointer.cxx
@@ -180,7 +179,7 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
 add_executable(TestLoggerDisableSignalHandlerCxx
   TestLoggerDisableSignalHandler.cxx)
 target_link_libraries(TestLoggerDisableSignalHandlerCxx
-  PRIVATE VTK::CommonCore)
+  PRIVATE VTK::CommonCore VTK::CommonDataModel)
 add_test(NAME TestLoggerDisableSignalHandler
   COMMAND ${CMAKE_COMMAND}
   -DEXECUTABLE_PATH:FILEPATH=$<TARGET_FILE:TestLoggerDisableSignalHandlerCxx>

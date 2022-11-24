@@ -28,6 +28,7 @@
 #include <stdexcept>
 
 #define test_expression(expression)                                                                \
+  do                                                                                               \
   {                                                                                                \
     if (!(expression))                                                                             \
     {                                                                                              \
@@ -35,24 +36,21 @@
       buffer << "Expression failed at line " << __LINE__ << ": " << #expression;                   \
       throw std::runtime_error(buffer.str());                                                      \
     }                                                                                              \
-  }
+  } while (false)
 
 class UserType
 {
 public:
-  UserType()
-    : Value("")
-  {
-  }
+  UserType() = default;
 
-  UserType(const vtkStdString& value)
+  UserType(const std::string& value)
     : Value(value)
   {
   }
 
   bool operator==(const UserType& other) const { return this->Value == other.Value; }
 
-  vtkStdString Value;
+  std::string Value;
 };
 
 template <>

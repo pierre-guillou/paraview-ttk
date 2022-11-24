@@ -112,7 +112,7 @@ public:
 
   ///@{
   /**
-   * Set/get the tolerance usued for the locator.
+   * Set/get the tolerance used for the locator.
    */
   vtkGetMacro(Tolerance, double);
   vtkSetMacro(Tolerance, double);
@@ -125,7 +125,7 @@ protected:
   /**
    * Create default locator. Used to create one when none is specified.
    */
-  void CreateDefaultLocator(void);
+  void CreateDefaultLocator();
 
   double SharedEvaluate(double x[3], double g[3], double closestPoint[3]);
 

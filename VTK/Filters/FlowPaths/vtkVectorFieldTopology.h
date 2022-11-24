@@ -91,7 +91,7 @@ public:
 
   ///@{
   /**
-   * Specify/see if the separatring surfaces (separatrices in 3D) are computed or not
+   * Specify/see if the separating surfaces (separatrices in 3D) are computed or not
    */
   vtkSetMacro(ComputeSurfaces, bool);
   vtkGetMacro(ComputeSurfaces, bool);
@@ -105,18 +105,18 @@ public:
   vtkGetMacro(ExcludeBoundary, bool);
   ///@}
 
-  //@{
+  ///@{
   /**
    * Specify/see whether to use boundary switch points/lines points as seeds or not
    */
   vtkSetMacro(UseBoundarySwitchPoints, bool);
   vtkGetMacro(UseBoundarySwitchPoints, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify the VectorAngleThreshold to remove noisy boundary switch points/lines
-   * When computing boundary switch point, if the vecotrs of the two points within a cell are almost
+   * When computing boundary switch point, if the vectors of the two points within a cell are almost
    * parallel, the boundary switch point computed is considered as a noise point. Let v0 and v1 be
    * the vectors of the two points, and their norm equal to 1. The dot product between them
    * Dot(v0,v1) = cos(theta), where theta is the angle between v0 and v1. When v0 and v1 are almost
@@ -125,20 +125,27 @@ public:
    */
   vtkSetMacro(VectorAngleThreshold, double);
   vtkGetMacro(VectorAngleThreshold, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify the OffsetAwayFromBoundary to shift seeds for computing separating lines/surfaces
    */
   vtkSetMacro(OffsetAwayFromBoundary, double);
   vtkGetMacro(OffsetAwayFromBoundary, double);
-  //@}
+  ///@}
+
+  ///@{
+  /**
+   * Specify EpsilonCriticalPoint for classifying critical points. The default is 1e-10.
+   */
+  vtkSetMacro(EpsilonCriticalPoint, double);
+  vtkGetMacro(EpsilonCriticalPoint, double);
+  ///@}
 
   /**
    * Set the type of the velocity field interpolator to determine whether
-   * vtkInterpolatedVelocityField (INTERPOLATOR_WITH_DATASET_POINT_LOCATOR) or
-   * vtkCellLocatorInterpolatedVelocityField (INTERPOLATOR_WITH_CELL_LOCATOR) is employed for
+   * INTERPOLATOR_WITH_DATASET_POINT_LOCATOR or INTERPOLATOR_WITH_CELL_LOCATOR is employed for
    * locating cells during streamline integration.
    */
   void SetInterpolatorType(int interpType);
@@ -268,8 +275,8 @@ private:
    * @param dist: size of the offset of the seeding
    * @param stepSize: stepsize of the integrator
    * @param maxNumSteps: maximal number of integration steps
-   * @param computeSurfaces: depending on this boolen the separatring surfaces are computed or not
-   * @param useIterativeSeeding: depending on this boolen the separatring surfaces  are computed
+   * @param computeSurfaces: depending on this boolean the separating surfaces are computed or not
+   * @param useIterativeSeeding: depending on this boolean the separating surfaces are computed
    * either good or fast
    * @return 1 if successfully terminated
    */
@@ -290,8 +297,8 @@ private:
    * @param dist: size of the offset of the seeding
    * @param stepSize: stepsize of the integrator
    * @param maxNumSteps: maximal number of integration steps
-   * @param computeSurfaces: depending on this boolen the separatring surfaces are computed or not
-   * @param useIterativeSeeding: depending on this boolen the separatring surfaces  are computed
+   * @param computeSurfaces: depending on this boolean the separating surfaces are computed or not
+   * @param useIterativeSeeding: depending on this boolean the separating surfaces are computed
    * either good or fast
    * @return 1 if successfully terminated
    */
@@ -311,7 +318,7 @@ private:
    * @param dist: size of the offset of the seeding
    * @param stepSize: stepsize of the integrator
    * @param maxNumSteps: maximal number of integration steps
-   * @param useIterativeSeeding: depending on this boolen the separatring surfaces  are computed
+   * @param useIterativeSeeding: depending on this boolean the separating surfaces are computed
    * either good or fast
    * @return 1 if successful, 0 if empty
    */
@@ -434,12 +441,12 @@ private:
   double SeparatrixDistance = 1;
 
   /**
-   * depending on this boolen the simple (fast) or iterative (correct) version is called
+   * depending on this boolean the simple (fast) or iterative (correct) version is called
    */
   bool UseIterativeSeeding = false;
 
   /**
-   * depending on this boolen the separatring surfaces (separatrices in 3D) are computed or not
+   * depending on this boolean the separating surfaces (separatrices in 3D) are computed or not
    */
   bool ComputeSurfaces = false;
 
@@ -449,7 +456,7 @@ private:
   const char* NameOfVectorArray;
 
   /**
-   * depending on this boolen the cells touching the boundary of the input dataset are treated or
+   * depending on this boolean the cells touching the boundary of the input dataset are treated or
    * not this prevents detection of the whole boundary in no slip boundary settings
    */
   bool ExcludeBoundary = false;
@@ -483,7 +490,7 @@ private:
   int InterpolatorType = vtkStreamTracer::INTERPOLATOR_WITH_DATASET_POINT_LOCATOR;
 
   /**
-   * When computing boundary switch point, if the vecotrs of the two points within a cell are almost
+   * When computing boundary switch point, if the vectors of the two points within a cell are almost
    * parallel, the boundary switch point computed is considered as a noise point. Let v0 and v1 be
    * the vectors of the two points, and their norm equal to 1. The dot product between them
    * Dot(v0,v1) = cos(theta), where theta is the angle between v0 and v1. When v0 and v1 are almost
@@ -500,6 +507,11 @@ private:
    * is equivalent to OffsetAwayFromBoundary * cell length
    */
   double OffsetAwayFromBoundary = 1e-3;
+
+  /**
+   * It is used to classify the type of critical points.
+   */
+  double EpsilonCriticalPoint = 1e-10;
 
   vtkNew<vtkStreamSurface> StreamSurface;
 };

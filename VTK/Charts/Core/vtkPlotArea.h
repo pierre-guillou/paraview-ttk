@@ -44,12 +44,20 @@ public:
    */
   using Superclass::SetInputArray;
 
-  ///@{
   /**
-   * Overridden to set the brush color.
+   * Set the plot color with integer values (comprised between 0 and 255)
    */
   void SetColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a) override;
-  void SetColor(double r, double g, double b) override;
+
+  ///@{
+  /**
+   * Set the plot color with floating values (comprised between 0.0 and 1.0)
+   */
+  void SetColorF(double r, double g, double b, double a) override;
+  void SetColorF(double r, double g, double b) override;
+
+  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous SetColorF method instead.")
+  void SetColor(double r, double g, double b) override { this->SetColorF(r, g, b); };
   ///@}
 
   ///@{
@@ -61,21 +69,9 @@ public:
   ///@}
 
   /**
-   * Perform any updates to the item that may be necessary before rendering.
-   */
-  void Update() override;
-
-  /**
    * Get the bounds for this plot as (Xmin, Xmax, Ymin, Ymax).
    */
   void GetBounds(double bounds[4]) override;
-
-  /**
-   * Subclasses that build data caches to speed up painting should override this
-   * method to update such caches. This is called on each Paint, hence
-   * subclasses must add checks to avoid rebuilding of cache, unless necessary.
-   */
-  void UpdateCache() override;
 
   /**
    * Paint event for the XY plot, called whenever the chart needs to be drawn
@@ -106,6 +102,14 @@ public:
    */
   vtkStdString GetTooltipLabel(
     const vtkVector2d& plotPos, vtkIdType seriesIndex, vtkIdType segmentIndex) override;
+
+  /**
+   * Update the internal cache. Returns true if cache was successfully updated. Default does
+   * nothing.
+   * This method is called by Update() when either the plot's data has changed or
+   * CacheRequiresUpdate() returns true. It is not necessary to call this method explicitly.
+   */
+  virtual bool UpdateCache() override;
 
 protected:
   vtkPlotArea();

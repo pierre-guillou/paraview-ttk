@@ -21,6 +21,7 @@
 #include "vtkStatisticsAlgorithm.h"
 
 #include "vtkDataObjectCollection.h"
+#include "vtkDataSetAttributes.h"
 #include "vtkDoubleArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -220,6 +221,7 @@ int vtkStatisticsAlgorithm::RequestData(
   if (inData)
   {
     outData->ShallowCopy(inData);
+    outData->GetRowData()->RemoveArray(vtkDataSetAttributes::GhostArrayName());
   }
 
   // If there are any columns selected in the buffer which have not been
@@ -310,13 +312,13 @@ void vtkStatisticsAlgorithm::Assess(
          v < numVariables && it != rit->end(); ++v, ++it)
     {
       // Try to retrieve column with corresponding name in input data
-      vtkStdString varName = *it;
+      std::string varName = *it;
 
       // If requested column does not exist in input, ignore request
-      if (!inData->GetColumnByName(varName))
+      if (!inData->GetColumnByName(varName.c_str()))
       {
-        vtkWarningMacro("InData table does not have a column "
-          << varName.c_str() << ". Ignoring request containing it.");
+        vtkWarningMacro(
+          "InData table does not have a column " << varName << ". Ignoring request containing it.");
 
         invalidRequest = true;
         break;
@@ -341,7 +343,7 @@ void vtkStatisticsAlgorithm::Assess(
 
     // Store names to be able to use SetValueByName, and create the outData columns
     vtkIdType nAssessments = this->AssessNames->GetNumberOfValues();
-    std::vector<vtkStdString> names(nAssessments);
+    std::vector<std::string> names(nAssessments);
     vtkIdType nRowData = inData->GetNumberOfRows();
     for (vtkIdType a = 0; a < nAssessments; ++a)
     {
@@ -359,26 +361,21 @@ void vtkStatisticsAlgorithm::Assess(
       }
       assessColName << ")";
 
-      names[a] = assessColName.str().c_str();
+      names[a] = assessColName.str();
 
       // Create assessment columns with names <AssessmentName>(var1,...,varN)
       vtkDoubleArray* assessColumn = vtkDoubleArray::New();
-      assessColumn->SetName(names[a]);
+      assessColumn->SetName(names[a].c_str());
       assessColumn->SetNumberOfTuples(nRowData);
       outData->AddColumn(assessColumn);
       assessColumn->Delete();
     }
 
     // Select assess functor
-    AssessFunctor* dfunc;
+    AssessFunctor* dfunc = nullptr;
     this->SelectAssessFunctor(outData, inMeta, varNames, dfunc);
 
-    if (!dfunc)
-    {
-      // Functor selection did not work. Do nothing.
-      vtkWarningMacro("AssessFunctors could not be allocated. Ignoring request.");
-    }
-    else
+    if (dfunc)
     {
       // Assess each entry of the column
       vtkDoubleArray* assessResult = vtkDoubleArray::New();
@@ -389,7 +386,7 @@ void vtkStatisticsAlgorithm::Assess(
         for (vtkIdType a = 0; a < nAssessments; ++a)
         {
           // Store each assessment value in corresponding assessment column
-          outData->SetValueByName(r, names[a], assessResult->GetValue(a));
+          outData->SetValueByName(r, names[a].c_str(), assessResult->GetValue(a));
         }
       }
 

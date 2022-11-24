@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkAxis.h"
 #include "vtkChartXY.h"
 #include "vtkContextScene.h"
@@ -92,7 +89,7 @@ int TestChartDoubleColorsOpaque(int, char*[])
   vtkNew<vtkPlotLine> line;
   chart->AddPlot(line);
   line->SetInputData(table, 0, 2);
-  line->SetColor(1.0, 0.0, 0.0);
+  line->SetColorF(1.0, 0.0, 0.0);
   // Put this plot in a different corner - it is orders of magnitude smaller.
   chart->SetPlotCorner(line, 1);
   vtkNew<vtkPlotBar> bar;

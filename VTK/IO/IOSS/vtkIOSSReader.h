@@ -117,7 +117,7 @@
  * provides the partition information.
  *
  * Note, the database need not be split into multiple files. Thus, a writer may
- * generate a single `can.e` file that has all the timesteps and paritions and
+ * generate a single `can.e` file that has all the timesteps and partitions and
  * still provide all information available when the database is split among
  * multiple files.
  *
@@ -175,9 +175,12 @@
 #include "vtkNew.h"          // for vtkNew
 #include "vtkReaderAlgorithm.h"
 
+#include <map> // for std::map
+
 class vtkDataArraySelection;
 class vtkDataAssembly;
 class vtkMultiProcessController;
+class vtkStringArray;
 
 class VTKIOIOSS_EXPORT vtkIOSSReader : public vtkReaderAlgorithm
 {
@@ -208,6 +211,37 @@ public:
    */
   vtkSetStringMacro(DatabaseTypeOverride);
   vtkGetStringMacro(DatabaseTypeOverride);
+  ///@}
+
+  ///@{
+  /**
+   * When displacements are being applied, they are scaled by this amount. Set to 1 (default) for no
+   * scaling.
+   */
+  void SetDisplacementMagnitude(double magnitude);
+  double GetDisplacementMagnitude();
+  ///@}
+
+  ///@{
+  /**
+   * Set whether the reader should treat numeric suffixes for a vector field as vector components.
+   * By default, this property is off.
+   * Example: DENSITY_1, DENSITY_2, DENSITY_3, DENSITY_4
+   * If the property is true, those fields will be parsed as a 4-component vtkDataArray
+   * named DESNITY.
+   * When turned off, DENSITY_1, DENSITY_2, DENSITY_3, DENSITY_4 fields will be parsed as 4
+   * vtkDataArrays with 1 component each.
+   */
+  void SetGroupNumericVectorFieldComponents(bool value);
+  bool GetGroupNumericVectorFieldComponents();
+  ///@}
+
+  ///@{
+  /**
+   * Set the character used to separate suffix from the field.
+   */
+  void SetFieldSuffixSeparator(const char* value);
+  std::string GetFieldSuffixSeparator();
   ///@}
 
   ///@{
@@ -412,6 +446,92 @@ public:
 
   ///@{
   /**
+   * In IOSS entity blocks/sets may have unique ids. These API provide access to
+   * the map between a entity name and its id, if any. Note, these are provided
+   * for information purposes only.
+   */
+  const std::map<std::string, vtkTypeInt64>& GetEntityIdMap(int type) const;
+  const std::map<std::string, vtkTypeInt64>& GetNodeBlockIdMap() const
+  {
+    return this->GetEntityIdMap(NODEBLOCK);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetEdgeBlockIdMap() const
+  {
+    return this->GetEntityIdMap(EDGEBLOCK);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetFaceBlockIdMap() const
+  {
+    return this->GetEntityIdMap(FACEBLOCK);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetElementBlockIdMap() const
+  {
+    return this->GetEntityIdMap(ELEMENTBLOCK);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetStructuredBlockIdMap() const
+  {
+    return this->GetEntityIdMap(STRUCTUREDBLOCK);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetNodeSetIdMap() const
+  {
+    return this->GetEntityIdMap(NODESET);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetEdgeSetIdMap() const
+  {
+    return this->GetEntityIdMap(EDGESET);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetFaceSetIdMap() const
+  {
+    return this->GetEntityIdMap(FACESET);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetElementSetIdMap() const
+  {
+    return this->GetEntityIdMap(ELEMENTSET);
+  }
+  const std::map<std::string, vtkTypeInt64>& GetSideSetIdMap() const
+  {
+    return this->GetEntityIdMap(SIDESET);
+  }
+  ///@}
+
+  ///@{
+  /**
+   * This API is not really meant for public use and may change without notices.
+   * It is simply provided to make it easy to wrap the API in client-server
+   * wrappings for ParaView.
+   */
+  vtkStringArray* GetEntityIdMapAsString(int type) const;
+  vtkStringArray* GetNodeBlockIdMapAsString() const
+  {
+    return this->GetEntityIdMapAsString(NODEBLOCK);
+  }
+  vtkStringArray* GetEdgeBlockIdMapAsString() const
+  {
+    return this->GetEntityIdMapAsString(EDGEBLOCK);
+  }
+  vtkStringArray* GetFaceBlockIdMapAsString() const
+  {
+    return this->GetEntityIdMapAsString(FACEBLOCK);
+  }
+  vtkStringArray* GetElementBlockIdMapAsString() const
+  {
+    return this->GetEntityIdMapAsString(ELEMENTBLOCK);
+  }
+  vtkStringArray* GetStructuredBlockIdMapAsString() const
+  {
+    return this->GetEntityIdMapAsString(STRUCTUREDBLOCK);
+  }
+  vtkStringArray* GetNodeSetIdMapAsString() const { return this->GetEntityIdMapAsString(NODESET); }
+  vtkStringArray* GetEdgeSetIdMapAsString() const { return this->GetEntityIdMapAsString(EDGESET); }
+  vtkStringArray* GetFaceSetIdMapAsString() const { return this->GetEntityIdMapAsString(FACESET); }
+  vtkStringArray* GetElementSetIdMapAsString() const
+  {
+    return this->GetEntityIdMapAsString(ELEMENTSET);
+  }
+  vtkStringArray* GetSideSetIdMapAsString() const { return this->GetEntityIdMapAsString(SIDESET); }
+  ///@}
+
+  ///@{
+  /**
    * Assemblies provide yet another way of selection blocks/sets to load, if
    * available in the dataset. If a block (or set) is enabled either in the
    * block (or set) selection or using assembly selector then it is treated as
@@ -489,6 +609,9 @@ private:
   void operator=(const vtkIOSSReader&) = delete;
   vtkNew<vtkDataArraySelection> EntitySelection[NUMBER_OF_ENTITY_TYPES];
   vtkNew<vtkDataArraySelection> EntityFieldSelection[NUMBER_OF_ENTITY_TYPES];
+  std::map<std::string, vtkTypeInt64> EntityIdMap[NUMBER_OF_ENTITY_TYPES + 1];
+  vtkNew<vtkStringArray> EntityIdMapStrings[NUMBER_OF_ENTITY_TYPES + 1];
+
   vtkMultiProcessController* Controller;
   bool GenerateFileId;
   bool ScanForRelatedFiles;

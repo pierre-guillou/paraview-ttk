@@ -270,7 +270,7 @@ struct ExtractAndInitialize
   template <typename SourceArrayT, typename TargetArrayT>
   bool Process(SourceArrayT* src, TargetArrayT* dst) const
   {
-    // Check that allocation suceeds:
+    // Check that allocation succeeds:
     if (!dst->Resize(src->GetNumberOfTuples()))
     {
       return false;
@@ -424,6 +424,18 @@ struct ReverseCellAtIdImpl
   {
     auto cellRange = cells.GetCellRange(cellId);
     std::reverse(cellRange.begin(), cellRange.end());
+  }
+};
+
+struct ReplaceCellPointAtIdImpl
+{
+  template <typename CellStateT>
+  void operator()(
+    CellStateT& cells, vtkIdType cellId, vtkIdType cellPointIndex, vtkIdType newPointId) const
+  {
+    using ValueType = typename CellStateT::ValueType;
+
+    cells.GetCellRange(cellId)[cellPointIndex] = static_cast<ValueType>(newPointId);
   }
 };
 
@@ -1145,6 +1157,13 @@ void vtkCellArray::ReplaceCellAtId(
   vtkIdType cellId, vtkIdType cellSize, const vtkIdType cellPoints[])
 {
   this->Visit(ReplaceCellAtIdImpl{}, cellId, cellSize, cellPoints);
+}
+
+//------------------------------------------------------------------------------
+void vtkCellArray::ReplaceCellPointAtId(
+  vtkIdType cellId, vtkIdType cellPointIndex, vtkIdType newPointId)
+{
+  this->Visit(ReplaceCellPointAtIdImpl{}, cellId, cellPointIndex, newPointId);
 }
 
 //------------------------------------------------------------------------------

@@ -5,6 +5,7 @@ set(datasets
   Data/CGNS/fluid.cgns.4.3
   Data/CGNS/r24_node_tailor_test_output/sparc-volume.cgns.36.00
   Data/Exodus/Assembly-Example.g
+  Data/Exodus/biplane_rms_pressure_bs.exo
   Data/Exodus/block_with_attributes.g
   Data/Exodus/can.e.4/can.e.4.0
   Data/Exodus/can.e.4/can.e.4.1
@@ -13,6 +14,7 @@ set(datasets
   Data/Exodus/ExRestarts/blow.e
   Data/Exodus/ExRestarts/blow.e-s.001
   Data/Exodus/ExRestarts/blow.ex-timeseries
+  Data/Exodus/ghost.ex2
   Data/Exodus/hello_world_fix-d_frf.frq
   Data/Exodus/RubiksCubeWithRotations_gold.g
   Data/Exodus/SAND2020-4077_O-tri6sWFace2.exo

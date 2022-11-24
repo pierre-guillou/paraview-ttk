@@ -121,7 +121,7 @@ vtkStdString vtkLabelHierarchyIterator::GetLabel()
 {
   if (!this->GetHierarchy())
   {
-    return vtkStdString();
+    return {};
   }
   vtkAbstractArray* labelArr = this->GetHierarchy()->GetLabels();
   if (!labelArr)
@@ -129,20 +129,6 @@ vtkStdString vtkLabelHierarchyIterator::GetLabel()
     return "";
   }
   return labelArr->GetVariantValue(this->GetLabelId()).ToString();
-}
-
-vtkUnicodeString vtkLabelHierarchyIterator::GetUnicodeLabel()
-{
-  if (!this->GetHierarchy())
-  {
-    return vtkUnicodeString();
-  }
-  vtkAbstractArray* labelArr = this->GetHierarchy()->GetLabels();
-  if (!labelArr)
-  {
-    return vtkUnicodeString();
-  }
-  return labelArr->GetVariantValue(this->GetLabelId()).ToUnicodeString();
 }
 
 double vtkLabelHierarchyIterator::GetOrientation()

@@ -315,7 +315,7 @@ int vtkLoopBooleanPolyDataFilter::Impl::FindRegionTipToe(int inputIndex, int fil
           this->Mesh[inputIndex]->GetCellEdgeNeighbors(cellId, p1, p2, neighbors);
           vtkIdType numNeighbors = neighbors->GetNumberOfIds();
 
-          // Check to make sure it is an oustide surface cell,
+          // Check to make sure it is an outside surface cell,
           // i.e. one neighbor
           if (numNeighbors == 1)
           {
@@ -1028,7 +1028,7 @@ void vtkLoopBooleanPolyDataFilter::Impl::DetermineIntersection(std::vector<simLo
 
   for (vtkIdType interPt = 0; interPt < numInterPts; interPt++)
   {
-    if (usedPt[interPt] == false)
+    if (!usedPt[interPt])
     {
       simLoop newloop;
       vtkSmartPointer<vtkIdList> cellIds = vtkSmartPointer<vtkIdList>::New();
@@ -1230,11 +1230,11 @@ int vtkLoopBooleanPolyDataFilter::Impl::RunLoopTest(
       nextPt = pointIds->GetId(0);
     }
 
-    if (usedPt[nextPt] == true)
+    if (usedPt[nextPt])
     {
       vtkDebugWithObjectMacro(this->ParentFilter, << "Bad One");
     }
-    if (cellId != stopCell && usedPt[nextPt] != true)
+    if (cellId != stopCell && !usedPt[nextPt])
     {
       simLine newline;
       newline.id = cellId;

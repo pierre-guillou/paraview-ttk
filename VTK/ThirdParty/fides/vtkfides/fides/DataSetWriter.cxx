@@ -14,6 +14,7 @@
 #include <fides/predefined/InternalMetadataSource.h>
 
 #include <ios>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -32,7 +33,7 @@
 #include <vtkm/cont/CellSetSingleType.h>
 #include <vtkm/cont/CoordinateSystem.h>
 #include <vtkm/cont/DataSet.h>
-#include <vtkm/cont/DynamicCellSet.h>
+#include <vtkm/cont/UnknownCellSet.h>
 
 #include <fides/CellSet.h>
 #include <fides/CoordinateSystem.h>
@@ -40,7 +41,7 @@
 #include <fides/Field.h>
 
 #ifdef FIDES_USE_MPI
-#include <mpi.h>
+#include <vtk_mpi.h>
 #endif
 
 template <typename T>
@@ -318,7 +319,7 @@ public:
       std::size_t numComponents = static_cast<std::size_t>(field.GetData().GetNumberOfComponents());
       std::vector<std::size_t> shape, offset, size;
 
-      if (field.GetAssociation() == vtkm::cont::Field::Association::POINTS)
+      if (field.GetAssociation() == vtkm::cont::Field::Association::Points)
       {
         if (numComponents == 1)
         {
@@ -336,7 +337,7 @@ public:
         auto var = this->IO.DefineVariable<vtkm::FloatDefault>(name, shape, offset, size);
         this->PointCenteredFieldVars.push_back(var);
       }
-      else if (field.GetAssociation() == vtkm::cont::Field::Association::CELL_SET)
+      else if (field.GetAssociation() == vtkm::cont::Field::Association::Cells)
       {
         if (numComponents == 1)
         {
@@ -497,7 +498,7 @@ public:
       const auto& ucoords = ds.GetCoordinateSystem().GetData().AsArrayHandle<UniformCoordType>();
       auto origin = ucoords.ReadPortal().GetOrigin();
       auto spacing = ucoords.ReadPortal().GetSpacing();
-      const auto& cellSet = ds.GetCellSet().Cast<UniformCellType>();
+      const auto& cellSet = ds.GetCellSet().AsCellSet<UniformCellType>();
       auto dim = cellSet.GetPointDimensions();
 
       for (int j = 0; j < 3; j++)
@@ -763,7 +764,7 @@ public:
     for (vtkm::Id i = 0; i < this->DataSets.GetNumberOfPartitions(); i++)
     {
       const auto& ds = this->DataSets.GetPartition(i);
-      const auto& cellSet = ds.GetCellSet().Cast<UnstructuredSingleType>();
+      const auto& cellSet = ds.GetCellSet().AsCellSet<UnstructuredSingleType>();
       const auto& conn = cellSet.GetConnectivityArray(vtkm::TopologyElementTagCell{},
                                                       vtkm::TopologyElementTagPoint{});
 
@@ -802,7 +803,7 @@ protected:
         ds.GetCoordinateSystem().GetData().AsArrayHandle<UnstructuredCoordType>();
       this->NumCoords += coords.GetNumberOfValues();
 
-      const auto& cellSet = ds.GetCellSet().Cast<UnstructuredSingleType>();
+      const auto& cellSet = ds.GetCellSet().AsCellSet<UnstructuredSingleType>();
       this->NumCells += cellSet.GetNumberOfCells();
       if (i == 0)
       {
@@ -967,8 +968,8 @@ public:
     size_t numVertsOffset = 0;
     for (auto const& ds : this->DataSets)
     {
-      const vtkm::cont::DynamicCellSet& dCellSet = ds.GetCellSet();
-      const auto& cellSet = dCellSet.Cast<vtkm::cont::CellSetExplicit<>>();
+      const vtkm::cont::UnknownCellSet& dCellSet = ds.GetCellSet();
+      const auto& cellSet = dCellSet.AsCellSet<vtkm::cont::CellSetExplicit<>>();
       size_t numCells = static_cast<size_t>(cellSet.GetNumberOfCells());
 
       const auto& shapes =
@@ -1028,7 +1029,7 @@ protected:
       const auto& coords = ds.GetCoordinateSystem().GetData();
       this->NumCoords += coords.GetNumberOfValues();
 
-      const auto& cellSet = ds.GetCellSet().Cast<UnstructuredExplicitType>();
+      const auto& cellSet = ds.GetCellSet().AsCellSet<UnstructuredExplicitType>();
       this->NumCells += cellSet.GetNumberOfCells();
     }
 
@@ -1037,7 +1038,7 @@ protected:
     for (auto const& ds : DataSets)
     {
       auto const& dCellSet = ds.GetCellSet();
-      vtkm::cont::CellSetExplicit<>& cellSet = dCellSet.Cast<UnstructuredExplicitType>();
+      vtkm::cont::CellSetExplicit<> cellSet = dCellSet.AsCellSet<UnstructuredExplicitType>();
       const auto& conn = cellSet.GetConnectivityArray(vtkm::TopologyElementTagCell{},
                                                       vtkm::TopologyElementTagPoint{});
       std::size_t numConn = static_cast<std::size_t>(conn.GetNumberOfValues());

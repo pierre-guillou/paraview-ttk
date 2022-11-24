@@ -213,6 +213,7 @@ int vtkMINCImageWriter::CloseNetCDFFile(int ncid)
 //------------------------------------------------------------------------------
 // this is a macro so the vtkErrorMacro will report a useful line number
 #define vtkMINCImageWriterFailAndClose(ncid, status)                                               \
+  do                                                                                               \
   {                                                                                                \
     if ((status) != NC_NOERR)                                                                      \
     {                                                                                              \
@@ -220,7 +221,7 @@ int vtkMINCImageWriter::CloseNetCDFFile(int ncid)
                                                                << nc_strerror(status));            \
     }                                                                                              \
     nc_close(ncid);                                                                                \
-  }
+  } while (false)
 
 //------------------------------------------------------------------------------
 // Function for getting VTK dimension index from file name.
@@ -492,16 +493,22 @@ nc_type vtkMINCImageWriterConvertVTKTypeToMINCType(int dataType, int& mincsigned
 // text attributes.  As of VTK 7.1, it does not.  The attribute length
 // should be the string length, not the string length "plus one".
 #define vtkMINCImageWriterPutAttributeTextMacro(name, text)                                        \
-  if (status == NC_NOERR)                                                                          \
+  do                                                                                               \
   {                                                                                                \
-    status = nc_put_att_text(ncid, varid, name, strlen(text), text);                               \
-  }
+    if (status == NC_NOERR)                                                                        \
+    {                                                                                              \
+      status = nc_put_att_text(ncid, varid, name, strlen(text), text);                             \
+    }                                                                                              \
+  } while (false)
 
 #define vtkMINCImageWriterPutAttributeDoubleMacro(name, count, ptr)                                \
-  if (status == NC_NOERR)                                                                          \
+  do                                                                                               \
   {                                                                                                \
-    status = nc_put_att_double(ncid, varid, name, NC_DOUBLE, count, ptr);                          \
-  }
+    if (status == NC_NOERR)                                                                        \
+    {                                                                                              \
+      status = nc_put_att_double(ncid, varid, name, NC_DOUBLE, count, ptr);                        \
+    }                                                                                              \
+  } while (false)
 
 //------------------------------------------------------------------------------
 // Allowed dimension variable names
@@ -533,9 +540,9 @@ int vtkMINCImageWriter::CreateMINCDimensions(vtkImageData* input, int numTimeSte
   }
   for (int iuserdims = 0; iuserdims < nuserdims; iuserdims++)
   {
-    const char* dimname = dimensionNames->GetValue(iuserdims);
+    vtkStdString dimname = dimensionNames->GetValue(iuserdims);
     // Remove vector_dimension, we'll add it back if it is needed
-    if (strcmp(dimname, MIvector_dimension) == 0)
+    if (dimname == MIvector_dimension)
     {
       continue;
     }
@@ -548,7 +555,7 @@ int vtkMINCImageWriter::CreateMINCDimensions(vtkImageData* input, int numTimeSte
     const char** tryname = nullptr;
     for (tryname = vtkMINCDimVarNames; *tryname != nullptr; tryname++)
     {
-      if (strcmp(dimname, *tryname) == 0)
+      if (dimname == *tryname)
       {
         break;
       }
@@ -672,9 +679,9 @@ int vtkMINCImageWriter::CreateMINCVariables(
   int ndim = this->FileDimensionNames->GetNumberOfValues();
   for (int dimidx = 0; dimidx < ndim; dimidx++)
   {
-    const char* dimname = this->FileDimensionNames->GetValue(dimidx);
+    vtkStdString dimname = this->FileDimensionNames->GetValue(dimidx);
     // vector_dimension isn't ever included as a variable
-    if (strcmp(dimname, MIvector_dimension) != 0)
+    if (dimname != MIvector_dimension)
     {
       variables.push_back(this->FileDimensionNames->GetValue(dimidx));
     }
@@ -709,12 +716,12 @@ int vtkMINCImageWriter::CreateMINCVariables(
   }
   for (int iuservars = 0; iuservars < nuservars; iuservars++)
   {
-    const char* varname = variableNames->GetValue(iuservars);
+    vtkStdString varname = variableNames->GetValue(iuservars);
     int ivar;
     int nvars = static_cast<int>(variables.size());
     for (ivar = 0; ivar < nvars; ivar++)
     {
-      if (strcmp(variables[ivar].c_str(), varname) == 0)
+      if (variables[ivar] == varname)
       {
         break;
       }
@@ -725,7 +732,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
       // of the selected dimensions for this image
       for (const char** tryname = vtkMINCDimVarNames; *tryname != nullptr; tryname++)
       {
-        if (strcmp(varname, *tryname) == 0)
+        if (varname == *tryname)
         {
           vtkErrorMacro("The variable " << varname << " is not a dimension of this image");
           return 0;
@@ -743,15 +750,14 @@ int vtkMINCImageWriter::CreateMINCVariables(
   int ivar = 0;
   for (ivar = 0; ivar < nvars; ivar++)
   {
-    const char* varname = variables[ivar].c_str();
-    if (strcmp(varname, MIrootvariable) == 0 || strcmp(varname, MIimagemin) == 0 ||
-      strcmp(varname, MIimagemax) == 0)
+    vtkStdString varname = variables[ivar];
+    if (varname == MIrootvariable || varname == MIimagemin || varname == MIimagemax)
     {
       continue;
     }
     for (const char** tryname = stdVarNames; *tryname != nullptr; tryname++)
     {
-      if (strcmp(varname, *tryname) == 0)
+      if (varname == *tryname)
       {
         if (!rootChildren.empty())
         {
@@ -1011,10 +1017,11 @@ int vtkMINCImageWriter::CreateMINCVariables(
       int natts = attArray->GetNumberOfValues();
       for (int iatt = 0; iatt < natts; iatt++)
       {
-        const char* attname = attArray->GetValue(iatt);
-        vtkDataArray* array = this->ImageAttributes->GetAttributeValueAsArray(varname, attname);
+        vtkStdString attname = attArray->GetValue(iatt);
+        vtkDataArray* array =
+          this->ImageAttributes->GetAttributeValueAsArray(varname, attname.c_str());
 
-        int result = this->ImageAttributes->ValidateAttribute(varname, attname, array);
+        int result = this->ImageAttributes->ValidateAttribute(varname, attname.c_str(), array);
 
         if (result == 0)
         {
@@ -1026,7 +1033,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
         {
           vtkWarningMacro("Attribute " << varname << ":" << attname << " is not recognized");
         }
-        else if (strcmp(attname, MIdirection_cosines) == 0 && this->DirectionCosines)
+        else if (attname == MIdirection_cosines && this->DirectionCosines)
         {
           // Let DirectionCosines override the attributes setting
           continue;
@@ -1039,16 +1046,16 @@ int vtkMINCImageWriter::CreateMINCVariables(
           switch (dataType)
           {
             case VTK_CHAR:
-              status =
-                nc_put_att_text(ncid, varid, attname, size, ((vtkCharArray*)array)->GetPointer(0));
+              status = nc_put_att_text(
+                ncid, varid, attname.c_str(), size, ((vtkCharArray*)array)->GetPointer(0));
               break;
             case VTK_INT:
               status = nc_put_att_int(
-                ncid, varid, attname, NC_INT, size, ((vtkIntArray*)array)->GetPointer(0));
+                ncid, varid, attname.c_str(), NC_INT, size, ((vtkIntArray*)array)->GetPointer(0));
               break;
             case VTK_DOUBLE:
-              status = nc_put_att_double(
-                ncid, varid, attname, NC_DOUBLE, size, ((vtkDoubleArray*)array)->GetPointer(0));
+              status = nc_put_att_double(ncid, varid, attname.c_str(), NC_DOUBLE, size,
+                ((vtkDoubleArray*)array)->GetPointer(0));
               break;
             default:
             {
@@ -1613,10 +1620,10 @@ int vtkMINCImageWriter::WriteMINCData(
   {
     idim--;
 
-    const char* dimName = this->FileDimensionNames->GetValue(idim);
+    vtkStdString dimName = this->FileDimensionNames->GetValue(idim);
 
     // Find the VTK dimension index.
-    int dimIndex = this->IndexFromDimensionName(dimName);
+    int dimIndex = this->IndexFromDimensionName(dimName.c_str());
 
     if (dimIndex >= 0 && dimIndex < 3)
     {
@@ -1639,7 +1646,7 @@ int vtkMINCImageWriter::WriteMINCData(
         permutedInc[idim] = -permutedInc[idim];
       }
     }
-    else if (strcmp(dimName, MIvector_dimension) == 0)
+    else if (dimName == MIvector_dimension)
     {
       // Vector dimension size is also stored in numComponents.
       length[idim] = numComponents;
@@ -1686,7 +1693,7 @@ int vtkMINCImageWriter::WriteMINCData(
   size_t bufferSize = 0;
   switch (fileType)
   {
-    vtkMINCImageWriterTemplateMacro(bufferSize = sizeof(VTK_TT) * chunkSize;);
+    vtkMINCImageWriterTemplateMacro(bufferSize = sizeof(VTK_TT) * chunkSize);
   }
   std::vector<unsigned char> buffer(bufferSize);
 
@@ -1888,8 +1895,8 @@ void vtkMINCImageWriter::Write()
   while (idim)
   {
     idim--;
-    const char* dimName = this->FileDimensionNames->GetValue(idim);
-    dimIndex = this->IndexFromDimensionName(dimName);
+    vtkStdString dimName = this->FileDimensionNames->GetValue(idim);
+    dimIndex = this->IndexFromDimensionName(dimName.c_str());
     if (dimIndex >= 0 && dimIndex < 3)
     {
       nfound++;
@@ -2036,7 +2043,9 @@ int vtkMINCImageWriter::RequestInformation(vtkInformation* vtkNotUsed(request),
 
     if (memcmp(inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()), extent,
           sizeof(extent)) != 0 ||
+      // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
       memcmp(inInfo->Get(vtkDataObject::SPACING()), spacing, sizeof(spacing)) != 0 ||
+      // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
       memcmp(inInfo->Get(vtkDataObject::ORIGIN()), origin, sizeof(origin)) != 0 ||
       inInfo->Get(vtkDataObject::FIELD_NUMBER_OF_COMPONENTS()) != components ||
       inInfo->Get(vtkDataObject::FIELD_ARRAY_TYPE()) != dataType)

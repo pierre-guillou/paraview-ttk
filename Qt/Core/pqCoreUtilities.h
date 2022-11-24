@@ -45,6 +45,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QStringList>
 #include <QWidget>
 
+class QPalette;
 class vtkObject;
 
 /**
@@ -161,7 +162,7 @@ public:
    * DASHBOARD_TEST_FROM_CTEST environment variable is set. This may change in future.
    */
   static QMessageBox::Button promptUserGeneric(const QString& title, const QString& message,
-    const QMessageBox::Icon icon, QMessageBox::StandardButtons buttons, QWidget* parentWidget);
+    QMessageBox::Icon icon, QMessageBox::StandardButtons buttons, QWidget* parentWidget);
 
   /**
    * Converts a double value to a full precision QString.
@@ -171,11 +172,48 @@ public:
   static QString number(double value);
 
   /**
+   * Convert a double KiB value to an easily readable QString
+   * For example, if this function is called with 1500.0 as an input and the default precision,
+   * the QString "1.46 MiB" will be returned.
+   */
+  static QString formatMemoryFromKiBValue(double memoryInKB, int precision = 2);
+
+  /**
    * Setups up appearance for buttons such as Apply button
    * that we want to draw user's attention to when enabled. Currently, this
    * changes the palette to use a green background when enabled.
    */
   static void initializeClickMeButton(QAbstractButton* button);
+
+  /**
+   * Set the Hightlight value of the palette to CDash green
+   * Also set HightlightedText to black
+   */
+  static void setPaletteHighlightToOk(QPalette& palette);
+
+  /**
+   * Set the Hightlight value of the palette to CDash yellow
+   * Also set HightlightedText to white
+   */
+  static void setPaletteHighlightToWarning(QPalette& palette);
+
+  /**
+   * Set the Hightlight value of the palette to CDash red
+   * Also set HightlightedText to white
+   */
+  static void setPaletteHighlightToCritical(QPalette& palette);
+
+  /**
+   * Safely delete a directory recursively. This function indicates any errors with a modal popup
+   * dialog.
+   */
+  static void removeRecursively(QDir dir);
+
+  /**
+   * Safely delete a file. This function indicates any errors
+   * with a modal popup dialog.
+   */
+  static void remove(const QString& filePath);
 
 private:
   static QWidget* findMainWindow();

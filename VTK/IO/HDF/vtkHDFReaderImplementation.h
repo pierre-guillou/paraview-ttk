@@ -76,7 +76,7 @@ public:
    * Returns the names of arrays for 'attributeType' (point or cell).
    */
   std::vector<std::string> GetArrayNames(int attributeType);
-  //@{
+  ///@{
   /**
    * Reads and returns a new vtkDataArray. The actual type of the array
    * depends on the type of the HDF array. The array is read from the PointData
@@ -89,9 +89,9 @@ public:
     int attributeType, const char* name, const std::vector<hsize_t>& fileExtent);
   vtkDataArray* NewArray(int attributeType, const char* name, hsize_t offset, hsize_t size);
   vtkAbstractArray* NewFieldArray(const char* name);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Reads a 1D metadata array in a DataArray or a vector of vtkIdType.
    * We read either the whole array for the vector version or a slice
@@ -100,11 +100,21 @@ public:
    */
   vtkDataArray* NewMetadataArray(const char* name, hsize_t offset, hsize_t size);
   std::vector<vtkIdType> GetMetadata(const char* name, hsize_t size);
-  //@}
+  ///@}
   /**
    * Returns the dimensions of a HDF dataset.
    */
   std::vector<hsize_t> GetDimensions(const char* dataset);
+
+  /**
+   * Fills the given AMR data with the content of the opened HDF file.
+   * The number of level to read is limited by the maximumLevelsToReadByDefault argument.
+   * maximumLevelsToReadByDefault == 0 means to read all levels (no limit).
+   * Only the selected data array in dataArraySelection are added to the AMR data.
+   * Returns true on success.
+   */
+  bool FillAMR(vtkOverlappingAMR* data, unsigned int maximumLevelsToReadByDefault, double origin[3],
+    vtkDataArraySelection* dataArraySelection[3]);
 
 protected:
   /**
@@ -149,7 +159,7 @@ protected:
   template <typename T>
   vtkDataArray* NewVtkDataArray();
 
-  //@{
+  ///@{
   /**
    * Reads a vtkDataArray of type T from the attributeType, dataset
    * The array has type 'T' and 'numberOfComponents'. We are reading
@@ -162,7 +172,10 @@ protected:
    * fileExtent.size()>>1 + 1 == ndims - in this case we read an array with
    *                           the number of components > 1.
    */
-  vtkDataArray* NewArray(hid_t group, const char* name, const std::vector<hsize_t>& fileExtent);
+  vtkDataArray* NewArrayForGroup(
+    hid_t group, const char* name, const std::vector<hsize_t>& fileExtent);
+  vtkDataArray* NewArrayForGroup(hid_t dataset, const hid_t nativeType,
+    const std::vector<hsize_t>& dims, const std::vector<hsize_t>& fileExtent);
   template <typename T>
   vtkDataArray* NewArray(
     hid_t dataset, const std::vector<hsize_t>& fileExtent, hsize_t numberOfComponents);
@@ -170,7 +183,7 @@ protected:
   bool NewArray(
     hid_t dataset, const std::vector<hsize_t>& fileExtent, hsize_t numberOfComponents, T* data);
   vtkStringArray* NewStringArray(hid_t dataset, hsize_t size);
-  //@}
+  ///@}
   /**
    * Builds a map between native types and GetArray routines for that type.
    */
@@ -194,6 +207,21 @@ private:
   using ArrayReader = vtkDataArray* (vtkHDFReader::Implementation::*)(hid_t dataset,
     const std::vector<hsize_t>& fileExtent, hsize_t numberOfComponents);
   std::map<TypeDescription, ArrayReader> TypeReaderMap;
+
+  bool ReadDataSetType();
+
+  ///@{
+  /**
+   * These methods are valid only with AMR data set type.
+   */
+  bool ComputeAMRBlocksPerLevels(std::vector<int>& levels);
+  bool ReadLevelSpacing(hid_t levelGroupID, double* spacing);
+  bool ReadAMRBoxRawValues(hid_t levelGroupID, std::vector<int>& amrBoxRawData);
+  bool ReadLevelTopology(unsigned int level, const std::string& levelGroupName,
+    vtkOverlappingAMR* data, double origin[3]);
+  bool ReadLevelData(unsigned int level, const std::string& levelGroupName, vtkOverlappingAMR* data,
+    vtkDataArraySelection* dataArraySelection[3]);
+  ///@}
 };
 
 //------------------------------------------------------------------------------

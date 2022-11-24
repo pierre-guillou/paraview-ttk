@@ -136,11 +136,7 @@ public:
       double d1 = other.Corner[0][0] - Corner[2][0];
       double d2 = Corner[0][1] - other.Corner[2][1];
       double d3 = other.Corner[0][1] - Corner[2][1];
-      if (d0 < 0. && d1 < 0. && d2 < 0. && d3 < 0.)
-      {
-        return true;
-      }
-      return false;
+      return d0 < 0. && d1 < 0. && d2 < 0. && d3 < 0.;
     }
     else
     {
@@ -469,7 +465,6 @@ vtkLabelPlacementMapper::vtkLabelPlacementMapper()
   this->IteratorType = vtkLabelHierarchy::QUEUE;
   this->VisiblePoints = vtkSelectVisiblePoints::New();
   this->VisiblePoints->SetTolerance(0.002);
-  this->UseUnicodeStrings = false;
   this->PlaceAllLabels = false;
   this->OutputTraversedBounds = false;
   this->GeneratePerturbedLabelSpokes = false;
@@ -607,7 +602,6 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
     ((kdbounds[1] - kdbounds[0]) * (kdbounds[3] - kdbounds[2])) * this->MaximumLabelFraction);
   (void)allowableLabelArea;
   unsigned long renderedLabelArea = 0;
-  unsigned long iteratedLabelArea = 0;
   double camVec[3];
   if (this->PositionsAsNormals)
   {
@@ -718,14 +712,7 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
     }
 
     double bds[4];
-    if (this->UseUnicodeStrings)
-    {
-      this->RenderStrategy->ComputeLabelBounds(tpropCopy, inIter->GetUnicodeLabel(), bds);
-    }
-    else
-    {
-      this->RenderStrategy->ComputeLabelBounds(tpropCopy, inIter->GetLabel(), bds);
-    }
+    this->RenderStrategy->ComputeLabelBounds(tpropCopy, inIter->GetLabel(), bds);
 
     // Offset display position by lower left corner of bounding box
     dispx[0] = static_cast<int>(origin[0] + bds[0]);
@@ -791,14 +778,8 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
       }
 
       // Render it
-      if (this->UseUnicodeStrings)
-      {
-        this->RenderStrategy->RenderLabel(origin, tpropCopy, inIter->GetUnicodeLabel(), width);
-      }
-      else
-      {
-        this->RenderStrategy->RenderLabel(origin, tpropCopy, inIter->GetLabel(), width);
-      }
+      this->RenderStrategy->RenderLabel(origin, tpropCopy, inIter->GetLabel(), width);
+
       int renderedHeight = static_cast<int>(bds[3] - bds[2]);
       int renderedWidth = static_cast<int>((bds[1] - bds[0] < width) ? (bds[1] - bds[0]) : width);
       renderedLabelArea += static_cast<unsigned long>(renderedWidth * renderedHeight);
@@ -811,24 +792,14 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
                             << ur[0] << "," << ur[1] << ")");
       if (labelType == 0)
       {
-        if (this->UseUnicodeStrings)
-        {
-          vtkDebugMacro("Area: " << renderedLabelArea << "  /  " << allowableLabelArea << " \""
-                                 << inIter->GetUnicodeLabel().utf8_str() << "\"");
-        }
-        else
-        {
-          vtkDebugMacro("Area: " << renderedLabelArea << "  /  " << allowableLabelArea << " \""
-                                 << inIter->GetLabel().c_str() << "\"");
-        }
+        vtkDebugMacro("Area: " << renderedLabelArea << "  /  " << allowableLabelArea << " \""
+                               << inIter->GetLabel() << "\"");
       }
       else
       {
         vtkDebugMacro("Area: " << renderedLabelArea << "  /  " << allowableLabelArea);
       }
     }
-
-    iteratedLabelArea += static_cast<unsigned long>(sz[0] * sz[1]);
 
     double orient = tpropCopy->GetOrientation();
 
@@ -854,14 +825,7 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
       if (labelType == 0)
       {
         // label is text
-        if (this->UseUnicodeStrings)
-        {
-          this->RenderStrategy->RenderLabel(origin, tpropCopy, inIter->GetUnicodeLabel());
-        }
-        else
-        {
-          this->RenderStrategy->RenderLabel(origin, tpropCopy, inIter->GetLabel());
-        }
+        this->RenderStrategy->RenderLabel(origin, tpropCopy, inIter->GetLabel());
 
         // TODO: 1. Perturb coincident points.
         //       2. Use GeneratePerturbedLabelSpokes to possibly render perturbed points.
@@ -924,7 +888,6 @@ void vtkLabelPlacementMapper::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "AnchorTransform: " << this->AnchorTransform << "\n";
   os << indent << "MaximumLabelFraction: " << this->MaximumLabelFraction << "\n";
   os << indent << "PositionsAsNormals: " << (this->PositionsAsNormals ? "ON" : "OFF") << "\n";
-  os << indent << "UseUnicodeStrings: " << (this->UseUnicodeStrings ? "ON" : "OFF") << "\n";
   os << indent << "IteratorType: " << this->IteratorType << "\n";
   os << indent << "RenderStrategy: " << this->RenderStrategy << "\n";
   os << indent << "PlaceAllLabels: " << (this->PlaceAllLabels ? "ON" : "OFF") << "\n";

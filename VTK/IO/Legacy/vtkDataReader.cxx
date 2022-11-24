@@ -12,6 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
 #include "vtkDataReader.h"
 
 #include "vtkBitArray.h"
@@ -51,7 +52,6 @@
 #include "vtkTable.h"
 #include "vtkTypeInt64Array.h"
 #include "vtkTypeUInt64Array.h"
-#include "vtkUnicodeStringArray.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
@@ -71,7 +71,7 @@
 // myself.
 // This function is also defined in Infovis/vtkDelimitedTextReader.cxx,
 // so it would be nice to put this in a common file.
-static int my_getline(istream& in, vtkStdString& output, char delim = '\n');
+static int my_getline(istream& in, std::string& output, char delim = '\n');
 
 vtkStandardNewMacro(vtkDataReader);
 
@@ -291,10 +291,13 @@ int vtkDataReader::ReadLine(char result[256])
 //------------------------------------------------------------------------------
 // Internal function to read in a string up to 256 characters.
 // Returns zero if there was an error.
-int vtkDataReader::ReadString(char result[256])
+int vtkDataReader::ReadString(char (&result)[256])
 {
+  // Force the parameter to be seen as a 256-byte array rather than a decayed
+  // pointer.
+  char(&result_ref)[256] = *reinterpret_cast<char(*)[256]>(result);
   this->IS->width(256);
-  *this->IS >> result;
+  *this->IS >> result_ref;
   if (this->IS->fail())
   {
     return 0;
@@ -664,7 +667,7 @@ int vtkDataReader::ReadHeader(const char* fname)
 //------------------------------------------------------------------------------
 int vtkDataReader::IsFileValid(const char* dstype)
 {
-  char line[1024];
+  char line[256];
 
   if (!dstype)
   {
@@ -1823,7 +1826,7 @@ vtkAbstractArray* vtkDataReader::ReadArray(
     }
   }
 
-  else if (!strncmp(type, "string", 6))
+  else if (!strncmp(type, "string", 6) || !strncmp(type, "utf8_string", 11))
   {
     array = vtkStringArray::New();
     array->SetNumberOfComponents(numComp);
@@ -1840,7 +1843,7 @@ vtkAbstractArray* vtkDataReader::ReadArray(
         {
           vtkTypeUInt8 firstByte;
           vtkTypeUInt8 headerType;
-          vtkStdString::size_type stringLength;
+          std::string::size_type stringLength;
           firstByte = IS->peek();
           headerType = firstByte >> 6;
           if (headerType == 3)
@@ -1877,7 +1880,7 @@ vtkAbstractArray* vtkDataReader::ReadArray(
           }
           std::vector<char> str(stringLength);
           IS->read(str.data(), stringLength);
-          vtkStdString s(str.data(), stringLength);
+          std::string s(str.data(), stringLength);
           ((vtkStringArray*)array)->InsertNextValue(s);
         }
       }
@@ -1885,7 +1888,7 @@ vtkAbstractArray* vtkDataReader::ReadArray(
     else
     {
       // read in newline
-      vtkStdString s;
+      std::string s;
       my_getline(*(this->IS), s);
 
       for (vtkIdType i = 0; i < numTuples; i++)
@@ -1896,88 +1899,8 @@ vtkAbstractArray* vtkDataReader::ReadArray(
           int length = static_cast<int>(s.length());
           std::vector<char> decoded(length + 1);
           int decodedLength = this->DecodeString(decoded.data(), s.c_str());
-          vtkStdString decodedStr(decoded.data(), decodedLength);
+          std::string decodedStr(decoded.data(), decodedLength);
           ((vtkStringArray*)array)->InsertNextValue(decodedStr);
-        }
-      }
-    }
-  }
-  else if (!strncmp(type, "utf8_string", 11))
-  {
-    array = vtkUnicodeStringArray::New();
-    array->SetNumberOfComponents(numComp);
-
-    if (this->FileType == VTK_BINARY)
-    {
-      // read in newline
-      char line[256];
-      IS->getline(line, 256);
-
-      for (vtkIdType i = 0; i < numTuples; i++)
-      {
-        for (vtkIdType j = 0; j < numComp; j++)
-        {
-          vtkTypeUInt8 firstByte;
-          vtkTypeUInt8 headerType;
-          vtkStdString::size_type stringLength;
-          firstByte = IS->peek();
-          headerType = firstByte >> 6;
-          if (headerType == 3)
-          {
-            vtkTypeUInt8 length = IS->get();
-            length <<= 2;
-            length >>= 2;
-            stringLength = length;
-          }
-          else if (headerType == 2)
-          {
-            vtkTypeUInt16 length;
-            IS->read(reinterpret_cast<char*>(&length), 2);
-            vtkByteSwap::Swap2BE(&length);
-            length <<= 2;
-            length >>= 2;
-            stringLength = length;
-          }
-          else if (headerType == 1)
-          {
-            vtkTypeUInt32 length;
-            IS->read(reinterpret_cast<char*>(&length), 4);
-            vtkByteSwap::Swap4BE(&length);
-            length <<= 2;
-            length >>= 2;
-            stringLength = length;
-          }
-          else
-          {
-            vtkTypeUInt64 length;
-            IS->read(reinterpret_cast<char*>(&length), 8);
-            vtkByteSwap::Swap4BE(&length);
-            stringLength = length;
-          }
-          std::vector<char> str(stringLength);
-          IS->read(str.data(), stringLength);
-          vtkUnicodeString s = vtkUnicodeString::from_utf8(str.data(), str.data() + stringLength);
-          ((vtkUnicodeStringArray*)array)->InsertNextValue(s);
-        }
-      }
-    }
-    else
-    {
-      // read in newline
-      vtkStdString s;
-      my_getline(*(this->IS), s);
-
-      for (vtkIdType i = 0; i < numTuples; i++)
-      {
-        for (vtkIdType j = 0; j < numComp; j++)
-        {
-          my_getline(*(this->IS), s);
-          int length = static_cast<int>(s.length());
-          std::vector<char> decoded(length + 1);
-          int decodedLength = this->DecodeString(decoded.data(), s.c_str());
-          vtkUnicodeString decodedStr =
-            vtkUnicodeString::from_utf8(decoded.data(), decoded.data() + decodedLength);
-          ((vtkUnicodeStringArray*)array)->InsertNextValue(decodedStr);
         }
       }
     }
@@ -1991,11 +1914,11 @@ vtkAbstractArray* vtkDataReader::ReadArray(
       for (vtkIdType j = 0; j < numComp; j++)
       {
         int t;
-        vtkStdString str;
+        std::string str;
         *(this->IS) >> t >> str;
         std::vector<char> decoded(str.length() + 1);
         int decodedLength = this->DecodeString(decoded.data(), str.c_str());
-        vtkStdString decodedStr(decoded.data(), decodedLength);
+        std::string decodedStr(decoded.data(), decodedLength);
         vtkVariant sv(decodedStr);
         vtkVariant v;
         switch (t)
@@ -2295,7 +2218,7 @@ int vtkDataReader::ReadScalarData(vtkDataSetAttributes* a, vtkIdType numPts)
   int skipScalar = 0;
   vtkDataArray* data;
   int numComp = 1;
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->ReadString(line)))
   {
@@ -2388,7 +2311,7 @@ int vtkDataReader::ReadVectorData(vtkDataSetAttributes* a, vtkIdType numPts)
   int skipVector = 0;
   char line[256], name[256];
   vtkDataArray* data;
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->ReadString(line)))
   {
@@ -2440,7 +2363,7 @@ int vtkDataReader::ReadNormalData(vtkDataSetAttributes* a, vtkIdType numPts)
   int skipNormal = 0;
   char line[256], name[256];
   vtkDataArray* data;
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->ReadString(line)))
   {
@@ -2492,7 +2415,7 @@ int vtkDataReader::ReadTensorData(vtkDataSetAttributes* a, vtkIdType numPts, vtk
   int skipTensor = 0;
   char line[256], name[256];
   vtkDataArray* data;
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->ReadString(line)))
   {
@@ -2542,7 +2465,7 @@ int vtkDataReader::ReadCoScalarData(vtkDataSetAttributes* a, vtkIdType numPts)
 {
   int i, j, idx, numComp = 0, skipScalar = 0;
   char name[256];
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->Read(&numComp)))
   {
@@ -2641,7 +2564,7 @@ int vtkDataReader::ReadTCoordsData(vtkDataSetAttributes* a, vtkIdType numPts)
   int skipTCoord = 0;
   char line[256], name[256];
   vtkDataArray* data;
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->Read(&dim) && this->ReadString(line)))
   {
@@ -2701,7 +2624,7 @@ int vtkDataReader::ReadGlobalIds(vtkDataSetAttributes* a, vtkIdType numPts)
   int skipGlobalIds = 0;
   char line[256], name[256];
   vtkDataArray* data;
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->ReadString(line)))
   {
@@ -2748,7 +2671,7 @@ int vtkDataReader::ReadPedigreeIds(vtkDataSetAttributes* a, vtkIdType numPts)
   int skipPedigreeIds = 0;
   char line[256], name[256];
   vtkAbstractArray* data;
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->ReadString(line)))
   {
@@ -2795,7 +2718,7 @@ int vtkDataReader::ReadEdgeFlags(vtkDataSetAttributes* a, vtkIdType numPts)
   int skipEdgeFlags = 0;
   char line[256], name[256];
   vtkAbstractArray* data;
-  char buffer[1024];
+  char buffer[256];
 
   if (!(this->ReadString(buffer) && this->ReadString(line)))
   {
@@ -2921,7 +2844,7 @@ int vtkDataReader::ReadInformation(vtkInformation* info, vtkIdType numKeys)
         }
         if (values.size() == static_cast<size_t>(length))
         {
-          info->Set(dvKey, &values[0], length);
+          info->Set(dvKey, values.data(), length);
         }
 
         // Pop off the trailing newline:
@@ -2988,7 +2911,7 @@ int vtkDataReader::ReadInformation(vtkInformation* info, vtkIdType numKeys)
         }
         if (values.size() == static_cast<size_t>(length))
         {
-          info->Set(ivKey, &values[0], length);
+          info->Set(ivKey, values.data(), length);
         }
 
         // Pop off the trailing newline:
@@ -3457,7 +3380,7 @@ vtkFieldData* vtkDataReader::ReadFieldData(FieldType fieldType)
   // Read the number of arrays specified
   for (i = 0; i < numArrays; i++)
   {
-    char buffer[1024];
+    char buffer[256];
     this->ReadString(buffer);
     if (strcmp(buffer, "NULL_ARRAY") == 0)
     {
@@ -3930,9 +3853,9 @@ int vtkDataReader::DecodeString(char* resname, const char* name)
   return static_cast<int>(reslen);
 }
 
-static int my_getline(istream& in, vtkStdString& out, char delimiter)
+static int my_getline(istream& in, std::string& out, char delimiter)
 {
-  out = vtkStdString();
+  out = std::string();
   unsigned int numCharactersRead = 0;
   int nextValue = 0;
 

@@ -14,10 +14,17 @@
 =========================================================================*/
 #include "vtkCellData.h"
 
+#include "vtkDataSetAttributes.h"
 #include "vtkObjectFactory.h"
 
 vtkStandardNewMacro(vtkCellData);
 vtkStandardExtendedNewMacro(vtkCellData);
+
+//------------------------------------------------------------------------------
+vtkCellData::vtkCellData()
+{
+  this->GhostsToSkip = vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::REFINEDCELL;
+}
 
 //------------------------------------------------------------------------------
 void vtkCellData::PrintSelf(ostream& os, vtkIndent indent)

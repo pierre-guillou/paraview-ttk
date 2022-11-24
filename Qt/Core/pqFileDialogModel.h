@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqFileDialogModel_h
-#define _pqFileDialogModel_h
+#ifndef pqFileDialogModel_h
+#define pqFileDialogModel_h
 
 #include "pqCoreModule.h"
 #include <QAbstractItemModel>
@@ -65,6 +65,16 @@ public:
   pqFileDialogModel(pqServer* server, QObject* Parent = nullptr);
   ~pqFileDialogModel() override;
 
+  /**
+   * set the flags for items of type file
+   */
+  void setFileItemFlags(const Qt::ItemFlags& flags);
+
+  /**
+   * set the flags for items of type directory
+   */
+  void setDirectoryItemFlags(const Qt::ItemFlags& flags);
+
   //@{
   /**
    * Get/Sets whether the dialog shows additional information about the files
@@ -96,7 +106,7 @@ public:
   /**
    * Return true if the given row is a directory
    */
-  bool isDir(const QModelIndex&);
+  bool isDir(const QModelIndex&) const;
 
   // Creates a directory. "dirName" can be relative or absolute path
   bool mkdir(const QString& dirname);
@@ -229,4 +239,4 @@ protected:
   QIcon NetworkIcon;
 };
 
-#endif // !_pqFileDialogModel_h
+#endif // !pqFileDialogModel_h

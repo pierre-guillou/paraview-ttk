@@ -34,6 +34,7 @@
 #include <vtksys/SystemTools.hxx>
 
 #include <algorithm>
+#include <cstdint>
 
 namespace details
 {
@@ -450,7 +451,7 @@ bool vtkSEPReader::ReadData(vtkImageData* imageData, int updateExtents[6])
     new char[nbPoints * details::DataFormatSize[static_cast<std::size_t>(this->DataFormat)]];
 
   int DimensionsOffset[details::SEP_READER_MAX_DIMENSION];
-  vtkIdType acc = 1;
+  uint64_t acc = 1;
   for (int t = 0; t < details::SEP_READER_MAX_DIMENSION; t++)
   {
     DimensionsOffset[t] = acc;
@@ -537,7 +538,8 @@ bool vtkSEPReader::ReadData(vtkImageData* imageData, int updateExtents[6])
     }
   }
 
-  scalars->SetVoidArray(data, static_cast<vtkIdType>(nbPoints), 0);
+  scalars->SetVoidArray(
+    data, static_cast<vtkIdType>(nbPoints), 0, vtkAbstractArray::VTK_DATA_ARRAY_DELETE);
   scalars->SetName("ImageScalars");
   imageData->GetPointData()->SetScalars(scalars);
 

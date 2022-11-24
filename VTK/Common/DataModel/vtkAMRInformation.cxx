@@ -30,15 +30,8 @@ namespace
 {
 inline bool Inside(double q[3], double gbounds[6])
 {
-  if ((q[0] < gbounds[0]) || (q[0] > gbounds[1]) || (q[1] < gbounds[2]) || (q[1] > gbounds[3]) ||
-    (q[2] < gbounds[4]) || (q[2] > gbounds[5]))
-  {
-    return false;
-  }
-  else
-  {
-    return true;
-  }
+  return gbounds[0] <= q[0] && q[0] <= gbounds[1] && gbounds[2] <= q[1] && q[1] <= gbounds[3] &&
+    gbounds[4] <= q[2] && q[2] <= gbounds[5];
 }
 
 // Utility class used to store bin properties
@@ -359,7 +352,7 @@ void vtkAMRInformation::SetAMRBlockSourceIndex(int index, int sourceId)
     vtkErrorMacro("Invalid index");
     return;
   }
-  SourceIndex->SetValue(index, sourceId);
+  this->SourceIndex->SetValue(index, sourceId);
 }
 
 void vtkAMRInformation::ComputeIndexPair(unsigned int index, unsigned int& level, unsigned int& id)
@@ -505,7 +498,7 @@ unsigned int* vtkAMRInformation::GetParents(
 
   num = static_cast<unsigned int>(this->AllParents[level][index].size());
 
-  return &this->AllParents[level][index][0];
+  return this->AllParents[level][index].data();
 }
 
 unsigned int* vtkAMRInformation::GetChildren(
@@ -520,7 +513,7 @@ unsigned int* vtkAMRInformation::GetChildren(
 
   size = static_cast<unsigned int>(this->AllChildren[level][index].size());
 
-  return &this->AllChildren[level][index][0];
+  return this->AllChildren[level][index].data();
 }
 
 void vtkAMRInformation::PrintParentChildInfo(unsigned int level, unsigned int index)

@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqPythonMacroSupervisor_h
-#define _pqPythonMacroSupervisor_h
+#ifndef pqPythonMacroSupervisor_h
+#define pqPythonMacroSupervisor_h
 
 #include "pqPythonModule.h"
 #include <QList>
@@ -45,7 +45,7 @@ class PQPYTHON_EXPORT pqPythonMacroSupervisor : public QObject
 {
   Q_OBJECT
 public:
-  pqPythonMacroSupervisor(QObject* p = 0);
+  pqPythonMacroSupervisor(QObject* p = nullptr);
   ~pqPythonMacroSupervisor() override;
 
   // Description:
@@ -132,7 +132,7 @@ protected Q_SLOTS:
   // open in a python edit
   void onEditMacroTriggered();
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   // Description:
   // Add a widget to be given macro actions.  QActions representing script macros
   // will be added to the widget.  This could be a QToolBar, QMenu, or other type
@@ -148,4 +148,4 @@ private:
   pqInternal* Internal;
 };
 
-#endif // ifndef _pqPythonMacroSupervisor_h
+#endif // ifndef pqPythonMacroSupervisor_h

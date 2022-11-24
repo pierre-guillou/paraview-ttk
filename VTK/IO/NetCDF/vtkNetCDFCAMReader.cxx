@@ -55,11 +55,7 @@ bool IsCellInverted(double points[4][3])
     return true;
   }
   vtkPolygon::ComputeNormal(3, points[1], normal);
-  if (normal[2] > 0)
-  {
-    return true;
-  }
-  return false;
+  return normal[2] > 0;
 }
 
 template <class T>
@@ -585,7 +581,7 @@ int vtkNetCDFCAMReader::RequestData(
   // read in the points first
   size_t numLevels = 1; // value for single level
   const char* levName = nullptr;
-  int levelsid;
+  int levelsid = 0;
   if (this->VerticalDimension == VERTICAL_DIMENSION_MIDPOINT_LAYERS ||
     this->VerticalDimension == VERTICAL_DIMENSION_INTERFACE_LAYERS)
   {
@@ -666,7 +662,7 @@ int vtkNetCDFCAMReader::RequestData(
     size_t start[] = { 0 };
     size_t count[] = { numFilePoints };
     if (this->Internals->nc_err(
-          nc_get_vara_double(this->Internals->nc_points, lonid, start, count, &array[0])))
+          nc_get_vara_double(this->Internals->nc_points, lonid, start, count, array.data())))
     {
       return 0;
     }
@@ -688,7 +684,7 @@ int vtkNetCDFCAMReader::RequestData(
     size_t start[] = { 0 };
     size_t count[] = { numFilePoints };
     if (this->Internals->nc_err(
-          nc_get_vara_float(this->Internals->nc_points, lonid, start, count, &array[0])))
+          nc_get_vara_float(this->Internals->nc_points, lonid, start, count, array.data())))
     {
       return 0;
     }
@@ -764,7 +760,7 @@ int vtkNetCDFCAMReader::RequestData(
   size_t start_conn[] = { 0, static_cast<size_t>(beginCell) };
   size_t count_conn[] = { 4, static_cast<size_t>(numLocalCells) };
   if (this->Internals->nc_err(nc_get_vara_int(
-        this->Internals->nc_connectivity, connid, start_conn, count_conn, &cellConnectivity[0])))
+        this->Internals->nc_connectivity, connid, start_conn, count_conn, cellConnectivity.data())))
   {
     return 0;
   }
@@ -778,7 +774,7 @@ int vtkNetCDFCAMReader::RequestData(
       pointIds[j] = cellConnectivity[i + j * numLocalCells] - 1;
       points->GetPoint(pointIds[j], coords[j]);
     }
-    if (IsCellInverted(coords) == true)
+    if (IsCellInverted(coords))
     {
       // First decide whether we're putting this cell on the 360 side (right) or on the
       // 0 side (left). We decide this based on which side will have the
@@ -1101,7 +1097,7 @@ int vtkNetCDFCAMReader::RequestData(
     size_t start[] = { static_cast<size_t>(beginLevel) };
     size_t count[] = { static_cast<size_t>(numLocalLevels) };
     if (this->Internals->nc_err(
-          nc_get_vara_float(this->Internals->nc_points, lonid, start, count, &levelData[0])))
+          nc_get_vara_float(this->Internals->nc_points, levelsid, start, count, levelData.data())))
     {
       return 0;
     }
@@ -1238,7 +1234,7 @@ bool vtkNetCDFCAMReader::GetPartitioning(size_t piece, size_t numPieces, size_t 
   }
   else // underworked pieces
   {
-    if (evenOverworked == false &&
+    if (!evenOverworked &&
       piece - numOverworkedPieces < 2 * numOverworkedPieces / (piecesPerLevel - 1))
     { // fillers for levels that also have overworked pieces working on them
       beginLevel = inputBeginLevel + piece - numOverworkedPieces;

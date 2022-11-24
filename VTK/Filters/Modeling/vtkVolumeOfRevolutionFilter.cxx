@@ -79,7 +79,7 @@ void RevolvePoints(vtkDataSet* pts, vtkPoints* newPts, AxisOfRevolution* axis, d
       pts->GetPoint(id, p2d);
       RevolvePoint(p2d, axis, i * angleInRadians, p3d);
       newPts->SetPoint(counter, p3d);
-      outPd->CopyData(pts->GetPointData(), i, counter);
+      outPd->CopyData(pts->GetPointData(), id, counter);
       counter++;
     }
   }
@@ -335,7 +335,7 @@ void Revolve<VTK_POLYGON>(vtkIdList* pointIds, vtkIdType n2DPoints, int resoluti
       newFacePtIds[j + 2][2] = newFacePtIds[1][(2 * nPoly - 2 - j) % nPoly];
       newFacePtIds[j + 2][3] = newFacePtIds[1][nPoly - 1 - j];
     }
-    newCellId = connectivity->InsertNextCell(7 * nPoly + 3, &newPtIds[0]);
+    newCellId = connectivity->InsertNextCell(7 * nPoly + 3, newPtIds.data());
     types->InsertNextValue(VTK_POLYHEDRON);
     outCd->CopyData(inCd, cellId, newCellId);
     for (vtkIdType j = 0; j < nPoly; j++)

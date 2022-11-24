@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqPopOutWidget_h
-#define _pqPopOutWidget_h
+#ifndef pqPopOutWidget_h
+#define pqPopOutWidget_h
 
 #include "pqComponentsModule.h"
 #include <QWidget>
@@ -55,7 +55,7 @@ public:
    * the given string as the title of the dialog when the widget is
    * popped out.
    */
-  pqPopOutWidget(QWidget* widgetToPopOut, const QString& dialogTitle, QWidget* p = 0);
+  pqPopOutWidget(QWidget* widgetToPopOut, const QString& dialogTitle, QWidget* p = nullptr);
   ~pqPopOutWidget() override;
 
   /**
@@ -92,4 +92,4 @@ private:
   pqInternal* Internals;
 };
 
-#endif // PQPOPOUTWIDGET_H
+#endif // pqPopOutWidget_h

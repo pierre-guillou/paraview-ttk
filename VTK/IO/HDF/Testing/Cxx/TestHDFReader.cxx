@@ -17,13 +17,17 @@
 #include "vtkFloatArray.h"
 #include "vtkHDFReader.h"
 #include "vtkImageData.h"
+#include "vtkLogger.h"
 #include "vtkMathUtilities.h"
 #include "vtkNew.h"
+#include "vtkOverlappingAMR.h"
 #include "vtkPointData.h"
 #include "vtkTesting.h"
+#include "vtkUniformGrid.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkXMLImageDataReader.h"
 #include "vtkXMLPUnstructuredGridReader.h"
+#include "vtkXMLUniformGridAMRReader.h"
 #include "vtkXMLUnstructuredGridReader.h"
 
 #include <iterator>
@@ -91,6 +95,21 @@ vtkSmartPointer<vtkImageData> ReadImageData(const std::string& fileName)
   return data;
 }
 
+struct ArrayTypeTester
+{
+  template <class ArrayT1, class ArrayT2>
+  void operator()(ArrayT1*, ArrayT2*)
+  {
+    using ValueType1 = typename ArrayT1::ValueType;
+    using ValueType2 = typename ArrayT2::ValueType;
+    this->ArraysArePointerCompatible = (sizeof(ValueType1) == sizeof(ValueType2)) &&
+      (std::is_integral<ValueType1>::value == std::is_integral<ValueType2>::value);
+  }
+
+  vtkAbstractArray* Array;
+  bool ArraysArePointerCompatible;
+};
+
 int TestDataSet(vtkDataSet* data, vtkDataSet* expectedData)
 {
   if (data == nullptr || expectedData == nullptr)
@@ -128,31 +147,18 @@ int TestDataSet(vtkDataSet* data, vtkDataSet* expectedData)
     {
       // the arrays are not in the same order because listing arrays in creation
       // order fails. See vtkHDFReader::Implementation::GetArrayNames
-      vtkAbstractArray* expectedArray = expectedFieldData->GetAbstractArray(i);
-      vtkAbstractArray* array = fieldData->GetAbstractArray(expectedArray->GetName());
-      if (std::string(expectedArray->GetClassName()) != array->GetClassName() &&
-        // long long == long
-        !(std::string(expectedArray->GetClassName()) == "vtkLongLongArray" &&
-          std::string(array->GetClassName()) == "vtkLongArray" &&
-          sizeof(long long) == sizeof(long)) &&
-        // unsigned long long == unsigned long
-        !(std::string(expectedArray->GetClassName()) == "vtkUnsignedLongLongArray" &&
-          std::string(array->GetClassName()) == "vtkUnsignedLongArray" &&
-          sizeof(unsigned long long) == sizeof(unsigned long)) &&
-        // vtkIdType == long
-        !(std::string(expectedArray->GetClassName()) == "vtkIdTypeArray" &&
-          std::string(array->GetClassName()) == "vtkLongArray" &&
-          sizeof(vtkIdType) == sizeof(long)) &&
-        // vtkIdType == long long
-        !(std::string(expectedArray->GetClassName()) == "vtkIdTypeArray" &&
-          std::string(array->GetClassName()) == "vtkLongLongArray" &&
-          sizeof(vtkIdType) == sizeof(long long)))
+      vtkDataArray* expectedArray = expectedFieldData->GetArray(i);
+      vtkDataArray* array = fieldData->GetArray(expectedArray->GetName());
+
+      using Dispatcher = vtkArrayDispatch::Dispatch2;
+      ArrayTypeTester tester;
+      Dispatcher::Execute(array, expectedArray, tester);
+      if (!tester.ArraysArePointerCompatible)
       {
-        std::cerr << "Different array type: " << array->GetClassName() << " from expected "
-                  << expectedArray->GetClassName() << " for array: " << expectedArray->GetName()
-                  << std::endl
-                  << "sizeof(long long): " << sizeof(long long) << std::endl
-                  << "sizeof(long): " << sizeof(long) << std::endl;
+        vtkLog(ERROR,
+          "Read array and expected arrays do not have compatible pointers."
+            << " Read array: " << array->GetClassName()
+            << " Expected array: " << expectedArray->GetClassName());
         return EXIT_FAILURE;
       }
 
@@ -175,7 +181,7 @@ int TestDataSet(vtkDataSet* data, vtkDataSet* expectedData)
           return EXIT_FAILURE;
         }
       }
-    };
+    }
   }
   return EXIT_SUCCESS;
 }
@@ -247,6 +253,60 @@ int TestUnstructuredGrid(const std::string& dataRoot)
   return TestDataSet(data, expectedData);
 }
 
+int TestOverlappingAMR(const std::string& dataRoot)
+{
+  std::string fileName = dataRoot + "/Data/amr_gaussian_pulse.hdf";
+  std::cout << "Testing: " << fileName << std::endl;
+  vtkNew<vtkHDFReader> reader;
+  if (!reader->CanReadFile(fileName.c_str()))
+  {
+    return EXIT_FAILURE;
+  }
+  reader->SetFileName(fileName.c_str());
+  reader->Update();
+  auto data = vtkOverlappingAMR::SafeDownCast(reader->GetOutput());
+
+  vtkNew<vtkXMLUniformGridAMRReader> outputReader;
+  std::string expectedFileName = dataRoot + "/Data/amr_gaussian_pulse.vthb";
+  outputReader->SetFileName(expectedFileName.c_str());
+  outputReader->SetMaximumLevelsToReadByDefault(0);
+  outputReader->Update();
+  auto expectedData = vtkOverlappingAMR::SafeDownCast(outputReader->GetOutput());
+
+  if (data->GetNumberOfLevels() != expectedData->GetNumberOfLevels())
+  {
+    std::cerr << "Number of levels does not match. Expected: " << expectedData->GetNumberOfLevels()
+              << " got: " << data->GetNumberOfLevels() << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  for (unsigned int levelIndex = 0; levelIndex < expectedData->GetNumberOfLevels(); ++levelIndex)
+  {
+    if (data->GetNumberOfDataSets(levelIndex) != expectedData->GetNumberOfDataSets(levelIndex))
+    {
+      std::cerr << "Number of datasets does not match for level " << levelIndex
+                << ". Expected: " << expectedData->GetNumberOfDataSets(0)
+                << " got: " << data->GetNumberOfDataSets(0) << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    for (unsigned int datasetIndex = 0;
+         datasetIndex < expectedData->GetNumberOfDataSets(levelIndex); ++datasetIndex)
+    {
+      auto dataset = data->GetDataSet(levelIndex, datasetIndex);
+      auto expectedDataset = expectedData->GetDataSet(levelIndex, datasetIndex);
+      if (TestDataSet(dataset, expectedDataset))
+      {
+        std::cerr << "Datasets does not match for level " << levelIndex << " dataset "
+                  << datasetIndex << std::endl;
+        return EXIT_FAILURE;
+      }
+    }
+  }
+
+  return EXIT_SUCCESS;
+}
+
 int TestHDFReader(int argc, char* argv[])
 {
   vtkNew<vtkTesting> testHelper;
@@ -268,6 +328,10 @@ int TestHDFReader(int argc, char* argv[])
     return EXIT_FAILURE;
   }
   if (TestUnstructuredGrid<true /*parallel*/>(dataRoot))
+  {
+    return EXIT_FAILURE;
+  }
+  if (TestOverlappingAMR(dataRoot))
   {
     return EXIT_FAILURE;
   }

@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkExplicitStructuredGrid.h"
 
 #include "vtkCell.h"
@@ -62,7 +59,7 @@ static int MIRROR_HEXAHEDRON_POINT_MAP[] = {
 };
 
 vtkStandardNewMacro(vtkExplicitStructuredGrid);
-vtkSetObjectImplementationMacro(vtkExplicitStructuredGrid, Cells, vtkCellArray);
+vtkCxxSetObjectMacro(vtkExplicitStructuredGrid, Cells, vtkCellArray);
 
 #define vtkAdjustBoundsMacro(A, B)                                                                 \
   A[0] = (B[0] < A[0] ? B[0] : A[0]);                                                              \
@@ -121,6 +118,12 @@ void vtkExplicitStructuredGrid::Initialize()
 int vtkExplicitStructuredGrid::GetCellType(vtkIdType cellId)
 {
   return this->IsCellVisible(cellId) ? VTK_HEXAHEDRON : VTK_EMPTY_CELL;
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkExplicitStructuredGrid::GetCellSize(vtkIdType cellId)
+{
+  return this->IsCellVisible(cellId) ? 8 : 0;
 }
 
 //------------------------------------------------------------------------------
@@ -285,6 +288,13 @@ void vtkExplicitStructuredGrid::GetCellPoints(vtkIdType cellId, vtkIdType& npts,
 {
   npts = 8;
   pts = this->GetCellPoints(cellId);
+}
+
+//------------------------------------------------------------------------------
+void vtkExplicitStructuredGrid::GetCellPoints(
+  vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+{
+  this->Cells->GetCellAtId(cellId, npts, pts, ptIds);
 }
 
 //------------------------------------------------------------------------------
@@ -691,7 +701,7 @@ void vtkExplicitStructuredGrid::ComputeFacesConnectivityFlagsArray()
 //------------------------------------------------------------------------------
 bool vtkExplicitStructuredGrid::HasAnyBlankCells()
 {
-  return this->IsAnyBitSet(this->GetCellGhostArray(), vtkDataSetAttributes::HIDDENCELL);
+  return this->CellData->HasAnyGhostBitSet(vtkDataSetAttributes::HIDDENCELL);
 }
 
 //------------------------------------------------------------------------------
@@ -737,7 +747,7 @@ unsigned char vtkExplicitStructuredGrid::IsCellGhost(vtkIdType cellId)
 //------------------------------------------------------------------------------
 bool vtkExplicitStructuredGrid::HasAnyGhostCells()
 {
-  return this->IsAnyBitSet(this->GetCellGhostArray(), vtkDataSetAttributes::DUPLICATECELL);
+  return this->CellData->HasAnyGhostBitSet(vtkDataSetAttributes::DUPLICATECELL);
 }
 
 //------------------------------------------------------------------------------

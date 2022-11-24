@@ -53,6 +53,7 @@ int TestVectorFieldTopology(int argc, char* argv[])
   topology->SetComputeSurfaces(true);
   topology->SetUseBoundarySwitchPoints(true);
   topology->SetUseIterativeSeeding(true);
+  topology->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, "resultArray");
   topology->Update();
 
   // the bounding box

@@ -22,6 +22,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkVariantArray.h"
 
+#include <algorithm>
 #include <list>
 
 #include <cmath>
@@ -86,7 +87,17 @@ int vtkScalarsToColors::IsOpaque()
 // Description:
 // Return true if all of the values defining the mapping have an opacity
 // equal to 1. Default implementation return true.
-int vtkScalarsToColors::IsOpaque(vtkAbstractArray* scalars, int colorMode, int /*component*/)
+int vtkScalarsToColors::IsOpaque(vtkAbstractArray* scalars, int colorMode, int component)
+{
+  return this->IsOpaque(scalars, colorMode, component, nullptr);
+}
+
+//------------------------------------------------------------------------------
+// Description:
+// Return true if all of the values defining the mapping have an opacity
+// equal to 1. Default implementation return true.
+int vtkScalarsToColors::IsOpaque(vtkAbstractArray* scalars, int colorMode, int,
+  vtkUnsignedCharArray* ghosts, unsigned char ghostsToSkip)
 {
   if (!scalars)
   {
@@ -110,10 +121,12 @@ int vtkScalarsToColors::IsOpaque(vtkAbstractArray* scalars, int colorMode, int /
     }
     // otherwise look at the range of the alpha channel
     unsigned char opacity = 0;
+    double range[2];
+    dataArray->GetRange(
+      range, numberOfComponents - 1, ghosts ? ghosts->GetPointer(0) : nullptr, ghostsToSkip);
     switch (scalars->GetDataType())
     {
-      vtkTemplateMacro(vtkScalarsToColors::ColorToUChar(
-        static_cast<VTK_TT>(dataArray->GetRange(numberOfComponents - 1)[0]), &opacity));
+      vtkTemplateMacro(vtkScalarsToColors::ColorToUChar(static_cast<VTK_TT>(range[0]), &opacity));
     }
     return ((opacity == 255) ? 1 : 0);
   }
@@ -1036,17 +1049,17 @@ void vtkScalarsToColorsRGBAToRGBA(const T* inPtr, unsigned char* outPtr, vtkIdTy
 }
 
 //------------------------------------------------------------------------------
+// Unpack an array of bits into an array of `unsigned char`.
 unsigned char* vtkScalarsToColorsUnpackBits(void* inPtr, vtkIdType numValues)
 {
-  vtkIdType n = (numValues + 7) % 8;
-  unsigned char* newPtr = new unsigned char[n];
+  unsigned char* newPtr = new unsigned char[numValues];
 
   unsigned char* tmpPtr = newPtr;
   unsigned char* bitdata = static_cast<unsigned char*>(inPtr);
-  for (vtkIdType i = 0; i < n; i += 8)
+  for (vtkIdType i = 0; i < numValues; i += 8)
   {
     unsigned char b = *bitdata++;
-    int j = 8;
+    int j = std::min(static_cast<vtkIdType>(8), numValues - i);
     do
     {
       *tmpPtr++ = ((b >> (--j)) & 0x01);
@@ -1473,10 +1486,13 @@ void vtkScalarsToColors::MapScalarsThroughTable2(void* inPtr, unsigned char* out
 // where 'array' is a vtkDataArray and
 //       'data' could be: array->GetVoidPointer(0)
 #define callForAnyType(array, call)                                                                \
-  switch (array->GetDataType())                                                                    \
+  do                                                                                               \
   {                                                                                                \
-    vtkTemplateMacro(call);                                                                        \
-  }
+    switch (array->GetDataType())                                                                  \
+    {                                                                                              \
+      vtkTemplateMacro(call);                                                                      \
+    }                                                                                              \
+  } while (false)
 
 //------------------------------------------------------------------------------
 vtkUnsignedCharArray* vtkScalarsToColors::ConvertToRGBA(
@@ -1697,8 +1713,7 @@ vtkStdString vtkScalarsToColors::GetAnnotation(vtkIdType idx)
    * || idx < 0 || idx >= this->Annotations->GetNumberOfTuples())
    */
   {
-    vtkStdString empty;
-    return empty;
+    return {};
   }
   return this->Annotations->GetValue(idx);
 }

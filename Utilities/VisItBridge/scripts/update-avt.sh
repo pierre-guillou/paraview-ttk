@@ -8,10 +8,9 @@ readonly name="visit"
 readonly ownership="VisIt Upstream <kwrobot@kitware.com>"
 readonly subtree="Library/VisItLib"
 readonly repo="https://gitlab.kitware.com/third-party/visit.git"
-readonly tag="for/paraview-20210211-g756b0aa4ee"
+readonly tag="for/paraview-20220727-g756b0aa4ee"
 
 readonly paths="
-LICENSE
 .gitattributes
 README.kitware.md
 src/CMakeLists.paraview.txt

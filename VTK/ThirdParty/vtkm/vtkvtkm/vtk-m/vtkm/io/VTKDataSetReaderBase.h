@@ -64,7 +64,7 @@ struct StreamIOType<vtkm::UInt8>
   using Type = vtkm::UInt16;
 };
 
-inline vtkm::cont::DynamicCellSet CreateCellSetStructured(const vtkm::Id3& dim)
+inline vtkm::cont::UnknownCellSet CreateCellSetStructured(const vtkm::Id3& dim)
 {
   if (dim[0] > 1 && dim[1] > 1 && dim[2] > 1)
   {
@@ -168,6 +168,8 @@ private:
   VTKM_CONT void ReadTensors(vtkm::cont::Field::Association association, std::size_t numElements);
   VTKM_CONT void ReadFields(vtkm::cont::Field::Association association,
                             std::size_t expectedNumElements);
+  VTKM_CONT void ReadGlobalOrPedigreeIds(vtkm::cont::Field::Association association,
+                                         std::size_t numElements);
 
 protected:
   VTKM_CONT void ReadGlobalFields(std::vector<vtkm::Float32>* visitBounds = nullptr);
@@ -270,6 +272,8 @@ protected:
   VTKM_CONT void SkipArray(std::size_t numElements,
                            vtkm::io::internal::DummyBitType,
                            vtkm::IdComponent numComponents = 1);
+
+  VTKM_CONT void SkipStringArray(std::size_t numStrings);
 
   VTKM_CONT void SkipArrayMetaData(vtkm::IdComponent numComponents);
 };

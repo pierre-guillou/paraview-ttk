@@ -83,7 +83,7 @@ void vtkBoostPrimMinimumSpanningTree::SetOriginVertex(vtkIdType index)
 // know the specific index of the vertex.
 void vtkBoostPrimMinimumSpanningTree::SetOriginVertex(vtkStdString arrayName, vtkVariant value)
 {
-  this->SetArrayName(arrayName);
+  this->SetArrayName(arrayName.c_str());
   this->ArrayNameSet = true;
   this->OriginValue = value;
   this->Modified();
@@ -126,7 +126,7 @@ vtkIdType vtkBoostPrimMinimumSpanningTree::GetVertexIndex(
   else
   {
     vtkStringArray* stringArray = vtkArrayDownCast<vtkStringArray>(abstract);
-    vtkStdString stringValue(value.ToString());
+    std::string stringValue(value.ToString());
     for (int i = 0; i < stringArray->GetNumberOfTuples(); ++i)
     {
       if (stringValue == stringArray->GetValue(i))

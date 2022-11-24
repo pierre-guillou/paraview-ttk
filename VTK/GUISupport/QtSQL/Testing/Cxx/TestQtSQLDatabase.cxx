@@ -23,7 +23,6 @@
 #include "vtkQtTableModelAdapter.h"
 #include "vtkRowQueryToTable.h"
 #include "vtkSQLQuery.h"
-#include "vtkStdString.h"
 #include "vtkTable.h"
 #include "vtkVariant.h"
 #include "vtkVariantArray.h"
@@ -133,7 +132,7 @@ int TestQtSQLDatabase(int argc, char* argv[])
   db->SetDatabaseType(dbtype.toUtf8().data());
   db->SetDatabaseName(database.toUtf8().data());
   db->SetUserName(user.toUtf8().data());
-  db->SetPort(port);
+  db->SetDbPort(port);
   if (!db->Open(password.toUtf8().data()))
   {
     cerr << "Unable to open database" << endl;
@@ -200,7 +199,7 @@ int TestQtSQLDatabase(int argc, char* argv[])
       {
         cerr << ", ";
       }
-      cerr << query->DataValue(field).ToString().c_str();
+      cerr << query->DataValue(field).ToString();
     }
     cerr << endl;
   }
@@ -229,7 +228,7 @@ int TestQtSQLDatabase(int argc, char* argv[])
       {
         cerr << ", ";
       }
-      cerr << va->GetValue(field).ToString().c_str();
+      cerr << va->GetValue(field).ToString();
     }
     cerr << endl;
   }

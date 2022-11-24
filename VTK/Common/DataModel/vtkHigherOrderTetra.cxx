@@ -13,10 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() and VTK_DEPRECATED_IN_9_1_0() warnings for
-// this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkHigherOrderTetra.h"
 
 #include "vtkDoubleArray.h"
@@ -100,20 +96,6 @@ constexpr vtkIdType FifteenPointTetraSubtetras[24][4] = { { 0, 4, 10, 14 }, { 4,
   { 1, 8, 12, 14 }, { 7, 0, 13, 14 }, { 3, 7, 13, 14 }, { 9, 3, 13, 14 }, { 2, 9, 13, 14 },
   { 6, 2, 13, 14 }, { 0, 6, 13, 14 } };
 #endif
-}
-
-vtkHigherOrderCurve* vtkHigherOrderTetra::getEdgeCell()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHigherOrderTetra::getEdgeCell, "VTK 9.1", vtkHigherOrderTetra::GetEdgeCell);
-  return this->GetEdgeCell();
-}
-
-vtkHigherOrderTriangle* vtkHigherOrderTetra::getFaceCell()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHigherOrderHexahedron::getFaceCell, "VTK 9.1", vtkHigherOrderTetra::GetFaceCell);
-  return this->GetFaceCell();
 }
 
 //------------------------------------------------------------------------------
@@ -754,7 +736,7 @@ void vtkHigherOrderTetra::Derivatives(
   jI[0] = j0;
   jI[1] = j1;
   jI[2] = j2;
-  this->JacobianInverse(pcoords, jI, &fDs[0]);
+  this->JacobianInverse(pcoords, jI, fDs.data());
 
   // now compute derivatives of values provided
   for (k = 0; k < dim; k++) // loop over values per vertex

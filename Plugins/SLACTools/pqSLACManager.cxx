@@ -23,6 +23,7 @@
 
 #include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
+#include "pqCoreUtilities.h"
 #include "pqObjectBuilder.h"
 #include "pqOutputPort.h"
 #include "pqPipelineFilter.h"
@@ -121,6 +122,14 @@ pqSLACManager::pqSLACManager(QObject* p)
     SLOT(resetRangeCurrentTime()));
 
   this->checkActionEnabled();
+
+  // If toolbar not enabled at startup, listed for source-created signals
+  if (!this->actionSolidMesh()->isEnabled())
+  {
+    const auto* builder = pqApplicationCore::instance()->getObjectBuilder();
+    QObject::connect(
+      builder, &pqObjectBuilder::sourceCreated, this, &pqSLACManager::onSourceCreated);
+  }
 }
 
 pqSLACManager::~pqSLACManager()
@@ -193,21 +202,8 @@ QAction* pqSLACManager::actionCurrentTimeResetRange()
 //-----------------------------------------------------------------------------
 pqServer* pqSLACManager::getActiveServer()
 {
-  pqApplicationCore* app = pqApplicationCore::instance();
-  pqServerManagerModel* smModel = app->getServerManagerModel();
-  pqServer* server = smModel->getItemAtIndex<pqServer*>(0);
-  return server;
-}
-
-//-----------------------------------------------------------------------------
-QWidget* pqSLACManager::getMainWindow()
-{
-  foreach (QWidget* topWidget, QApplication::topLevelWidgets())
-  {
-    if (qobject_cast<QMainWindow*>(topWidget))
-      return topWidget;
-  }
-  return nullptr;
+  auto& objects = pqActiveObjects::instance();
+  return objects.activeServer();
 }
 
 //-----------------------------------------------------------------------------
@@ -216,7 +212,7 @@ pqView* pqSLACManager::findView(pqPipelineSource* source, int port, const QStrin
   // Step 1, try to find a view in which the source is already shown.
   if (source)
   {
-    foreach (pqView* view, source->getViews())
+    Q_FOREACH (pqView* view, source->getViews())
     {
       pqDataRepresentation* repr = source->getRepresentation(port, view);
       if (repr && repr->isVisible())
@@ -233,7 +229,7 @@ pqView* pqSLACManager::findView(pqPipelineSource* source, int port, const QStrin
   // showing anything.
   pqApplicationCore* core = pqApplicationCore::instance();
   pqServerManagerModel* smModel = core->getServerManagerModel();
-  foreach (view, smModel->findItems<pqView*>())
+  Q_FOREACH (view, smModel->findItems<pqView*>())
   {
     if (view && (view->getViewType() == viewType) &&
       (view->getNumberOfVisibleRepresentations() < 1))
@@ -268,7 +264,7 @@ pqPipelineSource* pqSLACManager::findPipelineSource(const char* SMName)
   pqServerManagerModel* smModel = core->getServerManagerModel();
 
   QList<pqPipelineSource*> sources = smModel->findItems<pqPipelineSource*>(this->getActiveServer());
-  foreach (pqPipelineSource* s, sources)
+  Q_FOREACH (pqPipelineSource* s, sources)
   {
     if (strcmp(s->getProxy()->GetXMLName(), SMName) == 0)
       return s;
@@ -297,10 +293,18 @@ pqPipelineSource* pqSLACManager::getTemporalRanges()
   return this->findPipelineSource("TemporalRanges");
 }
 
+void pqSLACManager::loaderCreatingPipeline()
+{
+  // If the loader is building the pipeline, stop listening for source-created signals
+  const auto* builder = pqApplicationCore::instance()->getObjectBuilder();
+  QObject::disconnect(
+    builder, &pqObjectBuilder::sourceCreated, this, &pqSLACManager::onSourceCreated);
+}
+
 //-----------------------------------------------------------------------------
 static void destroyPortConsumers(pqOutputPort* port)
 {
-  foreach (pqPipelineSource* consumer, port->getConsumers())
+  Q_FOREACH (pqPipelineSource* consumer, port->getConsumers())
   {
     pqSLACManager::destroyPipelineSourceAndConsumers(consumer);
   }
@@ -311,7 +315,7 @@ void pqSLACManager::destroyPipelineSourceAndConsumers(pqPipelineSource* source)
   if (!source)
     return;
 
-  foreach (pqOutputPort* port, source->getOutputPorts())
+  Q_FOREACH (pqOutputPort* port, source->getOutputPorts())
   {
     destroyPortConsumers(port);
   }
@@ -324,7 +328,7 @@ void pqSLACManager::destroyPipelineSourceAndConsumers(pqPipelineSource* source)
 //-----------------------------------------------------------------------------
 void pqSLACManager::showDataLoadManager()
 {
-  pqSLACDataLoadManager* dialog = new pqSLACDataLoadManager(this->getMainWindow());
+  pqSLACDataLoadManager* dialog = new pqSLACDataLoadManager(pqCoreUtilities::mainWidget());
   dialog->setAttribute(Qt::WA_DeleteOnClose, true);
   QObject::connect(dialog, SIGNAL(createdPipeline()), this, SLOT(checkActionEnabled()));
   QObject::connect(dialog, SIGNAL(createdPipeline()), this, SLOT(showEField()));
@@ -372,6 +376,18 @@ void pqSLACManager::checkActionEnabled()
   }
 
   this->actionShowParticles()->setEnabled(particlesReader != nullptr);
+}
+
+//-----------------------------------------------------------------------------
+void pqSLACManager::onSourceCreated(pqPipelineSource* source)
+{
+  const char* SName = "SLACReader";
+  if (strcmp(source->getProxy()->GetXMLName(), SName) == 0)
+  {
+    // After data is loaded, call checkActionEnabled() to enable toolbar
+    QObject::connect(source, QOverload<pqPipelineSource*>::of(&pqPipelineSource::dataUpdated), this,
+      &pqSLACManager::checkActionEnabled);
+  }
 }
 
 //-----------------------------------------------------------------------------

@@ -35,11 +35,16 @@ set(headers
   Cylinderizer.h
   DecodePNG.h # deprecated
   EncodePNG.h # deprecated
+  GlyphType.h
   LineRenderer.h
+  LineRendererBatcher.h
   MatrixHelpers.h
   Scene.h
   Mapper.h
   MapperCylinder.h
+  MapperGlyphBase.h
+  MapperGlyphScalar.h
+  MapperGlyphVector.h
   MapperPoint.h
   MapperQuad.h
   MapperRayTracer.h
@@ -52,6 +57,7 @@ set(headers
   TextAnnotationBillboard.h
   TextAnnotationScreen.h
   TextRenderer.h
+  TextRendererBatcher.h
   Texture2D.h
   Triangulator.h
   View.h
@@ -63,37 +69,20 @@ set(headers
   )
 
 set(sources
-  BitmapFont.cxx
-  BitmapFontFactory.cxx
-
-  Camera.cxx
-  Color.cxx
-  raytracing/Logger.cxx
-  )
-
-# This list of sources has code that uses devices and so might need to be
-# compiled with a device-specific compiler (like CUDA).
-set(device_sources
   Actor.cxx
   AxisAnnotation.cxx
   AxisAnnotation2D.cxx
   AxisAnnotation3D.cxx
+  BitmapFont.cxx
+  BitmapFontFactory.cxx
   BoundingBoxAnnotation.cxx
-  Canvas.cxx
-  CanvasRayTracer.cxx
+  Camera.cxx
+  Color.cxx
   ColorBarAnnotation.cxx
   ColorLegendAnnotation.cxx
-  ConnectivityProxy.cxx
   LineRenderer.cxx
   Mapper.cxx
   MapperConnectivity.cxx
-  MapperCylinder.cxx
-  MapperPoint.cxx
-  MapperQuad.cxx
-  MapperRayTracer.cxx
-  MapperVolume.cxx
-  MapperWireframer.cxx
-  ScalarRenderer.cxx
   Scene.cxx
   TextAnnotation.cxx
   TextAnnotationBillboard.cxx
@@ -105,24 +94,51 @@ set(device_sources
   View3D.cxx
   WorldAnnotator.cxx
 
+  raytracing/Logger.cxx
+  raytracing/MeshConnectivityContainers.cxx
+  raytracing/TriangleExtractor.cxx
+  )
+
+# This list of sources has code that uses devices and so might need to be
+# compiled with a device-specific compiler (like CUDA).
+set(device_sources
+  Canvas.cxx
+  CanvasRayTracer.cxx
+  ConnectivityProxy.cxx
+  LineRendererBatcher.cxx
+  MapperCylinder.cxx
+  MapperGlyphBase.cxx
+  MapperGlyphScalar.cxx
+  MapperGlyphVector.cxx
+  MapperPoint.cxx
+  MapperQuad.cxx
+  MapperRayTracer.cxx
+  MapperVolume.cxx
+  MapperWireframer.cxx
+  ScalarRenderer.cxx
+  TextRendererBatcher.cxx
+
   internal/RunTriangulator.cxx
+
   raytracing/BoundingVolumeHierarchy.cxx
   raytracing/Camera.cxx
   raytracing/ChannelBuffer.cxx
   raytracing/ConnectivityTracer.cxx
   raytracing/CylinderExtractor.cxx
   raytracing/CylinderIntersector.cxx
+  raytracing/GlyphExtractor.cxx
+  raytracing/GlyphExtractorVector.cxx
+  raytracing/GlyphIntersector.cxx
+  raytracing/GlyphIntersectorVector.cxx
   raytracing/MeshConnectivityBuilder.cxx
-  raytracing/MeshConnectivityContainers.cxx
   raytracing/QuadExtractor.cxx
   raytracing/QuadIntersector.cxx
-  raytracing/RayTracer.cxx
   raytracing/RayOperations.cxx
+  raytracing/RayTracer.cxx
   raytracing/ScalarRenderer.cxx
   raytracing/ShapeIntersector.cxx
   raytracing/SphereExtractor.cxx
   raytracing/SphereIntersector.cxx
-  raytracing/TriangleExtractor.cxx
   raytracing/TriangleIntersector.cxx
   raytracing/VolumeRendererStructured.cxx
   )
@@ -138,7 +154,7 @@ vtkm_library(
   )
 
 #-----------------------------------------------------------------------------
-target_link_libraries(vtkm_rendering PUBLIC vtkm_filter vtkm_io)
+target_link_libraries(vtkm_rendering PUBLIC vtkm_filter_image_processing vtkm_filter_entity_extraction vtkm_io)
 if(UNIX AND NOT APPLE)
   target_link_libraries(vtkm_rendering PRIVATE rt)
 endif()
@@ -155,4 +171,6 @@ endif()
 #-----------------------------------------------------------------------------
 add_subdirectory(internal)
 add_subdirectory(raytracing)
-add_subdirectory(testing)
+if (VTKm_ENABLE_TESTING)
+  add_subdirectory(testing)
+endif ()

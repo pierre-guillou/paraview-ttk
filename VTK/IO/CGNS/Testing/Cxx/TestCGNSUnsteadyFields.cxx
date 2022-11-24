@@ -24,11 +24,14 @@
 #include <cmath>
 
 #define vtk_assert(x)                                                                              \
-  if (!(x))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "On line " << __LINE__ << " ERROR: Condition FAILED!! : " << #x << endl;               \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (!(x))                                                                                      \
+    {                                                                                              \
+      cerr << "On line " << __LINE__ << " ERROR: Condition FAILED!! : " << #x << endl;             \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 int TestField(vtkMultiBlockDataSet* mb, double value)
 {
@@ -73,7 +76,7 @@ int TestCGNSUnsteadyFields(int argc, char* argv[])
   std::string fields = fname ? fname : "";
   delete[] fname;
 
-  cout << "Opening " << fields.c_str() << endl;
+  cout << "Opening " << fields << endl;
   vtkNew<vtkCGNSReader> fieldsReader;
   fieldsReader->SetFileName(fields.c_str());
   fieldsReader->Update();

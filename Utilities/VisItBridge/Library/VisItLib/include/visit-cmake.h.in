@@ -323,7 +323,7 @@ logic here to cause compilation failure if this logic seems to be failing.
 
 /* Plugin version macro */
 #define VISIT_PLUGIN_VERSION_NAME(A,B) A##B
-#ifdef WIN32
+#ifdef _WIN32
 /* We need the extern "C" on Windows. */
 #define VISIT_PLUGIN_VERSION(NAME, EXPORTMACRO) extern "C" EXPORTMACRO const char *VISIT_PLUGIN_VERSION_NAME(NAME,VisItPluginVersion) = VISIT_VERSION;
 #else

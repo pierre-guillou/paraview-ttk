@@ -12,8 +12,8 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#ifndef pqDiscreteDoubleWidget_H
-#define pqDiscreteDoubleWidget_H
+#ifndef pqDiscreteDoubleWidget_h
+#define pqDiscreteDoubleWidget_h
 
 #include "pqDoubleSliderWidget.h"
 
@@ -31,7 +31,7 @@ class PQWIDGETS_EXPORT pqDiscreteDoubleWidget : public pqDoubleSliderWidget
 
 public:
   pqDiscreteDoubleWidget(QWidget* parent = nullptr);
-  ~pqDiscreteDoubleWidget();
+  ~pqDiscreteDoubleWidget() override;
 
   /**
    * Gets vector of allowed values
@@ -47,4 +47,4 @@ private:
   QVector<double> Values;
 };
 
-#endif // pqDiscreteDoubleWidget_H
+#endif // pqDiscreteDoubleWidget_h

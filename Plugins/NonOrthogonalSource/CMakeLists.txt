@@ -17,6 +17,8 @@ if (PARAVIEW_USE_QT)
 endif ()
 
 paraview_add_plugin(NonOrthogonalSource
+  REQUIRED_ON_CLIENT
+  REQUIRED_ON_SERVER
   VERSION       "1.0"
   UI_INTERFACES ${interfaces}
   SOURCES       ${sources}
@@ -27,6 +29,7 @@ if (PARAVIEW_USE_QT)
   target_link_libraries(NonOrthogonalSource
     PRIVATE
       ParaView::pqApplicationComponents)
+    target_compile_definitions(NonOrthogonalSource PRIVATE QT_NO_KEYWORDS)
 endif ()
 
 if (BUILD_TESTING)

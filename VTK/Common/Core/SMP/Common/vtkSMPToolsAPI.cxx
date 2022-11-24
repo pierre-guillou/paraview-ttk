@@ -50,7 +50,7 @@ vtkSMPToolsAPI::vtkSMPToolsAPI()
     new vtkSMPToolsImpl<BackendType::OpenMP>());
 #endif
 
-  // Set backend from env if setted
+  // Set backend from env if set
   const char* vtkSMPBackendInUse = std::getenv("VTK_SMP_BACKEND_IN_USE");
   if (vtkSMPBackendInUse)
   {
@@ -97,13 +97,21 @@ bool vtkSMPToolsAPI::SetBackend(const char* type)
   std::string backend(type);
   std::transform(backend.cbegin(), backend.cend(), backend.begin(), ::toupper);
   if (backend == "SEQUENTIAL" && this->SequentialBackend)
+  {
     this->ActivatedBackend = BackendType::Sequential;
+  }
   else if (backend == "STDTHREAD" && this->STDThreadBackend)
+  {
     this->ActivatedBackend = BackendType::STDThread;
+  }
   else if (backend == "TBB" && this->TBBBackend)
+  {
     this->ActivatedBackend = BackendType::TBB;
+  }
   else if (backend == "OPENMP" && this->OpenMPBackend)
+  {
     this->ActivatedBackend = BackendType::OpenMP;
+  }
   else
   {
     std::cerr << "WARNING: tried to use a non implemented SMPTools backend \"" << type << "\"!\n";

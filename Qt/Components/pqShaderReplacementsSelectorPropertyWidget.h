@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqShaderReplacementsSelectorPropertyWidget_h
-#define _pqShaderReplacementsSelectorPropertyWidget_h
+#ifndef pqShaderReplacementsSelectorPropertyWidget_h
+#define pqShaderReplacementsSelectorPropertyWidget_h
 
 #include "pqComponentsModule.h"
 
@@ -59,7 +59,7 @@ protected Q_SLOTS:
   void onDelete();
   void onPresetChanged(int index);
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   bool loadShaderReplacements(const QString& filename);
   void refreshView();
 

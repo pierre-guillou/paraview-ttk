@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkXMLUnstructuredDataWriter.h"
 
 #include "vtkCellArray.h"
@@ -162,9 +159,18 @@ vtkTypeBool vtkXMLUnstructuredDataWriter::ProcessRequest(
         }
         else
         {
-          vtkNew<vtkCellTypes> cellTypes;
-          dataSet->GetCellTypes(cellTypes);
-          if (vtkNeedsNewFileVersionV8toV9(cellTypes))
+          vtkNew<vtkUnsignedCharArray> cellTypesArray;
+          if (auto ug = vtkUnstructuredGrid::SafeDownCast(dataSet))
+          {
+            cellTypesArray->ShallowCopy(ug->GetDistinctCellTypesArray());
+          }
+          else
+          {
+            vtkNew<vtkCellTypes> cellTypes;
+            dataSet->GetCellTypes(cellTypes);
+            cellTypesArray->ShallowCopy(cellTypes->GetCellTypesArray());
+          }
+          if (vtkNeedsNewFileVersionV8toV9(cellTypesArray))
           {
             this->UsePreviousVersion = false;
           }
@@ -1008,7 +1014,10 @@ struct ConvertCellsVisitor
 void vtkXMLUnstructuredDataWriter::ConvertCells(vtkCellArray* cells)
 {
   ConvertCellsVisitor visitor;
-  cells->Visit(visitor);
+  if (cells)
+  {
+    cells->Visit(visitor);
+  }
   this->CellPoints = visitor.Connectivity;
   this->CellOffsets = visitor.Offsets;
 }

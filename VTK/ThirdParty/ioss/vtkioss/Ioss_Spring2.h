@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "ioss_export.h"
+
 #include "vtk_ioss_mangle.h"
 
 #include <Ioss_CodeTypes.h>       // for IntVector
@@ -14,7 +16,7 @@
 // STL Includes
 
 namespace Ioss {
-  class Spring2 : public Ioss::ElementTopology
+  class IOSS_EXPORT Spring2 : public Ioss::ElementTopology
   {
 
   public:
@@ -24,10 +26,11 @@ namespace Ioss {
     ~Spring2() override      = default;
     Spring2(const Spring2 &) = delete;
 
-    ElementShape shape() const override { return ElementShape::LINE; }
+    ElementShape shape() const override { return ElementShape::SPRING; }
     int          spatial_dimension() const override;
     int          parametric_dimension() const override;
     bool         is_element() const override { return true; }
+    bool         is_shell() const override { return false; }
     int          order() const override;
 
     int number_corner_nodes() const override;
@@ -48,8 +51,5 @@ namespace Ioss {
 
   protected:
     Spring2();
-
-  private:
-    static Spring2 instance_;
   };
 } // namespace Ioss

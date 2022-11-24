@@ -35,6 +35,8 @@
 
 #include <cassert>
 
+vtkCxxSetObjectMacro(vtkAMRBaseReader, Controller, vtkMultiProcessController);
+
 vtkAMRBaseReader::vtkAMRBaseReader()
 {
   this->LoadedMetaData = false;
@@ -43,6 +45,7 @@ vtkAMRBaseReader::vtkAMRBaseReader()
   this->EnableCaching = 0;
   this->Cache = nullptr;
   this->FileName = nullptr;
+  this->Controller = nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -66,6 +69,8 @@ vtkAMRBaseReader::~vtkAMRBaseReader()
 
   delete[] this->FileName;
   this->FileName = nullptr;
+
+  this->SetController(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -90,7 +95,7 @@ void vtkAMRBaseReader::Initialize()
   this->FileName = nullptr;
   this->MaxLevel = 0;
   this->Metadata = nullptr;
-  this->Controller = vtkMultiProcessController::GetGlobalController();
+  this->SetController(vtkMultiProcessController::GetGlobalController());
   this->InitialRequest = true;
   this->Cache = vtkAMRDataSetCache::New();
 
@@ -199,11 +204,7 @@ bool vtkAMRBaseReader::IsBlockMine(const int blockIdx)
   }
 
   int myRank = this->Controller->GetLocalProcessId();
-  if (myRank == this->GetBlockProcessId(blockIdx))
-  {
-    return true;
-  }
-  return false;
+  return myRank == this->GetBlockProcessId(blockIdx);
 }
 
 //------------------------------------------------------------------------------
@@ -225,12 +226,7 @@ bool vtkAMRBaseReader::IsParallel()
     return false;
   }
 
-  if (this->Controller->GetNumberOfProcesses() > 1)
-  {
-    return true;
-  }
-
-  return false;
+  return this->Controller->GetNumberOfProcesses() > 1;
 }
 
 //------------------------------------------------------------------------------

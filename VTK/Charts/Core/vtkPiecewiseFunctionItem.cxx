@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPiecewiseFunctionItem.h"
 #include "vtkBrush.h"
 #include "vtkCallbackCommand.h"
@@ -38,7 +35,7 @@ vtkPiecewiseFunctionItem::vtkPiecewiseFunctionItem()
 {
   this->PolyLinePen->SetLineType(vtkPen::SOLID_LINE);
   this->PiecewiseFunction = nullptr;
-  this->SetColor(1., 1., 1.);
+  this->SetColorF(1., 1., 1.);
 }
 
 //------------------------------------------------------------------------------

@@ -119,6 +119,14 @@ void vtkCPExodusIIElementBlockImpl::GetCellPoints(vtkIdType cellId, vtkIdList* p
 }
 
 //------------------------------------------------------------------------------
+void vtkCPExodusIIElementBlockImpl::GetFaceStream(
+  vtkIdType vtkNotUsed(cellId), vtkIdList* vtkNotUsed(ptIds))
+{
+  // vtkCPExodusIIElementBlockImpl does not support polyhedra
+  vtkErrorMacro(<< __FUNCTION__ << " is not implemented");
+}
+
+//------------------------------------------------------------------------------
 void vtkCPExodusIIElementBlockImpl::GetPointCells(vtkIdType ptId, vtkIdList* cellIds)
 {
   const int targetElement = PointToNode(ptId);

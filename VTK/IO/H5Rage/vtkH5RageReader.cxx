@@ -32,6 +32,7 @@
 #include "H5RageAdaptor.h"
 
 vtkStandardNewMacro(vtkH5RageReader);
+vtkCxxSetObjectMacro(vtkH5RageReader, Controller, vtkMultiProcessController);
 
 //------------------------------------------------------------------------------
 // Constructor for H5Rage Reader
@@ -64,7 +65,8 @@ vtkH5RageReader::vtkH5RageReader()
     this->WholeExtent[dim * 2 + 1] = -1;
   }
 
-  this->Controller = vtkMultiProcessController::GetGlobalController();
+  this->Controller = nullptr;
+  this->SetController(vtkMultiProcessController::GetGlobalController());
   if (this->Controller)
   {
     this->Rank = this->Controller->GetLocalProcessId();
@@ -91,8 +93,7 @@ vtkH5RageReader::~vtkH5RageReader()
   this->SelectionObserver->Delete();
   this->PointDataArraySelection->Delete();
 
-  // Do not delete the Controller which is a singleton
-  this->Controller = nullptr;
+  this->SetController(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -237,7 +238,7 @@ int vtkH5RageReader::RequestData(vtkInformation* vtkNotUsed(reqInfo),
   }
   else
   {
-    // Pipeline actived from python script
+    // Pipeline activated from python script
     if (this->CurrentTimeStep < 0 || this->CurrentTimeStep >= this->NumberOfTimeSteps)
     {
       this->CurrentTimeStep = 0;

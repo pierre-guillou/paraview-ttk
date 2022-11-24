@@ -747,7 +747,7 @@ struct BinTuple
 
   // Operator< used to support the sort operation. Just sort on bin
   // id; points within a bin can be in any order.
-  bool operator<(const BinTuple& tuple) const { return (Bin < tuple.Bin ? true : false); }
+  bool operator<(const BinTuple& tuple) const { return Bin < tuple.Bin; }
 };
 
 template <typename PointsT, typename TIds>
@@ -970,7 +970,7 @@ struct MapOffsets
     {
       for (; curPt->Bin == prevPt->Bin && curPt <= endBatchPt; ++curPt)
       {
-        ; // advance
+        // advance
       }
       // Fill in any gaps in the offset array
       if (curPt < endPt) // still within range of points
@@ -1166,7 +1166,7 @@ void AvePointsDecimate(vtkIdType numPts, PointsT* pts, vtkPointData* inPD, vtkPo
 
   // Generate the cell output (decimated list of triangles), with the
   // triangle connectivity based on bin ids (not point ids). We'll directly
-  // create the offet and connectivity arrays for the output polydata.
+  // create the offset and connectivity arrays for the output polydata.
   vtkCellArray* outTrisArray = output->GetPolys();
   vtkNew<vtkIdTypeArray> outConn;
   vtkIdType* outTris = outConn->WritePointer(0, numOutTris * 3);
@@ -1430,8 +1430,7 @@ int vtkBinnedDecimation::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Determine what type of ids are needed: smaller id types save a lot of
   // memory.
-  this->LargeIds =
-    ((numBins > VTK_INT_MAX || numPts > VTK_INT_MAX || numTris > VTK_INT_MAX) ? true : false);
+  this->LargeIds = numBins > VTK_INT_MAX || numPts > VTK_INT_MAX || numTris > VTK_INT_MAX;
 
   // Fast path: dispatch to real point types
   using vtkArrayDispatch::Reals;

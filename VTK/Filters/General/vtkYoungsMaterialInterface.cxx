@@ -18,9 +18,6 @@ PURPOSE.  See the above copyright notice for more information.
 // F-91297 Arpajon, France. <br> Implementation by Thierry Carrard (CEA) and Philippe Pebay (Kitware
 // SAS)
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkYoungsMaterialInterface.h"
 
 #include "vtkCell.h"
@@ -55,6 +52,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <cassert>
@@ -607,16 +605,13 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
              this->Internals->Materials.begin();
            it != this->Internals->Materials.end(); ++it, ++m)
       {
-        vtkDataArray* fraction = input->GetCellData()->GetArray((*it).volume().c_str());
+        double range[2];
         bool materialHasBlock = ((*it).blocks.find(composite_index) != (*it).blocks.end());
-        if (fraction && (this->UseAllBlocks || materialHasBlock))
+        if ((this->UseAllBlocks || materialHasBlock) &&
+          input->GetCellData()->GetRange(it->volume().c_str(), range) &&
+          range[1] > this->VolumeFractionRange[0])
         {
-          double range[2];
-          fraction->GetRange(range);
-          if (range[1] > this->VolumeFractionRange[0])
-          {
-            ++inputsPerMaterial[m];
-          }
+          ++inputsPerMaterial[m];
         }
       }
     }
@@ -1474,7 +1469,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
       for (vtkIdType i = 0; i < Mats[m].cellCount; i++)
         cellTypesPtr[i] = Mats[m].cellTypes[i];
 
-      // attach conectivity arrays to data set
+      // attach connectivity arrays to data set
       ugOutput->SetCells(cellTypes, cellArray);
       cellArray->Delete();
       cellTypes->Delete();
@@ -2458,19 +2453,12 @@ REAL newtonSearchPolynomialFunc(
 FUNC_DECL
 uchar3 sortTriangle(uchar3 t, unsigned char* i)
 {
-#define SWAP(a, b)                                                                                 \
-  {                                                                                                \
-    unsigned char tmp = a;                                                                         \
-    a = b;                                                                                         \
-    b = tmp;                                                                                       \
-  }
   if (i[t.y] < i[t.x])
-    SWAP(t.x, t.y);
+    std::swap(t.x, t.y);
   if (i[t.z] < i[t.y])
-    SWAP(t.y, t.z);
+    std::swap(t.y, t.z);
   if (i[t.y] < i[t.x])
-    SWAP(t.x, t.y);
-#undef SWAP
+    std::swap(t.x, t.y);
   return t;
 }
 
@@ -2482,12 +2470,6 @@ FUNC_DECL
 void sortVertices(const int n, const REAL3* vertices, const REAL3 normal, IntType* indices)
 {
   // insertion sort : slow but symmetrical across all instances
-#define SWAP(a, b)                                                                                 \
-  {                                                                                                \
-    IntType t = indices[a];                                                                        \
-    indices[a] = indices[b];                                                                       \
-    indices[b] = t;                                                                                \
-  }
   for (int i = 0; i < n; i++)
   {
     int imin = i;
@@ -2498,21 +2480,14 @@ void sortVertices(const int n, const REAL3* vertices, const REAL3 normal, IntTyp
       imin = (d < dmin) ? j : imin;
       dmin = min(dmin, d);
     }
-    SWAP(i, imin);
+    std::swap(i, imin);
   }
-#undef SWAP
 }
 
 FUNC_DECL
 void sortVertices(const int n, const REAL2* vertices, const REAL2 normal, IntType* indices)
 {
   // insertion sort : slow but symmetrical across all instances
-#define SWAP(a, b)                                                                                 \
-  {                                                                                                \
-    IntType t = indices[a];                                                                        \
-    indices[a] = indices[b];                                                                       \
-    indices[b] = t;                                                                                \
-  }
   for (int i = 0; i < n; i++)
   {
     int imin = i;
@@ -2523,33 +2498,25 @@ void sortVertices(const int n, const REAL2* vertices, const REAL2 normal, IntTyp
       imin = (d < dmin) ? j : imin;
       dmin = min(dmin, d);
     }
-    SWAP(i, imin);
+    std::swap(i, imin);
   }
-#undef SWAP
 }
 
 FUNC_DECL
 uchar4 sortTetra(uchar4 t, IntType* i)
 {
-#define SWAP(a, b)                                                                                 \
-  {                                                                                                \
-    IntType tmp = a;                                                                               \
-    a = b;                                                                                         \
-    b = tmp;                                                                                       \
-  }
   if (i[t.y] < i[t.x])
-    SWAP(t.x, t.y);
+    std::swap(t.x, t.y);
   if (i[t.w] < i[t.z])
-    SWAP(t.z, t.w);
+    std::swap(t.z, t.w);
   if (i[t.z] < i[t.y])
-    SWAP(t.y, t.z);
+    std::swap(t.y, t.z);
   if (i[t.y] < i[t.x])
-    SWAP(t.x, t.y);
+    std::swap(t.x, t.y);
   if (i[t.w] < i[t.z])
-    SWAP(t.z, t.w);
+    std::swap(t.z, t.w);
   if (i[t.z] < i[t.y])
-    SWAP(t.y, t.z);
-#undef SWAP
+    std::swap(t.y, t.z);
   return t;
 }
 

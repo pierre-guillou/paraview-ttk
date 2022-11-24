@@ -4,9 +4,10 @@ notice.
 """
 from .. import logger
 
-from ..modules.vtkPVInSitu import vtkInSituInitializationHelper, vtkInSituPipelinePython
+from ..modules.vtkPVInSitu import vtkInSituPipelinePython
 
 from ..modules.vtkPVPythonCatalyst import vtkCPPythonScriptV2Helper
+
 
 def _get_active_helper():
     return vtkCPPythonScriptV2Helper.GetActiveInstance()
@@ -18,6 +19,22 @@ def _get_active_data_description():
     helper = _get_active_helper()
     return helper.GetDataDescription()
 
+def _transform_registration_name(name):
+    from . import get_args
+    import re, argparse
+
+    regex = re.compile(r"^\${args\.([\w.-]+)}$")
+    m = regex.match(name)
+    if not m:
+        return name
+
+    argname = m.group(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--%s" % argname, dest=argname)
+    parser.add_argument("-%s" % argname, dest=argname)
+    result = parser.parse_known_args(get_args())[0]
+    val = getattr(result, argname)
+    return val if val else name
 
 def IsInsitu():
     """Returns True if executing in an insitu environment, else false"""
@@ -31,6 +48,9 @@ def IsLegacyCatalystAdaptor():
     instead of the Conduit-based in situ API"""
     return _get_active_data_description() is not None
 
+if IsInsitu() and not IsLegacyCatalystAdaptor():
+    from ..modules.vtkPVInSitu import vtkInSituInitializationHelper
+
 def IsCatalystInSituAPI():
     """Returns True if the active execution environment is from within
     an implementation of the Conduit-based Catalyst In Situ API."""
@@ -39,8 +59,9 @@ def IsCatalystInSituAPI():
 def IsInsituInput(name):
     if not name or not IsInsitu():
         return False
+    name = _transform_registration_name(name)
     dataDesc = _get_active_data_description()
-    if dataDesc:
+    if IsLegacyCatalystAdaptor():
         # Legacy Catalyst
         if dataDesc.GetInputDescriptionByName(name) is not None:
             return True
@@ -77,7 +98,11 @@ def CreateProducer(name):
     assert IsInsituInput(name)
     from . import log_level
     from .. import log
-    log(log_level(), "creating producer for simulation input named '%s'")
+
+    originalname = name
+    name = _transform_registration_name(name)
+    log(log_level(), "creating producer for simulation input named '%s' (original-name=%s)" \
+            % (name, originalname))
     if IsCatalystInSituAPI():
         # Catalyst 2.0
         from paraview import servermanager

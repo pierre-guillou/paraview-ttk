@@ -48,7 +48,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqNonEditableStyledItemDelegate.h"
 #include "pqOutputPort.h"
 #include "pqPipelineSource.h"
-#include "pqSMAdaptor.h"
 #include "pqServer.h"
 #include "pqSpreadSheetViewModel.h"
 #include "pqSpreadSheetViewSelectionModel.h"
@@ -116,7 +115,7 @@ pqSpreadSheetView::pqSpreadSheetView(const QString& group, const QString& name,
 
   this->onFontSizeChanged();
 
-  foreach (pqRepresentation* rep, this->getRepresentations())
+  Q_FOREACH (pqRepresentation* rep, this->getRepresentations())
   {
     this->onAddRepresentation(rep);
   }

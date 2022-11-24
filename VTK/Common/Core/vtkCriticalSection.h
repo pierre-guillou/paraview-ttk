@@ -37,10 +37,14 @@
 #define vtkCriticalSection_h
 
 #include "vtkCommonCoreModule.h" // For export macro
+#include "vtkDeprecation.h"      // For VTK_DEPRECATED_IN_9_1_0
 #include "vtkObject.h"
-#include "vtkSimpleCriticalSection.h" // For simple critical section
+#include <mutex> // for std::mutex
 
-class VTKCOMMONCORE_EXPORT vtkCriticalSection : public vtkObject
+// Remove with VTK_DEPRECATED_IN_9_2_0 because it was not actually deprecated
+// in 9.1.0.
+class VTK_DEPRECATED_IN_9_1_0("Use std::mutex instead") VTKCOMMONCORE_EXPORT vtkCriticalSection
+  : public vtkObject
 {
 public:
   static vtkCriticalSection* New();
@@ -59,7 +63,7 @@ public:
   void Unlock();
 
 protected:
-  vtkSimpleCriticalSection SimpleCriticalSection;
+  std::mutex mtx;
   vtkCriticalSection() = default;
   ~vtkCriticalSection() override = default;
 
@@ -70,12 +74,14 @@ private:
 
 inline void vtkCriticalSection::Lock()
 {
-  this->SimpleCriticalSection.Lock();
+  this->mtx.lock();
 }
 
 inline void vtkCriticalSection::Unlock()
 {
-  this->SimpleCriticalSection.Unlock();
+  this->mtx.unlock();
 }
 
 #endif
+
+// VTK-HeaderTest-Exclude: vtkCriticalSection.h

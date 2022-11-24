@@ -9,25 +9,32 @@
 ##============================================================================
 
 set(headers
+  Amr.h
   Oscillator.h
   Source.h
   Tangle.h
   Wavelet.h
+  PerlinNoise.h
   )
 
 set(device_sources
+  Amr.cxx
   Oscillator.cxx
   Source.cxx
   Tangle.cxx
   Wavelet.cxx
+  PerlinNoise.cxx
   )
 
 vtkm_library(NAME vtkm_source
+  SOURCES ${sources}
   DEVICE_SOURCES ${device_sources}
   HEADERS ${headers}
   )
 
-target_link_libraries(vtkm_source PUBLIC vtkm_cont)
+target_link_libraries(vtkm_source PUBLIC vtkm_cont vtkm_filter_field_conversion)
 
 #-----------------------------------------------------------------------------
-add_subdirectory(testing)
+if (VTKm_ENABLE_TESTING)
+  add_subdirectory(testing)
+endif ()

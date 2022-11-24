@@ -45,11 +45,16 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
-#include <vector> // For list indices
 
 #include "vtkAbstractArray.h" // Needed for inline methods.
 
+#include <array>  // For CachedGhostRangeType
+#include <tuple>  // For CachedGhostRangeType
+#include <vector> // For list indices
+
+class vtkDoubleArray;
 class vtkIdList;
+class vtkUnsignedCharArray;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkFieldData : public vtkObject
 {
@@ -124,7 +129,7 @@ public:
    * Return the ith array in the field. A nullptr is returned if the
    * index i is out of range, or if the array at the given
    * index is not a vtkDataArray. To access vtkStringArray,
-   * vtkUnicodeStringArray, or vtkVariantArray, use GetAbstractArray(int i).
+   * or vtkVariantArray, use GetAbstractArray(int i).
    */
   vtkDataArray* GetArray(int i);
 
@@ -134,7 +139,7 @@ public:
    *
    * Return the array with the name given. Returns nullptr if array not found.
    * A nullptr is also returned if the array with the given name is not a
-   * vtkDataArray. To access vtkStringArray, vtkUnicodeStringArray, or
+   * vtkDataArray. To access vtkStringArray, or
    * vtkVariantArray, use GetAbstractArray(const char* arrayName, int &index).
    * Also returns the index of the array if found, -1 otherwise.
    */
@@ -147,7 +152,7 @@ public:
    *
    * Return the array with the name given. Returns nullptr if array not found.
    * A nullptr is also returned if the array with the given name is not a
-   * vtkDataArray. To access vtkStringArray, vtkUnicodeStringArray, or
+   * vtkDataArray. To access vtkStringArray, or
    * vtkVariantArray, use GetAbstractArray(const char *arrayName).
    */
   vtkDataArray* GetArray(const char* arrayName)
@@ -358,6 +363,64 @@ public:
    */
   vtkIdType InsertNextTuple(const vtkIdType j, vtkFieldData* source);
 
+  ///@{
+  /**
+   * Computes the range of the input data array (specified through its `name` or the `index`
+   * in this field data). If the targeted array is not polymorphic
+   * with a `vtkDataArray`, or if no array match the input `name` or `index`, or
+   * if `comp` is out of bounds, then the returned range is `[NaN, NaN]`.
+   *
+   * The computed range is cached to avoid recomputing it. The range is recomputed
+   * if the held array has been modified, if `GhostsToSkip` has been changed, or if
+   * the ghost array has been changed / modified.
+   *
+   * If a ghost array is present in the field data, then the binary mask `GhostsToSkip`
+   * is used to skip values associated with a ghost that intersects this mask.
+   *
+   * `comp` targets which component of the array the range is to be computed on.
+   * Setting it to -1 results in computing the range of the magnitude of the array.
+   *
+   * The `Finite` version of this method skips infinite values in the array in addition
+   * to ghosts matching with `GhostsToSkip`.
+   */
+  bool GetRange(const char* name, double range[2], int comp = 0);
+  bool GetRange(int index, double range[2], int comp = 0);
+  bool GetFiniteRange(const char* name, double range[2], int comp = 0);
+  bool GetFiniteRange(int index, double range[2], int comp = 0);
+  ///@}
+
+  ///@{
+  /**
+   * Set / Get the binary mask filtering out certain types of ghosts when calling `GetRange`.
+   * By default, it is set to 0xff for pure `vtkFieldData`. In `vtkCellData`, it is set to
+   * `HIDDENCELL` and in `vtkPointData`, it is set to `HIDDENPOINT` by default.
+   * See `vtkDataSetAttributes` for more context on ghost types definitions.
+   *
+   * @sa
+   * vtkDataSetAttributes
+   * vtkPointData
+   * vtkCellData
+   */
+  vtkGetMacro(GhostsToSkip, unsigned char);
+  virtual void SetGhostsToSkip(unsigned char);
+  ///@}
+
+  /**
+   * Helper function that tests if any of the values in ghost array has been set.
+   * The test performed is (value & bitFlag).
+   */
+  bool HasAnyGhostBitSet(int bitFlag);
+
+  /**
+   * Get the ghost array, if present in this field data. If no ghost array is set,
+   * returns `nullptr`. A ghost array is a `vtkUnsignedCharArray` called `vtkGhostType`.
+   * See `vtkDataSetAttributes` for more context on ghost types.
+   *
+   * @sa
+   * vtkDataSetAttributes
+   */
+  vtkGetObjectMacro(GhostArray, vtkUnsignedCharArray);
+
 protected:
   vtkFieldData();
   ~vtkFieldData() override;
@@ -391,6 +454,29 @@ protected:
   void CopyFlags(const vtkFieldData* source);
   int DoCopyAllOn;
   int DoCopyAllOff;
+
+  /*
+   * This tuple holds: [array time stamp, ghost array time stamp, cached ranges].
+   * Those time stamps are used to decide whether the cached range should be recomputed or not.
+   * when requesting the range of an array.
+   *
+   * When there is no ghost array, the ghost array time stamp is defined as equal to 0.
+   */
+  using CachedGhostRangeType = std::tuple<vtkMTimeType, vtkMTimeType, std::vector<double>>;
+  unsigned char GhostsToSkip;
+  vtkUnsignedCharArray* GhostArray;
+
+  ///@{
+  /**
+   * `Ranges` and `FiniteRanges` store cached ranges for arrays stored in this field data.
+   * Given the array at index `idx`, 2 ranges are stored: the magnitude range at `Ranges[idx][0]`,
+   * and all the component ranges at `Ranges[idx][1]`. The ranges are stored in the third
+   * component of the tuple `CachedGhostRangeType`. For the component ranges, they are stored
+   * in an array of size 2 times the number of components, storing `[min0, max0, ..., minn, maxn]`.
+   */
+  std::vector<std::array<CachedGhostRangeType, 2>> Ranges;
+  std::vector<std::array<CachedGhostRangeType, 2>> FiniteRanges;
+  ///@}
 
 private:
   vtkFieldData(const vtkFieldData&) = delete;

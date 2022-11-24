@@ -52,6 +52,7 @@ public:
   QMap<QString, QListWidgetItem> Items;
   QString SearchString;
   QPointer<QAction> ActiveAction;
+  bool QuickApply = false;
 };
 
 namespace
@@ -69,7 +70,7 @@ void fillPermutations(QList<QStringList>& list, QStringList words)
 void fillSearchSpace(QStringList& searchSpace, const QStringList& searchComponents,
   const QList<QStringList>& searchExpressions, const QStringList& keys)
 {
-  foreach (const QStringList& exp, searchExpressions)
+  Q_FOREACH (const QStringList& exp, searchExpressions)
   {
     QString part = exp.join("\\w*\\W+");
     QRegExp regExp("^" + part, Qt::CaseInsensitive);
@@ -80,7 +81,7 @@ void fillSearchSpace(QStringList& searchSpace, const QStringList& searchComponen
   // word order and proximity entirely.
   // (BUG #0016116).
   QStringList filteredkeys = keys;
-  foreach (const QString& component, searchComponents)
+  Q_FOREACH (const QString& component, searchComponents)
   {
     filteredkeys = filteredkeys.filter(QRegExp(component, Qt::CaseInsensitive));
   }
@@ -171,7 +172,7 @@ void pqQuickLaunchDialog::setActions(const QList<QAction*>& actns)
 //-----------------------------------------------------------------------------
 void pqQuickLaunchDialog::addActions(const QList<QAction*>& actns)
 {
-  foreach (QAction* action, actns)
+  Q_FOREACH (QAction* action, actns)
   {
     if (!action->menu())
     {
@@ -210,7 +211,7 @@ void pqQuickLaunchDialog::updateSearch()
   fillSearchSpace(searchSpace, searchComponents, searchExpressions, keys);
 
   QStringList fuzzySearchComponents;
-  foreach (const QString& word, searchComponents)
+  Q_FOREACH (const QString& word, searchComponents)
   {
     QString newword;
     for (int cc = 0; cc < word.size(); cc++)
@@ -229,7 +230,7 @@ void pqQuickLaunchDialog::updateSearch()
 
   int currentRow = -1;
   int i = 0;
-  foreach (QString key, searchSpace)
+  Q_FOREACH (QString key, searchSpace)
   {
     QListWidgetItem* item = new QListWidgetItem(this->Internal->Items[key]);
     QString actionName = item->data(Qt::UserRole).toString();
@@ -274,10 +275,18 @@ void pqQuickLaunchDialog::currentRowChanged(int row)
 //-----------------------------------------------------------------------------
 void pqQuickLaunchDialog::accept()
 {
+  this->Internal->QuickApply = false;
   if (this->Internal->ActiveAction && this->Internal->ActiveAction->isEnabled())
   {
     this->Internal->ActiveAction->trigger();
+    this->Internal->QuickApply = QApplication::keyboardModifiers() & Qt::ShiftModifier;
   }
   // Trigger selected action.
   this->Superclass::accept();
+}
+
+//-----------------------------------------------------------------------------
+bool pqQuickLaunchDialog::quickApply()
+{
+  return this->Internal->QuickApply;
 }

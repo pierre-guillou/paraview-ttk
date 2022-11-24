@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqSMAdaptor_h
-#define _pqSMAdaptor_h
+#ifndef pqSMAdaptor_h
+#define pqSMAdaptor_h
 
 class vtkSMProperty;
 class vtkSMProxy;
@@ -146,6 +146,12 @@ public:
   static QList<QVariant> getSelectionPropertyDomain(vtkSMProperty* Property);
 
   /**
+   * get the list of strings for the given property based on domain and current values.
+   */
+  static QList<QVariant> getStringListProperty(
+    vtkSMProperty* Property, PropertyValueType Type = CHECKED);
+
+  /**
    * get the enumeration for a property
    */
   static QVariant getEnumerationProperty(vtkSMProperty* Property, PropertyValueType Type = CHECKED);
@@ -237,4 +243,4 @@ public:
   static QVariant convertToQVariant(const vtkVariant& variant);
 };
 
-#endif // !_pqSMAdaptor_h
+#endif // !pqSMAdaptor_h

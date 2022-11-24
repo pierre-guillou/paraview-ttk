@@ -28,11 +28,14 @@
 #include <cassert>
 
 #define CHECK(b, errors)                                                                           \
-  if (!(b))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    errors++;                                                                                      \
-    cerr << "Error on Line " << __LINE__ << ":" << endl;                                           \
-  }
+    if (!(b))                                                                                      \
+    {                                                                                              \
+      errors++;                                                                                    \
+      cerr << "Error on Line " << __LINE__ << ":" << endl;                                         \
+    }                                                                                              \
+  } while (false)
 
 class TestAlgorithm : public vtkAlgorithm
 {
@@ -154,7 +157,7 @@ public:
     vtkInformation* outInfo = outputVector->GetInformationObject(0);
     double range[2] = { 0, 9 };
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), range, 2);
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &TimeSteps[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), TimeSteps.data(),
       static_cast<int>(TimeSteps.size()));
     if (this->HasTimeDependentData)
     {
@@ -251,7 +254,7 @@ int TestTimeDependentInformationExecution()
   int numErrors(0);
   for (int i = 1; i < 2; i++)
   {
-    bool hasTemporalMeta = i == 0 ? false : true;
+    bool hasTemporalMeta = i != 0;
     vtkNew<TestTimeSource> imageSource;
     imageSource->SetHasTimeDependentData(hasTemporalMeta);
 

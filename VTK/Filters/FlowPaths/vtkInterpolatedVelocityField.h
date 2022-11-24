@@ -59,15 +59,17 @@
 #define vtkInterpolatedVelocityField_h
 
 #include "vtkCompositeInterpolatedVelocityField.h"
+#include "vtkDeprecation.h"            // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkFiltersFlowPathsModule.h" // For export macro
 
-class VTKFILTERSFLOWPATHS_EXPORT vtkInterpolatedVelocityField
+class VTK_DEPRECATED_IN_9_2_0(
+  "Use vtkCompositeInterpolatedVelocityField instead of vtkCellLocatorInterpolatedVelocityField "
+  "and set the desired strategy.") VTKFILTERSFLOWPATHS_EXPORT vtkInterpolatedVelocityField
   : public vtkCompositeInterpolatedVelocityField
 {
 public:
   /**
-   * Construct a vtkInterpolatedVelocityField without an initial dataset.
-   * Caching is set on and LastCellId is set to -1.
+   * Construct a vtkCompositeInterpolatedVelocityField subclass.
    */
   static vtkInterpolatedVelocityField* New();
 
@@ -79,50 +81,9 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   ///@}
 
-  /**
-   * Add a dataset used for the implicit function evaluation. If more than
-   * one dataset is added, the evaluation point is searched in all until a
-   * match is found. THIS FUNCTION DOES NOT CHANGE THE REFERENCE COUNT OF
-   * DATASET FOR THREAD SAFETY REASONS.
-   */
-  void AddDataSet(vtkDataSet* dataset) override;
-
-  using Superclass::FunctionValues;
-  /**
-   * Evaluate the velocity field f at point (x, y, z).
-   */
-  int FunctionValues(double* x, double* f) override;
-
-  /**
-   * Project the provided point on current cell, current dataset.
-   */
-  virtual int SnapPointOnCell(double* pOrigin, double* pProj);
-
-  /**
-   * Set the cell id cached by the last evaluation within a specified dataset.
-   */
-  void SetLastCellId(vtkIdType c, int dataindex) override;
-
-  /**
-   * Set the cell id cached by the last evaluation.
-   */
-  void SetLastCellId(vtkIdType c) override { this->Superclass::SetLastCellId(c); }
-
 protected:
-  vtkInterpolatedVelocityField() = default;
+  vtkInterpolatedVelocityField();
   ~vtkInterpolatedVelocityField() override = default;
-
-  /**
-   * Evaluate the velocity field f at point (x, y, z) in a specified dataset
-   * by either involving vtkPointLocator, via vtkPointSet::FindCell(), in
-   * locating the next cell (for datasets of type vtkPointSet) or simply
-   * invoking vtkImageData::FindCell() or vtkRectilinearGrid::FindCell() to
-   * fulfill the same task if the point is outside the current cell.
-   */
-  int FunctionValues(vtkDataSet* ds, double* x, double* f) override
-  {
-    return this->Superclass::FunctionValues(ds, x, f);
-  }
 
 private:
   vtkInterpolatedVelocityField(const vtkInterpolatedVelocityField&) = delete;
@@ -130,3 +91,5 @@ private:
 };
 
 #endif
+
+// VTK-HeaderTest-Exclude: vtkInterpolatedVelocityField.h

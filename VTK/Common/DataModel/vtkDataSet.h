@@ -42,6 +42,7 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
+#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_3_0
 
 class vtkCell;
 class vtkCellData;
@@ -157,6 +158,16 @@ public:
   virtual int GetCellType(vtkIdType cellId) = 0;
 
   /**
+   * Get the size of cell with cellId such that: 0 <= cellId < NumberOfCells.
+   * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
+   * THE DATASET IS NOT MODIFIED
+   *
+   * @warning This method MUST be overridden for performance reasons.
+   * Default implementation is very unefficient.
+   */
+  virtual vtkIdType GetCellSize(vtkIdType cellId);
+
+  /**
    * Get a list of types of cells in a dataset. The list consists of an array
    * of types (not necessarily in any order), with a single entry per type.
    * For example a dataset 5 triangles, 3 lines, and 100 hexahedra would
@@ -173,6 +184,21 @@ public:
    * THE DATASET IS NOT MODIFIED
    */
   virtual void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) = 0;
+
+  /**
+   * Topological inquiry to get points defining cell.
+   *
+   * This function MAY use ptIds, which is an object that is created by each thread,
+   * to guarantee thread safety.
+   *
+   * @warning Subsequent calls to this method may invalidate previous call
+   * results.
+   *
+   * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
+   * THE DATASET IS NOT MODIFIED
+   */
+  virtual void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts,
+    vtkIdList* ptIds) VTK_SIZEHINT(pts, npts);
 
   /**
    * Topological inquiry to get cells using point.
@@ -310,6 +336,13 @@ public:
   double GetLength();
 
   /**
+   * Return the squared length of the diagonal of the bounding box.
+   * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
+   * THE DATASET IS NOT MODIFIED
+   */
+  double GetLength2();
+
+  /**
    * Restore data object to initial state.
    * THIS METHOD IS NOT THREAD SAFE.
    */
@@ -444,10 +477,12 @@ public:
    * We cache the pointer to the array to save a lookup involving string comparisons
    */
   vtkUnsignedCharArray* GetPointGhostArray();
+
   /**
    * Updates the pointer to the point ghost array.
    */
-  void UpdatePointGhostArrayCache();
+  VTK_DEPRECATED_IN_9_3_0("This function is deprecated. It has no effect.")
+  void UpdatePointGhostArrayCache() {}
 
   /**
    * Allocate ghost array for points.
@@ -459,15 +494,23 @@ public:
    * We cache the pointer to the array to save a lookup involving string comparisons
    */
   vtkUnsignedCharArray* GetCellGhostArray();
+
   /**
    * Updates the pointer to the cell ghost array.
    */
-  void UpdateCellGhostArrayCache();
+  VTK_DEPRECATED_IN_9_3_0("This function is deprecated. It has no effect.")
+  void UpdateCellGhostArrayCache() {}
 
   /**
    * Allocate ghost array for cells.
    */
   vtkUnsignedCharArray* AllocateCellGhostArray();
+  /**
+   * Returns the ghost array for the given type (point or cell).
+   * Takes advantage of the cache with the pointer to the array to save a string
+   * comparison.
+   */
+  vtkUnsignedCharArray* GetGhostArray(int type) override;
 
 protected:
   // Constructor with default bounds (0,1, 0,1, 0,1).
@@ -479,12 +522,6 @@ protected:
    * only if the cache became invalid (ScalarRangeComputeTime).
    */
   virtual void ComputeScalarRange();
-
-  /**
-   * Helper function that tests if any of the values in 'a' have bitFlag set.
-   * The test performed is (value & bitFlag).
-   */
-  bool IsAnyBitSet(vtkUnsignedCharArray* a, int bitFlag);
 
   vtkCellData* CellData;            // Scalars, vectors, etc. associated w/ each cell
   vtkPointData* PointData;          // Scalars, vectors, etc. associated w/ each point
@@ -504,9 +541,13 @@ protected:
    * These arrays pointers are caches used to avoid a string comparison (when
    * getting ghost arrays using GetArray(name))
    */
+  VTK_DEPRECATED_IN_9_3_0("This member is deprecated. It's no longer used.")
   vtkUnsignedCharArray* PointGhostArray;
+  VTK_DEPRECATED_IN_9_3_0("This member is deprecated. It's no longer used.")
   vtkUnsignedCharArray* CellGhostArray;
+  VTK_DEPRECATED_IN_9_3_0("This member is deprecated. It's no longer used.")
   bool PointGhostArrayCached;
+  VTK_DEPRECATED_IN_9_3_0("This member is deprecated. It's no longer used.")
   bool CellGhostArrayCached;
   ///@}
 
@@ -518,8 +559,6 @@ private:
    */
   static void OnDataModified(
     vtkObject* source, unsigned long eid, void* clientdata, void* calldata);
-
-  friend class vtkImageAlgorithmToDataSetFriendship;
 
 private:
   vtkDataSet(const vtkDataSet&) = delete;

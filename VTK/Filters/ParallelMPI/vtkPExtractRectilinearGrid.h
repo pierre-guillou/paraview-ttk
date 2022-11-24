@@ -48,13 +48,14 @@ public:
 
 protected:
   vtkPExtractRectilinearGrid();
-  virtual ~vtkPExtractRectilinearGrid();
+  ~vtkPExtractRectilinearGrid() override;
 
   // Standard VTK Pipeline methods
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
+  void SetController(vtkMPIController*);
   vtkMPIController* Controller;
 
 private:

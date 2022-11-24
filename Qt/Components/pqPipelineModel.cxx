@@ -174,7 +174,7 @@ public:
     this->Object = other.Object;
     this->Type = other.Type;
     this->VisibilityIcon = other.VisibilityIcon;
-    foreach (pqPipelineModelDataItem* otherChild, other.Children)
+    Q_FOREACH (pqPipelineModelDataItem* otherChild, other.Children)
     {
       pqPipelineModelDataItem* child =
         new pqPipelineModelDataItem(this, nullptr, pqPipelineModel::Invalid, this->Model);
@@ -194,7 +194,7 @@ public:
       assert(proxyItem != 0);
       proxyItem->Links.push_back(this);
     }
-    foreach (pqPipelineModelDataItem* child, this->Children)
+    Q_FOREACH (pqPipelineModelDataItem* child, this->Children)
     {
       child->updateLinks();
     }
@@ -343,7 +343,7 @@ public:
     }
     if (traverse_subtree)
     {
-      foreach (pqPipelineModelDataItem* child, this->Children)
+      Q_FOREACH (pqPipelineModelDataItem* child, this->Children)
       {
         child->updateVisibilityIcon(view, traverse_subtree);
       }
@@ -665,11 +665,11 @@ void pqPipelineModel::setSubtreeSelectable(pqPipelineModelDataItem* item, bool s
   if (item)
   {
     item->Selectable = selectable;
-    foreach (pqPipelineModelDataItem* link, item->Links)
+    Q_FOREACH (pqPipelineModelDataItem* link, item->Links)
     {
       link->Selectable = selectable;
     }
-    foreach (pqPipelineModelDataItem* child, item->Children)
+    Q_FOREACH (pqPipelineModelDataItem* child, item->Children)
     {
       this->setSubtreeSelectable(child, selectable);
     }
@@ -812,8 +812,8 @@ QVariant pqPipelineModel::data(const QModelIndex& idx, int role) const
         {
           const pqServerResource& resource = server->getResource();
           const bool is_configuration_default = resource.configuration().isNameDefault();
-          const auto name =
-            is_configuration_default ? resource.toURI() : resource.configuration().name();
+          const auto name = is_configuration_default ? resource.schemeHostsPorts().toURI()
+                                                     : resource.configuration().name();
           int time = server->getRemainingLifeTime();
           QString timeLeft =
             time > -1 ? QString(" (%1min left)").arg(QString::number(time)) : QString();
@@ -980,7 +980,7 @@ pqPipelineModelDataItem* pqPipelineModel::getDataItem(
     return _parent;
   }
 
-  foreach (pqPipelineModelDataItem* child, _parent->Children)
+  Q_FOREACH (pqPipelineModelDataItem* child, _parent->Children)
   {
     pqPipelineModelDataItem* retVal = this->getDataItem(item, child, type);
     if (retVal && (type == pqPipelineModel::Invalid || type == retVal->Type))
@@ -1033,6 +1033,12 @@ void pqPipelineModel::addChild(pqPipelineModelDataItem* _parent, pqPipelineModel
   {
     Q_EMIT this->firstChildAdded(parentIndex);
   }
+  // This is a special case where an added child has children already. This can occur
+  // when a change of input is triggered on a source that has children.
+  if (!child->Children.empty())
+  {
+    Q_EMIT this->childWithChildrenAdded(this->getIndex(child));
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -1062,7 +1068,7 @@ void pqPipelineModel::removeChildFromParent(pqPipelineModelDataItem* child)
 //-----------------------------------------------------------------------------
 void pqPipelineModel::serverDataChanged()
 {
-  // TODO: we should determine which server data actually chnaged
+  // TODO: we should determine which server data actually changed
   // and invalidate only that one. FOr now, just invalidate all.
 
   int max = this->Internal->Root.Children.size() - 1;
@@ -1187,7 +1193,7 @@ void pqPipelineModel::removeSource(pqPipelineSource* source)
     }
 
     QList<pqPipelineModelDataItem*> childrenToMove;
-    foreach (pqPipelineModelDataItem* child, item->Children)
+    Q_FOREACH (pqPipelineModelDataItem* child, item->Children)
     {
       if (child->Type == pqPipelineModel::Port)
       {
@@ -1199,7 +1205,7 @@ void pqPipelineModel::removeSource(pqPipelineSource* source)
       }
     }
 
-    foreach (pqPipelineModelDataItem* child, childrenToMove)
+    Q_FOREACH (pqPipelineModelDataItem* child, childrenToMove)
     {
       child->Parent = nullptr;
       this->addChild(_parent, child);
@@ -1494,7 +1500,7 @@ void pqPipelineModel::delayedUpdateVisibility(pqPipelineSource* source)
 //-----------------------------------------------------------------------------
 void pqPipelineModel::delayedUpdateVisibilityTimeout()
 {
-  foreach (pqPipelineSource* source, this->Internal->DelayedUpdateVisibilityItems)
+  Q_FOREACH (pqPipelineSource* source, this->Internal->DelayedUpdateVisibilityItems)
   {
     if (source)
     {
@@ -1511,7 +1517,7 @@ void pqPipelineModel::updateVisibility(pqPipelineSource* source, ItemType type /
   if (item)
   {
     item->updateVisibilityIcon(this->View, false);
-    foreach (pqPipelineModelDataItem* child, item->Children)
+    Q_FOREACH (pqPipelineModelDataItem* child, item->Children)
     {
       if (child->Type == Port)
       {
@@ -1519,7 +1525,7 @@ void pqPipelineModel::updateVisibility(pqPipelineSource* source, ItemType type /
       }
     }
 
-    foreach (pqPipelineModelDataItem* link, item->Links)
+    Q_FOREACH (pqPipelineModelDataItem* link, item->Links)
     {
       link->updateVisibilityIcon(this->View, false);
     }
@@ -1534,7 +1540,7 @@ void pqPipelineModel::updateData(pqServerManagerModelItem* source, ItemType type
   {
     item->updateVisibilityIcon(this->View, false);
     this->itemDataChanged(item);
-    foreach (pqPipelineModelDataItem* link, item->Links)
+    Q_FOREACH (pqPipelineModelDataItem* link, item->Links)
     {
       item->updateVisibilityIcon(this->View, false);
       this->itemDataChanged(link);
@@ -1542,7 +1548,7 @@ void pqPipelineModel::updateData(pqServerManagerModelItem* source, ItemType type
   }
   else // source is null, so update everything
   {
-    foreach (pqPipelineModelDataItem* child, this->Internal->Root.Children)
+    Q_FOREACH (pqPipelineModelDataItem* child, this->Internal->Root.Children)
     {
       this->itemDataChanged(child);
     }

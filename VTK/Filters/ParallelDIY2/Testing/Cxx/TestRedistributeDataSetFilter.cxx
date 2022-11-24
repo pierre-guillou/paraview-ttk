@@ -20,9 +20,11 @@
 #include "vtkCompositeRenderManager.h"
 #include "vtkDataSetSurfaceFilter.h"
 #include "vtkExodusIIReader.h"
+#include "vtkImageData.h"
 #include "vtkLogger.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkPartitionedDataSet.h"
+#include "vtkRTAnalyticSource.h"
 #include "vtkRandomAttributeGenerator.h"
 #include "vtkRedistributeDataSetFilter.h"
 #include "vtkRegressionTestImage.h"
@@ -45,6 +47,63 @@
 
 namespace
 {
+bool TestDuplicatePoints(vtkMultiProcessController* controller)
+{
+  int myrank = controller->GetLocalProcessId();
+
+  vtkNew<vtkRTAnalyticSource> wavelet;
+  if (myrank == 0)
+  {
+    wavelet->SetWholeExtent(-10, 0, -10, 10, -10, 10);
+  }
+  else if (myrank == 1)
+  {
+    wavelet->SetWholeExtent(0, 10, -10, 10, -10, 10);
+  }
+
+  vtkNew<vtkRedistributeDataSetFilter> redistribute;
+  redistribute->SetInputConnection(wavelet->GetOutputPort());
+  redistribute->SetNumberOfPartitions(4);
+  redistribute->Update();
+
+  vtkDataSet* waveletDS = vtkDataSet::SafeDownCast(wavelet->GetOutputDataObject(0));
+  vtkDataSet* redistributedDS = vtkDataSet::SafeDownCast(redistribute->GetOutputDataObject(0));
+
+  return waveletDS->GetNumberOfPoints() == redistributedDS->GetNumberOfPoints();
+}
+
+bool TestMultiBlockEmptyOnAllRanksButZero(vtkMultiProcessController* controller)
+{
+  // See !8745
+  int myrank = controller->GetLocalProcessId();
+  vtkNew<vtkMultiBlockDataSet> mb;
+  mb->SetNumberOfBlocks(1);
+  if (myrank == 0)
+  {
+    vtkNew<vtkImageData> im;
+    im->SetDimensions(10, 10, 10);
+    mb->SetBlock(0, im);
+  }
+
+  vtkNew<vtkRedistributeDataSetFilter> filter;
+  filter->SetInputData(mb);
+  filter->SetController(controller);
+  filter->Update();
+
+  auto output = vtkMultiBlockDataSet::SafeDownCast(filter->GetOutputDataObject(0));
+  if (output->GetNumberOfBlocks() != 1)
+  {
+    vtkLog(ERROR, "Wrong number of blocks in output");
+    return false;
+  }
+  if (!output->GetBlock(0))
+  {
+    vtkLog(ERROR, "Output block should not be nullptr in rank " << myrank);
+    return false;
+  }
+  return true;
+}
+
 bool ValidateDataset(
   vtkUnstructuredGrid* input, vtkPartitionedDataSet* output, vtkMultiProcessController* controller)
 {
@@ -73,7 +132,6 @@ bool ValidateDataset(
 
   return true;
 }
-
 }
 
 int TestRedistributeDataSetFilter(int argc, char* argv[])
@@ -85,6 +143,20 @@ int TestRedistributeDataSetFilter(int argc, char* argv[])
 #endif
   controller->Initialize(&argc, &argv);
   vtkMultiProcessController::SetGlobalController(controller);
+
+  if (!TestMultiBlockEmptyOnAllRanksButZero(controller))
+  {
+    return EXIT_FAILURE;
+  }
+
+  // See paraview/paraview#21161
+  if (!TestDuplicatePoints(controller))
+  {
+    vtkLog(ERROR,
+      "Wrong number of output points when applying the filter on a wavelet source."
+      " The most likely reason for that is if the filter produced duplicated points.");
+    return EXIT_FAILURE;
+  }
 
   const int rank = controller->GetLocalProcessId();
   vtkLogger::SetThreadName("rank:" + std::to_string(rank));

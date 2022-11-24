@@ -379,7 +379,8 @@
     _vtk_add_event(Clip3DEvent)                                                                    \
     _vtk_add_event(PositionProp3DEvent)                                                            \
     _vtk_add_event(Pick3DEvent)                                                                    \
-    _vtk_add_event(Select3DEvent)
+    _vtk_add_event(Select3DEvent)                                                                  \
+    _vtk_add_event(Elevation3DEvent)
 // clang-format on
 
 #define vtkEventDeclarationMacro(_enum_name)                                                       \
@@ -401,7 +402,7 @@ public:
    * count by 1).
    */
   void UnRegister();
-  void UnRegister(vtkObjectBase*) override { this->UnRegister(); }
+  using Superclass::UnRegister;
 
   /**
    * All derived classes of vtkCommand must implement this
@@ -475,6 +476,9 @@ protected:
   {
   }
   void operator=(const vtkCommand&) {}
+
+private:
+  const char* GetDebugClassName() const final;
 };
 
 #endif /* vtkCommand_h */

@@ -34,7 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqEventDispatcher.h" // For blocking test events during configuration download
 
 #include "vtkNew.h"
-#include "vtkPVConfig.h"
+#include "vtkPVVersion.h"
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
 
@@ -186,7 +186,7 @@ void pqServerConfigurationImporter::fetchConfigurations()
     this->Internals->ActiveSourceName = iter.key();
 
     QList<QUrl> alternative_urls = pqInternals::getAlternativeURLs(url);
-    foreach (const QUrl& cur_url, alternative_urls)
+    Q_FOREACH (const QUrl& cur_url, alternative_urls)
     {
       if (this->fetch(cur_url))
       {

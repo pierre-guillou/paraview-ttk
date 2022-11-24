@@ -16,17 +16,19 @@ vtk_add_test_python(
   TestGraphLayoutFilter.py
   TestGroupTimeStepsFilter.py
   TestMarchingCubes.py
-  TestMultiBlockFromTimeSeries.py
   TestPointConnectivityFilter.py
   TestRemoveGhostCells.py,NO_OUTPUT,NO_VALID
   TestRemovePolyData.py
   TestRemovePolyData2.py
   TestRemovePolyData3.py
   TestSparseCellLocator.py
+  TestSphericalIteration.py
+  TestSphericalIteratorSets.py
   TestSplineFilter.py
   TestStaticCellLocator.py
   TestStaticCellLocatorPlaneIntersection.py
   TestSynchronizeTimeFilter.py,NO_OUTPUT,NO_VALID
+  TestTriangulateContours.py
   TestWarpScalar.py,NO_VALID
   TestWarpVector.py,NO_VALID
   WarpToImage.py

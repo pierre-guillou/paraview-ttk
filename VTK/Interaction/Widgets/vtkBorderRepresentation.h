@@ -40,6 +40,7 @@
 #define vtkBorderRepresentation_h
 
 #include "vtkCoordinate.h"               //Because of the viewport coordinate macro
+#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
 
@@ -99,9 +100,9 @@ public:
    * will appear when the mouse pointer enters the region bounded by the
    * border widget.
    * This method is provided as conveniency to set both horizontal and
-   * vertical borders.
+   * vertical borders, and the polygon background.
    * BORDER_ON by default.
-   * See Also: SetShowHorizontalBorder(), SetShowVerticalBorder()
+   * See Also: SetShowHorizontalBorder(), SetShowVerticalBorder(), SetShowPolygon()
    */
   virtual void SetShowBorder(int border);
   virtual int GetShowBorderMinValue();
@@ -115,6 +116,7 @@ public:
   ///@{
   /**
    * Specify when and if the vertical border should appear.
+   * BORDER_ON by default.
    * See Also: SetShowBorder(), SetShowHorizontalBorder()
    */
   vtkSetClampMacro(ShowVerticalBorder, int, BORDER_OFF, BORDER_ACTIVE);
@@ -124,6 +126,7 @@ public:
   ///@{
   /**
    * Specify when and if the horizontal border should appear.
+   * BORDER_ON by default.
    * See Also: SetShowBorder(), SetShowVerticalBorder()
    */
   vtkSetClampMacro(ShowHorizontalBorder, int, BORDER_OFF, BORDER_ACTIVE);
@@ -135,6 +138,29 @@ public:
    * Specify the properties of the border.
    */
   vtkGetObjectMacro(BorderProperty, vtkProperty2D);
+  ///@}
+
+  ///@{
+  /**
+   * Specify when and if the border's polygon background should appear.
+   * BORDER_ON by default.
+   * See Also: SetShowBorder()
+   */
+  virtual void SetShowPolygon(int border);
+  virtual int GetShowPolygon();
+  void SetShowPolygonToOff() { this->SetShowPolygon(BORDER_OFF); }
+  void SetShowPolygonToOn() { this->SetShowPolygon(BORDER_ON); }
+  void SetShowPolygonToActive() { this->SetShowPolygon(BORDER_ACTIVE); }
+  ///@}
+
+  ///@{
+  /**
+   * Specify when and if the border polygon background should appear.
+   * BORDER_ON by default.
+   * See Also: SetShowBorder(), SetShowPolygon()
+   */
+  vtkSetClampMacro(ShowPolygonBackground, int, BORDER_OFF, BORDER_ACTIVE);
+  vtkGetMacro(ShowPolygonBackground, int);
   ///@}
 
   ///@{
@@ -151,9 +177,9 @@ public:
   vtkSetMacro(EnforceNormalizedViewportBounds, vtkTypeBool);
   vtkGetMacro(EnforceNormalizedViewportBounds, vtkTypeBool);
   vtkBooleanMacro(EnforceNormalizedViewportBounds, vtkTypeBool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Indicate whether resizing operations should keep the x-y directions
    * proportional to one another. Also, if ProportionalResize is on, then
@@ -178,9 +204,9 @@ public:
    */
   vtkSetVector2Macro(MinimumNormalizedViewportSize, double);
   vtkGetVector2Macro(MinimumNormalizedViewportSize, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify a minimum and/or maximum size (in pixels) that this representation
    * can take. These methods require two values: size values in the x and y
@@ -225,10 +251,37 @@ public:
   vtkBooleanMacro(Moving, vtkTypeBool);
   ///@}
 
+  enum
+  {
+    AnyLocation = 0,
+    LowerLeftCorner,
+    LowerRightCorner,
+    LowerCenter,
+    UpperLeftCorner,
+    UpperRightCorner,
+    UpperCenter
+  };
+
+  ///@{
+  /**
+   * Set the representation position, by enumeration (
+   * AnyLocation = 0,
+   * LowerLeftCorner,
+   * LowerRightCorner,
+   * LowerCenter,
+   * UpperLeftCorner,
+   * UpperRightCorner,
+   * UpperCenter)
+   * related to the render window
+   */
+  virtual void SetWindowLocation(int enumLocation);
+  vtkGetMacro(WindowLocation, int);
+  ///@}
+
   /**
    * Define the various states that the representation can be in.
    */
-  enum _InteractionState
+  enum InteractionStateType
   {
     Outside = 0,
     Inside,
@@ -241,6 +294,11 @@ public:
     AdjustingE2,
     AdjustingE3
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef InteractionStateType _InteractionState;
+#endif
+
   vtkSetClampMacro(InteractionState, int, 0, AdjustingE3);
 
   /**
@@ -278,7 +336,13 @@ public:
   vtkTypeBool HasTranslucentPolygonalGeometry() override;
   ///@}
 
+  VTK_DEPRECATED_IN_9_2_0(
+    "SetBWActorDisplayOverlay is deprecated. Use "
+    "SetBWActorDisplayOverlayEdges or SetBWActorDisplayOverlayPolygon instead.")
   void SetBWActorDisplayOverlay(bool);
+
+  void SetBWActorDisplayOverlayEdges(bool);
+  void SetBWActorDisplayOverlayPolygon(bool);
 
   ///@{
   /**
@@ -360,6 +424,7 @@ protected:
   // Ivars
   int ShowVerticalBorder = BORDER_ON;
   int ShowHorizontalBorder = BORDER_ON;
+  int ShowPolygonBackground = BORDER_ON;
   vtkNew<vtkProperty2D> BorderProperty;
   vtkNew<vtkProperty2D> PolygonProperty;
   vtkTypeBool EnforceNormalizedViewportBounds = 0;
@@ -371,6 +436,10 @@ protected:
   // Layout (position of lower left and upper right corners of border)
   vtkNew<vtkCoordinate> PositionCoordinate;
   vtkNew<vtkCoordinate> Position2Coordinate;
+
+  // Window location by enumeration
+  int WindowLocation = AnyLocation;
+  virtual void UpdateWindowLocation();
 
   // Sometimes subclasses must negotiate with their superclasses
   // to achieve the correct layout.

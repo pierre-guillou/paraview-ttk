@@ -20,15 +20,17 @@
 #include "vtkActor.h"
 #include "vtkCamera.h"
 #include "vtkDataSetSurfaceFilter.h"
+#include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkRegressionTestImage.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
+#include "vtkTestUtilities.h"
+#include "vtkUnstructuredGrid.h"
 #include "vtkXMLUnstructuredGridReader.h"
 
-#include "vtkNew.h"
 #include <string>
 
 static const char* testXML1 = R"==(<?xml version="1.0"?>
@@ -71,8 +73,32 @@ static const char* testXML2 = R"==(<?xml version="1.0"?>
 </VTKFile>
 )==";
 
+namespace
+{
+bool TestTimeSeries(int argc, char* argv[])
+{
+  const char* name = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/time_series.vtu");
+  vtkNew<vtkXMLUnstructuredGridReader> reader;
+  reader->SetFileName(name);
+  reader->SetTimeStep(0);
+  reader->Update();
+  vtkIdType numberOfCells = reader->GetOutput(0)->GetNumberOfCells();
+  reader->SetTimeStep(1);
+  reader->Update();
+
+  // There should be the same geometry between the 2 time steps
+  return numberOfCells == reader->GetOutput(0)->GetNumberOfCells();
+}
+}
+
 int TestXMLUnstructuredGridReader(int argc, char* argv[])
 {
+  if (!TestTimeSeries(argc, argv))
+  {
+    vtkLog(ERROR, "Failed to read a time series embedded inside a `.vtu`");
+    return EXIT_FAILURE;
+  }
+
   int i;
   // Need to get the data root.
   const char* data_root = nullptr;
@@ -119,7 +145,7 @@ int TestXMLUnstructuredGridReader(int argc, char* argv[])
   std::string filename;
   filename = data_root;
   filename += "/Data/many_time_steps.vtu";
-  cout << "Loading " << filename.c_str() << endl;
+  cout << "Loading " << filename << endl;
   vtkNew<vtkXMLUnstructuredGridReader> reader1;
   reader1->SetFileName(filename.c_str());
   reader1->Update();
@@ -135,7 +161,7 @@ int TestXMLUnstructuredGridReader(int argc, char* argv[])
   // and each piece contains a pyramid cell and a polyhedron cell.
   filename = data_root;
   filename += "/Data/polyhedron2pieces.vtu";
-  cout << "Loading " << filename.c_str() << endl;
+  cout << "Loading " << filename << endl;
   vtkNew<vtkXMLUnstructuredGridReader> reader2;
   reader2->SetFileName(filename.c_str());
 

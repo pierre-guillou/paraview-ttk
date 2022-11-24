@@ -105,15 +105,8 @@ bool vtkMySQLDatabase::IsSupported(int feature)
 
     case VTK_SQL_FEATURE_PREPARED_QUERIES:
     {
-      if (mysql_get_client_version() >= 40108 &&
-        mysql_get_server_version(&this->Private->NullConnection) >= 40100)
-      {
-        return true;
-      }
-      else
-      {
-        return false;
-      }
+      return mysql_get_client_version() >= 40108 &&
+        mysql_get_server_version(&this->Private->NullConnection) >= 40100;
     };
 
     case VTK_SQL_FEATURE_QUERY_SIZE:
@@ -346,7 +339,7 @@ bool vtkMySQLDatabase::ParseURL(const char* URL)
   if (!vtksys::SystemTools::ParseURL(
         urlstr, protocol, username, password, hostname, dataport, database))
   {
-    vtkGenericWarningMacro("Invalid URL: \"" << urlstr.c_str() << "\"");
+    vtkGenericWarningMacro("Invalid URL: \"" << urlstr << "\"");
     return false;
   }
 
@@ -381,7 +374,7 @@ vtkStdString vtkMySQLDatabase::GetColumnSpecification(
 
   // Figure out column type
   int colType = schema->GetColumnTypeFromHandle(tblHandle, colHandle);
-  vtkStdString colTypeStr;
+  std::string colTypeStr;
 
   switch (static_cast<vtkSQLDatabaseSchema::DatabaseColumnType>(colType))
   {
@@ -430,7 +423,7 @@ vtkStdString vtkMySQLDatabase::GetColumnSpecification(
   else // if ( !colTypeStr.empty() )
   {
     vtkGenericWarningMacro("Unable to get column specification: unsupported data type " << colType);
-    return vtkStdString();
+    return {};
   }
 
   // Decide whether size is allowed, required, or unused
@@ -554,7 +547,7 @@ vtkStdString vtkMySQLDatabase::GetIndexSpecification(
   {
     vtkGenericWarningMacro(
       "Unable to get index specification: index has incorrect number of columns " << numCnm);
-    return vtkStdString();
+    return {};
   }
 
   bool firstCnm = true;
@@ -584,7 +577,7 @@ bool vtkMySQLDatabase::CreateDatabase(const char* dbName, bool dropExisting = fa
   {
     this->DropDatabase(dbName);
   }
-  vtkStdString queryStr;
+  std::string queryStr;
   queryStr = "CREATE DATABASE ";
   queryStr += dbName;
   bool status = false;
@@ -614,7 +607,7 @@ bool vtkMySQLDatabase::CreateDatabase(const char* dbName, bool dropExisting = fa
 
 bool vtkMySQLDatabase::DropDatabase(const char* dbName)
 {
-  vtkStdString queryStr;
+  std::string queryStr;
   queryStr = "DROP DATABASE IF EXISTS ";
   queryStr += dbName;
   bool status = false;

@@ -55,8 +55,6 @@
 #include "vtkViewport.h"
 #include "vtkWindow.h"
 
-#include "vtkObjectFactory.h"
-
 #include "vtkOpenGLContextDevice2DPrivate.h"
 
 #include <algorithm>
@@ -135,11 +133,7 @@ const char* myFragShader = "//VTK::Output::Dec\n"
 bool SkipDraw()
 {
   vtkOpenGLGL2PSHelper* gl2ps = vtkOpenGLGL2PSHelper::GetInstance();
-  if (gl2ps && gl2ps->GetActiveState() == vtkOpenGLGL2PSHelper::Background)
-  {
-    return true;
-  }
-  return false;
+  return gl2ps && gl2ps->GetActiveState() == vtkOpenGLGL2PSHelper::Background;
 }
 
 //------------------------------------------------------------------------------
@@ -859,8 +853,8 @@ void vtkOpenGLContextDevice2D::DrawPoly(float* f, int n, unsigned char* colors, 
       newDistances[i * 12 + 10] = distances[i * 2 + 2];
     }
 
-    this->BuildVBO(cbo, &(newVerts[0]), static_cast<int>(newVerts.size() / 2),
-      colors ? &(newColors[0]) : nullptr, nc, &(newDistances[0]));
+    this->BuildVBO(cbo, newVerts.data(), static_cast<int>(newVerts.size() / 2),
+      colors ? newColors.data() : nullptr, nc, newDistances.data());
 
     PreDraw(*cbo, GL_TRIANGLES, newVerts.size() / 2);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(newVerts.size() / 2));
@@ -869,7 +863,7 @@ void vtkOpenGLContextDevice2D::DrawPoly(float* f, int n, unsigned char* colors, 
   else
   {
     this->SetLineWidth(this->Pen->GetWidth());
-    this->BuildVBO(cbo, f, n, colors, nc, &(distances[0]));
+    this->BuildVBO(cbo, f, n, colors, nc, distances.data());
     PreDraw(*cbo, GL_LINE_STRIP, n);
     glDrawArrays(GL_LINE_STRIP, 0, n);
     PostDraw(*cbo, this->Renderer, this->Pen->GetColor());
@@ -997,8 +991,8 @@ void vtkOpenGLContextDevice2D::DrawLines(float* f, int n, unsigned char* colors,
       newDistances[i * 6 + 10] = distances[i * 2 + 2];
     }
 
-    this->BuildVBO(cbo, &(newVerts[0]), static_cast<int>(newVerts.size() / 2),
-      colors ? &(newColors[0]) : nullptr, nc, &(newDistances[0]));
+    this->BuildVBO(cbo, newVerts.data(), static_cast<int>(newVerts.size() / 2),
+      colors ? newColors.data() : nullptr, nc, newDistances.data());
     PreDraw(*cbo, GL_TRIANGLES, newVerts.size() / 2);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(newVerts.size() / 2));
     PostDraw(*cbo, this->Renderer, this->Pen->GetColor());
@@ -1006,7 +1000,7 @@ void vtkOpenGLContextDevice2D::DrawLines(float* f, int n, unsigned char* colors,
   else
   {
     this->SetLineWidth(this->Pen->GetWidth());
-    this->BuildVBO(cbo, f, n, colors, nc, &(distances[0]));
+    this->BuildVBO(cbo, f, n, colors, nc, distances.data());
     PreDraw(*cbo, GL_LINES, n);
     glDrawArrays(GL_LINES, 0, n);
     PostDraw(*cbo, this->Renderer, this->Pen->GetColor());
@@ -1222,7 +1216,7 @@ void vtkOpenGLContextDevice2D::CoreDrawTriangles(
     }
     this->SetTexture(this->Brush->GetTexture(), this->Brush->GetTextureProperties());
     this->Storage->Texture->Render(this->Renderer);
-    texCoord = this->Storage->TexCoords(&(tverts[0]), static_cast<int>(tverts.size() / 2));
+    texCoord = this->Storage->TexCoords(tverts.data(), static_cast<int>(tverts.size() / 2));
 
     int tunit = vtkOpenGLTexture::SafeDownCast(this->Storage->Texture)->GetTextureUnit();
     cbo->Program->SetUniformi("texture1", tunit);
@@ -1250,7 +1244,8 @@ void vtkOpenGLContextDevice2D::CoreDrawTriangles(
 
   cbo->Program->SetUniform4uc("vertexColor", this->Brush->GetColor());
 
-  this->BuildVBO(cbo, &(tverts[0]), static_cast<int>(tverts.size() / 2), colors, numComp, texCoord);
+  this->BuildVBO(
+    cbo, tverts.data(), static_cast<int>(tverts.size() / 2), colors, numComp, texCoord);
 
   this->SetMatrices(cbo->Program);
 
@@ -1539,15 +1534,9 @@ int vtkOpenGLContextDevice2D::GetNumberOfArcIterations(
 }
 
 //------------------------------------------------------------------------------
-void vtkOpenGLContextDevice2D::DrawString(float* point, const vtkStdString& string)
-{
-  this->DrawString(point, vtkUnicodeString::from_utf8(string));
-}
-
-//------------------------------------------------------------------------------
 void vtkOpenGLContextDevice2D::ComputeStringBounds(const vtkStdString& string, float bounds[4])
 {
-  this->ComputeStringBoundsInternal(vtkUnicodeString::from_utf8(string), bounds);
+  this->ComputeStringBoundsInternal(string, bounds);
   bounds[0] = 0.f;
   bounds[1] = 0.f;
 }
@@ -1555,11 +1544,11 @@ void vtkOpenGLContextDevice2D::ComputeStringBounds(const vtkStdString& string, f
 //------------------------------------------------------------------------------
 void vtkOpenGLContextDevice2D::ComputeJustifiedStringBounds(const char* string, float bounds[4])
 {
-  this->ComputeStringBoundsInternal(vtkUnicodeString::from_utf8(string), bounds);
+  this->ComputeStringBoundsInternal(string, bounds);
 }
 
 //------------------------------------------------------------------------------
-void vtkOpenGLContextDevice2D::DrawString(float* point, const vtkUnicodeString& string)
+void vtkOpenGLContextDevice2D::DrawString(float* point, const vtkStdString& string)
 {
   vtkOpenGLGL2PSHelper* gl2ps = vtkOpenGLGL2PSHelper::GetInstance();
   if (gl2ps)
@@ -1572,7 +1561,7 @@ void vtkOpenGLContextDevice2D::DrawString(float* point, const vtkUnicodeString& 
         float ty = point[1];
         this->TransformPoint(tx, ty);
         double x[3] = { tx, ty, 0. };
-        gl2ps->DrawString(string.utf8_str(), this->TextProp, x, 0., this->Renderer);
+        gl2ps->DrawString(string, this->TextProp, x, 0., this->Renderer);
         return;
       }
       case vtkOpenGLGL2PSHelper::Background:
@@ -1608,8 +1597,8 @@ void vtkOpenGLContextDevice2D::DrawString(float* point, const vtkUnicodeString& 
   int dpi = this->RenderWindow->GetDPI() * std::max(tileScale[0], tileScale[1]);
 
   // Cache rendered text strings
-  vtkTextureImageCache<UTF16TextPropertyKey>::CacheData& cache =
-    this->Storage->TextTextureCache.GetCacheData(UTF16TextPropertyKey(this->TextProp, string, dpi));
+  vtkTextureImageCache<UTF8TextPropertyKey>::CacheData& cache =
+    this->Storage->TextTextureCache.GetCacheData(UTF8TextPropertyKey(this->TextProp, string, dpi));
   vtkImageData* image = cache.ImageData;
   if (image->GetNumberOfPoints() == 0 && image->GetNumberOfCells() == 0)
   {
@@ -1671,14 +1660,6 @@ void vtkOpenGLContextDevice2D::DrawString(float* point, const vtkUnicodeString& 
   texture->PostRender(this->Renderer);
 
   vtkOpenGLCheckErrorMacro("failed after DrawString");
-}
-
-//------------------------------------------------------------------------------
-void vtkOpenGLContextDevice2D::ComputeStringBounds(const vtkUnicodeString& string, float bounds[4])
-{
-  this->ComputeStringBoundsInternal(string, bounds);
-  bounds[0] = 0.f;
-  bounds[1] = 0.f;
 }
 
 //------------------------------------------------------------------------------
@@ -2112,7 +2093,6 @@ void vtkOpenGLContextDevice2D::ReleaseGraphicsResources(vtkWindow* window)
     this->Storage->SpriteTexture->ReleaseGraphicsResources(window);
   }
   this->Storage->TextTextureCache.ReleaseGraphicsResources(window);
-  this->Storage->MathTextTextureCache.ReleaseGraphicsResources(window);
 }
 
 //------------------------------------------------------------------------------
@@ -2178,7 +2158,7 @@ vtkImageData* vtkOpenGLContextDevice2D::GetMarker(int shape, int size, bool high
 
 //------------------------------------------------------------------------------
 void vtkOpenGLContextDevice2D::ComputeStringBoundsInternal(
-  const vtkUnicodeString& string, float bounds[4])
+  const std::string& string, float bounds[4])
 {
   vtkTextRenderer* tren = vtkTextRenderer::GetInstance();
   if (!tren)

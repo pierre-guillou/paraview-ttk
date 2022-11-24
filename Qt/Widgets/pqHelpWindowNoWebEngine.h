@@ -1,7 +1,7 @@
 /*=========================================================================
 
    Program: ParaView
-   Module:  pqHelpWindowNoWebKit.h
+   Module:  pqHelpWindowNoWebEngine.h
 
    Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
    All rights reserved.
@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================*/
-#ifndef pqHelpWindowNoWebKit_h
-#define pqHelpWindowNoWebKit_h
+#ifndef pqHelpWindowNoWebEngine_h
+#define pqHelpWindowNoWebEngine_h
 
 /**
  *============================================================================
@@ -52,13 +52,13 @@ namespace
 class pqTextBrowser : public QTextBrowser
 {
 public:
-  pqTextBrowser(QHelpEngine* helpEngine, QWidget* _parent = 0)
+  pqTextBrowser(QHelpEngine* helpEngine, QWidget* _parent = nullptr)
   {
     this->HelpEngine = helpEngine;
     this->setParent(_parent);
     this->setOpenLinks(false);
   }
-  ~pqTextBrowser() override {}
+  ~pqTextBrowser() override = default;
   static pqTextBrowser* newInstance(QHelpEngine* engine, pqHelpWindow* self)
   {
     pqTextBrowser* instance = new pqTextBrowser(engine, self);

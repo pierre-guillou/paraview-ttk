@@ -110,14 +110,14 @@ struct ProbePoints
       {
         vtkStdString outName = arrayName;
         outName += "_deriv";
-        if (vtkDataArray* outArray = this->DerivArrays.AddArrayPair(
-              array->GetNumberOfTuples(), array, outName, nullV, this->Promote))
+        if (vtkDataArray* outArray = vtkArrayDownCast<vtkDataArray>(this->DerivArrays.AddArrayPair(
+              array->GetNumberOfTuples(), array, outName, nullV, this->Promote)))
         {
           outPD->AddArray(outArray);
         }
       }
     }
-    this->ComputeDerivArrays = (!this->DerivArrays.Arrays.empty() ? true : false);
+    this->ComputeDerivArrays = !this->DerivArrays.Arrays.empty();
   }
 
   // Just allocate a little bit of memory to get started.
@@ -352,7 +352,7 @@ void vtkSPHInterpolator::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataSet
   if (this->ComputeShepardSum || this->ShepardNormalization)
   {
     shepardSumArray = vtkSmartPointer<vtkFloatArray>::New();
-    shepardSumArray->SetName(this->ShepardSumArrayName);
+    shepardSumArray->SetName(this->ShepardSumArrayName.c_str());
     shepardSumArray->SetNumberOfTuples(numPts);
     shepardArray = shepardSumArray->GetPointer(0);
   }
@@ -360,9 +360,9 @@ void vtkSPHInterpolator::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataSet
   // Initialize the SPH kernel
   if (this->Kernel->GetRequiresInitialization())
   {
-    this->Kernel->SetCutoffArray(inputPD->GetArray(this->CutoffArrayName));
-    this->Kernel->SetDensityArray(sourcePD->GetArray(this->DensityArrayName));
-    this->Kernel->SetMassArray(sourcePD->GetArray(this->MassArrayName));
+    this->Kernel->SetCutoffArray(inputPD->GetArray(this->CutoffArrayName.c_str()));
+    this->Kernel->SetDensityArray(sourcePD->GetArray(this->DensityArrayName.c_str()));
+    this->Kernel->SetMassArray(sourcePD->GetArray(this->MassArrayName.c_str()));
     this->Kernel->Initialize(this->Locator, source, sourcePD);
   }
 
@@ -386,7 +386,7 @@ void vtkSPHInterpolator::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataSet
           vtkTemplateMacro(NormalizeArray<VTK_TT>::Execute(
             numPts, (VTK_TT*)ptr, da->GetNumberOfComponents(), shepardArray));
         }
-      } // not denisty array
+      } // not density array
     }   // for all arrays
   }     // if Shepard normalization
 
@@ -398,7 +398,7 @@ void vtkSPHInterpolator::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataSet
 
   if (mask)
   {
-    this->ValidPointsMask->SetName(this->ValidPointsMaskArrayName);
+    this->ValidPointsMask->SetName(this->ValidPointsMaskArrayName.c_str());
     outPD->AddArray(this->ValidPointsMask);
     this->ValidPointsMask->Delete();
     this->ValidPointsMask = nullptr;
@@ -562,12 +562,10 @@ void vtkSPHInterpolator::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Null Points Strategy: " << this->NullPointsStrategy << endl;
   os << indent << "Null Value: " << this->NullValue << "\n";
-  os << indent << "Valid Points Mask Array Name: "
-     << (this->ValidPointsMaskArrayName ? this->ValidPointsMaskArrayName : "(none)") << "\n";
+  os << indent << "Valid Points Mask Array Name: " << this->ValidPointsMaskArrayName << "\n";
 
   os << indent << "Compute Shepard Sum: " << (this->ComputeShepardSum ? "On" : " Off") << "\n";
-  os << indent << "Shepard Sum Array Name: "
-     << (this->ShepardSumArrayName ? this->ShepardSumArrayName : "(none)") << "\n";
+  os << indent << "Shepard Sum Array Name: " << this->ShepardSumArrayName << "\n";
 
   os << indent << "Promote Output Arrays: " << (this->PromoteOutputArrays ? "On" : " Off") << "\n";
 

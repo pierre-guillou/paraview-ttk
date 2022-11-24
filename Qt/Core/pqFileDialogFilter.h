@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqFileDialogFilter_h
-#define _pqFileDialogFilter_h
+#ifndef pqFileDialogFilter_h
+#define pqFileDialogFilter_h
 
 #include "pqCoreModule.h"
 #include <QRegExp>
@@ -46,10 +46,11 @@ public:
   pqFileDialogFilter(pqFileDialogModel* sourceModel, QObject* Parent = nullptr);
   ~pqFileDialogFilter() override;
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   void setFilter(const QString& filter);
   void setShowHidden(const bool& hidden);
   bool getShowHidden() { return showHidden; };
+  QRegExp const& getWildcards() const { return Wildcards; }
 
 protected:
   bool filterAcceptsRow(int row_source, const QModelIndex& source_parent) const override;
@@ -60,4 +61,4 @@ protected:
   bool showHidden;
 };
 
-#endif // !_pqFileDialogFilter_h
+#endif // !pqFileDialogFilter_h

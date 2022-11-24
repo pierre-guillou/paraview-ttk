@@ -16,9 +16,6 @@
 // National Energy Technology Laboratory who developed this class.
 // Please address all comments to Terry Jordan (terry.jordan@netl.doe.gov)
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkMFIXReader.h"
 
 #include "vtkCellArray.h"
@@ -563,7 +560,7 @@ void vtkMFIXReader::MakeMesh(vtkUnstructuredGrid* output)
     for (int j = 0; j <= this->VariableNames->GetMaxId(); j++)
     {
       this->CellDataArray[j] = vtkFloatArray::New();
-      this->CellDataArray[j]->SetName(this->VariableNames->GetValue(j));
+      this->CellDataArray[j]->SetName(this->VariableNames->GetValue(j).c_str());
       this->CellDataArray[j]->SetNumberOfComponents(this->VariableComponents->GetValue(j));
     }
 
@@ -632,7 +629,7 @@ int vtkMFIXReader::RequestInformation(vtkInformation* vtkNotUsed(request),
 
     for (int j = 0; j <= this->VariableNames->GetMaxId(); j++)
     {
-      this->CellDataArraySelection->AddArray(this->VariableNames->GetValue(j));
+      this->CellDataArraySelection->AddArray(this->VariableNames->GetValue(j).c_str());
     }
 
     this->NumberOfPoints = (this->IMaximum2 + 1) * (this->JMaximum2 + 1) * (this->KMaximum2 + 1);
@@ -2073,16 +2070,13 @@ void vtkMFIXReader::GetVariableAtTimestep(int vari, int tstep, vtkFloatArray* v)
   // <10 scalars and <10 ReactionRates (need to change this)
 
   char variableName[256];
-  strcpy(variableName, this->VariableNames->GetValue(vari));
+  strncpy(variableName, this->VariableNames->GetValue(vari).c_str(), sizeof(variableName));
+  variableName[sizeof(variableName) - 1] = '\0'; // guarantee a NUL terminator
   int spx = this->VariableIndexToSPX->GetValue(vari);
   char fileName[VTK_MAXPATH];
 
-  for (int k = 0; k < (int)sizeof(fileName); k++)
-  {
-    fileName[k] = 0;
-  }
-
   strncpy(fileName, this->FileName, sizeof(fileName) - 1);
+  fileName[sizeof(fileName) - 1] = '\0'; // guarantee a NUL terminator
   size_t fileNameLength = strlen(fileName);
   if (fileNameLength >= 4)
   {

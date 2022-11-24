@@ -34,12 +34,18 @@
  * cap(s) will be generated.
  *
  * @warning
+ * The method CanFullyProcessDataObject() is available to see whether the
+ * input data can be successfully processed by this filter. Use this method
+ * sparingly because it can be slow.
+ *
+ * @warning
  * This class has been threaded with vtkSMPTools. Using TBB or other
  * non-sequential type (set in the CMake variable
  * VTK_SMP_IMPLEMENTATION_TYPE) may improve performance significantly.
  *
  * @sa
- * vtkClipPolyData vtkClipClosedSurface vtkPlaneCutter vtkTriangleFilter vtkCutter
+ * vtkClipPolyData vtkClipClosedSurface vtkPolyDataPlaneCutter vtkPlaneCutter
+ * vtkTriangleFilter vtkCutter
  */
 
 #ifndef vtkPolyDataPlaneClipper_h
@@ -48,7 +54,8 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPlane.h"             // For clipping plane
 #include "vtkPolyDataAlgorithm.h"
-#include "vtkSmartPointer.h" // For SmartPointer
+#include "vtkPolyDataPlaneCutter.h" // For CanFullyProcessDataObject() method
+#include "vtkSmartPointer.h"        // For SmartPointer
 
 class VTKFILTERSCORE_EXPORT vtkPolyDataPlaneClipper : public vtkPolyDataAlgorithm
 {
@@ -117,6 +124,17 @@ public:
 
   ///@{
   /**
+   * Specify whether to pass point data through to the second (Cap) output.
+   * By default this is disabled. This feature is useful in certain situations
+   * when trying to combine the cap with clipped polydata.
+   */
+  vtkSetMacro(PassCapPointData, bool);
+  vtkGetMacro(PassCapPointData, bool);
+  vtkBooleanMacro(PassCapPointData, bool);
+  ///@}
+
+  ///@{
+  /**
    * Set/get the desired precision for the output points type. See the
    * documentation for the vtkAlgorithm::DesiredOutputPrecision enum for an
    * explanation of the available precision settings. OutputPointsPrecision
@@ -137,6 +155,20 @@ public:
   vtkGetMacro(BatchSize, unsigned int);
   ///@}
 
+  /**
+   * This helper method can be used to determine the if the input vtkPolyData
+   * contains convex polygonal cells, and therefore is suitable for
+   * processing by this filter. (The name of the method is consistent with
+   * other filters that perform similar operations.) This method returns true
+   * when the input contains only polygons (i.e., no verts, lines, or
+   * triangle strips); and each polygon is convex. It returns false
+   * otherwise.
+   */
+  static bool CanFullyProcessDataObject(vtkDataObject* object)
+  {
+    return vtkPolyDataPlaneCutter::CanFullyProcessDataObject(object);
+  }
+
 protected:
   vtkPolyDataPlaneClipper();
   ~vtkPolyDataPlaneClipper() override;
@@ -144,6 +176,7 @@ protected:
   vtkSmartPointer<vtkPlane> Plane;
   bool ClippingLoops;
   bool Capping;
+  bool PassCapPointData;
   int OutputPointsPrecision;
   unsigned int BatchSize;
 

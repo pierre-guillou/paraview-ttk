@@ -136,7 +136,7 @@ pqView::pqView(const QString& type, const QString& group, const QString& name, v
 //-----------------------------------------------------------------------------
 pqView::~pqView()
 {
-  foreach (pqRepresentation* disp, this->Internal->Representations)
+  Q_FOREACH (pqRepresentation* disp, this->Internal->Representations)
   {
     if (disp)
     {
@@ -196,12 +196,6 @@ QWidget* pqView::widget()
 void pqView::cancelPendingRenders()
 {
   this->Internal->RenderTimer.stop();
-}
-
-//-----------------------------------------------------------------------------
-void pqView::emitSelectionSignals(bool frustum)
-{
-  Q_EMIT selectionModeChanged(frustum);
 }
 
 //-----------------------------------------------------------------------------
@@ -306,7 +300,7 @@ pqRepresentation* pqView::getRepresentation(int index) const
 QList<pqRepresentation*> pqView::getRepresentations() const
 {
   QList<pqRepresentation*> list;
-  foreach (pqRepresentation* disp, this->Internal->Representations)
+  Q_FOREACH (pqRepresentation* disp, this->Internal->Representations)
   {
     if (disp)
     {

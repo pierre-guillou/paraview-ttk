@@ -5,7 +5,6 @@
 #include "pqApplicationCore.h"
 #include "pqEventDispatcher.h"
 #include "pqLoadStateReaction.h"
-#include "vtkPVConfig.h"
 #include "vtkPVFileInformation.h"
 
 #include <QFile>
@@ -26,9 +25,13 @@ pqExampleVisualizationsDialog::pqExampleVisualizationsDialog(QWidget* parentObje
   QObject::connect(
     this->ui->DiskOutRefExampleButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
   QObject::connect(
-    this->ui->WaveletExampleButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
+    this->ui->HeadSQExampleButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
   QObject::connect(
     this->ui->HotGasAnalysisExampleButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
+  QObject::connect(
+    this->ui->TosExampleButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
+  QObject::connect(
+    this->ui->WaveletExampleButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
 }
 
 //-----------------------------------------------------------------------------
@@ -64,6 +67,16 @@ void pqExampleVisualizationsDialog::onButtonPressed()
     else if (button == this->ui->HotGasAnalysisExampleButton)
     {
       stateFile = ":/pqApplicationComponents/ExampleVisualizations/HotGasAnalysisExample.pvsm";
+      needsData = true;
+    }
+    else if (button == this->ui->HeadSQExampleButton)
+    {
+      stateFile = ":/pqApplicationComponents/ExampleVisualizations/HeadSQExample.pvsm";
+      needsData = true;
+    }
+    else if (button == this->ui->TosExampleButton)
+    {
+      stateFile = ":/pqApplicationComponents/ExampleVisualizations/TosExample.pvsm";
       needsData = true;
     }
     else

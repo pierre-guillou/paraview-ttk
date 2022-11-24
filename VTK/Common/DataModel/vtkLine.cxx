@@ -58,14 +58,7 @@ int vtkLine::EvaluatePosition(const double x[3], double closestPoint[3], int& su
   weights[0] = 1.0 - pcoords[0];
   weights[1] = pcoords[0];
 
-  if (pcoords[0] < 0.0 || pcoords[0] > 1.0)
-  {
-    return 0;
-  }
-  else
-  {
-    return 1;
-  }
+  return (pcoords[0] >= 0.0 && pcoords[0] <= 1.0);
 }
 
 //------------------------------------------------------------------------------
@@ -205,23 +198,6 @@ int vtkLine::Intersection(const double a1[3], const double a2[3], const double b
   return NoIntersect;
 }
 
-//------------------------------------------------------------------------------
-int vtkLine::Intersection3D(double a1[3], double a2[3], double b1[3], double b2[3], double& u,
-  double& v, const double tolerance)
-{
-  // Description:
-  // Performs intersection of two finite 3D lines. An intersection is found if
-  // the projection of the two lines onto the plane perpendicular to the cross
-  // product of the two lines intersect, and if the distance between the
-  // closest points of approach are within a relative tolerance. The parameters
-  // (u,v) are the parametric coordinates of the lines at the position of
-  // closest approach.
-  //
-  // Note: Legacy method; vtkLine::Intersection() now performs the check that the
-  // distance between the closest points is within a relative tolerance.
-  return vtkLine::Intersection(a1, a2, b1, b2, u, v, tolerance);
-}
-
 int vtkLine::Inflate(double dist)
 {
   auto pointRange = vtk::DataArrayTupleRange<3>(this->Points->GetData());
@@ -254,26 +230,12 @@ int vtkLine::CellBoundary(int vtkNotUsed(subId), const double pcoords[3], vtkIdL
   if (pcoords[0] >= 0.5)
   {
     pts->SetId(0, this->PointIds->GetId(1));
-    if (pcoords[0] > 1.0)
-    {
-      return 0;
-    }
-    else
-    {
-      return 1;
-    }
+    return (pcoords[0] <= 1.0);
   }
   else
   {
     pts->SetId(0, this->PointIds->GetId(0));
-    if (pcoords[0] < 0.0)
-    {
-      return 0;
-    }
-    else
-    {
-      return 1;
-    }
+    return (pcoords[0] >= 0.0);
   }
 }
 
@@ -654,7 +616,6 @@ int vtkLine::IntersectWithLine(const double p1[3], const double p2[3], double to
   double x[3], double pcoords[3], int& subId)
 {
   double a1[3], a2[3];
-  double projXYZ[3];
   int i;
 
   subId = 0;
@@ -668,20 +629,14 @@ int vtkLine::IntersectWithLine(const double p1[3], const double p2[3], double to
   // we then perform the tolerance check here using the absolute tolerance tol
   if (this->Intersection(p1, p2, a1, a2, t, pcoords[0], vtkMath::Inf()) == Intersect)
   {
+    double projXYZ[3];
     // make sure we are within tolerance
     for (i = 0; i < 3; i++)
     {
       x[i] = a1[i] + pcoords[0] * (a2[i] - a1[i]);
       projXYZ[i] = p1[i] + t * (p2[i] - p1[i]);
     }
-    if (vtkMath::Distance2BetweenPoints(x, projXYZ) <= tol * tol)
-    {
-      return 1;
-    }
-    else
-    {
-      return 0;
-    }
+    return (vtkMath::Distance2BetweenPoints(x, projXYZ) <= tol * tol);
   }
 
   else // check to see if it lies within tolerance
@@ -690,50 +645,22 @@ int vtkLine::IntersectWithLine(const double p1[3], const double p2[3], double to
     if (t < 0.0)
     {
       t = 0.0;
-      if (vtkLine::DistanceToLine(p1, a1, a2, pcoords[0], x) <= tol * tol)
-      {
-        return 1;
-      }
-      else
-      {
-        return 0;
-      }
+      return (vtkLine::DistanceToLine(p1, a1, a2, pcoords[0], x) <= tol * tol);
     }
     if (t > 1.0)
     {
       t = 1.0;
-      if (vtkLine::DistanceToLine(p2, a1, a2, pcoords[0], x) <= tol * tol)
-      {
-        return 1;
-      }
-      else
-      {
-        return 0;
-      }
+      return (vtkLine::DistanceToLine(p2, a1, a2, pcoords[0], x) <= tol * tol);
     }
     if (pcoords[0] < 0.0)
     {
       pcoords[0] = 0.0;
-      if (vtkLine::DistanceToLine(a1, p1, p2, t, x) <= tol * tol)
-      {
-        return 1;
-      }
-      else
-      {
-        return 0;
-      }
+      return (vtkLine::DistanceToLine(a1, p1, p2, t, x) <= tol * tol);
     }
     if (pcoords[0] > 1.0)
     {
       pcoords[0] = 1.0;
-      if (vtkLine::DistanceToLine(a2, p1, p2, t, x) <= tol * tol)
-      {
-        return 1;
-      }
-      else
-      {
-        return 0;
-      }
+      return (vtkLine::DistanceToLine(a2, p1, p2, t, x) <= tol * tol);
     }
   }
   return 0;

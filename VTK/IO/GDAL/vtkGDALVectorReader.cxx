@@ -229,7 +229,7 @@ public:
       pd->FastDelete();
     }
 
-    return nTotPoly ? true : false;
+    return nTotPoly != 0;
   }
 
   vtkIdType insertGeometryRecursive(
@@ -262,7 +262,7 @@ public:
       case wkbPoint25D:
         gpt = (OGRPoint*)geom;
         ptIds.push_back(pts->InsertNextPoint(gpt->getX(), gpt->getY(), gpt->getZ()));
-        verts->InsertNextCell(1, &(ptIds[0]));
+        verts->InsertNextCell(1, ptIds.data());
         ++nCells;
         break;
 
@@ -277,7 +277,7 @@ public:
           ptIds.push_back(pts->InsertNextPoint(gls->getX(p), gls->getY(p), gls->getZ(p)));
         }
         // insert ring line segments
-        lines->InsertNextCell((int)ptIds.size(), &(ptIds[0]));
+        lines->InsertNextCell((int)ptIds.size(), ptIds.data());
         ++nCells;
         break;
 

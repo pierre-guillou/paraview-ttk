@@ -56,7 +56,7 @@
 
 // global libraries
 #include <vtkm/cont/Algorithm.h>
-#include <vtkm/cont/ArrayCopy.h>
+#include <vtkm/cont/ArrayCopyDevice.h>
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/ArrayHandlePermutation.h>
 #include <vtkm/cont/ArrayHandleTransform.h>
@@ -106,19 +106,9 @@ inline void PermuteArray(const ArrayType& input, IdArrayType& permute, ArrayType
   // fancy vtkm array so that we do not actually copy any data here
   permute_type permutedInput(maskedPermuteIndex, input);
   // Finally, copy the permuted values to the output array
-  vtkm::cont::ArrayCopy(permutedInput, output);
+  vtkm::cont::ArrayCopyDevice(permutedInput, output);
 } // permuteValues()
 
-
-// transform functor needed for ScanExclusive calculation. Return 0 if noSuchElement else 1
-struct OneIfArcValid
-{
-  VTKM_EXEC_CONT
-  OneIfArcValid() {}
-
-  VTKM_EXEC_CONT
-  vtkm::Id operator()(vtkm::Id a) const { return NoSuchElement(a) ? 0 : 1; }
-};
 
 // transform functor used in ContourTreeMesh to flag indicies as other when using the CombinedVectorClass
 struct MarkOther

@@ -392,7 +392,6 @@ public:
       for (; slice < end; ++slice)
       {
         // It's possible to skip entire slices if there is nothing to generate
-        if (true)
         //          if ( eMD1[3] > eMD0[3] ) //there are triangle primitives!
         {
           for (row = 0, rowPtr = slicePtr; row < this->Algo->Dims[1] - 1; ++row)
@@ -449,7 +448,7 @@ vtkExtractSurfaceAlgorithm<T>::vtkExtractSurfaceAlgorithm()
   int i, j, k, l, ii, eCase, index, numTris;
   static const int vertMap[8] = { 0, 1, 3, 2, 4, 5, 7, 6 };
   static const int CASE_MASK[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
-  EDGE_LIST* edge;
+  int* edge;
   vtkMarchingCubesTriangleCases* triCase;
   unsigned char* edgeCase;
 

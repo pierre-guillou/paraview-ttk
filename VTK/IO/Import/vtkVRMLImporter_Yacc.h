@@ -964,7 +964,7 @@ while (0)
 #endif
 
 static void
-__yy_memcpy (char *from, char *to, int count)
+yy_memcpy (char *from, char *to, int count)
 {
   char *f = from;
   char *t = to;
@@ -1092,12 +1092,12 @@ int vtkVRMLYaccData::yyparse(vtkVRMLImporter* self)
     if (yystacksize > YYMAXDEPTH)
       yystacksize = YYMAXDEPTH;
     yyss = (short *) yyallocator.Allocate (yystacksize * sizeof (*yyssp));
-    __yy_memcpy ((char *)yyss1, (char *)yyss, size * sizeof (*yyssp));
+    yy_memcpy ((char *)yyss1, (char *)yyss, size * sizeof (*yyssp));
     yyvs = (YYSTYPE *) yyallocator.Allocate (yystacksize * sizeof (*yyvsp));
-    __yy_memcpy ((char *)yyvs1, (char *)yyvs, size * sizeof (*yyvsp));
+    yy_memcpy ((char *)yyvs1, (char *)yyvs, size * sizeof (*yyvsp));
 #ifdef YYLSP_NEEDED
     yyls = (YYLTYPE *) yyallocator.Allocate (yystacksize * sizeof (*yylsp));
-    __yy_memcpy ((char *)yyls1, (char *)yyls, size * sizeof (*yylsp));
+    yy_memcpy ((char *)yyls1, (char *)yyls, size * sizeof (*yylsp));
 #endif
 #endif /* no yyoverflow */
 
@@ -1262,28 +1262,28 @@ int vtkVRMLYaccData::yyparse(vtkVRMLImporter* self)
   switch (yyn) {
 
   case 8:
-  { creatingDEF = 1; ;
+  { creatingDEF = 1;
   break;}
   case 9:
-  { curDEFName = yyvsp[0].string; ;
+  { curDEFName = yyvsp[0].string;
   break;}
   case 10:
-  { creatingDEF = 0; ;
+  { creatingDEF = 0;
   break;}
   case 11:
   { self->useNode(yyvsp[0].string);//free(yyvsp[0].string); ;
   break;}
   case 14:
-  { beginProto(yyvsp[0].string); ;
+  { beginProto(yyvsp[0].string);
   break;}
   case 15:
   { endProto();  //free(yyvsp[-7].string);
   break;}
   case 16:
-  { beginProto(yyvsp[0].string); ;
+  { beginProto(yyvsp[0].string);
   break;}
   case 17:
-  { expect(MFSTRING); ;
+  { expect(MFSTRING);
   break;}
   case 18:
   { endProto();  //free(yyvsp[-6].string); ;
@@ -1298,14 +1298,14 @@ int vtkVRMLYaccData::yyparse(vtkVRMLImporter* self)
   break;}
   case 23:
   { int type = addField(yyvsp[-1].string, yyvsp[0].string);
-  expect(type); ;
+  expect(type);
   break;}
   case 24:
   { //free(yyvsp[-3].string); free(yyvsp[-2].string); ;
   break;}
   case 25:
   { int type = addExposedField(yyvsp[-1].string, yyvsp[0].string);
-  expect(type); ;
+  expect(type);
   break;}
   case 26:
   { //free(yyvsp[-3].string); free(yyvsp[-2].string); ;
@@ -1330,13 +1330,13 @@ int vtkVRMLYaccData::yyparse(vtkVRMLImporter* self)
   { //free(yyvsp[-6].string); free(yyvsp[-4].string); free(yyvsp[-2].string); free(yyvsp[0].string); ;
   break;}
   case 34:
-  { self->enterNode(yyvsp[0].string); ;
+  { self->enterNode(yyvsp[0].string);
   break;}
   case 35:
   { self->exitNode(); //free(yyvsp[-4].string);
   break;}
   case 38:
-  { self->enterField(yyvsp[0].string); ;
+  { self->enterField(yyvsp[0].string);
   break;}
   case 39:
   { self->exitField(); //free(yyvsp[-2].string); ;
@@ -1350,7 +1350,7 @@ int vtkVRMLYaccData::yyparse(vtkVRMLImporter* self)
   case 44:
   { inScript();
   int type = fieldType(yyvsp[-1].string);
-  expect(type); ;
+  expect(type);
   break;}
   case 45:
   { //free(yyvsp[-3].string); free(yyvsp[-2].string); ;
@@ -1362,14 +1362,14 @@ int vtkVRMLYaccData::yyparse(vtkVRMLImporter* self)
   { inScript(); //free(yyvsp[-3].string); free(yyvsp[-2].string); free(yyvsp[0].string); ;
   break;}
   case 49:
-  {;
+  {
   break;}
   case 50:
   {     break;}
   case 55:
   {     break;}
   case 63:
-  { ;
+  {
   break;}
   case 64:
   {     break;}
@@ -1916,11 +1916,13 @@ extern "C" {
  * corresponding action - sets up yytext.
  */
 #define YY_DO_BEFORE_ACTION \
+  do { \
         yytext_ptr = yy_bp; \
         yyleng = yy_cp - yy_bp; \
         yy_hold_char = *yy_cp; \
         *yy_cp = '\0'; \
-        yy_c_buf_p = yy_cp;
+        yy_c_buf_p = yy_cp; \
+  } while (false)
 
 #define YY_END_OF_BUFFER 50
 static const short int yy_accept[949] =
@@ -4059,7 +4061,7 @@ static const short int yy_rule_linenum[49] =
 //static void (*theyyInput)(char *, int &, int);
 
 // We define the YY_INPUT so we an change the input source later
-#define YY_INPUT(buf, result, max_size) (*theyyInput)(buf, result, max_size,this);
+#define YY_INPUT(buf, result, max_size) (*theyyInput)(buf, result, max_size,this)
 
 /* Current line number */
 //int currentLineNumber = 1;
@@ -4144,7 +4146,7 @@ YY_MALLOC_DECL
         } \
         else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) \
                   && ferror( yyin ) ) \
-                YY_FATAL_ERROR( "input in flex scanner failed" );
+                YY_FATAL_ERROR( "input in flex scanner failed" )
 #endif
 
 /* No semi-colon after return; correct usage is to write "yyterminate();" -
@@ -4820,7 +4822,7 @@ int vtkVRMLYaccData::yy_get_next_buffer()
   { /* Don't try to fill the buffer, so this is an EOF. */
     if ( yy_c_buf_p - yytext_ptr - YY_MORE_ADJ == 1 )
     {
-      /* We matched a singled characater, the EOB, so
+      /* We matched a singled character, the EOB, so
        * treat this as a final EOF.
        */
       return EOB_ACT_END_OF_FILE;

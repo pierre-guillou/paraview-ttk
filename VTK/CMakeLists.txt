@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.12...3.16 FATAL_ERROR)
 
 project(VTK)
 
+if (POLICY CMP0127)
+  cmake_policy(SET CMP0127 NEW) # cmake_dependent_option changes
+endif ()
+
 set(vtk_cmake_dir "${VTK_SOURCE_DIR}/CMake")
 list(INSERT CMAKE_MODULE_PATH 0 "${vtk_cmake_dir}")
 
@@ -41,9 +45,34 @@ endif ()
 
 include(GNUInstallDirs)
 
+add_library(vtkbuild INTERFACE)
+add_library(VTK::vtkbuild ALIAS vtkbuild)
+
+# Some flags are really bad for caching. Replace them with better variants.
+if (vtk_replace_uncacheable_flags)
+  get_property(is_multiconfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+  if (is_multiconfig)
+    string(TOUPPER "${CMAKE_CONFIGURATION_TYPES}" build_types)
+  else ()
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" build_types)
+  endif ()
+  foreach (lang IN ITEMS C CXX Fortran)
+    foreach (prefix IN ITEMS - /)
+      foreach (flag IN ITEMS Zi ZI)
+        string(REPLACE "${prefix}${flag}" "-Z7" "CMAKE_${lang}_FLAGS" "${CMAKE_${lang}_FLAGS}")
+
+        foreach (build_type IN LISTS build_types)
+          string(REPLACE "${prefix}${flag}" "-Z7" "CMAKE_${lang}_FLAGS_${build_type}" "${CMAKE_${lang}_FLAGS_${build_type}}")
+        endforeach ()
+      endforeach ()
+    endforeach ()
+  endforeach ()
+endif ()
+
 include(vtkCompilerChecks)
 include(vtkCompilerPlatformFlags)
 include(vtkCompilerExtraFlags)
+include(vtkCompilerWarningFlags)
 include(vtkInitializeBuildType)
 include(vtkSupportMacros)
 include(vtkDownload)
@@ -61,7 +90,7 @@ cmake_dependent_option(VTK_UNIFIED_INSTALL_TREE "Assume that the install tree co
 mark_as_advanced(VTK_UNIFIED_INSTALL_TREE)
 
 set(CMAKE_INSTALL_LICENSEDIR ""
-  CACHE PATH "License files (DATAROOTDIR/licenses/${CMAKE_PROJECT_NAME}")
+  CACHE STRING "License files (DATAROOTDIR/licenses/${CMAKE_PROJECT_NAME}")
 mark_as_advanced(CMAKE_INSTALL_LICENSEDIR)
 if (NOT CMAKE_INSTALL_LICENSEDIR)
   set(CMAKE_INSTALL_LICENSEDIR
@@ -101,9 +130,6 @@ option(VTK_LEGACY_REMOVE "Remove all legacy code completely." OFF)
 option(VTK_LEGACY_SILENT "Silence all legacy code messages." OFF)
 mark_as_advanced(VTK_LEGACY_REMOVE VTK_LEGACY_SILENT)
 
-# Tell VTK source files they are being built inside VTK.
-add_definitions(-DVTK_IN_VTK)
-
 include(CheckTypeSize)
 
 option(VTK_USE_MPI "Support MPI" OFF)
@@ -128,9 +154,30 @@ if(VTK_USE_CUDA)
 endif()
 
 #-----------------------------------------------------------------------------
+# Add an option to enable/disable HIP support.
+cmake_dependent_option(VTK_USE_HIP "Support HIP backend accelerator" OFF
+  "CMAKE_VERSION VERSION_GREATER_EQUAL 3.21;NOT VTK_USE_CUDA" OFF)
+mark_as_advanced(VTK_USE_HIP)
+
+if(VTK_USE_HIP)
+  if(VTK_USE_CUDA)
+    message(FATAL_ERROR "VTK_USE_HIP and VTK_USE_CUDA are mutually exclusive, enable only one.")
+  endif()
+  # This needs to be a top level flag as enable_language needs
+  # to be called from CMake entry point for variables to have
+  # the correct scope.
+  enable_language(HIP)
+endif()
+
+#-----------------------------------------------------------------------------
 # Add an option to enable/disable logging support.
 option(VTK_ENABLE_LOGGING "Enable logging support." ON)
 mark_as_advanced(VTK_ENABLE_LOGGING)
+
+#-----------------------------------------------------------------------------
+# Add an option to enable/disable catalyst2 support.
+option(VTK_ENABLE_CATALYST "Build IOCatalystConduit module and VTK catalyst implementation." OFF)
+mark_as_advanced(VTK_ENABLE_CATALYST)
 
 include(vtkEncodeString)
 
@@ -166,10 +213,22 @@ set("_vtk_module_reason_VTK::Java"
   "via `VTK_WRAP_JAVA`")
 # For vtkTkRenderWidget (only useful with Python, since WRAP_TCL is gone)
 if (VTK_USE_TK)
-  set(VTK_GROUP_ENABLE_Tk YES)
+  if (VTK_GROUP_ENABLE_Tk STREQUAL "DEFAULT")
+    set(VTK_GROUP_ENABLE_Tk "WANT")
+  elseif (VTK_GROUP_ENABLE_Tk STREQUAL "NO")
+    message(FATAL_ERROR "VTK_USE_TK=ON is not compatible with VTK_GROUP_ENABLE_Tk=NO")
+  endif ()
 endif ()
 if (VTK_USE_MPI)
-  set(VTK_GROUP_ENABLE_MPI YES)
+  if (VTK_GROUP_ENABLE_MPI STREQUAL "DEFAULT")
+    set(VTK_GROUP_ENABLE_MPI "WANT")
+  elseif (VTK_GROUP_ENABLE_MPI STREQUAL "NO")
+    message(FATAL_ERROR "VTK_USE_MPI=ON is not compatible with VTK_GROUP_ENABLE_MPI=NO")
+  endif ()
+  list(APPEND vtk_requested_modules
+    VTK::ParallelMPI)
+  set("_vtk_module_reason_VTK::ParallelMPI"
+    "via `VTK_USE_MPI`")
 else ()
   # Reject `VTK::mpi`, but allow those which happen to be part of the group to
   # be built.
@@ -185,6 +244,15 @@ if (VTK_ENABLE_LOGGING)
   set("_vtk_module_reason_VTK::loguru"
     "via `VTK_ENABLE_LOGGING`")
 endif ()
+if (VTK_ENABLE_CATALYST)
+  list(APPEND vtk_requested_modules
+    VTK::IOCatalystConduit)
+else()
+  list(APPEND vtk_rejected_modules
+    VTK::IOCatalystConduit)
+endif()
+set("_vtk_module_reason_VTK::IOCatalystConduit"
+  "via `VTK_ENABLE_CATALYST`")
 
 if (VTK_BUILD_TESTING)
   list(APPEND vtk_requested_modules
@@ -318,6 +386,12 @@ if ("VTK::Python" IN_LIST vtk_modules)
   endif ()
 endif ()
 
+# Handle the requirement of `sqlitebin` for `proj`.
+set(vtk_sqlite_build_binary 0)
+if ("VTK::libproj" IN_LIST vtk_modules)
+  set(vtk_sqlite_build_binary 1)
+endif ()
+
 cmake_dependent_option(VTK_ENABLE_KITS "Enable kits compilation" OFF
   # Static builds don't make sense with kits. Ignore the flag if shared
   # libraries aren't being built.
@@ -345,6 +419,13 @@ if (NOT DEFINED vtk_cmake_destination)
       "${CMAKE_INSTALL_LIBDIR}/cmake/vtkcompiletools${vtk_version_suffix}")
     set(vtk_target_package PACKAGE "${vtk_install_export}")
   endif ()
+endif ()
+install(TARGETS vtkbuild EXPORT "${vtk_install_export}")
+
+if (NOT DEFINED vtk_hierarchy_destination_args)
+  set(vtk_hierarchy_destination_args
+    HIERARCHY_DESTINATION
+    "${CMAKE_INSTALL_LIBDIR}/vtk${vtk_version_suffix}/hierarchy/VTK")
 endif ()
 
 set(VTK_CUSTOM_LIBRARY_SUFFIX "<DEFAULT>"
@@ -381,9 +462,11 @@ vtk_module_build(
   BUILD_WITH_KITS     "${VTK_ENABLE_KITS}"
   USE_EXTERNAL        "${VTK_USE_EXTERNAL}"
   ENABLE_WRAPPING     "${VTK_ENABLE_WRAPPING}"
+  UTILITY_TARGET      "VTK::vtkbuild"
   TARGET_SPECIFIC_COMPONENTS  "${VTK_TARGET_SPECIFIC_COMPONENTS}"
   TEST_INPUT_DATA_DIRECTORY   "${CMAKE_CURRENT_SOURCE_DIR}/Testing"
   TEST_OUTPUT_DATA_DIRECTORY  "${CMAKE_CURRENT_BINARY_DIR}/ExternalData/Testing")
+
 include(vtkModuleJson)
 vtk_module_json(
   MODULES ${vtk_modules}
@@ -409,6 +492,12 @@ if (VTK_WRAP_PYTHON)
   cmake_dependent_option(VTK_WINDOWS_PYTHON_DEBUGGABLE "Append `_d` to Python module names" OFF
     "WIN32;VTK_WRAP_PYTHON" OFF)
   mark_as_advanced(VTK_WINDOWS_PYTHON_DEBUGGABLE)
+  cmake_dependent_option(VTK_WINDOWS_PYTHON_DEBUGGABLE_REPLACE_SUFFIX "Replace any other debug suffix for Python module names" OFF
+    "VTK_WINDOWS_PYTHON_DEBUGGABLE" OFF)
+  mark_as_advanced(VTK_WINDOWS_PYTHON_DEBUGGABLE_REPLACE_SUFFIX)
+  cmake_dependent_option(VTK_BUILD_PYI_FILES "Build `.pyi` files for VTK's Python modules" OFF
+    "VTK_WRAP_PYTHON" OFF)
+  mark_as_advanced(VTK_BUILD_PYI_FILES)
 
   if (APPLE AND VTK_WHEEL_BUILD)
     list(APPEND CMAKE_INSTALL_RPATH
@@ -425,8 +514,12 @@ if (VTK_WRAP_PYTHON)
     MODULE_DESTINATION  "${VTK_PYTHON_SITE_PACKAGES_SUFFIX}"
     CMAKE_DESTINATION   "${vtk_cmake_destination}"
     INSTALL_HEADERS     "${VTK_INSTALL_SDK}"
+    HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/vtk${vtk_version_suffix}/vtkpythonmodules"
+    BUILD_PYI_FILES     "${VTK_BUILD_PYI_FILES}"
     SOABI               "${vtk_soabi}"
     USE_DEBUG_SUFFIX    "${VTK_WINDOWS_PYTHON_DEBUGGABLE}"
+    REPLACE_DEBUG_SUFFIX "${VTK_WINDOWS_PYTHON_DEBUGGABLE_REPLACE_SUFFIX}"
+    UTILITY_TARGET      "VTK::vtkbuild"
     WRAPPED_MODULES vtk_python_wrapped_modules
     TARGET_SPECIFIC_COMPONENTS "${VTK_TARGET_SPECIFIC_COMPONENTS}"
     TARGET          VTK::vtkpythonmodules)
@@ -534,11 +627,6 @@ install(
 if (VTK_WHEEL_BUILD)
   include(vtkWheelFinalization)
 endif ()
-
-# Setup compiler flags for dynamic analysis. This is included late to avoid
-# interfering with any `try_compile` or other things involved with a normal
-# configuration.
-include(vtkSanitizeFlags)
 
 # Some generated code has some warnings that we need to exclude for now.
 configure_file(

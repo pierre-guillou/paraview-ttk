@@ -21,6 +21,7 @@
 #include "vtkPiecewiseFunction.h"
 #include "vtkTemplateAliasMacro.h"
 #include "vtkTuple.h"
+#include "vtkUnsignedCharArray.h"
 
 #include <vector>
 
@@ -172,8 +173,16 @@ int vtkDiscretizableColorTransferFunction::IsOpaque()
   return !this->EnableOpacityMapping;
 }
 
+//------------------------------------------------------------------------------
 int vtkDiscretizableColorTransferFunction::IsOpaque(
   vtkAbstractArray* scalars, int colorMode, int component)
+{
+  return this->IsOpaque(scalars, colorMode, component, nullptr);
+}
+
+//------------------------------------------------------------------------------
+int vtkDiscretizableColorTransferFunction::IsOpaque(vtkAbstractArray* scalars, int colorMode,
+  int component, vtkUnsignedCharArray* ghosts, unsigned char ghostsToSkip)
 {
   // use superclass logic?
   vtkDataArray* dataArray = vtkArrayDownCast<vtkDataArray>(scalars);
@@ -181,7 +190,7 @@ int vtkDiscretizableColorTransferFunction::IsOpaque(
         vtkArrayDownCast<vtkUnsignedCharArray>(dataArray) != nullptr) ||
     (colorMode == VTK_COLOR_MODE_DIRECT_SCALARS && dataArray))
   {
-    return this->Superclass::IsOpaque(scalars, colorMode, component);
+    return this->Superclass::IsOpaque(scalars, colorMode, component, ghosts, ghostsToSkip);
   }
   // otherwise look at our basic approach
   return this->IsOpaque();
@@ -407,8 +416,8 @@ void vtkDiscretizableColorTransferFunction::MapScalarsThroughTable2(void* input,
   }
 
   // Calculate alpha values
-  if (this->IndexedLookup == false && // don't change alpha for IndexedLookup.
-    this->EnableOpacityMapping == true && this->ScalarOpacityFunction.GetPointer() != nullptr)
+  if (!this->IndexedLookup && // don't change alpha for IndexedLookup.
+    this->EnableOpacityMapping && this->ScalarOpacityFunction.GetPointer() != nullptr)
   {
     switch (inputDataType)
     {
@@ -424,7 +433,7 @@ void vtkDiscretizableColorTransferFunction::MapScalarsThroughTable2(void* input,
 //------------------------------------------------------------------------------
 vtkIdType vtkDiscretizableColorTransferFunction::GetNumberOfAvailableColors()
 {
-  if (this->Discretize == false)
+  if (!this->Discretize)
   {
     return 16777216; // 2^24
   }

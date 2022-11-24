@@ -23,11 +23,13 @@
 #include "vtkParseString.h"
 #include "vtkWrappingToolsModule.h"
 
+#include <stdio.h> /* for FILE* */
+
 /**
- * Contains the paths to all files that have been discoved on the file
+ * Contains the paths to all files that have been discovered on the file
  * system. This is used to accelerate searches for header files.
  */
-typedef struct _SystemInfo
+typedef struct SystemInfo_
 {
   StringCache* Strings;        /* to accelerate string allocation */
   const char*** FileHashTable; /* paths to all discovered files */
@@ -37,7 +39,7 @@ typedef struct _SystemInfo
 /**
  * An enum to identify the types of discovered files
  */
-typedef enum _system_filetype_t
+typedef enum system_filetype_t_
 {
   VTK_PARSE_NOFILE = 0,
   VTK_PARSE_ISFILE = 1,
@@ -63,6 +65,13 @@ extern "C"
    */
   VTKWRAPPINGTOOLS_EXPORT
   void vtkParse_FreeFileCache(SystemInfo* info);
+
+  /**
+   * On Win32, this interprets fname as UTF8 and then calls wfopen().
+   * The returned handle must be freed with fclose().
+   */
+  VTKWRAPPINGTOOLS_EXPORT
+  FILE* vtkParse_FileOpen(const char* fname, const char* mode);
 
 #ifdef __cplusplus
 } /* extern "C" */

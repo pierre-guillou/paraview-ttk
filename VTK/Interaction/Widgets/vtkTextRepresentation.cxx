@@ -13,7 +13,9 @@
 
 =========================================================================*/
 #include "vtkTextRepresentation.h"
+
 #include "vtkCommand.h"
+#include "vtkMathTextFreeTypeTextRenderer.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderer.h"
 #include "vtkStdString.h"
@@ -59,9 +61,8 @@ vtkTextRepresentation::vtkTextRepresentation()
   this->TextActor = vtkTextActor::New();
   this->InitializeTextActor();
 
-  this->SetShowBorder(vtkBorderRepresentation::BORDER_ACTIVE);
+  this->SetShowBorderToActive();
   this->BWActorEdges->VisibilityOff();
-  this->WindowLocation = AnyLocation;
 }
 
 //------------------------------------------------------------------------------
@@ -308,7 +309,7 @@ void vtkTextRepresentation::CheckTextBoundary()
       this->Position2Coordinate->SetValue(posX, posY, 0);
       this->Modified();
     }
-    if (this->WindowLocation != AnyLocation)
+    if (this->WindowLocation != vtkBorderRepresentation::AnyLocation)
     {
       this->UpdateWindowLocation();
     }
@@ -318,14 +319,12 @@ void vtkTextRepresentation::CheckTextBoundary()
 //------------------------------------------------------------------------------
 void vtkTextRepresentation::SetWindowLocation(int enumLocation)
 {
-  if (this->WindowLocation == enumLocation)
+  if (this->WindowLocation != enumLocation)
   {
-    return;
+    this->WindowLocation = enumLocation;
+    this->CheckTextBoundary();
+    this->Modified();
   }
-
-  this->WindowLocation = enumLocation;
-  this->CheckTextBoundary();
-  this->Modified();
 }
 
 //------------------------------------------------------------------------------
@@ -339,38 +338,6 @@ void vtkTextRepresentation::SetPosition(double x, double y)
 
   this->PositionCoordinate->SetValue(x, y);
   this->Modified();
-}
-
-//------------------------------------------------------------------------------
-void vtkTextRepresentation::UpdateWindowLocation()
-{
-  if (this->WindowLocation != AnyLocation)
-  {
-    double* pos2 = this->Position2Coordinate->GetValue();
-    switch (this->WindowLocation)
-    {
-      case LowerLeftCorner:
-        this->SetPosition(0.01, 0.01);
-        break;
-      case LowerRightCorner:
-        this->SetPosition(0.99 - pos2[0], 0.01);
-        break;
-      case LowerCenter:
-        this->SetPosition((1 - pos2[0]) / 2.0, 0.01);
-        break;
-      case UpperLeftCorner:
-        this->SetPosition(0.01, 0.99 - pos2[1]);
-        break;
-      case UpperRightCorner:
-        this->SetPosition(0.99 - pos2[0], 0.99 - pos2[1]);
-        break;
-      case UpperCenter:
-        this->SetPosition((1 - pos2[0]) / 2.0, 0.99 - pos2[1]);
-        break;
-      default:
-        break;
-    }
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -391,27 +358,4 @@ void vtkTextRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
 
   os << indent << "Text Actor: " << this->TextActor << "\n";
-
-  os << indent << "Window Location: ";
-  switch (this->WindowLocation)
-  {
-    case LowerLeftCorner:
-      os << "LowerLeftCorner\n";
-      break;
-    case LowerRightCorner:
-      os << "LowerRightCorner\n";
-      break;
-    case LowerCenter:
-      os << "LowerCenter\n";
-      break;
-    case UpperLeftCorner:
-      os << "UpperLeftCorner\n";
-      break;
-    case UpperRightCorner:
-      os << "UpperRightCorner\n";
-      break;
-    case UpperCenter:
-      os << "UpperCenter\n";
-      break;
-  }
 }

@@ -12,6 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
 #include "vtkDataWriter.h"
 
 #include "vtkBitArray.h"
@@ -59,7 +60,6 @@
 #include "vtkTypeInt64Array.h"
 #include "vtkTypeTraits.h"
 #include "vtkTypeUInt64Array.h"
-#include "vtkUnicodeStringArray.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
@@ -1339,14 +1339,14 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
         std::vector<vtkIdType> vals(numComp);
         for (vtkIdType jj = 0; jj < size; jj++)
         {
-          data2->GetTypedTuple(jj, &vals[0]);
+          data2->GetTypedTuple(jj, vals.data());
           for (i = 0; i < numComp; i++)
           {
             intArray[jj * numComp + i] = vals[i];
           }
         }
       }
-      vtkWriteDataArray(fp, &intArray[0], this->FileType, "%d ", num, numComp);
+      vtkWriteDataArray(fp, intArray.data(), this->FileType, "%d ", num, numComp);
     }
     break;
 
@@ -1356,7 +1356,7 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
       *fp << str;
       if (this->FileType == VTK_ASCII)
       {
-        vtkStdString s;
+        std::string s;
         for (j = 0; j < num; j++)
         {
           for (i = 0; i < numComp; i++)
@@ -1370,71 +1370,13 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
       }
       else
       {
-        vtkStdString s;
+        std::string s;
         for (j = 0; j < num; j++)
         {
           for (i = 0; i < numComp; i++)
           {
             idx = i + j * numComp;
             s = static_cast<vtkStringArray*>(data)->GetValue(idx);
-            vtkTypeUInt64 length = s.length();
-            if (length < (static_cast<vtkTypeUInt64>(1) << 6))
-            {
-              vtkTypeUInt8 len =
-                (static_cast<vtkTypeUInt8>(3) << 6) | static_cast<vtkTypeUInt8>(length);
-              fp->write(reinterpret_cast<char*>(&len), 1);
-            }
-            else if (length < (static_cast<vtkTypeUInt64>(1) << 14))
-            {
-              vtkTypeUInt16 len =
-                (static_cast<vtkTypeUInt16>(2) << 14) | static_cast<vtkTypeUInt16>(length);
-              vtkByteSwap::SwapWrite2BERange(&len, 1, fp);
-            }
-            else if (length < (static_cast<vtkTypeUInt64>(1) << 30))
-            {
-              vtkTypeUInt32 len =
-                (static_cast<vtkTypeUInt32>(1) << 30) | static_cast<vtkTypeUInt32>(length);
-              vtkByteSwap::SwapWrite4BERange(&len, 1, fp);
-            }
-            else
-            {
-              vtkByteSwap::SwapWrite8BERange(&length, 1, fp);
-            }
-            fp->write(s.c_str(), length);
-          }
-        }
-      }
-      *fp << "\n";
-    }
-    break;
-
-    case VTK_UNICODE_STRING:
-    {
-      snprintf(str, sizeof(str), format, "utf8_string");
-      *fp << str;
-      if (this->FileType == VTK_ASCII)
-      {
-        vtkStdString s;
-        for (j = 0; j < num; j++)
-        {
-          for (i = 0; i < numComp; i++)
-          {
-            idx = i + j * numComp;
-            s = static_cast<vtkUnicodeStringArray*>(data)->GetValue(idx).utf8_str();
-            this->EncodeWriteString(fp, s.c_str(), false);
-            *fp << "\n";
-          }
-        }
-      }
-      else
-      {
-        vtkStdString s;
-        for (j = 0; j < num; j++)
-        {
-          for (i = 0; i < numComp; i++)
-          {
-            idx = i + j * numComp;
-            s = static_cast<vtkUnicodeStringArray*>(data)->GetValue(idx).utf8_str();
             vtkTypeUInt64 length = s.length();
             if (length < (static_cast<vtkTypeUInt64>(1) << 6))
             {

@@ -3,7 +3,9 @@
 # *****************************************************************************/
 
 paraview_add_plugin(pvNVIDIAIndeX
-  VERSION "5.10"
+  REQUIRED_ON_CLIENT
+  REQUIRED_ON_SERVER
+  VERSION "5.11"
   EULA "EULA.txt"
   MODULES pvNVIDIAIndeX::IndeXRepresentations
   MODULE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/vtk.module"

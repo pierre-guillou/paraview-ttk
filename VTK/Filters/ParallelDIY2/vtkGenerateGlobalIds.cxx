@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkGenerateGlobalIds.h"
 
 #include "vtkBoundingBox.h"
@@ -79,45 +76,6 @@ static vtkBoundingBox AllReduceBounds(
   return bbox;
 }
 
-class ExplicitAssigner : public ::diy::StaticAssigner
-{
-  std::vector<int> GIDs;
-
-public:
-  ExplicitAssigner(const std::vector<int>& counts)
-    : diy::StaticAssigner(
-        static_cast<int>(counts.size()), std::accumulate(counts.begin(), counts.end(), 0))
-    , GIDs(counts)
-  {
-    for (size_t cc = 1; cc < this->GIDs.size(); ++cc)
-    {
-      this->GIDs[cc] += this->GIDs[cc - 1];
-    }
-  }
-
-  //! returns the process rank of the block with global id gid (need not be local)
-  int rank(int gid) const override
-  {
-    for (size_t cc = 0; cc < this->GIDs.size(); ++cc)
-    {
-      if (gid < this->GIDs[cc])
-      {
-        return static_cast<int>(cc);
-      }
-    }
-    abort();
-  }
-
-  //! gets the local gids for a given process rank
-  void local_gids(int rank, std::vector<int>& gids) const override
-  {
-    const auto min = rank == 0 ? 0 : this->GIDs[rank - 1];
-    const auto max = this->GIDs[rank];
-    gids.resize(max - min);
-    std::iota(gids.begin(), gids.end(), min);
-  }
-};
-
 /**
  * This is the main implementation of the global id generation algorithm.
  * The code is similar for both point and cell ids generation except small
@@ -150,6 +108,7 @@ static bool GenerateIds(vtkDataObject* dobj, vtkGenerateGlobalIds* self, bool ce
                        (cell_centers && ds->GetNumberOfCells() == 0);
                    }),
     datasets.end());
+
   const auto points = vtkDIYUtilities::ExtractPoints(datasets, cell_centers);
   vtkLogEndScope("extract points");
 
@@ -173,7 +132,7 @@ static bool GenerateIds(vtkDataObject* dobj, vtkGenerateGlobalIds* self, bool ce
     if (lid < points.size() && points[lid] != nullptr)
     {
       assert(datasets[lid] != nullptr);
-      block->Initialize(gids[lid], points[lid], datasets[lid]);
+      block->Initialize(gids[lid], points[lid], datasets[lid], cell_centers);
     }
 
     auto link = new diy::RegularContinuousLink(3, gdomain, gdomain);
@@ -211,7 +170,7 @@ static bool GenerateIds(vtkDataObject* dobj, vtkGenerateGlobalIds* self, bool ce
     }
     else
     {
-      // now dequeue owership information and process locally to assign ids
+      // now dequeue ownership information and process locally to assign ids
       // to locally owned points and flag ghost points.
       b->DequeueOwnershipInformation(rp);
     }
@@ -276,6 +235,41 @@ static bool GenerateIds(vtkDataObject* dobj, vtkGenerateGlobalIds* self, bool ce
 
 namespace
 {
+
+struct CopyHiddenGhostPointsWorker
+{
+  CopyHiddenGhostPointsWorker(
+    vtkUnsignedCharArray* inputGhosts, vtkUnsignedCharArray* outputGhosts, bool cell_centers)
+    : InputGhosts(inputGhosts)
+    , OutputGhosts(outputGhosts)
+  {
+    if (cell_centers)
+    {
+      this->HiddenGhost = vtkDataSetAttributes::HIDDENCELL;
+    }
+    else
+    {
+      this->HiddenGhost = vtkDataSetAttributes::HIDDENPOINT;
+    }
+  }
+
+  void operator()(vtkIdType startId, vtkIdType endId)
+  {
+    auto inputGhostsRange = vtk::DataArrayValueRange<1>(this->InputGhosts);
+    auto outputGhostsRange = vtk::DataArrayValueRange<1>(this->OutputGhosts);
+    for (vtkIdType id = startId; id < endId; ++id)
+    {
+      if (inputGhostsRange[id] & this->HiddenGhost)
+      {
+        outputGhostsRange[id] = inputGhostsRange[id];
+      }
+    }
+  }
+
+  vtkUnsignedCharArray* InputGhosts;
+  vtkUnsignedCharArray* OutputGhosts;
+  unsigned char HiddenGhost;
+};
 
 /**
  * This is the point type that keeps the coordinates for each point in the
@@ -350,7 +344,7 @@ struct PointTT
     locator->SetDataSet(grid);
     locator->SetTolerance(tolerance);
     locator->BuildLocator();
-    locator->MergePoints(tolerance, &mergemap[0]);
+    locator->MergePoints(tolerance, mergemap.data());
     return mergemap;
   }
 };
@@ -469,13 +463,18 @@ public:
   vtkSmartPointer<vtkIdTypeArray> GlobalIds;
   vtkSmartPointer<vtkUnsignedCharArray> GhostArray;
 
-  void Initialize(int self_gid, vtkPoints* points, vtkDataSet* dataset)
+  void Initialize(int self_gid, vtkPoints* points, vtkDataSet* dataset, bool cell_centers)
   {
     this->Dataset = dataset;
     this->Elements = ElementT::GetElements(self_gid, points, dataset);
 
     if (dataset)
     {
+      unsigned char duplicateGhost = vtkDataSetAttributes::DUPLICATEPOINT;
+      if (cell_centers)
+      {
+        duplicateGhost = vtkDataSetAttributes::DUPLICATECELL;
+      }
       this->GlobalIds = vtkSmartPointer<vtkIdTypeArray>::New();
       this->GlobalIds->SetName(
         ElementT::attr_type == vtkDataObject::POINT ? "GlobalPointIds" : "GlobalCellIds");
@@ -486,7 +485,14 @@ public:
       this->GhostArray = vtkSmartPointer<vtkUnsignedCharArray>::New();
       this->GhostArray->SetName(vtkDataSetAttributes::GhostArrayName());
       this->GhostArray->SetNumberOfTuples(points->GetNumberOfPoints());
-      this->GhostArray->FillValue(vtkDataSetAttributes::DUPLICATEPOINT);
+      this->GhostArray->FillValue(duplicateGhost);
+
+      if (vtkUnsignedCharArray* inputGhostPoints =
+            dataset->GetAttributes(ElementT::attr_type)->GetGhostArray())
+      {
+        ::CopyHiddenGhostPointsWorker worker(inputGhostPoints, this->GhostArray, cell_centers);
+        vtkSMPTools::For(0, this->GhostArray->GetNumberOfValues(), worker);
+      }
 
       // we're only adding ghost points, not cells.
       if (ElementT::attr_type == vtkDataObject::POINT)
@@ -547,11 +553,17 @@ public:
       return;
     }
 
+    // We will tag any ghost that is not a hidden point in the input ghost array
+    auto ghosts = vtk::DataArrayValueRange<1>(this->GhostArray);
+
     for (const auto& pair : inmessage)
     {
       for (const auto& data : pair.second)
       {
-        this->GhostArray->SetTypedComponent(data.elem_id, 0, 0);
+        if (!(ghosts[data.elem_id] & vtkDataSetAttributes::HIDDENPOINT))
+        {
+          ghosts[data.elem_id] = 0;
+        }
       }
     }
 
@@ -559,7 +571,7 @@ public:
     this->UniqueElementsCount = 0;
     for (vtkIdType cc = 0, max = this->GhostArray->GetNumberOfTuples(); cc < max; ++cc)
     {
-      if (this->GhostArray->GetTypedComponent(cc, 0) == 0)
+      if (ghosts[cc] == 0)
       {
         this->GlobalIds->SetTypedComponent(cc, 0, this->UniqueElementsCount);
         this->UniqueElementsCount++;

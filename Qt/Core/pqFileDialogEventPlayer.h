@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqFileDialogEventPlayer_h
-#define _pqFileDialogEventPlayer_h
+#ifndef pqFileDialogEventPlayer_h
+#define pqFileDialogEventPlayer_h
 
 #include "pqCoreModule.h"
 #include <pqWidgetEventPlayer.h>
@@ -48,7 +48,7 @@ class PQCORE_EXPORT pqFileDialogEventPlayer : public pqWidgetEventPlayer
   typedef pqWidgetEventPlayer Superclass;
 
 public:
-  pqFileDialogEventPlayer(QObject* p = 0);
+  pqFileDialogEventPlayer(QObject* p = nullptr);
 
   using Superclass::playEvent;
   bool playEvent(
@@ -59,4 +59,4 @@ private:
   pqFileDialogEventPlayer& operator=(const pqFileDialogEventPlayer&);
 };
 
-#endif // !_pqFileDialogEventPlayer_h
+#endif // !pqFileDialogEventPlayer_h

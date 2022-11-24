@@ -50,21 +50,25 @@ public:
 #undef FREELIST
 
 #define FREE(x)                                                                                    \
+  do                                                                                               \
   {                                                                                                \
     delete[] x;                                                                                    \
     x = nullptr;                                                                                   \
-  }
+  } while (false)
 
 #define FREELIST(x, len)                                                                           \
-  if (x && (len))                                                                                  \
+  do                                                                                               \
   {                                                                                                \
-    for (i = 0; i < (len); i++)                                                                    \
+    if (x && (len))                                                                                \
     {                                                                                              \
-      delete[] x[i];                                                                               \
+      for (i = 0; i < (len); i++)                                                                  \
+      {                                                                                            \
+        delete[] x[i];                                                                             \
+      }                                                                                            \
+      delete[] x;                                                                                  \
+      x = nullptr;                                                                                 \
     }                                                                                              \
-    delete[] x;                                                                                    \
-    x = nullptr;                                                                                   \
-  }
+  } while (false)
 
 void vtkModelMetadata::InitializeAllMetadata()
 {
@@ -527,7 +531,7 @@ void vtkModelMetadata::SetSideSetNumDFPerSide(int* s)
 }
 int vtkModelMetadata::SetSideSetNumberOfDistributionFactors(int* df)
 {
-  FREE(this->SideSetNumberOfDistributionFactors)
+  FREE(this->SideSetNumberOfDistributionFactors);
 
   if (df)
   {

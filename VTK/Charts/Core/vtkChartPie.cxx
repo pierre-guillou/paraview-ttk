@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkChartPie.h"
 
 #include "vtkObjectFactory.h"
@@ -93,37 +90,36 @@ bool vtkChartPie::Paint(vtkContext2D* painter)
 
   this->Update();
 
-  if (geometry[0] != this->Geometry[0] || geometry[1] != this->Geometry[1])
+  if (this->LayoutStrategy == vtkChart::FILL_SCENE &&
+    (geometry[0] != this->Geometry[0] || geometry[1] != this->Geometry[1]))
   {
-    // Take up the entire window right now, this could be made configurable
-    this->SetGeometry(geometry);
+    this->SetSize(vtkRectf(0.0, 0.0, geometry[0], geometry[1]));
+  }
 
-    vtkVector2i tileScale = this->Scene->GetLogicalTileScale();
-    this->SetBorders(
-      20 * tileScale.GetX(), 20 * tileScale.GetY(), 20 * tileScale.GetX(), 20 * tileScale.GetY());
+  vtkVector2i tileScale = this->Scene->GetLogicalTileScale();
+  this->SetBorders(
+    20 * tileScale.GetX(), 20 * tileScale.GetY(), 20 * tileScale.GetX(), 20 * tileScale.GetY());
 
-    // Put the legend in the top corner of the chart
-    vtkRectf rect = this->Legend->GetBoundingRect(painter);
-    this->Legend->SetPoint(this->Point2[0] - rect.GetWidth(), this->Point2[1] - rect.GetHeight());
+  // Put the legend in the top corner of the chart
+  vtkRectf legendRect = this->Legend->GetBoundingRect(painter);
+  this->Legend->SetPoint(
+    this->Point2[0] - legendRect.GetWidth(), this->Point2[1] - legendRect.GetHeight());
 
-    // Set the dimensions of the Plot
-    if (this->Private->Plot)
-    {
-      this->Private->Plot->SetDimensions(20, 20, this->Geometry[0] - 40, this->Geometry[1] - 40);
-    }
+  // Set the dimensions of the Plot
+  if (this->Private->Plot)
+  {
+    this->Private->Plot->SetDimensions(this->Size.GetX() + 20, this->Size.GetY() + 20,
+      this->Geometry[0] - 40, this->Geometry[1] - 40);
   }
 
   this->PaintChildren(painter);
 
-  if (this->Title)
-  {
-    vtkPoints2D* rect = vtkPoints2D::New();
-    rect->InsertNextPoint(this->Point1[0], this->Point2[1]);
-    rect->InsertNextPoint(this->Point2[0] - this->Point1[0], 10);
-    painter->ApplyTextProp(this->TitleProperties);
-    painter->DrawStringRect(rect, this->Title);
-    rect->Delete();
-  }
+  vtkPoints2D* rect = vtkPoints2D::New();
+  rect->InsertNextPoint(this->Point1[0], this->Point2[1]);
+  rect->InsertNextPoint(this->Point2[0] - this->Point1[0], 10);
+  painter->ApplyTextProp(this->TitleProperties);
+  painter->DrawStringRect(rect, this->Title);
+  rect->Delete();
 
   this->Tooltip->Paint(painter);
 
@@ -144,8 +140,24 @@ vtkPlot* vtkChartPie::AddPlot(int /* type */)
   {
     this->Private->Plot = vtkSmartPointer<vtkPlotPie>::New();
     this->AddItem(this->Private->Plot);
+    // Ensure legend remains on top
+    this->Raise(this->GetItemIndex(this->Legend));
   }
   return this->Private->Plot;
+}
+
+//------------------------------------------------------------------------------
+void vtkChartPie::SetPlot(vtkPlotPie* plot)
+{
+  if (this->Private->Plot)
+  {
+    this->RemoveItem(this->Private->Plot);
+  }
+  this->Private->Plot = plot;
+  this->AddItem(this->Private->Plot);
+  // Ensure legend remains on top
+  this->Raise(this->GetItemIndex(this->Legend));
+  this->Modified();
 }
 
 //------------------------------------------------------------------------------
@@ -189,15 +201,8 @@ vtkChartLegend* vtkChartPie::GetLegend()
 bool vtkChartPie::Hit(const vtkContextMouseEvent& mouse)
 {
   vtkVector2i pos(mouse.GetScreenPos());
-  if (pos[0] > this->Point1[0] && pos[0] < this->Point2[0] && pos[1] > this->Point1[1] &&
-    pos[1] < this->Point2[1])
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return pos[0] > this->Point1[0] && pos[0] < this->Point2[0] && pos[1] > this->Point1[1] &&
+    pos[1] < this->Point2[1];
 }
 
 //------------------------------------------------------------------------------
@@ -260,10 +265,12 @@ bool vtkChartPie::LocatePointInPlots(const vtkContextMouseEvent& mouse)
     if (pos[0] >= dimensions[0] && pos[0] <= dimensions[0] + dimensions[2] &&
       pos[1] >= dimensions[1] && pos[1] <= dimensions[1] + dimensions[3])
     {
-      int labelIndex = this->Private->Plot->GetNearestPoint(position, tolerance, &plotPos);
+      vtkIdType segmentId;
+      int labelIndex =
+        this->Private->Plot->GetNearestPoint(position, tolerance, &plotPos, &segmentId);
       if (labelIndex >= 0)
       {
-        const char* label = this->Private->Plot->GetLabel(labelIndex);
+        auto label = this->Private->Plot->GetLabel(labelIndex);
         std::ostringstream ostr;
         ostr << label << ": " << plotPos.GetY();
         this->Tooltip->SetText(ostr.str().c_str());

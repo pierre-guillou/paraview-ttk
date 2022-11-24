@@ -98,6 +98,7 @@ vtk_add_test_cxx(vtkChartsCoreCxxTests tests
   TestMultipleScalarsToColors.cxx
   TestParallelCoordinates.cxx
   TestParallelCoordinatesDouble.cxx
+  TestParallelCoordinatesSelection.cxx,NO_VALID
   TestPieChart.cxx
   TestPlotBarRangeHandlesItem.cxx,NO_DATA,NO_VALID
   TestPlotMatrix.cxx
@@ -107,6 +108,7 @@ vtk_add_test_cxx(vtkChartsCoreCxxTests tests
   TestScalarsToColors.cxx
   TestScatterPlot.cxx
   TestScatterPlotMatrix.cxx
+  TestScatterPlotMatrixHistogram.cxx
   TestScatterPlotMatrixVehicles.cxx
   TestScatterPlotMatrixVisible.cxx
   TestScientificPlot.cxx
@@ -114,7 +116,9 @@ vtk_add_test_cxx(vtkChartsCoreCxxTests tests
   TestStackedPlot.cxx
   TestSurfacePlot.cxx
   TestZoomAxis.cxx
+  TestZoomIndividualAxis.cxx
   )
 vtk_test_cxx_executable(vtkChartsCoreCxxTests tests
+  DISABLE_FLOATING_POINT_EXCEPTIONS
   RENDERING_FACTORY
   )

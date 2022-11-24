@@ -15,7 +15,7 @@
 #include "paradis_version.h"
 //#include "visit_writer.h"
 
-#ifndef WIN32
+#ifndef _WIN32
 #  include <dirent.h>
 #else
 #  include <direct.h>
@@ -3085,7 +3085,7 @@ namespace paraDIS {
   //===========================================================================
   bool DataSet::Mkdir(const char *dirname) {
     dbprintf(3, "Mkdir(%s)",dirname); 
-#ifndef WIN32
+#ifndef _WIN32
     DIR *dir = opendir(dirname); 
     if (!dir)
       {

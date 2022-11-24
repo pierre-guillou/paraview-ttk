@@ -14,7 +14,6 @@
 
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/DataSet.h>
-#include <vtkm/cont/DeviceAdapterAlgorithm.h>
 #include <vtkm/cont/Field.h>
 
 namespace vtkm
@@ -56,7 +55,7 @@ public:
   ~PartitionedDataSet();
   /// get the field @a field_name from partition @a partition_index
   VTKM_CONT
-  vtkm::cont::Field GetField(const std::string& field_name, int partition_index);
+  vtkm::cont::Field GetField(const std::string& field_name, int partition_index) const;
 
   VTKM_CONT
   vtkm::Id GetNumberOfPartitions() const;

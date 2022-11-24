@@ -32,7 +32,8 @@ PURPOSE.  See the above copyright notice for more information.
 vtkStandardNewMacro(vtkNetCDFPOPReader);
 
 //============================================================================
-#define CALL_NETCDF(call)                                                                          \
+#define CALL_NETCDF_INT(call)                                                                      \
+  do                                                                                               \
   {                                                                                                \
     int errorcode = call;                                                                          \
     if (errorcode != NC_NOERR)                                                                     \
@@ -40,7 +41,7 @@ vtkStandardNewMacro(vtkNetCDFPOPReader);
       vtkErrorMacro(<< "netCDF Error: " << nc_strerror(errorcode));                                \
       return 0;                                                                                    \
     }                                                                                              \
-  }
+  } while (false)
 //============================================================================
 
 class vtkNetCDFPOPReaderInternal
@@ -155,19 +156,19 @@ int vtkNetCDFPOPReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   {
     this->Internals->VariableMap[i] = -1;
     // get number of dimensions
-    CALL_NETCDF(nc_inq_varndims(this->NCDFFD, i, &dataDimension));
+    CALL_NETCDF_INT(nc_inq_varndims(this->NCDFFD, i, &dataDimension));
     // Variable Dimension ID's containing x,y,z coords for the rectilinear
     // grid spacing
-    CALL_NETCDF(nc_inq_vardimid(this->NCDFFD, i, dimidsp));
+    CALL_NETCDF_INT(nc_inq_vardimid(this->NCDFFD, i, dimidsp));
     if (dataDimension == 3)
     {
       this->Internals->VariableMap[i] = actualVariableCounter++;
       // get variable name
-      CALL_NETCDF(nc_inq_varname(this->NCDFFD, i, variableName));
+      CALL_NETCDF_INT(nc_inq_varname(this->NCDFFD, i, variableName));
       this->Internals->VariableArraySelection->AddArray(variableName);
       for (int m = 0; m < dataDimension; m++)
       {
-        CALL_NETCDF(nc_inq_dimlen(this->NCDFFD, dimidsp[m], dimensions + m));
+        CALL_NETCDF_INT(nc_inq_dimlen(this->NCDFFD, dimidsp[m], dimensions + m));
         // acquire variable dimensions
       }
       extent[0] = extent[2] = extent[4] = 0; // set extent
@@ -250,7 +251,7 @@ int vtkNetCDFPOPReader::RequestData(vtkInformation* request,
         this->Internals->VariableArraySelection->GetArrayName(this->Internals->VariableMap[i]),
         &varidp);
 
-      if (firstPass == true)
+      if (firstPass)
       {
         int dimidsp[3];
         nc_inq_vardimid(this->NCDFFD, varidp, dimidsp);

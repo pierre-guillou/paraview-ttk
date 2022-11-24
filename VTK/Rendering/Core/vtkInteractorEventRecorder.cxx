@@ -13,9 +13,11 @@
 
 =========================================================================*/
 #include "vtkInteractorEventRecorder.h"
+
 #include "vtkCallbackCommand.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderWindowInteractor.h"
+#include "vtkStringArray.h"
 
 #include <cassert>
 #include <locale>
@@ -26,7 +28,7 @@
 
 vtkStandardNewMacro(vtkInteractorEventRecorder);
 
-float vtkInteractorEventRecorder::StreamVersion = 1.1f;
+float vtkInteractorEventRecorder::StreamVersion = 1.2f;
 
 //------------------------------------------------------------------------------
 vtkInteractorEventRecorder::vtkInteractorEventRecorder()
@@ -201,75 +203,11 @@ void vtkInteractorEventRecorder::Play()
     vtkDebugMacro(<< "Playing");
     this->State = vtkInteractorEventRecorder::Playing;
 
-    // Read events and invoke them on the object in question
-    char event[256] = {}, keySym[256] = {};
-    int pos[2], ctrlKey, shiftKey, altKey, keyCode, repeatCount;
-    float stream_version = 0.0f, tempf;
     std::string line;
-
+    this->CurrentStreamVersion = 0;
     while (vtksys::SystemTools::GetLineFromStream(*this->InputStream, line))
     {
-      std::istringstream iss(line);
-
-      // Use classic locale, we don't want to parse float values with
-      // user-defined locale.
-      iss.imbue(std::locale::classic());
-
-      iss.width(256);
-      iss >> event;
-
-      // Quick skip comment
-      if (*event == '#')
-      {
-        // Parse the StreamVersion (not using >> since comment could be empty)
-        // Expecting: # StreamVersion x.y
-
-        if (strlen(line.c_str()) > 16 && !strncmp(line.c_str(), "# StreamVersion ", 16))
-        {
-          int res = sscanf(line.c_str() + 16, "%f", &tempf);
-          if (res && res != EOF)
-          {
-            stream_version = tempf;
-          }
-        }
-      }
-      else
-      {
-        unsigned long ievent = vtkCommand::GetEventIdFromString(event);
-        if (ievent != vtkCommand::NoEvent)
-        {
-          iss >> pos[0];
-          iss >> pos[1];
-          if (stream_version >= 1.1)
-          {
-            int m;
-            iss >> m;
-            shiftKey = (m & ModifierKey::ShiftKey) ? 1 : 0;
-            ctrlKey = (m & ModifierKey::ControlKey) ? 1 : 0;
-            altKey = (m & ModifierKey::AltKey) ? 1 : 0;
-          }
-          else
-          {
-            iss >> ctrlKey;
-            iss >> shiftKey;
-            altKey = 0;
-          }
-          iss >> keyCode;
-          iss >> repeatCount;
-          iss >> keySym;
-
-          this->Interactor->SetEventPosition(pos);
-          this->Interactor->SetControlKey(ctrlKey);
-          this->Interactor->SetShiftKey(shiftKey);
-          this->Interactor->SetAltKey(altKey);
-          this->Interactor->SetKeyCode(static_cast<char>(keyCode));
-          this->Interactor->SetRepeatCount(repeatCount);
-          this->Interactor->SetKeySym(keySym);
-
-          this->Interactor->InvokeEvent(ievent, nullptr);
-        }
-      }
-      assert(iss.good() || iss.eof());
+      this->ReadEvent(line);
     }
   }
 
@@ -283,6 +221,28 @@ void vtkInteractorEventRecorder::Stop()
   this->Modified();
 }
 
+//------------------------------------------------------------------------------
+void vtkInteractorEventRecorder::Clear()
+{
+  this->Stop();
+
+  if (this->InputStream)
+  {
+    this->InputStream->clear();
+    delete this->InputStream;
+    this->InputStream = nullptr;
+  }
+
+  if (this->OutputStream)
+  {
+    delete this->OutputStream;
+    this->OutputStream = nullptr;
+  }
+
+  this->Modified();
+}
+
+//------------------------------------------------------------------------------
 void vtkInteractorEventRecorder::Rewind()
 {
   if (!this->InputStream) // need to already have an open file
@@ -360,7 +320,7 @@ void vtkInteractorEventRecorder::ProcessCharEvent(
 
 //------------------------------------------------------------------------------
 void vtkInteractorEventRecorder::ProcessEvents(
-  vtkObject* object, unsigned long event, void* clientData, void* vtkNotUsed(callData))
+  vtkObject* object, unsigned long event, void* clientData, void* callData)
 {
   vtkInteractorEventRecorder* self = reinterpret_cast<vtkInteractorEventRecorder*>(clientData);
   vtkRenderWindowInteractor* rwi = static_cast<vtkRenderWindowInteractor*>(object);
@@ -396,7 +356,7 @@ void vtkInteractorEventRecorder::ProcessEvents(
             m |= ModifierKey::AltKey;
           }
           self->WriteEvent(vtkCommand::GetStringFromEventId(event), rwi->GetEventPosition(), m,
-            rwi->GetKeyCode(), rwi->GetRepeatCount(), rwi->GetKeySym());
+            rwi->GetKeyCode(), rwi->GetRepeatCount(), rwi->GetKeySym(), callData);
         }
     }
     self->OutputStream->flush();
@@ -404,23 +364,142 @@ void vtkInteractorEventRecorder::ProcessEvents(
 }
 
 //------------------------------------------------------------------------------
-void vtkInteractorEventRecorder::WriteEvent(
-  const char* event, int pos[2], int modifiers, int keyCode, int repeatCount, char* keySym)
+void vtkInteractorEventRecorder::WriteEvent(const char* event, int pos[2], int modifiers,
+  int keyCode, int repeatCount, char* keySym, void* callData)
 {
   *this->OutputStream << event << " " << pos[0] << " " << pos[1] << " " << modifiers << " "
                       << keyCode << " " << repeatCount << " ";
   if (keySym)
   {
-    *this->OutputStream << keySym << "\n";
+    *this->OutputStream << keySym << " ";
   }
   else
   {
-    *this->OutputStream << "0\n";
+    *this->OutputStream << "0 ";
+  }
+
+  unsigned int eventId = vtkCommand::GetEventIdFromString(event);
+  if (eventId == vtkCommand::DropFilesEvent)
+  {
+    *this->OutputStream << static_cast<int>(vtkEventDataType::StringArray) << " ";
+    // This should go into its own method once more events are supported
+    vtkStringArray* filesArr = static_cast<vtkStringArray*>(callData);
+
+    // Recover the number of string, with a sanity check
+    vtkIdType dataNum = filesArr ? filesArr->GetNumberOfValues() : 0;
+    *this->OutputStream << dataNum << " ";
+    if (dataNum > 0)
+    {
+      for (vtkIdType i = 0; i < dataNum; i++)
+      {
+        *this->OutputStream << filesArr->GetValue(i) << " ";
+      }
+    }
+    *this->OutputStream << "\n";
+  }
+  else
+  {
+    *this->OutputStream << static_cast<int>(vtkEventDataType::None) << "\n";
   }
 }
 
 //------------------------------------------------------------------------------
-void vtkInteractorEventRecorder::ReadEvent() {}
+void vtkInteractorEventRecorder::ReadEvent(const std::string& line)
+{
+  // Read events and invoke them on the object in question
+  char event[256] = {}, keySym[256] = {};
+  int pos[2], ctrlKey, shiftKey, altKey, keyCode, repeatCount;
+  float tempf;
+
+  std::istringstream iss(line);
+
+  // Use classic locale, we don't want to parse float values with
+  // user-defined locale.
+  iss.imbue(std::locale::classic());
+
+  iss.width(256);
+  iss >> event;
+
+  // Quick skip comment
+  if (*event == '#')
+  {
+    // Parse the StreamVersion (not using >> since comment could be empty)
+    // Expecting: # StreamVersion x.y
+
+    if (line.size() > 16 && !strncmp(line.c_str(), "# StreamVersion ", 16))
+    {
+      int res = sscanf(line.c_str() + 16, "%f", &tempf);
+      if (res && res != EOF)
+      {
+        this->CurrentStreamVersion = tempf;
+      }
+    }
+  }
+  else
+  {
+    if (this->CurrentStreamVersion == 0)
+    {
+      vtkWarningMacro("StreamVersion has not been read, parsing may be incorrect");
+    }
+
+    unsigned long ievent = vtkCommand::GetEventIdFromString(event);
+    if (ievent != vtkCommand::NoEvent)
+    {
+      iss >> pos[0];
+      iss >> pos[1];
+      if (this->CurrentStreamVersion >= 1.1)
+      {
+        int m;
+        iss >> m;
+        shiftKey = (m & ModifierKey::ShiftKey) ? 1 : 0;
+        ctrlKey = (m & ModifierKey::ControlKey) ? 1 : 0;
+        altKey = (m & ModifierKey::AltKey) ? 1 : 0;
+      }
+      else
+      {
+        iss >> ctrlKey;
+        iss >> shiftKey;
+        altKey = 0;
+      }
+      iss >> keyCode;
+      iss >> repeatCount;
+      iss >> keySym;
+
+      void* callData = nullptr;
+      vtkSmartPointer<vtkStringArray> stringArray;
+      if (this->CurrentStreamVersion >= 1.2)
+      {
+        int tmp;
+        iss >> tmp;
+        vtkEventDataType dataType = static_cast<vtkEventDataType>(tmp);
+        if (dataType == vtkEventDataType::StringArray)
+        {
+          vtkIdType dataNum;
+          iss >> dataNum;
+          stringArray = vtkSmartPointer<vtkStringArray>::New();
+          for (vtkIdType i = 0; i < dataNum; i++)
+          {
+            std::string str;
+            iss >> str;
+            stringArray->InsertNextValue(str);
+          }
+          callData = stringArray.Get();
+        }
+      }
+
+      this->Interactor->SetEventPosition(pos);
+      this->Interactor->SetControlKey(ctrlKey);
+      this->Interactor->SetShiftKey(shiftKey);
+      this->Interactor->SetAltKey(altKey);
+      this->Interactor->SetKeyCode(static_cast<char>(keyCode));
+      this->Interactor->SetRepeatCount(repeatCount);
+      this->Interactor->SetKeySym(keySym);
+
+      this->Interactor->InvokeEvent(ievent, callData);
+    }
+  }
+  assert(iss.good() || iss.eof());
+}
 
 //------------------------------------------------------------------------------
 void vtkInteractorEventRecorder::PrintSelf(ostream& os, vtkIndent indent)

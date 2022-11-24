@@ -474,7 +474,7 @@ FileFunctions::FilteredPath(const std::string &path)
     size_t state = 0;
     size_t start = 0;
     std::string filteredPath;
-#ifdef WIN32
+#ifdef _WIN32
     bool isUNC = false;
     if (path.substr(0,2) == "\\\\")
     {
@@ -539,7 +539,7 @@ FileFunctions::FilteredPath(const std::string &path)
         {
             filteredPath = "";
             size_t start = 0;
-#ifdef WIN32
+#ifdef _WIN32
             if (isUNC)
             {
                 filteredPath = "\\\\";
@@ -1129,7 +1129,7 @@ std::string
 FileFunctions::ComposeDatabaseName(const std::string &host,
     const std::string &db)
 {
-#ifdef WIN32
+#ifdef _WIN32
     if (db.substr(0,2) == "\\\\")
         return db;
 #endif

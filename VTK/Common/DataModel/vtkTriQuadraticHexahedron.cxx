@@ -16,9 +16,6 @@
 // Thanks to Soeren Gebbert who developed this class and
 // integrated it into VTK 5.0.
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkTriQuadraticHexahedron.h"
 
 #include "vtkBiQuadraticQuad.h"
@@ -690,7 +687,7 @@ void vtkTriQuadraticHexahedron::InterpolationDerivs(const double pcoords[3], dou
   derivs[79] = g2r * g2s * g3t_t;
   derivs[80] = g2r * g2s * g2t_t;
 
-  // we compute derivatives in in [-1; 1] but we need them in [ 0; 1]
+  // we compute derivatives in [-1; 1] but we need them in [ 0; 1]
   for (int i = 0; i < 81; i++)
     derivs[i] *= 2;
 }

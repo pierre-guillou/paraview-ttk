@@ -12,79 +12,38 @@ set(headers
   AverageByKey.h
   BoundaryTypes.h
   AveragePointNeighborhood.h
-  CellAverage.h
   CellDeepCopy.h
-  CellMeasure.h
-  Clip.h
   ContourTreeUniform.h
   ContourTreeUniformAugmented.h
-  CoordinateSystemTransform.h
   CosmoTools.h
-  CrossProduct.h
   DispatcherMapField.h
   DispatcherMapTopology.h
   DispatcherCellNeighborhood.h
   DispatcherPointNeighborhood.h
   DispatcherReduceByKey.h
-  DotProduct.h
-  ExternalFaces.h
-  ExtractGeometry.h
-  ExtractPoints.h
-  ExtractStructured.h
-  FieldEntropy.h
-  FieldHistogram.h
   FieldStatistics.h
-  Gradient.h
-  ImageDifference.h
-  KdTree3D.h
+  KdTree3D.h            # Deprecated
   KernelSplatter.h
   Keys.h
   LagrangianStructures.h
-  Magnitude.h
-  Contour.h
-  Mask.h
   MaskIndices.h
   MaskNone.h
-  MaskPoints.h
   MaskSelect.h
-  MeshQuality.h
-  NDimsEntropy.h
+  MIR.h
   NDimsHistMarginalization.h
-  NDimsHistogram.h
   Normalize.h
-  OrientCellNormals.h
-  OrientNormals.h
-  OrientPointNormals.h
-  OrientPointAndCellNormals.h
-  OscillatorSource.h
   ParticleAdvection.h
-  PointAverage.h
-  PointElevation.h
-  PointMerge.h
-  PointTransform.h
   Probe.h
-  RemoveDegenerateCells.h
-  RemoveUnusedPoints.h
   ScalarsToColors.h
   ScatterCounting.h
   ScatterIdentity.h
   ScatterPermutation.h
   ScatterUniform.h
-  SplitSharpEdges.h
   StableSortIndices.h
   DescriptiveStatistics.h
   StreamLineUniformGrid.h
   StreamSurface.h
-  SurfaceNormals.h
-  Tetrahedralize.h
-  Threshold.h
-  ThresholdPoints.h
   TriangleWinding.h
-  Triangulate.h
-  Tube.h
-  VertexClustering.h
-  WarpScalar.h
-  WarpVector.h
   WaveletCompressor.h
   WorkletMapField.h
   WorkletMapTopology.h
@@ -92,12 +51,6 @@ set(headers
   WorkletCellNeighborhood.h
   WorkletPointNeighborhood.h
   WorkletReduceByKey.h
-  ZFPCompressor.h
-  ZFPDecompress.h
-  ZFP1DCompressor.h
-  ZFP1DDecompress.h
-  ZFP2DCompressor.h
-  ZFP2DDecompress.h
   )
 
 
@@ -124,26 +77,17 @@ set(sources_device
 
 #-----------------------------------------------------------------------------
 add_subdirectory(internal)
-add_subdirectory(cellmetrics)
-add_subdirectory(clip)
 add_subdirectory(colorconversion)
-add_subdirectory(connectivities)
-add_subdirectory(contour)
 add_subdirectory(contourtree)
 add_subdirectory(contourtree_augmented)
 add_subdirectory(contourtree_distributed)
 add_subdirectory(cosmotools)
-add_subdirectory(gradient)
-add_subdirectory(histogram)
 add_subdirectory(lcs)
-add_subdirectory(moments)
+add_subdirectory(mir)
 add_subdirectory(splatkernels)
 add_subdirectory(spatialstructure)
-add_subdirectory(tetrahedralize)
-add_subdirectory(triangulate)
 add_subdirectory(wavelets)
 add_subdirectory(particleadvection)
-add_subdirectory(zfp)
 
 vtkm_library(
   NAME vtkm_worklet
@@ -158,4 +102,6 @@ target_link_libraries(vtkm_worklet PUBLIC vtkm_cont)
 set_source_files_properties(${sources_device} PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 
 #-----------------------------------------------------------------------------
-add_subdirectory(testing)
+if (VTKm_ENABLE_TESTING)
+  add_subdirectory(testing)
+endif ()

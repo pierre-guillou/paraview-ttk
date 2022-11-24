@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef pq_WidgetRangeDomain_h
-#define pq_WidgetRangeDomain_h
+#ifndef pqWidgetRangeDomain_h
+#define pqWidgetRangeDomain_h
 
 #include "pqComponentsModule.h"
 #include <QObject>
@@ -51,12 +51,12 @@ public:
     vtkSMProperty* prop, int index = -1);
   ~pqWidgetRangeDomain() override;
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   void domainChanged();
 protected Q_SLOTS:
   void internalDomainChanged();
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   virtual void setRange(QVariant min, QVariant max);
 
   QWidget* getWidget() const;

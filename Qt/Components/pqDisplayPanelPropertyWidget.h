@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqDisplayPanelPropertyWidget_h
-#define _pqDisplayPanelPropertyWidget_h
+#ifndef pqDisplayPanelPropertyWidget_h
+#define pqDisplayPanelPropertyWidget_h
 
 #include <pqPropertyWidget.h>
 
@@ -42,7 +42,7 @@ class pqDisplayPanelPropertyWidget : public pqPropertyWidget
   Q_OBJECT
 
 public:
-  explicit pqDisplayPanelPropertyWidget(pqDisplayPanel* displayPanel, QWidget* parent = 0);
+  explicit pqDisplayPanelPropertyWidget(pqDisplayPanel* displayPanel, QWidget* parent = nullptr);
   ~pqDisplayPanelPropertyWidget() override;
 
   pqDisplayPanel* getDisplayPanel() const;
@@ -51,4 +51,4 @@ private:
   pqDisplayPanel* DisplayPanel;
 };
 
-#endif // _pqDisplayPanelPropertyWidget_h
+#endif // pqDisplayPanelPropertyWidget_h

@@ -118,9 +118,9 @@ public:
   void SetPassPartialArrays(bool arg);
   bool GetPassPartialArrays();
   vtkBooleanMacro(PassPartialArrays, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the tolerance used to compute whether a point in the
    * source is in a cell of the input.  This value is only used
@@ -149,6 +149,20 @@ public:
   vtkSetMacro(MarkBlankPointsAndCells, bool);
   vtkGetMacro(MarkBlankPointsAndCells, bool);
   vtkBooleanMacro(MarkBlankPointsAndCells, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get whether to snap to the cell with the closest point, if no cell has been found while
+   * FindCell is executed.
+   *
+   * Default is off.
+   *
+   * Note: This is useful only when the source is a vtkPointSet.
+   */
+  void SetSnapToCellWithClosestPoint(bool arg);
+  bool GetSnapToCellWithClosestPoint();
+  vtkBooleanMacro(SnapToCellWithClosestPoint, bool);
   ///@}
 
   ///@{

@@ -281,7 +281,7 @@ void vtkOpenGLFluidMapper::SetupBuffers(vtkOpenGLRenderWindow* const renderWindo
     }
   }
 
-  // Allocate additional 2 texture bufferes for color data
+  // Allocate additional 2 texture buffers for color data
   if (this->HasVertexColor)
   {
     if (this->OptionalTexBuffer[0]->GetHandle() == 0)
@@ -430,7 +430,7 @@ void vtkOpenGLFluidMapper::Render(vtkRenderer* renderer, vtkVolume* vol)
 
   // Generate thickness and color (if applicable)
   {
-    // Attache texture every time, since it will be swapped out during smoothing
+    // Attach texture every time, since it will be swapped out during smoothing
     this->FBThickness->SetContext(renderWindow);
     glState->PushFramebufferBindings();
     this->FBThickness->Bind();
@@ -468,7 +468,6 @@ void vtkOpenGLFluidMapper::Render(vtkRenderer* renderer, vtkVolume* vol)
   }
 
   // Filter fluid thickness and color (if applicable)
-  if (true)
   {
     if (!this->QuadThicknessFilter)
     {
@@ -482,7 +481,7 @@ void vtkOpenGLFluidMapper::Render(vtkRenderer* renderer, vtkVolume* vol)
     const auto program = this->QuadThicknessFilter->Program;
     assert(program);
 
-    // Attache texture every time, since it will be swapped out during smoothing
+    // Attach texture every time, since it will be swapped out during smoothing
     this->FBFilterThickness->SetContext(renderWindow);
     glState->PushFramebufferBindings();
 
@@ -529,7 +528,6 @@ void vtkOpenGLFluidMapper::Render(vtkRenderer* renderer, vtkVolume* vol)
     glState->PopFramebufferBindings();
   }
 
-  if (true)
   {
     // Filter depth surface
     if (DisplayMode != UnfilteredOpaqueSurface && DisplayMode != UnfilteredSurfaceNormal)
@@ -572,7 +570,7 @@ void vtkOpenGLFluidMapper::Render(vtkRenderer* renderer, vtkVolume* vol)
       {
         this->FBFilterDepth->Bind();
         this->FBFilterDepth->AddColorAttachment(
-          0U, this->TexBuffer[SmoothedFluidEyeZ]); // Replace color attachement
+          0U, this->TexBuffer[SmoothedFluidEyeZ]); // Replace color attachment
         this->FBFilterDepth->ActivateDrawBuffers(1);
         this->FBFilterDepth->CheckFrameBufferStatus(GL_FRAMEBUFFER);
         glState->vtkglClearDepth(1.0);
@@ -612,7 +610,6 @@ void vtkOpenGLFluidMapper::Render(vtkRenderer* renderer, vtkVolume* vol)
   }
 
   // Compute normal for the filtered depth surface
-  if (true)
   {
     if (!this->QuadFluidNormal)
     {

@@ -81,7 +81,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPNGReader.h"
 #include "vtkPNGWriter.h"
 #include "vtkPNMWriter.h"
-#include "vtkPVConfig.h"
 #include "vtkPVServerInformation.h"
 #include "vtkProcessModule.h"
 #include "vtkRenderWindow.h"
@@ -295,7 +294,7 @@ bool pqCoreTestUtility::CompareImage(QWidget* widget, const QString& referenceIm
   // try to locate a pqView, if any associated with the QWidget.
   QList<pqView*> views =
     pqApplicationCore::instance()->getServerManagerModel()->findItems<pqView*>();
-  foreach (pqView* view, views)
+  Q_FOREACH (pqView* view, views)
   {
     if (view && (view->widget() == widget))
     {

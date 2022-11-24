@@ -50,6 +50,13 @@
  * already exists, "inserting" will overwrite existing values, rather than shift
  * the array contents and insert the new data at the specified location.
  *
+ * If code is modifying contents of an existing array, it is
+ * required that one calls `vtkAbstractArray::Modified()` explicitly
+ * after the modifications to the contents are completed.
+ * APIs like `SetTuple` etc. don't call `Modified` to avoid performance hits.
+ * Unless `Modified` is called, various cached entities, like array range,
+ * map created for `LookupValue` may become obsolete and yield incorrect results.
+ *
  * @sa
  * vtkDataArray vtkStringArray vtkCellArray
  */
@@ -58,6 +65,7 @@
 #define vtkAbstractArray_h
 
 #include "vtkCommonCoreModule.h" // For export macro
+#include "vtkIdList.h"           // For InsertTuples
 #include "vtkObject.h"
 #include "vtkVariant.h" // for variant arguments
 
@@ -144,7 +152,7 @@ public:
   bool HasAComponentName() const;
 
   /**
-   * Copies the component names from the inputed array to the current array
+   * Copies the component names from the inputted array to the current array
    * make sure that the current array has the same number of components as the input array
    */
   int CopyComponentNames(vtkAbstractArray* da);
@@ -201,6 +209,14 @@ public:
    * Note that memory allocation is performed as necessary to hold the data.
    */
   virtual void InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source) = 0;
+
+  /**
+   * Copy the tuples indexed in srcIds from the source array to the tuple
+   * locations starting at index dstStart.
+   * Note that memory allocation is performed as necessary to hold the data.
+   */
+  virtual void InsertTuplesStartingAt(
+    vtkIdType dstStart, vtkIdList* srcIds, vtkAbstractArray* source) = 0;
 
   /**
    * Copy n consecutive tuples starting at srcStart from the source array to
@@ -388,7 +404,7 @@ public:
   /**
    * Get the name of a data type as a string.
    */
-  virtual const char* GetDataTypeAsString(void) const
+  virtual const char* GetDataTypeAsString() const
   {
     return vtkImageScalarTypeNameMacro(this->GetDataType());
   }
@@ -397,7 +413,7 @@ public:
    * Creates an array for dataType where dataType is one of
    * VTK_BIT, VTK_CHAR, VTK_UNSIGNED_CHAR, VTK_SHORT,
    * VTK_UNSIGNED_SHORT, VTK_INT, VTK_UNSIGNED_INT, VTK_LONG,
-   * VTK_UNSIGNED_LONG, VTK_DOUBLE, VTK_DOUBLE, VTK_ID_TYPE,
+   * VTK_UNSIGNED_LONG, VTK_FLOAT, VTK_DOUBLE, VTK_ID_TYPE,
    * VTK_STRING.
    * Note that the data array returned has to be deleted by the
    * user.
@@ -432,6 +448,10 @@ public:
   ///@{
   /**
    * Return the value indices where a specific value appears.
+   *
+   * @warning Make sure that the lookup structure is not outdated. Calls
+   * to `Modified` should be done appropriately so the array knows
+   * when to update its lookup structure.
    */
   virtual vtkIdType LookupValue(vtkVariant value) = 0;
   virtual void LookupValue(vtkVariant value, vtkIdList* valueIds) = 0;
@@ -648,6 +668,11 @@ public:
    * vtkArrayDownCast.
    */
   virtual int GetArrayType() const { return AbstractArray; }
+
+  /**
+   * Get the name for the array type as string
+   */
+  const char* GetArrayTypeAsString() const;
 
 protected:
   // Construct object with default tuple dimension (number of components) of 1.

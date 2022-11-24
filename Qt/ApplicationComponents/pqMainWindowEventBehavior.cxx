@@ -105,9 +105,9 @@ void pqMainWindowEventBehavior::onDrop(QDropEvent* event)
     return;
   }
 
-  QList<QString> files;
+  QStringList files;
 
-  foreach (QUrl url, urls)
+  Q_FOREACH (QUrl url, urls)
   {
     if (!url.toLocalFile().isEmpty())
     {
@@ -128,5 +128,5 @@ void pqMainWindowEventBehavior::onDrop(QDropEvent* event)
   {
     return;
   }
-  pqLoadDataReaction::loadData(files);
+  pqLoadDataReaction::loadFilesForSupportedTypes({ files });
 }

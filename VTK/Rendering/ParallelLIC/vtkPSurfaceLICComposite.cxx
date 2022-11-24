@@ -447,7 +447,7 @@ int vtkPSurfaceLICComposite::AllReduceVectorMax(
   for (int r = 0; r < this->CommSize; ++r)
   {
     // check the intersection of each new extent with that of each
-    // original extent. data for origial extent is local.
+    // original extent. data for original extent is local.
     size_t nNew = newExts[r].size();
     tmpMax[r].resize(nNew, -VTK_FLOAT_MAX);
     for (size_t n = 0; n < nNew; ++n)
@@ -741,18 +741,18 @@ int vtkPSurfaceLICComposite::MakeDecompDisjoint(
   // accumulate contrib from remote data
   size_t remSize = 4 * ne;
   vector<int> rem(remSize);
-  int* pRem = ne ? &rem[0] : nullptr;
+  int* pRem = ne ? rem.data() : nullptr;
   for (size_t e = 0; e < ne; ++e, pRem += 4)
   {
     tmpOut1[e].second.GetData(pRem);
   }
   MPI_Comm comm = *(static_cast<MPI_Comm*>(this->PainterComm->GetCommunicator()));
   MPI_Op parUnion = this->PixelOps->GetUnion();
-  MPI_Allreduce(MPI_IN_PLACE, ne ? &rem[0] : nullptr, (int)remSize, MPI_INT, parUnion, comm);
+  MPI_Allreduce(MPI_IN_PLACE, ne ? rem.data() : nullptr, (int)remSize, MPI_INT, parUnion, comm);
 
   // move from flat order back to rank indexed order and remove
   // empty extents
-  pRem = ne ? &rem[0] : nullptr;
+  pRem = ne ? rem.data() : nullptr;
   out.resize(this->CommSize);
   for (size_t e = 0; e < ne; ++e, pRem += 4)
   {
@@ -1136,7 +1136,7 @@ int vtkPSurfaceLICComposite::Gather(
   cerr << "=====vtkPSurfaceLICComposite::Composite" << endl;
 #endif
 
-  // two pipleines depending on if this process recv's or send's
+  // two pipelines depending on if this process recv's or send's
   //
   // send:
   // tex -> pbo -> mpi_send
@@ -1345,7 +1345,7 @@ int vtkPSurfaceLICComposite::Gather(
     // wait for the completion of one of the recvs
     MPI_Status stat;
     int reqId;
-    int iErr = MPI_Waitany(nRecvReqs, &mpiRecvReqs[0], &reqId, &stat);
+    int iErr = MPI_Waitany(nRecvReqs, mpiRecvReqs.data(), &reqId, &stat);
     if (iErr)
     {
       vtkErrorMacro("comm error in recv");
@@ -1418,7 +1418,7 @@ int vtkPSurfaceLICComposite::Gather(
   int nSendReqs = static_cast<int>(mpiSendReqs.size());
   if (nSendReqs)
   {
-    int iErr = MPI_Waitall(nSendReqs, &mpiSendReqs[0], MPI_STATUSES_IGNORE);
+    int iErr = MPI_Waitall(nSendReqs, mpiSendReqs.data(), MPI_STATUSES_IGNORE);
     if (iErr)
     {
       vtkErrorMacro("comm error in send");
@@ -1470,7 +1470,7 @@ int vtkPSurfaceLICComposite::Scatter(
 #endif
 
   int iErr = 0;
-  // two pipleines depending on if this process recv's or send's
+  // two pipelines depending on if this process recv's or send's
   //
   // send:
   // tex -> pbo -> mpi_send
@@ -1595,7 +1595,7 @@ int vtkPSurfaceLICComposite::Scatter(
   int nRecvReqs = static_cast<int>(mpiRecvReqs.size());
   if (nRecvReqs)
   {
-    iErr = MPI_Waitall(nRecvReqs, &mpiRecvReqs[0], MPI_STATUSES_IGNORE);
+    iErr = MPI_Waitall(nRecvReqs, mpiRecvReqs.data(), MPI_STATUSES_IGNORE);
     if (iErr)
     {
       vtkErrorMacro("comm error in recv");
@@ -1635,7 +1635,7 @@ int vtkPSurfaceLICComposite::Scatter(
   int nSendReqs = static_cast<int>(mpiSendReqs.size());
   if (nSendReqs)
   {
-    iErr = MPI_Waitall(nSendReqs, &mpiSendReqs[0], MPI_STATUSES_IGNORE);
+    iErr = MPI_Waitall(nSendReqs, mpiSendReqs.data(), MPI_STATUSES_IGNORE);
     if (iErr)
     {
       vtkErrorMacro("comm error in send");

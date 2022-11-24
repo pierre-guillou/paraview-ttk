@@ -23,11 +23,14 @@
 #include <cmath>
 
 #define vtk_assert(x)                                                                              \
-  if (!(x))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "On line " << __LINE__ << " ERROR: Condition FAILED!! : " << #x << endl;               \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (!(x))                                                                                      \
+    {                                                                                              \
+      cerr << "On line " << __LINE__ << " ERROR: Condition FAILED!! : " << #x << endl;             \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 int TestOutput(vtkMultiBlockDataSet* mb, double size)
 {
@@ -73,7 +76,7 @@ int TestCGNSUnsteadyGrid(int argc, char* argv[])
   std::string grids = fname ? fname : "";
   delete[] fname;
 
-  cout << "Opening " << grids.c_str() << endl;
+  cout << "Opening " << grids << endl;
   vtkNew<vtkCGNSReader> gridsReader;
   gridsReader->SetFileName(grids.c_str());
   gridsReader->Update();

@@ -25,6 +25,7 @@
 #ifndef vtkQWidgetRepresentation_h
 #define vtkQWidgetRepresentation_h
 
+#include "vtkDeprecation.h"        // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkGUISupportQtModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
 
@@ -63,7 +64,7 @@ public:
    * Satisfies the superclass API.  This will change the state of the widget
    * to match changes that have been made to the underlying PolyDataSource
    */
-  void UpdatePlacement(void);
+  void UpdatePlacement();
 
   ///@{
   /**
@@ -88,11 +89,15 @@ public:
   ///@}
 
   // Manage the state of the widget
-  enum _InteractionState
+  enum InteractionStateType
   {
     Outside = 0,
     Inside
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef InteractionStateType _InteractionState;
+#endif
 
   ///@{
   /**
@@ -127,13 +132,13 @@ public:
    * Get the widget coordinates as computed in the last call to
    * ComputeComplexInteractionState.
    */
-  vtkGetVector2Macro(WidgetCoordinates, int);
+  vtkGetVector2Macro(WidgetCoordinates, float);
 
 protected:
   vtkQWidgetRepresentation();
   ~vtkQWidgetRepresentation() override;
 
-  int WidgetCoordinates[2];
+  float WidgetCoordinates[2];
 
   vtkPlaneSource* PlaneSource;
   vtkPolyDataMapper* PlaneMapper;

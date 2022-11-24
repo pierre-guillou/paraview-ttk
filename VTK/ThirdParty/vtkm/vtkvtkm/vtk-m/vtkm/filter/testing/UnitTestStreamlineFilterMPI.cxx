@@ -60,6 +60,22 @@ void SetFilter(FilterType& filter,
 
 void TestAMRStreamline(FilterType fType, bool useThreaded)
 {
+  switch (fType)
+  {
+    case PARTICLE_ADVECTION:
+      std::cout << "Particle advection";
+      break;
+    case STREAMLINE:
+      std::cout << "Streamline";
+      break;
+    case PATHLINE:
+      std::cout << "Pathline";
+      break;
+  }
+  if (useThreaded)
+    std::cout << " - using threaded";
+  std::cout << " - on an AMR data set" << std::endl;
+
   auto comm = vtkm::cont::EnvironmentTracker::GetCommunicator();
   if (comm.size() < 2)
     return;
@@ -90,9 +106,9 @@ void TestAMRStreamline(FilterType fType, bool useThreaded)
         {
           //Mark the inner cell as ghost.
           if (i == 4 && j == 4 && k == 4)
-            ghosts[idx] = vtkm::CellClassification::GHOST;
+            ghosts[idx] = vtkm::CellClassification::Ghost;
           else
-            ghosts[idx] = vtkm::CellClassification::NORMAL;
+            ghosts[idx] = vtkm::CellClassification::Normal;
           idx++;
         }
     dsOuter.AddCellField("vtkmGhostCells", ghosts);
@@ -163,13 +179,13 @@ void TestAMRStreamline(FilterType fType, bool useThreaded)
                          "Wrong number of coordinate systems in the output dataset");
         auto coords = ds.GetCoordinateSystem().GetDataAsMultiplexer();
         auto ptPortal = coords.ReadPortal();
-        vtkm::cont::DynamicCellSet dcells = ds.GetCellSet();
+        vtkm::cont::UnknownCellSet dcells = ds.GetCellSet();
 
         VTKM_TEST_ASSERT(dcells.IsType<vtkm::cont::CellSetExplicit<>>(), "Wrong cell type.");
         //The seed that goes through the inner is broken up into two polylines
         //the begining, and then the end.
         VTKM_TEST_ASSERT(dcells.GetNumberOfCells() == numSeeds + 1, "Wrong number of cells.");
-        auto explicitCells = dcells.Cast<vtkm::cont::CellSetExplicit<>>();
+        auto explicitCells = dcells.AsCellSet<vtkm::cont::CellSetExplicit<>>();
         for (vtkm::Id j = 0; j < numSeeds; j++)
         {
           vtkm::cont::ArrayHandle<vtkm::Id> indices;
@@ -206,7 +222,7 @@ void TestAMRStreamline(FilterType fType, bool useThreaded)
 
         VTKM_TEST_ASSERT(dcells.IsType<vtkm::cont::CellSetExplicit<>>(), "Wrong cell type.");
         VTKM_TEST_ASSERT(dcells.GetNumberOfCells() == 1, "Wrong number of cells.");
-        auto explicitCells = dcells.Cast<vtkm::cont::CellSetExplicit<>>();
+        auto explicitCells = dcells.AsCellSet<vtkm::cont::CellSetExplicit<>>();
 
         vtkm::cont::ArrayHandle<vtkm::Id> indices;
         explicitCells.GetIndices(0, indices);
@@ -238,7 +254,7 @@ void TestAMRStreamline(FilterType fType, bool useThreaded)
         auto ds = out.GetPartition(0);
         VTKM_TEST_ASSERT(ds.GetNumberOfCoordinateSystems() == 1,
                          "Wrong number of coordinate systems in the output dataset");
-        vtkm::cont::DynamicCellSet dcells = ds.GetCellSet();
+        vtkm::cont::UnknownCellSet dcells = ds.GetCellSet();
         VTKM_TEST_ASSERT(dcells.IsType<vtkm::cont::CellSetSingleType<>>(), "Wrong cell type.");
 
         auto coords = ds.GetCoordinateSystem().GetDataAsMultiplexer();
@@ -266,7 +282,7 @@ void ValidateOutput(const vtkm::cont::DataSet& out,
   VTKM_TEST_ASSERT(out.GetNumberOfCoordinateSystems() == 1,
                    "Wrong number of coordinate systems in the output dataset");
 
-  vtkm::cont::DynamicCellSet dcells = out.GetCellSet();
+  vtkm::cont::UnknownCellSet dcells = out.GetCellSet();
   VTKM_TEST_ASSERT(dcells.GetNumberOfCells() == numSeeds, "Wrong number of cells");
   auto coords = out.GetCoordinateSystem().GetDataAsMultiplexer();
   auto ptPortal = coords.ReadPortal();
@@ -275,7 +291,7 @@ void ValidateOutput(const vtkm::cont::DataSet& out,
   {
     vtkm::cont::CellSetExplicit<> explicitCells;
     VTKM_TEST_ASSERT(dcells.IsType<vtkm::cont::CellSetExplicit<>>(), "Wrong cell type.");
-    explicitCells = dcells.Cast<vtkm::cont::CellSetExplicit<>>();
+    explicitCells = dcells.AsCellSet<vtkm::cont::CellSetExplicit<>>();
     for (vtkm::Id j = 0; j < numSeeds; j++)
     {
       vtkm::cont::ArrayHandle<vtkm::Id> indices;
@@ -296,6 +312,24 @@ void ValidateOutput(const vtkm::cont::DataSet& out,
 
 void TestPartitionedDataSet(vtkm::Id nPerRank, bool useGhost, FilterType fType, bool useThreaded)
 {
+  switch (fType)
+  {
+    case PARTICLE_ADVECTION:
+      std::cout << "Particle advection";
+      break;
+    case STREAMLINE:
+      std::cout << "Streamline";
+      break;
+    case PATHLINE:
+      std::cout << "Pathline";
+      break;
+  }
+  if (useGhost)
+    std::cout << " - using ghost cells";
+  if (useThreaded)
+    std::cout << " - using threaded";
+  std::cout << " - on a partitioned data set" << std::endl;
+
   auto comm = vtkm::cont::EnvironmentTracker::GetCommunicator();
 
   vtkm::Id numDims = 5;

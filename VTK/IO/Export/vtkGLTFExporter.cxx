@@ -19,7 +19,8 @@
 #include <memory>
 #include <sstream>
 
-#include "vtk_jsoncpp.h"
+#include <vtk_nlohmannjson.h>
+#include VTK_NLOHMANN_JSON(json.hpp)
 
 #include "vtkAssemblyPath.h"
 #include "vtkBase64OutputStream.h"
@@ -91,9 +92,9 @@ vtkPolyData* findPolyData(vtkDataObject* input)
   return nullptr;
 }
 
-void WriteMesh(Json::Value& accessors, Json::Value& buffers, Json::Value& bufferViews,
-  Json::Value& meshes, Json::Value& nodes, vtkPolyData* pd, vtkActor* aPart, const char* fileName,
-  bool inlineData, bool saveNormal, bool saveBatchId)
+void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::json& bufferViews,
+  nlohmann::json& meshes, nlohmann::json& nodes, vtkPolyData* pd, vtkActor* aPart,
+  const char* fileName, bool inlineData, bool saveNormal, bool saveBatchId)
 {
   vtkNew<vtkTriangleFilter> trif;
   trif->SetInputData(pd);
@@ -101,32 +102,32 @@ void WriteMesh(Json::Value& accessors, Json::Value& buffers, Json::Value& buffer
   vtkPolyData* tris = trif->GetOutput();
 
   // write the point locations
-  int pointAccessor = 0;
+  size_t pointAccessor = 0;
   {
     vtkDataArray* da = tris->GetPoints()->GetData();
     vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
 
     // write the accessor
-    Json::Value acc;
+    nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
     acc["byteOffset"] = 0;
     acc["type"] = "VEC3";
     acc["componentType"] = GL_FLOAT;
-    acc["count"] = static_cast<Json::Value::Int64>(da->GetNumberOfTuples());
+    acc["count"] = da->GetNumberOfTuples();
     double range[6];
     tris->GetPoints()->GetBounds(range);
-    Json::Value mins;
-    mins.append(range[0]);
-    mins.append(range[2]);
-    mins.append(range[4]);
-    Json::Value maxs;
-    maxs.append(range[1]);
-    maxs.append(range[3]);
-    maxs.append(range[5]);
+    nlohmann::json mins;
+    mins.emplace_back(range[0]);
+    mins.emplace_back(range[2]);
+    mins.emplace_back(range[4]);
+    nlohmann::json maxs;
+    maxs.emplace_back(range[1]);
+    maxs.emplace_back(range[3]);
+    maxs.emplace_back(range[5]);
     acc["min"] = mins;
     acc["max"] = maxs;
     pointAccessor = accessors.size();
-    accessors.append(acc);
+    accessors.emplace_back(acc);
   }
 
   std::vector<vtkDataArray*> arraysToSave;
@@ -146,45 +147,46 @@ void WriteMesh(Json::Value& accessors, Json::Value& buffers, Json::Value& buffer
       arraysToSave.push_back(a);
     }
   }
-  int userAccessorsStart = accessors.size();
+  size_t userAccessorsStart = accessors.size();
   for (size_t i = 0; i < arraysToSave.size(); ++i)
   {
     vtkDataArray* da = arraysToSave[i];
     vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
 
     // write the accessor
-    Json::Value acc;
+    nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
     acc["byteOffset"] = 0;
     acc["type"] = da->GetNumberOfComponents() == 3 ? "VEC3" : "SCALAR";
     acc["componentType"] = GL_FLOAT;
-    acc["count"] = static_cast<Json::Value::Int64>(da->GetNumberOfTuples());
-    accessors.append(acc);
+    acc["count"] = da->GetNumberOfTuples();
+    accessors.emplace_back(acc);
   }
 
   // if we have vertex colors then write them out
-  int vertColorAccessor = -1;
+  size_t vertColorAccessor = 0;
   aPart->GetMapper()->MapScalars(tris, 1.0);
-  if (aPart->GetMapper()->GetColorMapColors())
+  bool vertColor = aPart->GetMapper()->GetColorMapColors() != nullptr;
+  if (vertColor)
   {
     vtkUnsignedCharArray* da = aPart->GetMapper()->GetColorMapColors();
     vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
 
     // write the accessor
-    Json::Value acc;
+    nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
     acc["byteOffset"] = 0;
     acc["type"] = "VEC4";
     acc["componentType"] = GL_UNSIGNED_BYTE;
     acc["normalized"] = true;
-    acc["count"] = static_cast<Json::Value::Int64>(da->GetNumberOfTuples());
+    acc["count"] = da->GetNumberOfTuples();
     vertColorAccessor = accessors.size();
-    accessors.append(acc);
+    accessors.emplace_back(acc);
   }
 
   // if we have tcoords then write them out
   // first check for colortcoords
-  int tcoordAccessor = -1;
+  size_t tcoordAccessor = 0;
   vtkFloatArray* tcoords = aPart->GetMapper()->GetColorCoordinates();
   if (!tcoords)
   {
@@ -196,143 +198,142 @@ void WriteMesh(Json::Value& accessors, Json::Value& buffers, Json::Value& buffer
     vtkGLTFWriterUtils::WriteBufferAndView(tcoords, fileName, inlineData, buffers, bufferViews);
 
     // write the accessor
-    Json::Value acc;
+    nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
     acc["byteOffset"] = 0;
     acc["type"] = da->GetNumberOfComponents() == 3 ? "VEC3" : "VEC2";
     acc["componentType"] = GL_FLOAT;
     acc["normalized"] = false;
-    acc["count"] = static_cast<Json::Value::Int64>(da->GetNumberOfTuples());
+    acc["count"] = da->GetNumberOfTuples();
     tcoordAccessor = accessors.size();
-    accessors.append(acc);
+    accessors.emplace_back(acc);
   }
 
   // to store the primitives
-  Json::Value prims;
+  nlohmann::json prims;
 
   // write out the verts
   if (tris->GetVerts() && tris->GetVerts()->GetNumberOfCells())
   {
-    Json::Value aprim;
+    nlohmann::json aprim;
     aprim["mode"] = 0;
-    Json::Value attribs;
+    nlohmann::json attribs;
 
     vtkCellArray* da = tris->GetVerts();
-    vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
+    vtkGLTFWriterUtils::WriteCellBufferAndView(da, fileName, inlineData, buffers, bufferViews);
 
     // write the accessor
-    Json::Value acc;
+    nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
     acc["byteOffset"] = 0;
     acc["type"] = "SCALAR";
     acc["componentType"] = GL_UNSIGNED_INT;
-    acc["count"] = static_cast<Json::Value::Int64>(da->GetNumberOfCells());
+    acc["count"] = da->GetNumberOfCells();
     aprim["indices"] = accessors.size();
-    accessors.append(acc);
+    accessors.emplace_back(acc);
 
     attribs["POSITION"] = pointAccessor;
-    int userAccessor = userAccessorsStart;
+    size_t userAccessor = userAccessorsStart;
     for (size_t i = 0; i < arraysToSave.size(); ++i)
     {
       attribs[arraysToSave[i]->GetName()] = userAccessor++;
     }
-    if (vertColorAccessor >= 0)
+    if (vertColor)
     {
       attribs["COLOR_0"] = vertColorAccessor;
     }
-    if (tcoordAccessor >= 0)
+    if (tcoords)
     {
       attribs["TEXCOORD_0"] = tcoordAccessor;
     }
     aprim["attributes"] = attribs;
-    prims.append(aprim);
+    prims.emplace_back(aprim);
   }
 
   // write out the lines
   if (tris->GetLines() && tris->GetLines()->GetNumberOfCells())
   {
-    Json::Value aprim;
+    nlohmann::json aprim;
     aprim["mode"] = 1;
-    Json::Value attribs;
+    nlohmann::json attribs;
 
     vtkCellArray* da = tris->GetLines();
-    vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
+    vtkGLTFWriterUtils::WriteCellBufferAndView(da, fileName, inlineData, buffers, bufferViews);
 
     // write the accessor
-    Json::Value acc;
+    nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
     acc["byteOffset"] = 0;
     acc["type"] = "SCALAR";
     acc["componentType"] = GL_UNSIGNED_INT;
-    acc["count"] = static_cast<Json::Value::Int64>(da->GetNumberOfCells() * 2);
+    acc["count"] = da->GetNumberOfCells() * 2;
     aprim["indices"] = accessors.size();
-    accessors.append(acc);
+    accessors.emplace_back(acc);
 
     attribs["POSITION"] = pointAccessor;
-    int userAccessor = userAccessorsStart;
+    size_t userAccessor = userAccessorsStart;
     for (size_t i = 0; i < arraysToSave.size(); ++i)
     {
       attribs[arraysToSave[i]->GetName()] = userAccessor++;
     }
-    if (vertColorAccessor >= 0)
+    if (vertColor)
     {
       attribs["COLOR_0"] = vertColorAccessor;
     }
-    if (tcoordAccessor >= 0)
+    if (tcoords)
     {
       attribs["TEXCOORD_0"] = tcoordAccessor;
     }
     aprim["attributes"] = attribs;
-    prims.append(aprim);
+    prims.emplace_back(aprim);
   }
 
   // write out the triangles
   if (tris->GetPolys() && tris->GetPolys()->GetNumberOfCells())
   {
-    Json::Value aprim;
+    nlohmann::json aprim;
     aprim["mode"] = 4;
-    Json::Value attribs;
+    nlohmann::json attribs;
 
     vtkCellArray* da = tris->GetPolys();
-    vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
+    vtkGLTFWriterUtils::WriteCellBufferAndView(da, fileName, inlineData, buffers, bufferViews);
 
     // write the accessor
-    Json::Value acc;
+    nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
     acc["byteOffset"] = 0;
     acc["type"] = "SCALAR";
     acc["componentType"] = GL_UNSIGNED_INT;
-    acc["count"] = static_cast<Json::Value::Int64>(da->GetNumberOfCells() * 3);
+    acc["count"] = da->GetNumberOfCells() * 3;
     aprim["indices"] = accessors.size();
-    accessors.append(acc);
+    accessors.emplace_back(acc);
 
     attribs["POSITION"] = pointAccessor;
-    int userAccessor = userAccessorsStart;
+    size_t userAccessor = userAccessorsStart;
     for (size_t i = 0; i < arraysToSave.size(); ++i)
     {
       attribs[arraysToSave[i]->GetName()] = userAccessor++;
     }
-    if (vertColorAccessor >= 0)
+    if (vertColor)
     {
       attribs["COLOR_0"] = vertColorAccessor;
     }
-    if (tcoordAccessor >= 0)
+    if (tcoords)
     {
       attribs["TEXCOORD_0"] = tcoordAccessor;
     }
     aprim["attributes"] = attribs;
-    prims.append(aprim);
+    prims.emplace_back(aprim);
   }
 
-  Json::Value amesh;
-  char meshNameBuffer[32];
-  sprintf(meshNameBuffer, "mesh%d", meshes.size());
-  amesh["name"] = meshNameBuffer;
+  nlohmann::json amesh;
+  std::string meshName = "mesh" + std::to_string(meshes.size());
+  amesh["name"] = meshName;
   amesh["primitives"] = prims;
-  meshes.append(amesh);
+  meshes.emplace_back(amesh);
 
   // write out an actor
-  Json::Value child;
+  nlohmann::json child;
   vtkMatrix4x4* amat = aPart->GetMatrix();
   if (!amat->IsIdentity())
   {
@@ -340,20 +341,20 @@ void WriteMesh(Json::Value& accessors, Json::Value& buffers, Json::Value& buffer
     {
       for (int j = 0; j < 4; ++j)
       {
-        child["matrix"].append(amat->GetElement(j, i));
+        child["matrix"].emplace_back(amat->GetElement(j, i));
       }
     }
   }
   child["mesh"] = meshes.size() - 1;
-  child["name"] = meshNameBuffer;
-  nodes.append(child);
+  child["name"] = meshName;
+  nodes.emplace_back(child);
 }
 
-void WriteCamera(Json::Value& cameras, vtkRenderer* ren)
+void WriteCamera(nlohmann::json& cameras, vtkRenderer* ren)
 {
   vtkCamera* cam = ren->GetActiveCamera();
-  Json::Value acamera;
-  Json::Value camValues;
+  nlohmann::json acamera;
+  nlohmann::json camValues;
   camValues["znear"] = cam->GetClippingRange()[0];
   camValues["zfar"] = cam->GetClippingRange()[1];
   if (cam->GetParallelProjection())
@@ -370,12 +371,12 @@ void WriteCamera(Json::Value& cameras, vtkRenderer* ren)
     camValues["aspectRatio"] = ren->GetTiledAspectRatio();
     acamera["perspective"] = camValues;
   }
-  cameras.append(acamera);
+  cameras.emplace_back(acamera);
 }
 
-void WriteTexture(Json::Value& buffers, Json::Value& bufferViews, Json::Value& textures,
-  Json::Value& samplers, Json::Value& images, vtkPolyData* pd, vtkActor* aPart,
-  const char* fileName, bool inlineData, std::map<vtkUnsignedCharArray*, unsigned int>& textureMap)
+void WriteTexture(nlohmann::json& buffers, nlohmann::json& bufferViews, nlohmann::json& textures,
+  nlohmann::json& samplers, nlohmann::json& images, vtkPolyData* pd, vtkActor* aPart,
+  const char* fileName, bool inlineData, std::map<vtkUnsignedCharArray*, size_t>& textureMap)
 {
   // do we have a texture
   aPart->GetMapper()->MapScalars(pd, 1.0);
@@ -397,7 +398,7 @@ void WriteTexture(Json::Value& buffers, Json::Value& bufferViews, Json::Value& t
     return;
   }
 
-  unsigned int textureSource = 0;
+  size_t textureSource = 0;
 
   if (textureMap.find(da) == textureMap.end())
   {
@@ -421,10 +422,10 @@ void WriteTexture(Json::Value& buffers, Json::Value& bufferViews, Json::Value& t
     vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
 
     // write the image
-    Json::Value img;
+    nlohmann::json img;
     img["bufferView"] = bufferViews.size() - 1;
     img["mimeType"] = "image/png";
-    images.append(img);
+    images.emplace_back(img);
 
     textureSource = images.size() - 1;
   }
@@ -434,7 +435,7 @@ void WriteTexture(Json::Value& buffers, Json::Value& bufferViews, Json::Value& t
   }
 
   // write the sampler
-  Json::Value smp;
+  nlohmann::json smp;
   smp["magFilter"] = GL_NEAREST;
   smp["minFilter"] = GL_NEAREST;
   smp["wrapS"] = GL_CLAMP_TO_EDGE;
@@ -446,22 +447,23 @@ void WriteTexture(Json::Value& buffers, Json::Value& bufferViews, Json::Value& t
     smp["magFilter"] = t->GetInterpolate() ? GL_LINEAR : GL_NEAREST;
     smp["minFilter"] = t->GetInterpolate() ? GL_LINEAR : GL_NEAREST;
   }
-  samplers.append(smp);
+  samplers.emplace_back(smp);
 
-  Json::Value texture;
+  nlohmann::json texture;
   texture["source"] = textureSource;
   texture["sampler"] = samplers.size() - 1;
-  textures.append(texture);
+  textures.emplace_back(texture);
 }
 
-void WriteMaterial(Json::Value& materials, int textureIndex, bool haveTexture, vtkActor* aPart)
+void WriteMaterial(
+  nlohmann::json& materials, size_t textureIndex, bool haveTexture, vtkActor* aPart)
 {
-  Json::Value mat;
-  Json::Value model;
+  nlohmann::json mat;
+  nlohmann::json model;
 
   if (haveTexture)
   {
-    Json::Value tex;
+    nlohmann::json tex;
     tex["texCoord"] = 0; // TEXCOORD_0
     tex["index"] = textureIndex;
     model["baseColorTexture"] = tex;
@@ -470,14 +472,22 @@ void WriteMaterial(Json::Value& materials, int textureIndex, bool haveTexture, v
   vtkProperty* prop = aPart->GetProperty();
   double dcolor[3];
   prop->GetDiffuseColor(dcolor);
-  model["baseColorFactor"].append(dcolor[0]);
-  model["baseColorFactor"].append(dcolor[1]);
-  model["baseColorFactor"].append(dcolor[2]);
-  model["baseColorFactor"].append(prop->GetOpacity());
-  model["metallicFactor"] = prop->GetSpecular();
-  model["roughnessFactor"] = 1.0 / (1.0 + prop->GetSpecular() * 0.2 * prop->GetSpecularPower());
+  model["baseColorFactor"].emplace_back(dcolor[0]);
+  model["baseColorFactor"].emplace_back(dcolor[1]);
+  model["baseColorFactor"].emplace_back(dcolor[2]);
+  model["baseColorFactor"].emplace_back(prop->GetOpacity());
+  if (prop->GetInterpolation() == VTK_PBR)
+  {
+    model["metallicFactor"] = prop->GetMetallic();
+    model["roughnessFactor"] = prop->GetRoughness();
+  }
+  else
+  {
+    model["metallicFactor"] = prop->GetSpecular();
+    model["roughnessFactor"] = 1.0 / (1.0 + prop->GetSpecular() * 0.2 * prop->GetSpecularPower());
+  }
   mat["pbrMetallicRoughness"] = model;
-  materials.append(mat);
+  materials.emplace_back(mat);
 }
 
 }
@@ -516,21 +526,21 @@ void vtkGLTFExporter::WriteData()
 
 void vtkGLTFExporter::WriteToStream(ostream& output)
 {
-  Json::Value cameras;
-  Json::Value bufferViews;
-  Json::Value buffers;
-  Json::Value accessors;
-  Json::Value nodes;
-  Json::Value meshes;
-  Json::Value textures;
-  Json::Value images;
-  Json::Value samplers;
-  Json::Value materials;
+  nlohmann::json cameras;
+  nlohmann::json bufferViews;
+  nlohmann::json buffers;
+  nlohmann::json accessors;
+  nlohmann::json nodes;
+  nlohmann::json meshes;
+  nlohmann::json textures;
+  nlohmann::json images;
+  nlohmann::json samplers;
+  nlohmann::json materials;
 
-  std::vector<unsigned int> topNodes;
+  std::vector<size_t> topNodes;
 
   // support sharing texture maps
-  std::map<vtkUnsignedCharArray*, unsigned int> textureMap;
+  std::map<vtkUnsignedCharArray*, size_t> textureMap;
 
   for (auto ren : vtk::Range(this->RenderWindow->GetRenderers()))
   {
@@ -545,20 +555,26 @@ void vtkGLTFExporter::WriteToStream(ostream& output)
     }
 
     // setup the camera data in case we need to use it later
-    Json::Value anode;
+    // the glTF "nodes" list stores global transformations for objects in the
+    // scene, so we need to invert the ModelViewTransformMatrix of the camera
+    // (by a copy, to avoid mutating the renderer's camera)
+    nlohmann::json anode;
     anode["camera"] = cameras.size(); // camera node
     vtkMatrix4x4* mat = ren->GetActiveCamera()->GetModelViewTransformMatrix();
+    vtkNew<vtkMatrix4x4> inv;
+    inv->DeepCopy(mat);
+    inv->Invert();
     for (int i = 0; i < 4; ++i)
     {
       for (int j = 0; j < 4; ++j)
       {
-        anode["matrix"].append(mat->GetElement(j, i));
+        anode["matrix"].emplace_back(inv->GetElement(j, i));
       }
     }
     anode["name"] = "Camera Node";
 
     // setup renderer group node
-    Json::Value rendererNode;
+    nlohmann::json rendererNode;
     rendererNode["name"] = "Renderer Node";
 
     vtkPropCollection* pc;
@@ -593,8 +609,8 @@ void vtkGLTFExporter::WriteToStream(ostream& output)
               foundVisibleProp = true;
               WriteMesh(accessors, buffers, bufferViews, meshes, nodes, pd, aPart, this->FileName,
                 this->InlineData, this->SaveNormal, this->SaveBatchId);
-              rendererNode["children"].append(nodes.size() - 1);
-              unsigned int oldTextureCount = textures.size();
+              rendererNode["children"].emplace_back(nodes.size() - 1);
+              size_t oldTextureCount = textures.size();
               WriteTexture(buffers, bufferViews, textures, samplers, images, pd, aPart,
                 this->FileName, this->InlineData, textureMap);
               meshes[meshes.size() - 1]["primitives"][0]["material"] = materials.size();
@@ -608,15 +624,15 @@ void vtkGLTFExporter::WriteToStream(ostream& output)
     if (foundVisibleProp)
     {
       WriteCamera(cameras, ren);
-      nodes.append(anode);
-      rendererNode["children"].append(nodes.size() - 1);
-      nodes.append(rendererNode);
+      nodes.emplace_back(anode);
+      rendererNode["children"].emplace_back(nodes.size() - 1);
+      nodes.emplace_back(rendererNode);
       topNodes.push_back(nodes.size() - 1);
     }
   }
 
-  Json::Value root;
-  Json::Value asset;
+  nlohmann::json root;
+  nlohmann::json asset;
   asset["generator"] = "VTK";
   asset["version"] = "2.0";
   root["asset"] = asset;
@@ -636,23 +652,18 @@ void vtkGLTFExporter::WriteToStream(ostream& output)
     root["samplers"] = samplers;
   root["materials"] = materials;
 
-  Json::Value ascene;
+  nlohmann::json ascene;
   ascene["name"] = "Layer 0";
-  Json::Value noderefs;
+  nlohmann::json noderefs;
   for (auto i : topNodes)
   {
-    noderefs.append(i);
+    noderefs.emplace_back(i);
   }
   ascene["nodes"] = noderefs;
-  Json::Value scenes;
-  scenes.append(ascene);
+  nlohmann::json scenes;
+  scenes.emplace_back(ascene);
   root["scenes"] = scenes;
-
-  Json::StreamWriterBuilder builder;
-  builder["commentStyle"] = "None";
-  builder["indentation"] = "   ";
-  std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
-  writer->write(root, &output);
+  output << root;
 }
 
 void vtkGLTFExporter::PrintSelf(ostream& os, vtkIndent indent)

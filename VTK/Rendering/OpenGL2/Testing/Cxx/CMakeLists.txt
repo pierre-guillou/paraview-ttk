@@ -36,6 +36,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestFXAAFilter.cxx
   TestFXAAPass.cxx
   TestFXAAWithEDLPass.cxx
+  TestFlipRenderFramebuffer.cxx
   TestFloor.cxx
   TestFluidMapper.cxx
   TestFramebufferHDR.cxx
@@ -62,6 +63,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestPBREdgeTint.cxx
   TestPBRHdrEnvironment.cxx
   TestPBRAnisotropy.cxx
+  TestPBRColorMultiplier.cxx
   TestPBRIrradianceHDR.cxx
   TestPBRMapping.cxx
   TestPBRMaterials.cxx
@@ -70,6 +72,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestPointGaussianMapper.cxx
   TestPointGaussianMapperOpacity.cxx
   TestPointGaussianSelection.cxx,NO_DATA
+  TestProgramPointSize.cxx
   TestPropPicker2Renderers.cxx,NO_DATA
   TestRemoveActorNonCurrentContext.cxx
   TestRenderToImage.cxx
@@ -104,4 +107,7 @@ if (VTK_USE_SDL2)
   vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests TestSDL2.cxx)
 endif ()
 
-vtk_test_cxx_executable(vtkRenderingOpenGL2CxxTests tests RENDERING_FACTORY)
+vtk_test_cxx_executable(vtkRenderingOpenGL2CxxTests tests
+  DISABLE_FLOATING_POINT_EXCEPTIONS
+  RENDERING_FACTORY
+  )

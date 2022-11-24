@@ -14,17 +14,16 @@
 =========================================================================*/
 #include "vtkPointData.h"
 
+#include "vtkDataSetAttributes.h"
 #include "vtkObjectFactory.h"
 
 vtkStandardNewMacro(vtkPointData);
 vtkStandardExtendedNewMacro(vtkPointData);
 
 //------------------------------------------------------------------------------
-void vtkPointData::NullPoint(vtkIdType ptId)
+vtkPointData::vtkPointData()
 {
-  VTK_LEGACY_REPLACED_BODY(
-    vtkPointData::NullPoint(vtkIdType), "VTK 9.1", vtkFieldData::NullData(vtkIdType));
-  this->NullData(ptId);
+  this->GhostsToSkip = vtkDataSetAttributes::HIDDENPOINT;
 }
 
 //------------------------------------------------------------------------------

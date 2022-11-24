@@ -30,7 +30,6 @@
 #include "vtkDataSetSurfaceFilter.h"
 #include "vtkDoubleArray.h"
 #include "vtkExecutive.h"
-#include "vtkExtractCTHPart.h"
 #include "vtkGarbageCollector.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
@@ -608,13 +607,14 @@ bool vtkExtractCTHPart::ExtractContourOnBlock(
 {
   assert(arrayName != nullptr && arrayName[0] != 0 && dataset != nullptr);
 
-  vtkDataArray* volumeFractionArray = dataset->GetPointData()->GetArray(arrayName);
-  assert(volumeFractionArray != nullptr);
-  assert(dataset->GetPointData()->GetArray(arrayName) != nullptr);
+  vtkPointData* pd = dataset->GetPointData();
 
   // Contour only if necessary.
   double range[2];
-  volumeFractionArray->GetRange(range);
+  if (!pd->GetRange(arrayName, range))
+  {
+    return false;
+  }
   if (range[1] < this->VolumeFractionSurfaceValueInternal)
   {
     // this block doesn't have the material of interest.
@@ -877,7 +877,8 @@ bool vtkExtractCTHPart::ExtractClippedVolumeOnBlock(
 {
   assert(arrayName != nullptr && arrayName[0] != 0 && dataset != nullptr);
 
-  vtkDataArray* volumeFractionArray = dataset->GetCellData()->GetArray(arrayName);
+  vtkCellData* cd = dataset->GetCellData();
+  vtkDataArray* volumeFractionArray = cd->GetArray(arrayName);
   if (!volumeFractionArray)
   {
     // skip this block.
@@ -899,7 +900,10 @@ bool vtkExtractCTHPart::ExtractClippedVolumeOnBlock(
 
   // clip volume only if necessary.
   double range[2];
-  volumeFractionArray->GetRange(range);
+  if (!cd->GetRange(arrayName, range))
+  {
+    return false;
+  }
   if (range[0] > this->VolumeFractionSurfaceValueInternal ||
     range[1] < this->VolumeFractionSurfaceValueInternal)
   {
@@ -1322,7 +1326,7 @@ void vtkExtractCTHPart::PrintSelf(ostream& os, vtkIndent indent)
   for (it = this->Internals->VolumeArrayNames.begin();
        it != this->Internals->VolumeArrayNames.end(); ++it)
   {
-    os << i2 << it->c_str() << endl;
+    os << i2 << *it << endl;
   }
   os << indent << "VolumeFractionSurfaceValue: " << this->VolumeFractionSurfaceValue << endl;
   os << indent << "Capping: " << this->Capping << endl;

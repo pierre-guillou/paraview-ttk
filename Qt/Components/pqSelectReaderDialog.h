@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqSelectReaderDialog_h
-#define _pqSelectReaderDialog_h
+#ifndef pqSelectReaderDialog_h
+#define pqSelectReaderDialog_h
 
 #include "pqComponentsModule.h"
 #include <QDialog>
@@ -52,9 +52,9 @@ public:
    * constructor
    */
   pqSelectReaderDialog(
-    const QString& file, pqServer* s, vtkSMReaderFactory* factory, QWidget* p = 0);
+    const QString& file, pqServer* s, vtkSMReaderFactory* factory, QWidget* p = nullptr);
 
-  pqSelectReaderDialog(const QString& file, pqServer* s, vtkStringList* list, QWidget* p = 0);
+  pqSelectReaderDialog(const QString& file, pqServer* s, vtkStringList* list, QWidget* p = nullptr);
   /**
    * destructor
    */
@@ -69,6 +69,11 @@ public:
    * get the group for the chosen reader.
    */
   QString getGroup() const;
+
+  /**
+   * Check if the user clicked the "Set reader as default" button
+   */
+  bool isSetAsDefault() const;
 
 protected:
   class pqInternal;

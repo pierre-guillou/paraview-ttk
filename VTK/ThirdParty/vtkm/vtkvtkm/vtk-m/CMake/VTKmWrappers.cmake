@@ -59,6 +59,51 @@ function(vtkm_pyexpander_generated_file generated_file_name)
 endfunction(vtkm_pyexpander_generated_file)
 
 #-----------------------------------------------------------------------------
+# Internal function that parses a C++ header file and extract explicit
+# template instantiations.
+#
+# USAGE:
+#
+# _vtkm_extract_instantiations(
+#   instantiations   # Out: List of instantiations (; are escaped to $)
+#   filter_header    # In:  The path of the header file to parse.
+#   )
+#
+function(_vtkm_extract_instantiations instantiations filter_header)
+  file(STRINGS "${filter_header}" read_file)
+
+  foreach(line ${read_file})
+    if("${line}" MATCHES "VTKM_INSTANTIATION_BEGIN")
+      set(buf "")
+    endif()
+
+    # Escape semicolon to zip line in list
+    string(REPLACE ";" "$" line "${line}")
+    list(APPEND buf ${line})
+
+    if("${line}" MATCHES "VTKM_INSTANTIATION_END")
+      list(JOIN buf "\n" buf)
+
+      # Extract, prepare, and store the instantiation
+      if(${buf} MATCHES
+          "VTKM_INSTANTIATION_BEGIN(.*)VTKM_INSTANTIATION_END")
+
+        set(buf ${CMAKE_MATCH_1})
+
+        # Remove heading and trailing spaces and newlines
+        string(REGEX REPLACE "(^[ \n]+)|([ \n]+$)|([ ]*extern[ ]*)" "" buf ${buf})
+        string(REPLACE "_TEMPLATE_EXPORT" "_EXPORT" buf ${buf})
+
+        list(APPEND _instantiations ${buf})
+      endif()
+    endif()
+
+  endforeach(line)
+
+  set(${instantiations} "${_instantiations}" PARENT_SCOPE)
+endfunction(_vtkm_extract_instantiations)
+
+#-----------------------------------------------------------------------------
 function(vtkm_generate_export_header lib_name)
   # Get the location of this library in the directory structure
   # export headers work on the directory structure more than the lib_name
@@ -267,7 +312,15 @@ endfunction()
 #
 #  DEVICE_SOURCES: The collection of source files that are used by `target(s)` that
 #  need to be marked as going to a special compiler for certain device adapters
-#  such as CUDA.
+#  such as CUDA. A source file generally needs to be in DEVICE_SOURCES if (and
+#  usually only if) it includes vtkm/cont/DeviceAdapterAlgorithm.h (either directly
+#  or indirectly). The most common code to include DeviceAdapterAlgorithm.h are
+#  those that use vtkm::cont::Algorithm or those that define worklets. Templated
+#  code that does computation often links to device adapter algorithms. Some
+#  device adapters that require a special compiler for device code will check in
+#  their headers that a device compiler is being used when it is needed. Such
+#  errors can be corrected by adding the source code to `DEVICE_SOURCES` (or
+#  removing the dependence on device algorithm when possible).
 #
 #  EXTENDS_VTKM: Some programming models have restrictions on how types can be used,
 #  passed across library boundaries, and derived from.
@@ -316,10 +369,10 @@ function(vtkm_add_target_information uses_vtkm_target)
   endforeach()
 
   # set the required target properties
-  set_target_properties(${targets} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-  set_target_properties(${targets} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-  # CUDA_ARCHITECTURES added in CMake 3.18
-  set_target_properties(${targets} PROPERTIES CUDA_ARCHITECTURES OFF)
+  if(NOT VTKm_NO_DEPRECATED_VIRTUAL)
+    set_target_properties(${targets} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    set_target_properties(${targets} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+  endif()
 
   if(VTKm_TI_DROP_UNUSED_SYMBOLS)
     foreach(target IN LISTS targets)
@@ -331,6 +384,7 @@ function(vtkm_add_target_information uses_vtkm_target)
     set_source_files_properties(${VTKm_TI_DEVICE_SOURCES} PROPERTIES LANGUAGE "CUDA")
   elseif(TARGET vtkm::kokkos_hip)
     set_source_files_properties(${VTKm_TI_DEVICE_SOURCES} PROPERTIES LANGUAGE "HIP")
+    kokkos_compilation(SOURCE ${VTKm_TI_DEVICE_SOURCES})
   endif()
 
   # Validate that following:
@@ -340,7 +394,7 @@ function(vtkm_add_target_information uses_vtkm_target)
   #
   # This is required as CUDA currently doesn't support device side calls across
   # dynamic library boundaries.
-  if((TARGET vtkm::cuda) OR (TARGET vtkm::kokkos_cuda))
+  if((NOT VTKm_NO_DEPRECATED_VIRTUAL) AND ((TARGET vtkm::cuda) OR (TARGET vtkm::kokkos_cuda)))
     foreach(target IN LISTS targets)
       get_target_property(lib_type ${target} TYPE)
       if (TARGET vtkm::cuda)
@@ -358,12 +412,14 @@ function(vtkm_add_target_information uses_vtkm_target)
         if(PROJECT_NAME STREQUAL "VTKm")
           message(SEND_ERROR "${target} needs to be built STATIC as CUDA doesn't"
                 " support virtual methods across dynamic library boundaries. You"
-                " need to set the CMake option BUILD_SHARED_LIBS to `OFF`.")
+                " need to set the CMake option BUILD_SHARED_LIBS to `OFF` or"
+                " (better) turn VTKm_NO_DEPRECATED_VIRTUAL to `ON`.")
         else()
           message(SEND_ERROR "${target} needs to be built STATIC as CUDA doesn't"
                   " support virtual methods across dynamic library boundaries. You"
                   " should either explicitly call add_library with the `STATIC` keyword"
-                  " or set the CMake option BUILD_SHARED_LIBS to `OFF`.")
+                  " or set the CMake option BUILD_SHARED_LIBS to `OFF` or"
+                  " (better) turn VTKm_NO_DEPRECATED_VIRTUAL to `ON`.")
         endif()
       endif()
     endforeach()
@@ -406,6 +462,16 @@ function(vtkm_library)
     set(VTKm_LIB_type SHARED)
   endif()
 
+  # Skip unity builds unless explicitly asked
+  foreach(source IN LISTS VTKm_LIB_SOURCES VTKm_LIB_DEVICE_SOURCES)
+    get_source_file_property(is_candidate ${source} UNITY_BUILD_CANDIDATE)
+    if (NOT is_candidate)
+      list(APPEND non_unity_sources ${source})
+    endif()
+  endforeach()
+
+  set_source_files_properties(${non_unity_sources} PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+
   add_library(${lib_name}
               ${VTKm_LIB_type}
               ${VTKm_LIB_SOURCES}
@@ -431,9 +497,11 @@ function(vtkm_library)
     set_property(TARGET ${lib_name} PROPERTY BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
   endif()
 
-  # Setup the SOVERSION and VERSION information for this vtkm library
-  set_property(TARGET ${lib_name} PROPERTY VERSION 1)
-  set_property(TARGET ${lib_name} PROPERTY SOVERSION 1)
+  if (NOT VTKm_SKIP_LIBRARY_VERSIONS)
+    # Setup the SOVERSION and VERSION information for this vtkm library
+    set_property(TARGET ${lib_name} PROPERTY VERSION 1)
+    set_property(TARGET ${lib_name} PROPERTY SOVERSION 1)
+  endif ()
 
   # Support custom library suffix names, for other projects wanting to inject
   # their own version numbers etc.
@@ -476,3 +544,117 @@ function(vtkm_library)
   endif()
 
 endfunction(vtkm_library)
+
+#[==[
+-----------------------------------------------------------------------------
+Produce _instantiation-files_ given a filter.
+
+VTK-m makes use of a lot of headers. It is often the case when building a
+library that you have to compile several instantiations of the template to
+cover all the types expected. However, when you try to do this in a single
+cxx file, you can end up with some very long compiles, especially when
+using a GPU device compiler. In this case, it is helpful to split up the
+instantiations across multiple files.
+
+This function will parse a given header file and look for pairs of
+`VTKM_INSTANTIATION_BEGIN` and `VTKM_INSTANTIATION_END`. (These are defined
+in `vtkm/internal/Instantiations.h`.) Between these two macros there should
+be the definition of a single extern template instantiation. The definition
+needs to fully qualify the namespace of all symbols. The declaration
+typically looks something like this.
+
+```cpp
+VTKM_INSTANTIATION_BEGIN
+extern template vtkm::cont::ArrayHandle<vtkm::Float32> vtkm::filter::foo::RunFooWorklet(
+  const vtkm::cont::CellSetExplicit<>& inCells,
+  const vtkm::cont::ArrayHandle<vtkm::Vec3f_32>& inField);
+VTKM_INSTANTIATION_END
+```
+
+For each one of these found, a source file will be produced that compiles
+the template for the given instantiation. Those produced files are stored
+in the build directory and are not versioned.
+
+_Important note_: The `extern template` should not be of an inline function
+or method. If the function or method is inline, then a compiler might compile
+ts own instance of the template regardless of the known export, which defeats
+the purpose of making the instances. In particular, if the `extern template`
+is referring to a method, make sure the implementation for that method is
+defined _outside_ of the class. Implementations defined inside of a class are
+implicitly considered inline.
+
+Usage:
+   vtkm_add_instantiations(
+     instantiations_list
+     INSTANTIATIONS_FILE <path>
+     [ TEMPLATE_SOURCE <path> ]
+     )
+
+instantiations_list: Output variable which contain the path of the newly
+produced _instantiation-files_.
+
+INSTANTIATIONS_FILE: Parameter with the relative path of the file that
+contains the extern template instantiations.
+
+TEMPLATE_SOURCE: _Optional_ parameter with the relative path to the header
+file that contains the implementation of the template. If not given, the
+template source is set to be the same as the INSTANTIATIONS_FILE.
+#]==]
+function(vtkm_add_instantiations instantiations_list)
+  # Parse and validate parameters
+  set(oneValueArgs INSTANTIATIONS_FILE TEMPLATE_SOURCE)
+  cmake_parse_arguments(VTKm_instantiations "" "${oneValueArgs}" "" ${ARGN})
+
+  if(NOT VTKm_instantiations_INSTANTIATIONS_FILE)
+    message(FATAL_ERROR "vtkm_add_instantiations needs a valid INSTANTIATIONS_FILE parameter")
+  endif()
+
+  set(instantiations_file ${VTKm_instantiations_INSTANTIATIONS_FILE})
+
+  if(VTKm_instantiations_TEMPLATE_SOURCE)
+    set(file_template_source ${VTKm_instantiations_TEMPLATE_SOURCE})
+  else()
+    set(file_template_source ${instantiations_file})
+  endif()
+
+  # Extract explicit instantiations
+  _vtkm_extract_instantiations(instantiations ${instantiations_file})
+
+  # Compute relative path of header files
+  file(RELATIVE_PATH INSTANTIATION_TEMPLATE_SOURCE
+    ${VTKm_SOURCE_DIR}
+    "${CMAKE_CURRENT_SOURCE_DIR}/${file_template_source}"
+    )
+
+  # Make a guard macro name so that the TEMPLATE_SOURCE can determine if it is compiling
+  # the instances (if necessary).
+  get_filename_component(instantations_name "${instantiations_file}" NAME_WE)
+  set(INSTANTIATION_INC_GUARD "vtkm_${instantations_name}Instantiation")
+
+  # Generate instatiation file in the build directory
+  set(counter 0)
+  foreach(instantiation IN LISTS instantiations)
+    string(REPLACE "$" ";" instantiation ${instantiation})
+    set(INSTANTIATION_DECLARATION "${instantiation}")
+
+    # Create instantiation in build directory
+    set(instantiation_path
+      "${CMAKE_CURRENT_BINARY_DIR}/${instantations_name}Instantiation${counter}.cxx"
+      )
+    configure_file("${VTKm_SOURCE_DIR}/CMake/InstantiationTemplate.cxx.in"
+      ${instantiation_path}
+      @ONLY
+      )
+
+    # Return value
+    list(APPEND _instantiations_list ${instantiation_path})
+    math(EXPR counter "${counter} + 1")
+  endforeach(instantiation)
+
+  # Force unity builds here
+  set_source_files_properties(${_instantiations_list} PROPERTIES
+    SKIP_UNITY_BUILD_INCLUSION OFF
+    UNITY_BUILD_CANDIDATE ON
+    )
+  set(${instantiations_list} ${_instantiations_list} PARENT_SCOPE)
+endfunction(vtkm_add_instantiations)

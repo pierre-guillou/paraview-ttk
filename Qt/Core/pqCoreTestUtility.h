@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqCoreTestUtility_h
-#define _pqCoreTestUtility_h
+#ifndef pqCoreTestUtility_h
+#define pqCoreTestUtility_h
 
 #include "pqCoreModule.h"
 #include "pqTestUtility.h"
@@ -55,7 +55,7 @@ class PQCORE_EXPORT pqCoreTestUtility : public pqTestUtility
   typedef pqTestUtility Superclass;
 
 public:
-  pqCoreTestUtility(QObject* parent = 0);
+  pqCoreTestUtility(QObject* parent = nullptr);
   ~pqCoreTestUtility() override;
 
   /**
@@ -64,7 +64,6 @@ public:
    */
   static QString fixPath(const QString& path);
 
-public:
   /**
    * Returns the absolute path to the PARAVIEW_DATA_ROOT in canonical form
    * (slashes forward), or empty string
@@ -133,4 +132,4 @@ private:
   QStringList TestFilenames;
 };
 
-#endif // !_pqCoreTestUtility_h
+#endif // !pqCoreTestUtility_h

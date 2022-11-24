@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "ioss_export.h"
+
 #include "vtk_ioss_mangle.h"
 
 #include <Ioss_CodeTypes.h>       // for IntVector
@@ -14,7 +16,7 @@
 // STL Includes
 
 namespace Ioss {
-  class Quad6 : public Ioss::ElementTopology
+  class IOSS_EXPORT Quad6 : public Ioss::ElementTopology
   {
 
   public:
@@ -28,6 +30,7 @@ namespace Ioss {
     int          spatial_dimension() const override;
     int          parametric_dimension() const override;
     bool         is_element() const override { return true; }
+    bool         is_shell() const override { return false; }
     int          order() const override;
 
     bool edges_similar() const override { return false; } // true if all edges have same topology
@@ -49,7 +52,6 @@ namespace Ioss {
     Ioss::ElementTopology *edge_type(int edge_number = 0) const override;
 
   private:
-    static Quad6 instance_;
     Quad6();
   };
 } // namespace Ioss

@@ -105,14 +105,14 @@ public:
    * a new one
    */
   template <typename T>
-  void linkTo(T* obj)
+  void linkTo(T* /*obj*/)
   {
     static_assert(sizeof(T) == 0, "Only specializations of linkTo(T* t) can be used");
   }
 
   void loadFile(const QString& filename);
 
-public slots:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * @brief Add a new empty text area
    */
@@ -131,7 +131,7 @@ public slots:
    */
   void closeCurrentTab();
 
-signals:
+Q_SIGNALS:
   /**
    * @brief Raised when a file has been opened and loaded
    * into the text edit widget

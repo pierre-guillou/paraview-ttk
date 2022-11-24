@@ -604,14 +604,7 @@ bool vtkLagrangianBasicIntegrationModel::IntersectWithLine(vtkLagrangianParticle
   double pcoords[3];
   int subId;
   int ret = cell->IntersectWithLine(p1, p2, tol, t, x, pcoords, subId);
-  if (ret != 0)
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return ret != 0;
 }
 
 //------------------------------------------------------------------------------
@@ -723,7 +716,7 @@ bool vtkLagrangianBasicIntegrationModel::FindInLocators(double* x, vtkLagrangian
   cellId = data->LastCellId;
   double* lastPosition = data->LastCellPosition;
 
-  weights = &data->LastWeights[0];
+  weights = data->LastWeights.data();
 
   if (data->LastDataSetIndex != -1)
   {

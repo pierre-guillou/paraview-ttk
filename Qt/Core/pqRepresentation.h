@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqRepresentation_h
-#define _pqRepresentation_h
+#ifndef pqRepresentation_h
+#define pqRepresentation_h
 
 #include "pqProxy.h"
 #include <QPair>
@@ -84,7 +84,7 @@ public:
    */
   vtkSMViewProxy* getViewProxy() const;
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
 
   /**
    * Renders the view to which this representation has been added if any.
@@ -117,7 +117,7 @@ protected Q_SLOTS:
    */
   virtual void onVisibilityChanged();
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   friend class pqView;
 
   /**

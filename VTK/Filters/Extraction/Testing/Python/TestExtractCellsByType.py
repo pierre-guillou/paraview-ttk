@@ -46,12 +46,33 @@ clip.SetValue(-10.0)
 clip.GenerateClippedOutputOff()
 clip.Update()
 
+# Create point and cell data arrays to verify whether they are properly copied
+arrayGenerator = vtk.vtkRandomAttributeGenerator()
+arrayGenerator.SetInputConnection(clip.GetOutputPort())
+arrayGenerator.SetGenerateCellScalars(1)
+arrayGenerator.SetGeneratePointScalars(1)
+arrayGenerator.Update()
+
 # Extract tetra cells as unstructured grid - should be 5*res*res*res tets
-extr.SetInputConnection(clip.GetOutputPort())
+extr.SetInputConnection(arrayGenerator.GetOutputPort())
 extr.AddCellType(vtk.VTK_TETRA)
 extr.Update()
 print("Number of tets: {0}".format(extr.GetOutput().GetNumberOfCells()))
 if extr.GetOutput().GetNumberOfCells() != 5*res*res*res:
+    error = 1
+
+# Check number of points
+if extr.GetOutput().GetNumberOfPoints() != 9261:
+    print("Wrong number of points. Expected 9261 but got {0}.".format(extr.GetOutput().GetNumberOfPoints()))
+    error = 1
+
+# Check presence of cell and point data arrays
+if extr.GetOutput().GetCellData().HasArray("RandomCellScalars") != 1:
+    print("Missing cell array 'RandomCellScalars'.")
+    error = 1
+
+if extr.GetOutput().GetPointData().HasArray("RandomPointScalars") != 1:
+    print("Missing cell array 'RandomPointScalars'.")
     error = 1
 
 # Extract wedge cells as unstructured grid - should be 0 wedges
@@ -139,7 +160,7 @@ if extr.GetOutput().GetNumberOfCells() != 6*res*res:
 
 # Finally triangle strips. The number of triangle strips may vary depending
 # on how threaded execution of the geometry filter works. So we just look to
-# make sure triangle strips are generated. Empirically, we know at least 100
+# make sure triangle strips are generated. Empirically, we know at least 99
 # strips will be generated.
 tris = vtk.vtkTriangleFilter()
 tris.SetInputConnection(polys.GetOutputPort())
@@ -152,7 +173,7 @@ extr.RemoveCellType(vtk.VTK_LINE)
 extr.AddCellType(vtk.VTK_TRIANGLE_STRIP)
 extr.Update()
 print("Number of triangle strips: {0}".format(extr.GetOutput().GetNumberOfCells()))
-if extr.GetOutput().GetNumberOfCells() < 100:
+if extr.GetOutput().GetNumberOfCells() < 99:
     error = 1
 
 

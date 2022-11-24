@@ -102,7 +102,7 @@ public:
     if (fmt.testOption(QSurfaceFormat::DebugContext))
     {
       this->Logger.reset(new QOpenGLDebugLogger());
-      if (this->Logger->initialize() == false)
+      if (!this->Logger->initialize())
       {
         // initialize failure means OpenGL doesn't have appropriate extension so
         // just don't log.
@@ -236,7 +236,8 @@ public:
     }
 
     const QSize screen_size = this->screenSize();
-    this->RenderWindow->SetScreenSize(screen_size.width(), screen_size.height());
+    const QSize screen_deviceSize = screen_size * dpr;
+    this->RenderWindow->SetScreenSize(screen_deviceSize.width(), screen_deviceSize.height());
 
     // since we've resize, we request a vtkRenderWindow::Render in `paintGL`
     // so we render an updated rendering.

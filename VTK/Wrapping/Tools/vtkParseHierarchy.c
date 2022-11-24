@@ -21,6 +21,7 @@
 
 #include "vtkParseHierarchy.h"
 #include "vtkParseExtras.h"
+#include "vtkParseSystem.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -341,7 +342,7 @@ static int vtkParseHierarchy_ReadFileIntoInfo(HierarchyInfo* info, const char* f
   int success = 1;
   int lineno;
 
-  fp = fopen(filename, "r");
+  fp = vtkParse_FileOpen(filename, "r");
 
   if (fp == NULL)
   {
@@ -730,7 +731,14 @@ void vtkParseHierarchy_Free(HierarchyInfo* info)
     {
       free((char**)entry->Properties);
     }
+    if (entry->Typedef)
+    {
+      vtkParse_FreeValue(entry->Typedef);
+    }
   }
+
+  vtkParse_FreeStringCache(info->Strings);
+  free(info->Strings);
 
   free(info->Entries);
   free(info);
@@ -1300,7 +1308,7 @@ const char* vtkParseHierarchy_QualifiedEnumName(
         char* scoped_name;
         size_t scoped_len = strlen(data->Name) + strlen(info->Name) + 2;
         scoped_name = vtkParse_NewString(cache, scoped_len);
-        sprintf(scoped_name, "%s::%s", data->Name, info->Name);
+        snprintf(scoped_name, scoped_len, "%s::%s", data->Name, info->Name);
         return scoped_name;
       }
     }

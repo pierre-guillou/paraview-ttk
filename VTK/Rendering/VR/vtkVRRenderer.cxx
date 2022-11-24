@@ -11,20 +11,15 @@ This software is distributed WITHOUT ANY WARRANTY; without even
 the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE.  See the above copyright notice for more information.
 
-Parts Copyright Valve Coproration from hellovr_opengl_main.cpp
+Parts Copyright Valve Corporation from hellovr_opengl_main.cpp
 under their BSD license found here:
 https://github.com/ValveSoftware/openvr/blob/master/LICENSE
 
 =========================================================================*/
 #include "vtkVRRenderer.h"
 
-#include "vtkObjectFactory.h"
-
-#include "vtkActor.h"
 #include "vtkCamera.h"
 #include "vtkImageCanvasSource2D.h"
-#include "vtkInformation.h"
-#include "vtkNew.h"
 #include "vtkPlaneSource.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkTexture.h"
@@ -269,7 +264,7 @@ void vtkVRRenderer::ResetCameraClippingRange()
   // reset the clipping range when we don't have any 3D visible props
   if (!vtkMath::AreBoundsInitialized(bounds))
   {
-    // default to 0.2 to 10.0 meters in physcial space if no data bounds
+    // default to 0.2 to 10.0 meters in physical space if no data bounds
     this->ActiveCamera->SetClippingRange(0.2 * physicalScale, 10.0 * physicalScale);
     return;
   }
@@ -295,7 +290,7 @@ void vtkVRRenderer::ResetCameraClippingRange(const double bounds[6])
   // reset the clipping range when we don't have any 3D visible props
   if (!vtkMath::AreBoundsInitialized(bounds))
   {
-    // default to 0.2 to 10.0 meters in physcial space if no data bounds
+    // default to 0.2 to 10.0 meters in physical space if no data bounds
     this->ActiveCamera->SetClippingRange(0.2 * physicalScale, 10.0 * physicalScale);
     return;
   }

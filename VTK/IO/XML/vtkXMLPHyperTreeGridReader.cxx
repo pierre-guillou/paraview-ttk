@@ -201,7 +201,15 @@ int vtkXMLPHyperTreeGridReader::ReadPieceData()
 
   if (!output)
   {
-    vtkErrorMacro("Incorrect type of output: " << output->GetClassName());
+    if (this->GetCurrentOutput())
+    {
+      vtkErrorMacro(
+        "Expected: vtkHyperTreeGrid, got: " << this->GetCurrentOutput()->GetClassName());
+    }
+    else
+    {
+      vtkErrorMacro("Expected: vtkHyperTreeGrid, got NULL output");
+    }
     return 0;
   }
 
@@ -368,7 +376,7 @@ void vtkXMLPHyperTreeGridReader::SetupOutputInformation(vtkInformation* vtkNotUs
   {
     vtkErrorMacro("Should not still be processing output information if have set InformationError");
     return;
-  };
+  }
 }
 
 //------------------------------------------------------------------------------

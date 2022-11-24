@@ -36,7 +36,7 @@
  *   LeftButtonReleaseEvent - release the handle widget associated with the point
  *   MouseMoveEvent - move the point
  * If the line is selected:
- *   LeftButtonPressEvent - activate a handle widget accociated with the line
+ *   LeftButtonPressEvent - activate a handle widget associated with the line
  *   LeftButtonReleaseEvent - release the handle widget associated with the line
  *   MouseMoveEvent - translate the line
  * In all the cases, independent of what is picked, the widget responds to the
@@ -83,6 +83,7 @@
 #define vtkLineWidget2_h
 
 #include "vtkAbstractWidget.h"
+#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
 class vtkLineRepresentation;
@@ -145,11 +146,16 @@ protected:
 
   // Manage the state of the widget
   int WidgetState;
-  enum _WidgetState
+  enum WidgetStateType
   {
     Start = 0,
     Active
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef WidgetStateType _WidgetState;
+#endif
+
   int CurrentHandle;
 
   // These methods handle events

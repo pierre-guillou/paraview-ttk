@@ -135,7 +135,7 @@ int vtkAMReXGridReader::FillMetaData()
   {
     numberOfBlocks[i] = this->Internal->Header->levelSize[i];
   }
-  this->Metadata->Initialize(numberOfLevels, &numberOfBlocks[0]);
+  this->Metadata->Initialize(numberOfLevels, numberOfBlocks.data());
   // The AMRBox always has 3 dimensions
   double origin[3] = { 0.0, 0.0, 0.0 };
   double spacing[3] = { 0.0, 0.0, 0.0 };
@@ -328,13 +328,21 @@ int vtkAMReXGridReader::GetLevelBlockID(const int blockIdx)
 void vtkAMReXGridReader::GetAMRGridData(
   const int blockIdx, vtkUniformGrid* block, const char* field)
 {
-  if (!this->Internal->headersAreRead)
+  if (this->Internal->headersAreRead)
   {
-    return;
+    this->Internal->GetBlockAttribute(field, blockIdx, block);
   }
-  this->Internal->GetBlockAttribute(field, blockIdx, block);
 }
 
+//------------------------------------------------------------------------------
+void vtkAMReXGridReader::GetAMRGridPointData(
+  const int blockIdx, vtkUniformGrid* block, const char* field)
+{
+  if (this->Internal->extraMultiFabHeadersAreRead)
+  {
+    this->Internal->GetExtraMultiFabBlockAttribute(field, blockIdx, block);
+  }
+}
 //------------------------------------------------------------------------------
 void vtkAMReXGridReader::SetUpDataArraySelections()
 {
@@ -346,5 +354,22 @@ void vtkAMReXGridReader::SetUpDataArraySelections()
   {
     // all arrays are added as disabled.
     this->CellDataArraySelection->AddArray(variable.first.c_str(), false);
+  }
+
+  // add extra multifab variables
+  for (size_t fab = 0; fab < this->Internal->Header->extraMultiFabVariables.size(); ++fab)
+  {
+    const int fabTopology = this->Internal->Header->extraMultiFabVarTopology[fab];
+    for (const auto& variable : this->Internal->Header->extraMultiFabParsedVarNames)
+    {
+      if (fabTopology == 3)
+      {
+        this->CellDataArraySelection->AddArray(variable.first.c_str(), false);
+      }
+      if (fabTopology == 0)
+      {
+        this->PointDataArraySelection->AddArray(variable.first.c_str(), false);
+      }
+    }
   }
 }

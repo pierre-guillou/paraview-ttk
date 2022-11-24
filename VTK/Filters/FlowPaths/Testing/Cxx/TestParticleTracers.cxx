@@ -23,6 +23,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkParticlePathFilter.h"
 #include "vtkParticleTracer.h"
+#include "vtkPartitionedDataSet.h"
 #include "vtkPointData.h"
 #include "vtkPointSource.h"
 #include "vtkPoints.h"
@@ -31,6 +32,8 @@
 #include "vtkSmartPointer.h"
 #include "vtkStreaklineFilter.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+
+#include <array>
 #include <cassert>
 #include <vector>
 
@@ -120,7 +123,7 @@ protected:
     double range[2] = { 0, 9 };
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), range, 2);
 
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &TimeSteps[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), TimeSteps.data(),
       static_cast<int>(TimeSteps.size()));
 
     outInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), this->Extent, 6);
@@ -225,93 +228,105 @@ private:
 vtkStandardNewMacro(TestTimeSource);
 
 #define EXPECT(a, msg)                                                                             \
-  if (!(a))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Line " << __LINE__ << ":" << msg << endl;                                             \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (!(a))                                                                                      \
+    {                                                                                              \
+      cerr << "Line " << __LINE__ << ":" << msg << endl;                                           \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 int TestParticlePathFilter()
 {
-  vtkNew<TestTimeSource> imageSource;
-  imageSource->SetBoundingBox(-1, 1, -1, 1, -1, 1);
-
   vtkNew<vtkPoints> points;
   points->InsertNextPoint(0.5, 0, 0);
   points->InsertNextPoint(0.4, 0, 0);
 
+  // Set up vtkDataSet and vtkDataObjectTree to test as seed sources
   vtkNew<vtkPolyData> ps;
   ps->SetPoints(points);
 
-  vtkNew<vtkParticlePathFilter> filter;
+  // Now set vtkDataObjectTree subclass as seed source
+  vtkNew<vtkPartitionedDataSet> pds;
+  pds->SetNumberOfPartitions(1);
+  pds->SetPartition(0, ps);
 
-  filter->SetInputConnection(0, imageSource->GetOutputPort());
-  filter->SetInputData(1, ps);
-
-  filter->SetTerminationTime(3.3);
-  filter->Update();
-
-  vtkPolyData* out = filter->GetOutput();
-  vtkCellArray* lines = out->GetLines();
-  vtkNew<vtkIdList> polyLine;
-  //  vtkIntArray* particleIds =
-  //  vtkArrayDownCast<vtkIntArray>(out->GetPointData()->GetArray("ParticleId"));
-
-  double baseLines[2] = { 0.271834, 0.217467 };
-  int lineIndex(0);
-
-  lines->InitTraversal();
-  while (lines->GetNextCell(polyLine))
+  std::array<vtkDataObject*, 2> seedSources = { ps, pds };
+  for (auto seedSource : seedSources)
   {
-    double s = 0;
-    for (int j = 1; j < polyLine->GetNumberOfIds(); j++)
+    vtkNew<TestTimeSource> imageSource;
+    imageSource->SetBoundingBox(-1, 1, -1, 1, -1, 1);
+
+    vtkNew<vtkParticlePathFilter> filter;
+    filter->SetInputConnection(0, imageSource->GetOutputPort());
+    filter->SetInputData(1, seedSource);
+
+    filter->SetTerminationTime(3.3);
+    filter->Update();
+
+    vtkPolyData* out = filter->GetOutput();
+    vtkCellArray* lines = out->GetLines();
+    vtkNew<vtkIdList> polyLine;
+    //  vtkIntArray* particleIds =
+    //  vtkArrayDownCast<vtkIntArray>(out->GetPointData()->GetArray("ParticleId"));
+
+    double baseLines[2] = { 0.271834, 0.217467 };
+    int lineIndex(0);
+
+    lines->InitTraversal();
+    while (lines->GetNextCell(polyLine))
     {
-      int pIndex = polyLine->GetId(j - 1);
-      int qIndex = polyLine->GetId(j);
-      double p[3], q[3];
-      out->GetPoints()->GetPoint(pIndex, p);
-      out->GetPoints()->GetPoint(qIndex, q);
-      s += sqrt(vtkMath::Distance2BetweenPoints(p, q));
+      double s = 0;
+      for (int j = 1; j < polyLine->GetNumberOfIds(); j++)
+      {
+        int pIndex = polyLine->GetId(j - 1);
+        int qIndex = polyLine->GetId(j);
+        double p[3], q[3];
+        out->GetPoints()->GetPoint(pIndex, p);
+        out->GetPoints()->GetPoint(qIndex, q);
+        s += sqrt(vtkMath::Distance2BetweenPoints(p, q));
+      }
+      EXPECT(fabs(s - baseLines[lineIndex++]) < 0.01, "Wrong particle path length " << s);
     }
-    EXPECT(fabs(s - baseLines[lineIndex++]) < 0.01, "Wrong particle path length " << s);
-  }
 
-  int numRequestData = imageSource->GetNumRequestData();
-  EXPECT(numRequestData == 5, "Wrong");
+    int numRequestData = imageSource->GetNumRequestData();
+    EXPECT(numRequestData == 5, "Wrong");
 
-  filter->SetTerminationTime(4.0);
-  filter->Update();
+    filter->SetTerminationTime(4.0);
+    filter->Update();
 
-  numRequestData = imageSource->GetNumRequestData();
-  EXPECT(imageSource->GetNumRequestData() == numRequestData, "Wrong # of requests");
+    numRequestData = imageSource->GetNumRequestData();
+    EXPECT(imageSource->GetNumRequestData() == numRequestData, "Wrong # of requests");
 
-  out = filter->GetOutput();
-  EXPECT(out->GetNumberOfLines() == 2, "Wrong # of lines" << out->GetNumberOfLines());
+    out = filter->GetOutput();
+    EXPECT(out->GetNumberOfLines() == 2, "Wrong # of lines" << out->GetNumberOfLines());
 
-  double baseLines1[2] = { 0.399236, 0.319389 };
-  lines = out->GetLines();
-  lines->InitTraversal();
-  lineIndex = 0;
-  while (lines->GetNextCell(polyLine))
-  {
-    double s = 0;
-    for (int j = 1; j < polyLine->GetNumberOfIds(); j++)
+    double baseLines1[2] = { 0.399236, 0.319389 };
+    lines = out->GetLines();
+    lines->InitTraversal();
+    lineIndex = 0;
+    while (lines->GetNextCell(polyLine))
     {
-      int pIndex = polyLine->GetId(j - 1);
-      int qIndex = polyLine->GetId(j);
-      double p[3], q[3];
-      out->GetPoints()->GetPoint(pIndex, p);
-      out->GetPoints()->GetPoint(qIndex, q);
-      s += sqrt(vtkMath::Distance2BetweenPoints(p, q));
+      double s = 0;
+      for (int j = 1; j < polyLine->GetNumberOfIds(); j++)
+      {
+        int pIndex = polyLine->GetId(j - 1);
+        int qIndex = polyLine->GetId(j);
+        double p[3], q[3];
+        out->GetPoints()->GetPoint(pIndex, p);
+        out->GetPoints()->GetPoint(qIndex, q);
+        s += sqrt(vtkMath::Distance2BetweenPoints(p, q));
+      }
+      EXPECT(fabs(s - baseLines1[lineIndex++]) < 0.01, "Wrong particle path length " << s);
     }
-    EXPECT(fabs(s - baseLines1[lineIndex++]) < 0.01, "Wrong particle path length " << s);
+
+    filter->SetTerminationTime(0);
+    filter->Update();
+
+    filter->SetTerminationTime(0.2);
+    filter->Update();
   }
-
-  filter->SetTerminationTime(0);
-  filter->Update();
-
-  filter->SetTerminationTime(0.2);
-  filter->Update();
 
   return EXIT_SUCCESS;
 }
@@ -427,7 +442,7 @@ int TestParticleTracers(int, char*[])
 
   pts = vtkPolyData::SafeDownCast(filter->GetOutputDataObject(0))->GetPoints();
   pts->GetPoint(0, p);
-  EXPECT(fabs(p[2] - 0.424) < 0.01, "Wrong termination point")
+  EXPECT(fabs(p[2] - 0.424) < 0.01, "Wrong termination point");
 
   filter->SetTerminationTime(5.5);
   filter->Update();
@@ -459,7 +474,7 @@ int TestParticleTracers(int, char*[])
   filter->SetIgnorePipelineTime(1);
   filter->UpdateTimeStep(6.5);
 
-  EXPECT(imageSource->GetNumRequestData() - numRequestData == 0, "Pipeline Time should be ignored")
+  EXPECT(imageSource->GetNumRequestData() - numRequestData == 0, "Pipeline Time should be ignored");
   numRequestData = imageSource->GetNumRequestData();
 
   filter->SetIgnorePipelineTime(0);

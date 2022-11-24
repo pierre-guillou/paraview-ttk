@@ -15,6 +15,7 @@ if (VTK_ENABLE_OSPRAY)
     TestOSPRayMultiBlockPartialArrayFieldData.cxx
     TestOSPRayOrthographic.cxx
     TestOSPRayPass.cxx
+    TestOSPRayPointGaussianMapper.cxx
     TestOSPRayRenderMesh.cxx
     TestOSPRayRotatedNormals.cxx
     TestOSPRayScalarBar.cxx
@@ -52,6 +53,12 @@ if (VTK_ENABLE_OSPRAY)
     # Miscellaneous tests
     TestOSPRayCache.cxx
     TestOSPRayTiling.cxx
+    # Widgets tests
+    TestOSPRayBoxWidget2.cxx
+    TestOSPRayImplicitPlaneWidget2.cxx
+    TestOSPRayPointCloudWidget.cxx
+    TestOSPRayPointHandleRepresentation3D.cxx
+    TestOSPRaySplineWidget2.cxx
   )
 endif()
 
@@ -107,6 +114,7 @@ endif ()
 
 set(all_tests ${tests} ${tests_optix} ${tests_combined})
 vtk_test_cxx_executable(vtkRenderingRayTracingCxxTests all_tests RENDERING_FACTORY
+  DISABLE_FLOATING_POINT_EXCEPTIONS
   vtkOSPRayTestInteractor.cxx
   )
 

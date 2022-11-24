@@ -39,8 +39,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkTextureMapToPlane.h"
 #include "vtkTexturedActor2D.h"
 #include "vtkTree.h"
-#include "vtkUnicodeString.h"
-#include "vtkUnicodeStringArray.h"
 
 #include <QApplication>
 #include <QFont>
@@ -164,7 +162,6 @@ void vtkQtTreeRingLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAc
   vtkAbstractArray* abstractData;
   vtkDataArray *numericData, *sectorInfo;
   vtkStringArray* stringData;
-  vtkUnicodeStringArray* uStringData;
   vtkTree* input = this->GetInputTree();
   if (!input)
   {
@@ -207,7 +204,6 @@ void vtkQtTreeRingLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAc
     abstractData = nullptr;
     numericData = nullptr;
     stringData = nullptr;
-    uStringData = nullptr;
     switch (this->LabelMode)
     {
       case VTK_LABEL_SCALARS:
@@ -255,7 +251,6 @@ void vtkQtTreeRingLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAc
         }
         numericData = vtkArrayDownCast<vtkDataArray>(abstractData);
         stringData = vtkArrayDownCast<vtkStringArray>(abstractData);
-        uStringData = vtkArrayDownCast<vtkUnicodeStringArray>(abstractData);
       };
       break;
     }
@@ -271,14 +266,13 @@ void vtkQtTreeRingLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAc
         numComp = 1;
       }
     }
-    else if (!stringData && !uStringData)
+    else if (!stringData)
     {
       vtkErrorMacro(<< "Need input data to render labels (3)");
       return;
     }
 
-    this->LabelTree(
-      input, sectorInfo, numericData, stringData, uStringData, activeComp, numComp, viewport);
+    this->LabelTree(input, sectorInfo, numericData, stringData, activeComp, numComp, viewport);
   }
 
   VTK_CREATE(vtkQImageToImageSource, qis);
@@ -296,13 +290,6 @@ void vtkQtTreeRingLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAc
 void vtkQtTreeRingLabelMapper::LabelTree(vtkTree* tree, vtkDataArray* sectorInfo,
   vtkDataArray* numericData, vtkStringArray* stringData, int activeComp, int numComps,
   vtkViewport* viewport)
-{
-  LabelTree(tree, sectorInfo, numericData, stringData, nullptr, activeComp, numComps, viewport);
-}
-
-void vtkQtTreeRingLabelMapper::LabelTree(vtkTree* tree, vtkDataArray* sectorInfo,
-  vtkDataArray* numericData, vtkStringArray* stringData, vtkUnicodeStringArray* uStringData,
-  int activeComp, int numComps, vtkViewport* viewport)
 {
   delete this->QtImage;
   this->QtImage = new QImage(this->WindowSize[0], this->WindowSize[1], QImage::Format_ARGB32);
@@ -347,8 +334,7 @@ void vtkQtTreeRingLabelMapper::LabelTree(vtkTree* tree, vtkDataArray* sectorInfo
     }
 
     // check to see if the text will fit in the sector
-    this->GetVertexLabel(
-      i, numericData, stringData, uStringData, activeComp, numComps, string, sizeof(string));
+    this->GetVertexLabel(i, numericData, stringData, activeComp, numComps, string, sizeof(string));
     QString ResultString(string);
 
     double x[3];
@@ -602,14 +588,6 @@ void vtkQtTreeRingLabelMapper::PrintSelf(ostream& os, vtkIndent indent)
 void vtkQtTreeRingLabelMapper::GetVertexLabel(vtkIdType vertex, vtkDataArray* numericData,
   vtkStringArray* stringData, int activeComp, int numComps, char* string, size_t stringSize)
 {
-  GetVertexLabel(
-    vertex, numericData, stringData, nullptr, activeComp, numComps, string, stringSize);
-}
-
-void vtkQtTreeRingLabelMapper::GetVertexLabel(vtkIdType vertex, vtkDataArray* numericData,
-  vtkStringArray* stringData, vtkUnicodeStringArray* uStringData, int activeComp, int numComps,
-  char* string, size_t stringSize)
-{
   char format[1024];
   double val;
   int j;
@@ -658,16 +636,6 @@ void vtkQtTreeRingLabelMapper::GetVertexLabel(vtkIdType vertex, vtkDataArray* nu
       return;
     }
     snprintf(string, stringSize, this->LabelFormat, stringData->GetValue(vertex).c_str());
-  }
-  else if (uStringData) // rendering unicode string data
-  {
-    if (strcmp(this->LabelFormat, "%s") != 0)
-    {
-      vtkErrorMacro(<< "Label format must be %s to use with strings");
-      string[0] = '\0';
-      return;
-    }
-    snprintf(string, stringSize, this->LabelFormat, uStringData->GetValue(vertex).utf8_str());
   }
   else // Use the vertex id
   {

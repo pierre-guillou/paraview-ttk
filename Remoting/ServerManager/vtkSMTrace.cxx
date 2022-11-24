@@ -64,6 +64,7 @@ vtkSMTrace::vtkSMTrace()
   , PropertiesToTraceOnCreate(vtkSMTrace::RECORD_MODIFIED_PROPERTIES)
   , FullyTraceSupplementalProxies(false)
   , SkipRenderingComponents(false)
+  , FullyTraceCameraAdjustments(false)
   , Internals(new vtkSMTrace::vtkInternals())
 {
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter && VTK_MODULE_ENABLE_VTK_Python &&                     \
@@ -618,6 +619,34 @@ vtkSMTrace::TraceItemArgs& vtkSMTrace::TraceItemArgs::arg(bool val)
     vtkSmartPyObject valObj(PyBool_FromLong(val ? 1 : 0));
     assert(valObj);
     int ret = PyList_Append(this->Internals->GetPositionalArgs(), valObj);
+    (void)ret;
+    assert(ret == 0);
+#endif
+  }
+  (void)val;
+  return *this;
+}
+
+//----------------------------------------------------------------------------
+vtkSMTrace::TraceItemArgs& vtkSMTrace::TraceItemArgs::arg(const std::vector<std::string>& val)
+{
+  if (vtkSMTrace::GetActiveTracer())
+  {
+#if VTK_MODULE_ENABLE_VTK_PythonInterpreter && VTK_MODULE_ENABLE_VTK_Python &&                     \
+  VTK_MODULE_ENABLE_VTK_WrappingPythonCore
+    vtkPythonScopeGilEnsurer gilEnsurer;
+    vtkSmartPyObject listObj(PyList_New(0));
+    assert(listObj);
+
+    for (const std::string& item : val)
+    {
+      vtkSmartPyObject valObj(PyString_FromString(item.c_str()));
+      int ret = PyList_Append(listObj, valObj);
+      (void)ret;
+      assert(ret == 0);
+    }
+
+    int ret = PyList_Append(this->Internals->GetPositionalArgs(), listObj);
     (void)ret;
     assert(ret == 0);
 #endif

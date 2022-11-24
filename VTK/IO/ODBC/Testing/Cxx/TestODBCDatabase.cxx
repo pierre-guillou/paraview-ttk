@@ -25,7 +25,6 @@
 #include "vtkODBCDatabase.h"
 #include "vtkRowQueryToTable.h"
 #include "vtkSQLQuery.h"
-#include "vtkStdString.h"
 #include "vtkTable.h"
 #include "vtkVariant.h"
 #include "vtkVariantArray.h"
@@ -48,7 +47,7 @@ int TestODBCDatabase(int, char** const)
 
   vtkSQLQuery* query = db->GetQueryInstance();
 
-  vtkStdString createQuery("CREATE TABLE people (name VARCHAR(1024), age INTEGER, weight FLOAT)");
+  std::string createQuery("CREATE TABLE people (name VARCHAR(1024), age INTEGER, weight FLOAT)");
   cout << createQuery << endl;
   query->SetQuery(createQuery.c_str());
   if (!query->Execute())
@@ -129,7 +128,7 @@ int TestODBCDatabase(int, char** const)
       {
         cerr << ", ";
       }
-      cerr << query->DataValue(field).ToString().c_str();
+      cerr << query->DataValue(field).ToString();
     }
     cerr << endl;
   }
@@ -158,7 +157,7 @@ int TestODBCDatabase(int, char** const)
       {
         cerr << ", ";
       }
-      cerr << va->GetValue(field).ToString().c_str();
+      cerr << va->GetValue(field).ToString();
     }
     cerr << endl;
   }

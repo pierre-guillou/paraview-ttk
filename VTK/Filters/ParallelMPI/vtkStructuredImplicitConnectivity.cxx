@@ -421,11 +421,7 @@ struct StructuredGrid
   //------------------------------------------------------------------------------
   bool IsRectilinearGrid()
   {
-    if ((this->X_Coords != nullptr) && (this->Y_Coords != nullptr) && (this->Z_Coords != nullptr))
-    {
-      return true;
-    }
-    return false;
+    return this->X_Coords != nullptr && this->Y_Coords != nullptr && this->Z_Coords != nullptr;
   }
 
   //------------------------------------------------------------------------------
@@ -773,7 +769,7 @@ void CommunicationManager::AllocateRcvBuffers(vtkMPIController* comm)
   // STEP 3: WaitAll
   if (!this->Requests.empty())
   {
-    comm->WaitAll(this->NumMsgs(), &this->Requests[0]);
+    comm->WaitAll(this->NumMsgs(), this->Requests.data());
   }
   this->Requests.clear();
 
@@ -828,7 +824,7 @@ void CommunicationManager::Exchange(vtkMPIController* comm)
   // STEP 4: WaitAll
   if (!this->Requests.empty())
   {
-    comm->WaitAll(this->NumMsgs(), &this->Requests[0]);
+    comm->WaitAll(this->NumMsgs(), this->Requests.data());
   }
   this->Requests.clear();
 }
@@ -840,6 +836,7 @@ void CommunicationManager::Exchange(vtkMPIController* comm)
 //==============================================================================
 
 vtkStandardNewMacro(vtkStructuredImplicitConnectivity);
+vtkCxxSetObjectMacro(vtkStructuredImplicitConnectivity, Controller, vtkMPIController);
 
 //------------------------------------------------------------------------------
 vtkStructuredImplicitConnectivity::vtkStructuredImplicitConnectivity()
@@ -848,8 +845,9 @@ vtkStructuredImplicitConnectivity::vtkStructuredImplicitConnectivity()
   this->InputGrid = nullptr;
   this->OutputGrid = nullptr;
   this->CommManager = nullptr;
-  this->Controller =
-    vtkMPIController::SafeDownCast(vtkMultiProcessController::GetGlobalController());
+  this->Controller = nullptr;
+  this->SetController(
+    vtkMPIController::SafeDownCast(vtkMultiProcessController::GetGlobalController()));
 }
 
 //------------------------------------------------------------------------------
@@ -879,7 +877,7 @@ vtkStructuredImplicitConnectivity::~vtkStructuredImplicitConnectivity()
     this->CommManager = nullptr;
   }
 
-  this->Controller = nullptr;
+  this->SetController(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -1000,7 +998,7 @@ void vtkStructuredImplicitConnectivity::ExchangeExtents()
   this->DomainInfo->ExtentListInfo.resize(7 * nranks, 0);
 
   // STEP 2: AllGather
-  int* rcvbuffer = &(this->DomainInfo->ExtentListInfo)[0];
+  int* rcvbuffer = this->DomainInfo->ExtentListInfo.data();
   this->Controller->AllGather(extbuffer, rcvbuffer, 7);
 }
 
@@ -1101,11 +1099,7 @@ bool vtkStructuredImplicitConnectivity::GlobalDataDescriptionMatch()
 {
   int sum = -1;
   this->Controller->AllReduce(&this->DomainInfo->DataDescription, &sum, 1, vtkCommunicator::SUM_OP);
-  if ((sum / this->Controller->GetNumberOfProcesses()) == this->DomainInfo->DataDescription)
-  {
-    return true;
-  }
-  return false;
+  return (sum / this->Controller->GetNumberOfProcesses()) == this->DomainInfo->DataDescription;
 }
 
 //------------------------------------------------------------------------------
@@ -1117,12 +1111,8 @@ bool vtkStructuredImplicitConnectivity::HasImplicitConnectivity()
     return false;
   }
 
-  if ((this->DomainInfo->GlobalImplicit[0] > 0) || (this->DomainInfo->GlobalImplicit[1] > 0) ||
-    (this->DomainInfo->GlobalImplicit[2] > 0))
-  {
-    return true;
-  }
-  return false;
+  return this->DomainInfo->GlobalImplicit[0] > 0 || this->DomainInfo->GlobalImplicit[1] > 0 ||
+    this->DomainInfo->GlobalImplicit[2] > 0;
 }
 
 //------------------------------------------------------------------------------

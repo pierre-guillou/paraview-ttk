@@ -512,9 +512,13 @@ public:
    * for that attribute, ignore (2) and (3), 2) if there is a copy field for
    * that field (on or off), obey the flag, ignore (3) 3) obey
    * CopyAllOn/Off
+   *
+   * @warning This method is prone to compile-time ambiguity when called using `0` parameters.
+   * To fix the ambiguity, please replace `0` by `vtkIdType(0)`.
    */
   void CopyData(vtkDataSetAttributes* fromPd, vtkIdType fromId, vtkIdType toId);
   void CopyData(vtkDataSetAttributes* fromPd, vtkIdList* fromIds, vtkIdList* toIds);
+  void CopyData(vtkDataSetAttributes* fromPd, vtkIdList* fromIds, vtkIdType destStartId = 0);
   ///@}
 
   /**

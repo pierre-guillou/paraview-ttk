@@ -38,8 +38,12 @@
  * By default, if an implicit function is set it is used to clip the data
  * set, otherwise the dataset scalars are used to perform the clipping.
  *
+ * Note that this class delegates to vtkPlaneCutter whenever possible since
+ * it's specialized for planes and it's faster because it's multithreaded, and in some
+ * cases also algorithmically faster.
+ *
  * @sa
- * vtkImplicitFunction vtkClipPolyData
+ * vtkImplicitFunction vtkClipPolyData vtkPlaneCutter
  */
 
 #ifndef vtkCutter_h
@@ -53,12 +57,13 @@
 #define VTK_SORT_BY_VALUE 0
 #define VTK_SORT_BY_CELL 1
 
+class vtkGridSynchronizedTemplates3D;
 class vtkImplicitFunction;
 class vtkIncrementalPointLocator;
+class vtkPlaneCutter;
+class vtkRectilinearSynchronizedTemplates;
 class vtkSynchronizedTemplates3D;
 class vtkSynchronizedTemplatesCutter3D;
-class vtkGridSynchronizedTemplates3D;
-class vtkRectilinearSynchronizedTemplates;
 
 class VTKFILTERSCORE_EXPORT vtkCutter : public vtkPolyDataAlgorithm
 {
@@ -156,7 +161,7 @@ public:
    * If this is enabled (by default), the output will be triangles
    * otherwise, the output will be the intersection polygons
    * WARNING: if the cutting function is not a plane, the output
-   * will be 3D poygons, which might be nice to look at but hard
+   * will be 3D polygons, which might be nice to look at but hard
    * to compute with downstream.
    */
   vtkSetMacro(GenerateTriangles, vtkTypeBool);
@@ -239,6 +244,7 @@ protected:
   vtkSynchronizedTemplatesCutter3D* SynchronizedTemplatesCutter3D;
   vtkGridSynchronizedTemplates3D* GridSynchronizedTemplates;
   vtkRectilinearSynchronizedTemplates* RectilinearSynchronizedTemplates;
+  vtkNew<vtkPlaneCutter> PlaneCutter;
 
   vtkIncrementalPointLocator* Locator;
   int SortBy;

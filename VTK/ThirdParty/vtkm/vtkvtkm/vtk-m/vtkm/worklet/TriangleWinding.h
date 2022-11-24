@@ -32,8 +32,9 @@
 #include <vtkm/cont/ArrayRangeCompute.h>
 #include <vtkm/cont/CellSetExplicit.h>
 #include <vtkm/cont/CellSetSingleType.h>
-#include <vtkm/cont/DynamicCellSet.h>
+#include <vtkm/cont/ConvertNumComponentsToOffsets.h>
 #include <vtkm/cont/Invoker.h>
+#include <vtkm/cont/UnknownCellSet.h>
 
 #include <vtkm/worklet/MaskIndices.h>
 #include <vtkm/worklet/WorkletMapField.h>
@@ -161,7 +162,7 @@ public:
 
   struct Launcher
   {
-    vtkm::cont::DynamicCellSet Result;
+    vtkm::cont::UnknownCellSet Result;
 
     // Generic handler:
     template <typename CellSetType, typename CoordsType, typename CellNormalsType>
@@ -232,7 +233,7 @@ public:
       { // Multiple cell types:
         vtkm::cont::ArrayHandle<vtkm::Id> offsets;
         vtkm::Id connSize;
-        vtkm::cont::ConvertNumIndicesToOffsets(numIndices, offsets, connSize);
+        vtkm::cont::ConvertNumComponentsToOffsets(numIndices, offsets, connSize);
         numIndices.ReleaseResourcesExecution();
 
         vtkm::cont::ArrayHandle<vtkm::Id> conn;
@@ -329,7 +330,7 @@ public:
   };
 
   template <typename CellSetType, typename CoordsType, typename CellNormalsType>
-  VTKM_CONT static vtkm::cont::DynamicCellSet Run(const CellSetType& cellSet,
+  VTKM_CONT static vtkm::cont::UnknownCellSet Run(const CellSetType& cellSet,
                                                   const CoordsType& coords,
                                                   const CellNormalsType& cellNormals)
   {

@@ -640,33 +640,6 @@ int vtkOSPRayRendererNode::GetRouletteDepth(vtkRenderer* renderer)
 }
 
 //----------------------------------------------------------------------------
-void vtkOSPRayRendererNode::SetVolumeAnisotropy(double value, vtkRenderer* renderer)
-{
-  if (!renderer)
-  {
-    return;
-  }
-  vtkInformation* info = renderer->GetInformation();
-  info->Set(vtkOSPRayRendererNode::VOLUME_ANISOTROPY(), value);
-}
-
-//----------------------------------------------------------------------------
-double vtkOSPRayRendererNode::GetVolumeAnisotropy(vtkRenderer* renderer)
-{
-  constexpr double DEFAULT_VOLUME_ANISOTROPY = 0.0;
-  if (!renderer)
-  {
-    return DEFAULT_VOLUME_ANISOTROPY;
-  }
-  vtkInformation* info = renderer->GetInformation();
-  if (info && info->Has(vtkOSPRayRendererNode::VOLUME_ANISOTROPY()))
-  {
-    return (info->Get(vtkOSPRayRendererNode::VOLUME_ANISOTROPY()));
-  }
-  return DEFAULT_VOLUME_ANISOTROPY;
-}
-
-//----------------------------------------------------------------------------
 void vtkOSPRayRendererNode::SetVarianceThreshold(double value, vtkRenderer* renderer)
 {
   if (!renderer)
@@ -1467,7 +1440,7 @@ void vtkOSPRayRendererNode::Render(bool prepass)
       {
         // check camera
         // Why not cam->mtime?
-        // cam->mtime is bumped by synch after this in parallel so never reuses
+        // cam->mtime is bumped by sync after this in parallel so never reuses
         // Why not cam->MVTO->mtime?
         //  cam set's elements directly, so the mtime doesn't bump with motion
         vtkMatrix4x4* camnow = ren->GetActiveCamera()->GetModelViewTransformObject()->GetMatrix();

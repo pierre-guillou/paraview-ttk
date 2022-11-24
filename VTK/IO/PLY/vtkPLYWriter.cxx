@@ -16,6 +16,7 @@
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkErrorCode.h"
 #include "vtkFloatArray.h"
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
@@ -61,6 +62,7 @@ vtkPLYWriter::~vtkPLYWriter()
 typedef struct
 {
   float x[3]; // the usual 3-space position of a vertex
+  float normal[3];
   unsigned char red;
   unsigned char green;
   unsigned char blue;
@@ -95,6 +97,11 @@ void vtkPLYWriter::WriteData()
       0 },
     { "z", PLY_FLOAT, PLY_FLOAT,
       static_cast<int>(offsetof(plyVertex, x) + sizeof(float) + sizeof(float)), 0, 0, 0, 0 },
+    { "nx", PLY_FLOAT, PLY_FLOAT, static_cast<int>(offsetof(plyVertex, normal)), 0, 0, 0, 0 },
+    { "ny", PLY_FLOAT, PLY_FLOAT, static_cast<int>(offsetof(plyVertex, normal) + sizeof(float)), 0,
+      0, 0, 0 },
+    { "nz", PLY_FLOAT, PLY_FLOAT, static_cast<int>(offsetof(plyVertex, normal) + 2 * sizeof(float)),
+      0, 0, 0, 0 },
     { "red", PLY_UCHAR, PLY_UCHAR, static_cast<int>(offsetof(plyVertex, red)), 0, 0, 0, 0 },
     { "green", PLY_UCHAR, PLY_UCHAR, static_cast<int>(offsetof(plyVertex, green)), 0, 0, 0, 0 },
     { "blue", PLY_UCHAR, PLY_UCHAR, static_cast<int>(offsetof(plyVertex, blue)), 0, 0, 0, 0 },
@@ -142,6 +149,7 @@ void vtkPLYWriter::WriteData()
   if (ply == nullptr)
   {
     vtkErrorMacro(<< "Error opening PLY file");
+    this->SetErrorCode(vtkErrorCode::CannotOpenFileError);
     return;
   }
 
@@ -150,6 +158,9 @@ void vtkPLYWriter::WriteData()
   vtkIdType numPolys = polys->GetNumberOfCells();
   pointColors = this->GetColors(numPts, input->GetPointData());
   cellColors = this->GetColors(numPolys, input->GetCellData());
+
+  // get normal vectors, if any
+  const float* pointNormals = this->GetNormals(numPts, input->GetPointData());
 
   bool pointAlpha = pointColors && pointColors->GetNumberOfComponents() == 4;
   bool cellAlpha = cellColors && cellColors->GetNumberOfComponents() == 4;
@@ -162,20 +173,26 @@ void vtkPLYWriter::WriteData()
   vtkPLY::ply_describe_property(ply, "vertex", &vertProps[0]);
   vtkPLY::ply_describe_property(ply, "vertex", &vertProps[1]);
   vtkPLY::ply_describe_property(ply, "vertex", &vertProps[2]);
-  if (pointColors)
+  if (pointNormals)
   {
     vtkPLY::ply_describe_property(ply, "vertex", &vertProps[3]);
     vtkPLY::ply_describe_property(ply, "vertex", &vertProps[4]);
     vtkPLY::ply_describe_property(ply, "vertex", &vertProps[5]);
+  }
+  if (pointColors)
+  {
+    vtkPLY::ply_describe_property(ply, "vertex", &vertProps[6]);
+    vtkPLY::ply_describe_property(ply, "vertex", &vertProps[7]);
+    vtkPLY::ply_describe_property(ply, "vertex", &vertProps[8]);
     if (pointAlpha)
     {
-      vtkPLY::ply_describe_property(ply, "vertex", &vertProps[6]);
+      vtkPLY::ply_describe_property(ply, "vertex", &vertProps[9]);
     }
   }
   if (textureCoords)
   {
-    vtkPLY::ply_describe_property(ply, "vertex", &vertProps[7]);
-    vtkPLY::ply_describe_property(ply, "vertex", &vertProps[8]);
+    vtkPLY::ply_describe_property(ply, "vertex", &vertProps[10]);
+    vtkPLY::ply_describe_property(ply, "vertex", &vertProps[11]);
   }
 
   vtkPLY::ply_element_count(ply, "face", numPolys);
@@ -194,7 +211,7 @@ void vtkPLYWriter::WriteData()
   // write comments and an object information field
   for (idx = 0; idx < this->HeaderComments->GetNumberOfValues(); ++idx)
   {
-    vtkPLY::ply_put_comment(ply, this->HeaderComments->GetValue(idx));
+    vtkPLY::ply_put_comment(ply, this->HeaderComments->GetValue(idx).c_str());
   }
   vtkPLY::ply_put_obj_info(ply, "vtkPolyData points and polygons: vtk4.0");
 
@@ -211,6 +228,13 @@ void vtkPLYWriter::WriteData()
     vert.x[0] = static_cast<float>(dpoint[0]);
     vert.x[1] = static_cast<float>(dpoint[1]);
     vert.x[2] = static_cast<float>(dpoint[2]);
+    if (pointNormals)
+    {
+      idx = 3 * i;
+      vert.normal[0] = *(pointNormals + idx);
+      vert.normal[1] = *(pointNormals + idx + 1);
+      vert.normal[2] = *(pointNormals + idx + 2);
+    }
     if (pointColors)
     {
       idx = pointAlpha ? 4 * i : 3 * i;
@@ -400,6 +424,24 @@ const float* vtkPLYWriter::GetTextureCoordinates(vtkIdType num, vtkDataSetAttrib
     vtkErrorMacro(<< "PLY writer only supports float texture coordinates");
 
   return textureArray->GetPointer(0);
+}
+
+const float* vtkPLYWriter::GetNormals(vtkIdType num, vtkDataSetAttributes* dsa)
+{
+  vtkDataArray* normals = dsa->GetNormals();
+  if (!normals || (normals->GetNumberOfTuples() != num) || (normals->GetNumberOfComponents() != 3))
+  {
+    return nullptr;
+  }
+
+  vtkFloatArray* normalArray = vtkArrayDownCast<vtkFloatArray>(normals);
+  if (!normalArray)
+  {
+    vtkWarningMacro(<< "PLY writer only supports float normal vectors");
+    return nullptr;
+  }
+
+  return normalArray->GetPointer(0);
 }
 
 void vtkPLYWriter::PrintSelf(ostream& os, vtkIndent indent)

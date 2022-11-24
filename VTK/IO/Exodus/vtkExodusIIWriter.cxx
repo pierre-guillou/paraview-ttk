@@ -39,7 +39,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkPlatform.h" // for VTK_MAXPATH
 #include "vtkPointData.h"
-#include "vtkStdString.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkThreshold.h"
@@ -538,7 +537,7 @@ int vtkExodusIIWriter::CreateNewExodusFile()
 
   if (this->NumberOfProcesses == 1)
   {
-    if (this->WriteAllTimeSteps == false || this->CurrentTimeIndex == 0)
+    if (!this->WriteAllTimeSteps || this->CurrentTimeIndex == 0)
     {
       this->fid = ex_create(this->FileName, EX_CLOBBER, &compWordSize, &IOWordSize);
       if (fid <= 0)
@@ -562,7 +561,7 @@ int vtkExodusIIWriter::CreateNewExodusFile()
   {
     std::ostringstream myFileName;
     myFileName << this->FileName;
-    if (this->WriteAllTimeSteps == false || this->CurrentTimeIndex == 0)
+    if (!this->WriteAllTimeSteps || this->CurrentTimeIndex == 0)
     {
       myFileName << ".";
     }
@@ -904,7 +903,7 @@ int vtkExodusIIWriter::ConstructBlockInfoMap()
             break;
           default:
             b.NodesPerElement = this->FlattenedInput[i]->GetCell(j)->GetNumberOfPoints();
-        };
+        }
 
         // TODO this could be a push if i is different.
         b.GridIndex = i;
@@ -970,7 +969,7 @@ int vtkExodusIIWriter::ConstructVariableInfoMaps()
     vtkFieldData* fd = this->FlattenedInput[i]->GetFieldData();
     for (int j = 0; j < fd->GetNumberOfArrays(); j++)
     {
-      char* name = nullptr;
+      const char* name = nullptr;
       if (fd->GetAbstractArray(j))
       {
         name = fd->GetAbstractArray(j)->GetName();
@@ -1018,7 +1017,7 @@ int vtkExodusIIWriter::ConstructVariableInfoMaps()
     vtkCellData* cd = this->FlattenedInput[i]->GetCellData();
     for (int j = 0; j < cd->GetNumberOfArrays(); j++)
     {
-      char* name = nullptr;
+      const char* name = nullptr;
       if (cd->GetArray(j))
       {
         name = cd->GetArray(j)->GetName();
@@ -1066,7 +1065,7 @@ int vtkExodusIIWriter::ConstructVariableInfoMaps()
     vtkPointData* pd = this->FlattenedInput[i]->GetPointData();
     for (int j = 0; j < pd->GetNumberOfArrays(); j++)
     {
-      char* name = nullptr;
+      const char* name = nullptr;
       if (pd->GetArray(j))
       {
         name = pd->GetArray(j)->GetName();
@@ -1991,7 +1990,7 @@ int vtkExodusIIWriter::WriteBlockInformation()
       if (blockIter->second.NodesPerElement == 0)
       {
         rc = ex_put_entity_count_per_polyhedra(
-          this->fid, EX_ELEM_BLOCK, blockIter->first, &(blockIter->second.EntityCounts[0]));
+          this->fid, EX_ELEM_BLOCK, blockIter->first, blockIter->second.EntityCounts.data());
       }
     }
   }
@@ -2477,7 +2476,7 @@ int vtkExodusIIWriter::WriteNodeSetInformation()
 
   for (i = 0; i < nnsets; i++)
   {
-    vtkStdString name = em->GetNodeSetNames()->GetValue(node_ids[i]);
+    std::string name = em->GetNodeSetNames()->GetValue(node_ids[i]);
     ex_put_name(this->fid, EX_NODE_SET, node_ids[i], name.c_str());
   }
 
@@ -2704,7 +2703,7 @@ int vtkExodusIIWriter::WriteSideSetInformation()
 
   for (i = 0; i < nssets; i++)
   {
-    vtkStdString name = em->GetSideSetNames()->GetValue(sids[i]);
+    std::string name = em->GetSideSetNames()->GetValue(sids[i]);
     ex_put_name(this->fid, EX_SIDE_SET, sids[i], name.c_str());
   }
 

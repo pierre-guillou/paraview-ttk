@@ -37,13 +37,9 @@
 
 #include "vtkPointData.h"
 
-#include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkRenderWindow.h"
-#include "vtkRenderer.h"
 #include "vtkTextActor3D.h"
-#include "vtkTextProperty.h"
-#include "vtkTextPropertyCollection.h"
 
 #include "vtkTextRenderer.h"
 #include "vtkTimerLog.h"
@@ -1265,12 +1261,7 @@ bool allOutside(const vtkVector2i& point, const vtkVector2i& direction, const PD
   }
 
   testVector = other.BLd - point;
-  if (direction.Dot(testVector) <= 0)
-  {
-    return false;
-  }
-
-  return true;
+  return direction.Dot(testVector) > 0;
 }
 
 // Generate a vector pointing out from each edge of the rectangle. Do this

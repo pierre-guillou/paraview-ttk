@@ -25,8 +25,7 @@
 #ifndef vtkOpenGLRenderWindow_h
 #define vtkOpenGLRenderWindow_h
 
-#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_0_0
-#include "vtkRect.h"        // for vtkRecti
+#include "vtkRect.h" // for vtkRecti
 #include "vtkRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkType.h"                   // for ivar
@@ -43,7 +42,6 @@ class vtkOpenGLShaderCache;
 class vtkOpenGLVertexBufferObjectCache;
 class vtkOpenGLVertexArrayObject;
 class vtkShaderProgram;
-class vtkStdString;
 class vtkTexture;
 class vtkTextureObject;
 class vtkTextureUnitManager;
@@ -184,21 +182,6 @@ public:
    */
   void GetOpenGLVersion(int& major, int& minor);
 
-  ///@{
-  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
-  unsigned int GetBackLeftBuffer();
-  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
-  unsigned int GetBackRightBuffer();
-  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
-  unsigned int GetFrontLeftBuffer();
-  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
-  unsigned int GetFrontRightBuffer();
-  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
-  unsigned int GetBackBuffer();
-  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1, now always returns 0")
-  unsigned int GetFrontBuffer();
-  ///@}
-
   /**
    * Get the time when the OpenGL context was created.
    */
@@ -219,8 +202,6 @@ public:
    * Returns the render framebuffer object.
    */
   vtkGetObjectMacro(RenderFramebuffer, vtkOpenGLFramebufferObject);
-  VTK_DEPRECATED_IN_9_1_0("Removed in 9.1")
-  vtkOpenGLFramebufferObject* GetOffScreenFramebuffer() { return this->RenderFramebuffer; }
   ///@}
 
   /**
@@ -366,7 +347,7 @@ public:
 
   // Activate and return thje texture unit for a generic 2d 64x64
   // float greyscale noise texture ranging from 0 to 1. The texture is
-  // generated using PerlinNoise.  This textur eunit will automatically
+  // a hard-coded blue noise texture.  This texture unit will automatically
   // be deactivated at the end of the render process.
   int GetNoiseTextureUnit();
 
@@ -440,6 +421,15 @@ public:
   ///@}
 
   ///@{
+  /**
+   * Enable/Disable flipping the Y axis of the rendered texture.
+   */
+  vtkSetMacro(FramebufferFlipY, bool);
+  vtkGetMacro(FramebufferFlipY, bool);
+  vtkBooleanMacro(FramebufferFlipY, bool);
+  ///@}
+
+  ///@{
   // copy depth values from a source framebuffer to a destination framebuffer
   // using texture maps to do the copy. The source framebufferobject must be texture
   // backed. This method is designed to work around issues with trying to blit depth
@@ -471,6 +461,17 @@ protected:
 
   // a FSQ we use to blit depth values
   vtkOpenGLQuadHelper* DepthBlitQuad;
+
+  // a FSQ we use to flip framebuffer texture
+  vtkOpenGLQuadHelper* FlipQuad;
+
+  // flip quad helpers Y tcoord
+  bool FramebufferFlipY;
+
+  // resolve and flip renderframebuffer as needed
+  // when copying to displayframebuffer. Returns
+  // true if the color buffer was copied.
+  virtual bool ResolveFlipRenderFramebuffer();
 
   // used in testing for opengl support
   // in the SupportsOpenGL() method

@@ -37,6 +37,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkInformationDoubleVectorKey.h"
 #include "vtkInformationIntegerKey.h"
 #include "vtkInformationVector.h"
+#include "vtkLegacy.h"
 #include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
@@ -432,9 +433,12 @@ vtkHyperTreeGrid* vtkHyperTreeGrid::GetData(vtkInformationVector* v, int i)
 //------------------------------------------------------------------------------
 void vtkHyperTreeGrid::CopyEmptyStructure(vtkDataObject* ds)
 {
-  assert("pre: ds_exists" && ds != nullptr);
   vtkHyperTreeGrid* htg = vtkHyperTreeGrid::SafeDownCast(ds);
-  assert("pre: same_type" && htg != nullptr);
+  if (!htg)
+  {
+    vtkErrorMacro("Unable to copy empty structure of a non-HTG or empty data object in an HTG");
+    return;
+  }
 
   // RectilinearGrid
   memcpy(this->Dimensions, htg->GetDimensions(), 3 * sizeof(unsigned int));
@@ -466,16 +470,17 @@ void vtkHyperTreeGrid::CopyEmptyStructure(vtkDataObject* ds)
   this->HasInterface = htg->HasInterface;
   this->SetInterfaceNormalsName(htg->InterfaceNormalsName);
   this->SetInterfaceInterceptsName(htg->InterfaceInterceptsName);
-
-  this->CellData->CopyStructure(htg->GetCellData());
 }
 
 //------------------------------------------------------------------------------
 void vtkHyperTreeGrid::CopyStructure(vtkDataObject* ds)
 {
-  assert("pre: ds_exists" && ds != nullptr);
   vtkHyperTreeGrid* htg = vtkHyperTreeGrid::SafeDownCast(ds);
-  assert("pre: same_type" && htg != nullptr);
+  if (!htg)
+  {
+    vtkErrorMacro("Unable to copy structure of a non-HTG or empty data object in an HTG");
+    return;
+  }
 
   // RectilinearGrid
   memcpy(this->Dimensions, htg->GetDimensions(), 3 * sizeof(unsigned int));
@@ -512,8 +517,6 @@ void vtkHyperTreeGrid::CopyStructure(vtkDataObject* ds)
   this->SetMask(htg->GetMask());
   vtkSetObjectBodyMacro(PureMask, vtkBitArray, htg->GetPureMask());
 
-  this->CellData->CopyStructure(htg->GetCellData());
-
   // Search for hyper tree with given index
   this->HyperTrees.clear();
 
@@ -524,6 +527,11 @@ void vtkHyperTreeGrid::CopyStructure(vtkDataObject* ds)
     tree->CopyStructure(it->second);
     this->HyperTrees[it->first] = tree;
     tree->Delete();
+  }
+
+  if (htg->HasAnyGhostCells())
+  {
+    this->GetCellData()->AddArray(htg->GetGhostCells());
   }
 }
 
@@ -784,6 +792,13 @@ vtkIdType vtkHyperTreeGrid::GetNumberOfNonEmptyTrees()
 //------------------------------------------------------------------------------
 vtkIdType vtkHyperTreeGrid::GetNumberOfVertices()
 {
+  VTK_LEGACY_REPLACED_BODY(GetNumberOfVertices, "VTK 9.2", GetNumberOfCells);
+  return this->GetNumberOfCells();
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkHyperTreeGrid::GetNumberOfCells()
+{
   vtkIdType nVertices = 0;
 
   // Iterate over all trees in grid
@@ -883,100 +898,75 @@ vtkHyperTreeGridNonOrientedGeometryCursor* vtkHyperTreeGrid::NewNonOrientedGeome
 }
 
 //------------------------------------------------------------------------------
-
-//------------------------------------------------------------------------------
-// #define TRACE
-
 unsigned int vtkHyperTreeGrid::RecurseDichotomic(
-  double value, vtkDoubleArray* coord, unsigned int ideb, unsigned int ifin) const
+  double value, vtkDoubleArray* coord, double tol, unsigned int iBegin, unsigned int iEnd) const
 {
-#ifdef TRACE
-  std::cerr << "RecurseDichotomic: [" << ideb << "; " << ifin << "]" << std::endl;
-#endif
-  if (ideb == ifin - 1)
+  if (iBegin == iEnd - 1)
   {
-    return ideb;
+    return iBegin;
   }
-  unsigned imil = ideb + (ifin - ideb) / 2;
-#ifdef TRACE
-  std::cerr << "RecurseDichotomic: [" << ideb << "; " << imil << "; " << ifin << "]" << std::endl;
-  std::cerr << "RecurseDichotomic: imil# " << imil << " : " << coord->GetValue(imil) << std::endl;
-#endif
-  if (value < coord->GetValue(imil))
+  unsigned int iMid = iBegin + (iEnd - iBegin) / 2;
+  double currentTol = (iMid == coord->GetNumberOfTuples() - 1) ? tol : 0.0;
+  if (value < (coord->GetValue(iMid) + currentTol))
   {
-    return this->RecurseDichotomic(value, coord, ideb, imil);
+    return this->RecurseDichotomic(value, coord, tol, iBegin, iMid);
   }
   else
   {
-    return this->RecurseDichotomic(value, coord, imil, ifin);
+    return this->RecurseDichotomic(value, coord, tol, iMid, iEnd);
   }
 }
 
-unsigned int vtkHyperTreeGrid::FindDichotomic(double value, vtkDataArray* tmp) const
+unsigned int vtkHyperTreeGrid::FindDichotomic(double value, vtkDataArray* tmp, double tol) const
 {
   vtkDoubleArray* coord = vtkDoubleArray::SafeDownCast(tmp);
-  if (value < coord->GetValue(0) || value > coord->GetValue(coord->GetNumberOfTuples() - 1))
+  if (value < (coord->GetValue(0) - tol) ||
+    value > (coord->GetValue(coord->GetNumberOfTuples() - 1) + tol))
   {
     return UINT_MAX;
   }
-  return RecurseDichotomic(value, coord, 0, coord->GetNumberOfTuples());
+  return RecurseDichotomic(value, coord, tol, 0, coord->GetNumberOfTuples());
 }
 
-unsigned int vtkHyperTreeGrid::FindDichotomicX(double value) const
+unsigned int vtkHyperTreeGrid::FindDichotomicX(double value, double tol) const
 {
   assert("pre: exist_coordinates_explict" && this->WithCoordinates);
-  return this->FindDichotomic(value, this->XCoordinates);
+  return this->FindDichotomic(value, this->XCoordinates, tol);
 }
 
-unsigned int vtkHyperTreeGrid::FindDichotomicY(double value) const
+unsigned int vtkHyperTreeGrid::FindDichotomicY(double value, double tol) const
 {
   assert("pre: exist_coordinates_explict" && this->WithCoordinates);
-  return this->FindDichotomic(value, this->YCoordinates);
+  return this->FindDichotomic(value, this->YCoordinates, tol);
 }
 
-unsigned int vtkHyperTreeGrid::FindDichotomicZ(double value) const
+unsigned int vtkHyperTreeGrid::FindDichotomicZ(double value, double tol) const
 {
   assert("pre: exist_coordinates_explict" && this->WithCoordinates);
-  return this->FindDichotomic(value, this->ZCoordinates);
+  return this->FindDichotomic(value, this->ZCoordinates, tol);
 }
 
 vtkHyperTreeGridNonOrientedGeometryCursor* vtkHyperTreeGrid::FindNonOrientedGeometryCursor(
   double x[3])
 {
-#ifdef TRACE
-  std::cerr << "FindNonOrientedGeometryCursor: " << x[0] << "; " << x[1] << "; " << x[2]
-            << std::endl;
-#endif
   unsigned int i = this->FindDichotomicX(x[0]);
   if (i == UINT_MAX)
   {
     return nullptr;
   }
-#ifdef TRACE
-  std::cerr << "Position i# " << i << std::endl;
-#endif
   unsigned int j = this->FindDichotomicY(x[1]);
   if (j == UINT_MAX)
   {
     return nullptr;
   }
-#ifdef TRACE
-  std::cerr << "Position j# " << j << std::endl;
-#endif
   unsigned int k = this->FindDichotomicZ(x[2]);
   if (k == UINT_MAX)
   {
     return nullptr;
   }
-#ifdef TRACE
-  std::cerr << "Position k# " << k << std::endl;
-#endif
 
   vtkIdType index;
   this->GetIndexFromLevelZeroCoordinates(index, i, j, k);
-#ifdef TRACE
-  std::cerr << "Tree index# " << index << std::endl;
-#endif
 
   vtkHyperTreeGridNonOrientedGeometryCursor* cursor =
     vtkHyperTreeGridNonOrientedGeometryCursor::New();
@@ -1018,30 +1008,6 @@ vtkHyperTreeGridNonOrientedGeometryCursor* vtkHyperTreeGrid::FindNonOrientedGeom
     }
     case 3:
     {
-      /*
-           while(not cursor->IsLeaf())
-           {
-             const double* origin = cursor->GetOrigin();
-             const double* scale = cursor->GetSize();
-             double *limit = new double(this->BranchFactor);
-
-
-             unsigned int ichild = 0;
-             if (x[ 0 ] <= p[ 0 ]) {
-             } else {
-               ichild = 1;
-             }
-             if (x[ 1 ] <= p[ 1 ]) {
-             } else {
-               ichild = 3 + ichild;
-             }
-             if (x[ 2 ] <= p[ 2 ]) {
-             } else {
-               ichild = 9 + ichild;
-             }
-             cursor->ToChild(ichild);
-           }
-     */
       assert("pre: not_implemented_raf_3" && false);
       break;
     }
@@ -1273,7 +1239,7 @@ bool vtkHyperTreeGrid::RecursivelyInitializePureMask(
   //  Dot recurse if node is masked or is a leaf
   if (!mask && !cursor->IsLeaf())
   {
-    // Iterate over all chidren
+    // Iterate over all children
     unsigned int numChildren = this->GetNumberOfChildren();
     bool pure = false;
     for (unsigned int child = 0; child < numChildren; ++child)
@@ -1381,8 +1347,6 @@ unsigned long vtkHyperTreeGrid::GetActualMemorySizeBytes()
     size += this->Mask->GetActualMemorySize() << 10;
   }
 
-  // JB Faut il compter le cout des grandeurs dans la representation ???
-  // JB Il ne me semble pas que cela soit fait ainsi dans les autres representations
   size += this->CellData->GetActualMemorySize() << 10;
 
   return static_cast<unsigned long>(size);

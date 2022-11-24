@@ -73,9 +73,7 @@ void vtkResampleWithDataSet::SetCategoricalData(bool arg)
 
 bool vtkResampleWithDataSet::GetCategoricalData()
 {
-  // work around for Visual Studio warning C4800:
-  // 'int' : forcing value to bool 'true' or 'false' (performance warning)
-  return this->Prober->GetCategoricalData() ? true : false;
+  return this->Prober->GetCategoricalData() != 0;
 }
 
 void vtkResampleWithDataSet::SetPassCellArrays(bool arg)
@@ -85,9 +83,7 @@ void vtkResampleWithDataSet::SetPassCellArrays(bool arg)
 
 bool vtkResampleWithDataSet::GetPassCellArrays()
 {
-  // work around for Visual Studio warning C4800:
-  // 'int' : forcing value to bool 'true' or 'false' (performance warning)
-  return this->Prober->GetPassCellArrays() ? true : false;
+  return this->Prober->GetPassCellArrays() != 0;
 }
 
 void vtkResampleWithDataSet::SetPassPointArrays(bool arg)
@@ -97,7 +93,7 @@ void vtkResampleWithDataSet::SetPassPointArrays(bool arg)
 
 bool vtkResampleWithDataSet::GetPassPointArrays()
 {
-  return this->Prober->GetPassPointArrays() ? true : false;
+  return this->Prober->GetPassPointArrays() != 0;
 }
 
 void vtkResampleWithDataSet::SetPassFieldArrays(bool arg)
@@ -107,7 +103,7 @@ void vtkResampleWithDataSet::SetPassFieldArrays(bool arg)
 
 bool vtkResampleWithDataSet::GetPassFieldArrays()
 {
-  return this->Prober->GetPassFieldArrays() ? true : false;
+  return this->Prober->GetPassFieldArrays() != 0;
 }
 
 void vtkResampleWithDataSet::SetPassPartialArrays(bool arg)
@@ -151,6 +147,16 @@ bool vtkResampleWithDataSet::GetComputeTolerance()
   return this->Prober->GetComputeTolerance();
 }
 
+void vtkResampleWithDataSet::SetSnapToCellWithClosestPoint(bool arg)
+{
+  this->Prober->SetSnapToCellWithClosestPoint(arg);
+}
+
+bool vtkResampleWithDataSet::GetSnapToCellWithClosestPoint()
+{
+  return this->Prober->GetSnapToCellWithClosestPoint();
+}
+
 //------------------------------------------------------------------------------
 vtkMTimeType vtkResampleWithDataSet::GetMTime()
 {
@@ -192,10 +198,15 @@ int vtkResampleWithDataSet::RequestUpdateExtent(
 }
 
 //------------------------------------------------------------------------------
-int vtkResampleWithDataSet::FillInputPortInformation(int vtkNotUsed(port), vtkInformation* info)
+int vtkResampleWithDataSet::FillInputPortInformation(int port, vtkInformation* info)
 {
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCompositeDataSet");
+
+  if (port == 1)
+  {
+    info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
+  }
   return 1;
 }
 
@@ -266,7 +277,7 @@ public:
         if (!this->MaskArray[ptid])
         {
           this->CellGhostArray->SetValue(
-            i, this->CellGhostArray->GetValue(i) | vtkDataSetAttributes::HIDDENPOINT);
+            i, this->CellGhostArray->GetValue(i) | vtkDataSetAttributes::HIDDENCELL);
           break;
         }
       }

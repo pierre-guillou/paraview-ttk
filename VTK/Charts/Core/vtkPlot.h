@@ -30,7 +30,7 @@
 #include "vtkChartsCoreModule.h" // For export macro
 #include "vtkContextItem.h"
 #include "vtkContextPolygon.h" // For vtkContextPolygon
-#include "vtkDeprecation.h"    // For VTK_DEPRECATED_IN_9_0_0
+#include "vtkDeprecation.h"    // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkRect.h"           // For vtkRectd ivar
 #include "vtkSmartPointer.h"   // Needed to hold SP ivars
 #include "vtkStdString.h"      // Needed to hold TooltipLabelFormat ivar
@@ -43,12 +43,20 @@ class vtkPen;
 class vtkBrush;
 class vtkAxis;
 class vtkStringArray;
+class vtkAlgorithmOutput;
 
 class VTKCHARTSCORE_EXPORT vtkPlot : public vtkContextItem
 {
 public:
   vtkTypeMacro(vtkPlot, vtkContextItem);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  /**
+   * Perform any updates to the item that may be necessary before rendering.
+   * The scene should take care of calling this on all items before their
+   * Paint function is invoked.
+   */
+  void Update() override;
 
   ///@{
   /**
@@ -119,17 +127,6 @@ public:
     vtkVector2f* location, vtkIdType* segmentId);
 
   /**
-   * Function to query a plot for the nearest point to the specified coordinate.
-   * Returns the index of the data series with which the point is associated, or
-   * -1 if no point was found.
-   * Deprecated method, uses GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
-   * vtkVector2f* location, vtkIdType* segmentId); instead.
-   */
-  VTK_DEPRECATED_IN_9_0_0("Use the vtkPlot::GetNearestPoint() overload with a segmentId argument")
-  virtual vtkIdType GetNearestPoint(
-    const vtkVector2f& point, const vtkVector2f& tolerance, vtkVector2f* location);
-
-  /**
    * Select all points in the specified rectangle.
    */
   virtual bool SelectPoints(const vtkVector2f& min, const vtkVector2f& max);
@@ -139,15 +136,40 @@ public:
    */
   virtual bool SelectPointsInPolygon(const vtkContextPolygon& polygon);
 
-  ///@{
   /**
-   * Set the plot color
+   * Set the plot color with integer values (comprised between 0 and 255)
    */
   virtual void SetColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
-  virtual void SetColor(double r, double g, double b);
-  virtual void GetColor(double rgb[3]);
-  void GetColor(unsigned char rgb[3]);
+
+  ///@{
+  /**
+   * Set the plot color with floating values (comprised between 0.0 and 1.0)
+   */
+  virtual void SetColorF(double r, double g, double b, double a);
+  virtual void SetColorF(double r, double g, double b);
+
+  // If removed, please remplace it with the following function:
+  // SetColor(unsigned char r, unsigned char g, unsigned char b)
+  // here and in the inheriting classes overriding it
+  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous SetColorF method instead.")
+  virtual void SetColor(double r, double g, double b) { this->SetColorF(r, g, b); };
   ///@}
+
+  /**
+   * Get the plot color as integer rgb values (comprised between 0 and 255)
+   */
+  void GetColor(unsigned char rgb[3]);
+
+  ///@{
+  /**
+   * Get the plot color as floating rgb values (comprised between 0.0 and 1.0)
+   */
+  virtual void GetColorF(double rgb[3]);
+
+  // If removed, please make GetColor(unsigned char rgb[3]) virtual
+  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous GetColorF method instead.")
+  virtual void GetColor(double rgb[3]) { this->GetColorF(rgb); };
+  ///@
 
   /**
    * Set the width of the line.
@@ -269,10 +291,22 @@ public:
   void SetInputData(vtkTable* table, vtkIdType xColumn, vtkIdType yColumn);
   ///@}
 
+  ///@{
+  /**
+   * This is a convenience function to set the input connection for the plot.
+   */
+  virtual void SetInputConnection(vtkAlgorithmOutput* input);
+  ///@}
+
   /**
    * Get the input table used by the plot.
    */
   virtual vtkTable* GetInput();
+
+  /**
+   * Get the input connection used by the plot.
+   */
+  vtkAlgorithmOutput* GetInputConnection();
 
   /**
    * Convenience function to set the input arrays. For most plots index 0
@@ -368,14 +402,6 @@ public:
     return this->GetBounds(bounds);
   }
 
-  /**
-   * Subclasses that build data caches to speed up painting should override this
-   * method to update such caches. This is called on each Paint, hence
-   * subclasses must add checks to avoid rebuilding of cache, unless necessary.
-   * Default implementation is empty.
-   */
-  virtual void UpdateCache() {}
-
   ///@{
   /**
    * A General setter/getter that should be overridden. It can silently drop
@@ -399,6 +425,14 @@ public:
    */
   bool Hit(const vtkContextMouseEvent& mouse) override;
 
+  /**
+   * Update the internal cache. Returns true if cache was successfully updated. Default does
+   * nothing.
+   * This method is called by Update() when either the plot's data has changed or
+   * CacheRequiresUpdate() returns true. It is not necessary to call this method explicitly.
+   */
+  virtual bool UpdateCache() { return true; }
+
 protected:
   vtkPlot();
   ~vtkPlot() override;
@@ -420,6 +454,16 @@ protected:
   virtual void TransformDataToScreen(
     const double inX, const double inY, double& outX, double& outY);
   ///@}
+
+  /**
+   * Test if the internal cache requires an update.
+   */
+  virtual bool CacheRequiresUpdate();
+
+  /**
+   * The point cache is marked dirty until it has been initialized.
+   */
+  vtkTimeStamp BuildTime;
 
   /**
    * This object stores the vtkPen that controls how the plot is drawn.
@@ -511,13 +555,6 @@ protected:
   vtkRectd ShiftScale;
 
   bool LegendVisibility;
-
-  /**
-   * Flag used by GetNearestPoint legacy implementation
-   * to avoid infinite call
-   */
-  // VTK_DEPRECATED_IN_9_0_0("used to track deprecation integration logic")
-  bool LegacyRecursionFlag = false;
 
 private:
   vtkPlot(const vtkPlot&) = delete;

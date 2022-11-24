@@ -55,6 +55,7 @@
     W VTK special type
     P Pointer to numeric type
     A Multi-dimensional array of numeric type
+    T std::vector
 
     | marks the end of required parameters, following parameters are optional
 
@@ -159,9 +160,6 @@ static char vtkWrapPython_FormatChar(unsigned int argtype)
     case VTK_PARSE_STRING:
       typeChar = 's';
       break;
-    case VTK_PARSE_UNICODE_STRING:
-      typeChar = 'u';
-      break;
   }
 
   return typeChar;
@@ -223,7 +221,7 @@ static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* current
     if (vtkWrap_IsEnumMember(data, arg))
     {
       c = 'E';
-      sprintf(classname, "%.200s.%.200s", data->Name, arg->Class);
+      snprintf(classname, sizeof(classname), "%.200s.%.200s", data->Name, arg->Class);
     }
     else if (arg->IsEnum)
     {
@@ -239,6 +237,14 @@ static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* current
     {
       c = 'V';
       vtkWrapText_PythonName(arg->Class, classname);
+    }
+    else if (vtkWrap_IsVTKSmartPointer(arg))
+    {
+      char* templateArg = vtkWrap_TemplateArg(arg->Class);
+      argtype = VTK_PARSE_OBJECT_PTR;
+      c = 'V';
+      vtkWrapText_PythonName(templateArg, classname);
+      free(templateArg);
     }
     else if (vtkWrap_IsSpecialObject(arg))
     {
@@ -256,10 +262,6 @@ static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* current
     else if (vtkWrap_IsString(arg))
     {
       c = 's';
-      if ((argtype & VTK_PARSE_BASE_TYPE) == VTK_PARSE_UNICODE_STRING)
-      {
-        c = 'u';
-      }
     }
     else if (vtkWrap_IsCharPointer(arg))
     {
@@ -301,15 +303,29 @@ static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* current
       const char* tclass;
       unsigned int ttype;
       /* first, decompose template into template name + args */
-      const char* tname;                      /* will store template name, i.e. "std::vector" */
-      size_t n;                               /* will store length of the template name */
-      const char** targs;                     /* will store the template args */
+      const char* tname;                      /* for template name, "std::vector" */
+      size_t n;                               /* for length of tname string */
+      const char** targs;                     /* for template args */
       const char* defaults[2] = { NULL, "" }; /* NULL means "not optional" */
+      const size_t m = 16;                    /* length of "vtkSmartPointer<" */
       vtkParse_DecomposeTemplatedType(arg->Class, &tname, 2, &targs, defaults);
       vtkParse_BasicTypeFromString(targs[0], &ttype, &tclass, &n);
       c = 'T';
       result[endPos++] = ' ';
-      result[endPos++] = vtkWrapPython_FormatChar(ttype);
+      if (ttype == VTK_PARSE_OBJECT && strncmp(tclass, "vtkSmartPointer<", m) == 0)
+      {
+        /* The '*' indicates a pointer (in this case, a vtkSmartPointer) */
+        result[endPos++] = '*';
+        /* get the VTK object type "T" from "vtkSmartPointer<T>" */
+        vtkParse_BasicTypeFromString(&tclass[m], &ttype, &tclass, &n);
+        memcpy(&result[endPos], tclass, n);
+        endPos += n;
+      }
+      else
+      {
+        /* for vectors of anything that isn't a vtkSmartPointer */
+        result[endPos++] = vtkWrapPython_FormatChar(ttype);
+      }
     }
 
     /* add the format char to the string */
@@ -431,13 +447,13 @@ int* vtkWrapPython_ArgCountToOverloadMap(FunctionInfo** wrappedFunctions,
  * this is also used to write out all constructors for the class */
 
 void vtkWrapPython_OverloadMethodDef(FILE* fp, const char* classname, ClassInfo* data,
-  int* overloadMap, FunctionInfo** wrappedFunctions, int numberOfWrappedFunctions, int fnum,
+  const int* overloadMap, FunctionInfo** wrappedFunctions, int numberOfWrappedFunctions, int fnum,
   int numberOfOccurrences)
 {
   char occSuffix[16];
   int occ, occCounter;
   FunctionInfo* theOccurrence;
-  FunctionInfo* theFunc;
+  const FunctionInfo* theFunc;
   int totalArgs, requiredArgs;
   int i;
   int putInTable;
@@ -488,7 +504,7 @@ void vtkWrapPython_OverloadMethodDef(FILE* fp, const char* classname, ClassInfo*
     occSuffix[0] = '\0';
     if (numberOfOccurrences > 1)
     {
-      sprintf(occSuffix, "_s%d", occCounter);
+      snprintf(occSuffix, sizeof(occSuffix), "_s%d", occCounter);
     }
 
     fprintf(fp,
@@ -507,12 +523,12 @@ void vtkWrapPython_OverloadMethodDef(FILE* fp, const char* classname, ClassInfo*
 /* -------------------------------------------------------------------- */
 /* make a method that will choose which overload to call */
 
-void vtkWrapPython_OverloadMasterMethod(FILE* fp, const char* classname, int* overloadMap,
+void vtkWrapPython_OverloadMasterMethod(FILE* fp, const char* classname, const int* overloadMap,
   int maxArgs, FunctionInfo** wrappedFunctions, int numberOfWrappedFunctions, int fnum,
   int is_vtkobject)
 {
-  FunctionInfo* currentFunction;
-  FunctionInfo* theOccurrence;
+  const FunctionInfo* currentFunction;
+  const FunctionInfo* theOccurrence;
   int overlap = 0;
   int occ, occCounter;
   int i;

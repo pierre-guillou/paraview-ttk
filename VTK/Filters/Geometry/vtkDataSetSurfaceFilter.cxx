@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkDataSetSurfaceFilter.h"
 
 #include "vtkBezierCurve.h"
@@ -374,6 +371,16 @@ vtkDataSetSurfaceFilter::~vtkDataSetSurfaceFilter()
 {
   this->SetOriginalCellIdsName(nullptr);
   this->SetOriginalPointIdsName(nullptr);
+  if (this->OriginalPointIds)
+  {
+    this->OriginalPointIds->Delete();
+    this->OriginalPointIds = nullptr;
+  }
+  if (this->OriginalCellIds)
+  {
+    this->OriginalCellIds->Delete();
+    this->OriginalCellIds = nullptr;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -606,7 +613,7 @@ int vtkDataSetSurfaceFilter::UniformGridExecute(
   if (this->OriginalCellIds)
   {
     this->OriginalCellIds->Delete();
-    this->OriginalPointIds = nullptr;
+    this->OriginalCellIds = nullptr;
   }
   return 1;
 }
@@ -621,7 +628,9 @@ int vtkDataSetSurfaceFilter::StructuredExecute(
       TRACE, "StructuredExecute Using GeometryFilter (fastMode=%d)", (int)this->GetFastMode());
     vtkNew<vtkGeometryFilter> geometryFilter;
     vtkGeometryFilterHelper::CopyFilterParams(this, geometryFilter);
-    return geometryFilter->StructuredExecute(input, output, nullptr, nullptr);
+    int wholeExtent[6];
+    std::copy(wholeExt, wholeExt + 6, wholeExtent);
+    return geometryFilter->StructuredExecute(input, output, wholeExtent, nullptr, nullptr);
   }
 
   if (::StructuredExecuteWithBlanking(vtkImageData::SafeDownCast(input), output, this) ||
@@ -1242,7 +1251,7 @@ int vtkDataSetSurfaceFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(requ
     // PolyData does not need any ghost levels.
     vtkDataObject* dobj = inInfo->Get(vtkDataObject::DATA_OBJECT());
     if (dobj && !strcmp(dobj->GetClassName(), "vtkUnstructuredGrid"))
-    { // Processing does nothing fo ghost levels yet so ...
+    { // Processing does nothing for ghost levels yet so ...
       // Be careful to set output ghost level value one less than default
       // when they are implemented.  I had trouble with multiple executes.
       ++ghostLevels;
@@ -1274,7 +1283,8 @@ void vtkDataSetSurfaceFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "OriginalCellIdsName: " << this->GetOriginalCellIdsName() << endl;
   os << indent << "OriginalPointIdsName: " << this->GetOriginalPointIdsName() << endl;
   os << indent << "NonlinearSubdivisionLevel: " << this->GetNonlinearSubdivisionLevel() << endl;
-  os << indent << "FastMode: " << this->FastMode << endl;
+  os << indent << "FastMode: " << this->GetFastMode() << endl;
+  os << indent << "Delegation: " << this->GetDelegation() << endl;
 }
 
 //========================================================================
@@ -1306,9 +1316,11 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecute(
   // Depending on the outcome, we may process the data ourselves, or send over
   // to the faster vtkGeometryFilter.
   bool mayDelegate = (info == nullptr && this->Delegation);
+  bool info_owned = false;
   if (info == nullptr)
   {
     info = vtkGeometryFilterHelper::CharacterizeUnstructuredGrid(input);
+    info_owned = true;
   }
   bool handleSubdivision = (!info->IsLinear);
 
@@ -1321,6 +1333,10 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecute(
     gf->UnstructuredGridExecute(dataSetInput, output, info, nullptr);
     delete info;
     return 1;
+  }
+  if (info_owned)
+  {
+    delete info;
   }
 
   // If here, the data is gnarly and this filter will process it.
@@ -2710,15 +2726,6 @@ vtkIdType vtkDataSetSurfaceFilter::GetOutputPointIdAndInterpolate(vtkIdType inPt
 
 //------------------------------------------------------------------------------
 vtkIdType vtkDataSetSurfaceFilter::GetInterpolatedPointId(vtkIdType edgePtA, vtkIdType edgePtB,
-  vtkDataSet* input, vtkCell* cell, double pcoords[3], vtkPoints* outPts, vtkPointData* outPD)
-{
-  std::vector<double> weights(cell->GetNumberOfPoints());
-  return this->GetInterpolatedPointId(
-    edgePtA, edgePtB, input, cell, pcoords, weights.data(), outPts, outPD);
-}
-
-//------------------------------------------------------------------------------
-vtkIdType vtkDataSetSurfaceFilter::GetInterpolatedPointId(vtkIdType edgePtA, vtkIdType edgePtB,
   vtkDataSet* input, vtkCell* cell, double pcoords[3], double* weights, vtkPoints* outPts,
   vtkPointData* outPD)
 {
@@ -2773,29 +2780,4 @@ void vtkDataSetSurfaceFilter::RecordOrigPointId(vtkIdType destIndex, vtkIdType o
   {
     this->OriginalPointIds->InsertValue(destIndex, originalId);
   }
-}
-
-//------------------------------------------------------------------------------
-vtkTypeBool vtkDataSetSurfaceFilter::GetUseStrips()
-{
-  VTK_LEGACY_BODY(vtkDataSetSurfaceFilter::GetUseStrips, "VTK 9.1");
-  return false;
-}
-
-//------------------------------------------------------------------------------
-void vtkDataSetSurfaceFilter::SetUseStrips(vtkTypeBool)
-{
-  VTK_LEGACY_BODY(vtkDataSetSurfaceFilter::SetUseStrips, "VTK 9.1");
-}
-
-//------------------------------------------------------------------------------
-void vtkDataSetSurfaceFilter::UseStripsOn()
-{
-  VTK_LEGACY_BODY(vtkDataSetSurfaceFilter::UseStripsOn, "VTK 9.1");
-}
-
-//------------------------------------------------------------------------------
-void vtkDataSetSurfaceFilter::UseStripsOff()
-{
-  VTK_LEGACY_BODY(vtkDataSetSurfaceFilter::UseStripsOff, "VTK 9.1");
 }

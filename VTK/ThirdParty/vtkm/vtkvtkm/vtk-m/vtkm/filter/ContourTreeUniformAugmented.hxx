@@ -212,7 +212,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(
       // Create the result object
       vtkm::cont::DataSet result;
       vtkm::cont::Field rfield(
-        this->GetOutputFieldName(), vtkm::cont::Field::Association::WHOLE_MESH, sortedValues);
+        this->GetOutputFieldName(), vtkm::cont::Field::Association::WholeMesh, sortedValues);
       result.AddField(rfield);
       return result;
     }
@@ -318,9 +318,9 @@ VTKM_CONT void ContourTreeAugmented::DoPostExecute(
     // localDataBlocks[bi]->SortOrder = currContourTreeMesh->SortOrder;
     localDataBlocks[bi]->SortedValue = currContourTreeMesh->SortedValues;
     localDataBlocks[bi]->GlobalMeshIndex = currContourTreeMesh->GlobalMeshIndex;
-    localDataBlocks[bi]->Neighbours = currContourTreeMesh->Neighbours;
-    localDataBlocks[bi]->FirstNeighbour = currContourTreeMesh->FirstNeighbour;
-    localDataBlocks[bi]->MaxNeighbours = currContourTreeMesh->MaxNeighbours;
+    localDataBlocks[bi]->NeighborConnectivity = currContourTreeMesh->NeighborConnectivity;
+    localDataBlocks[bi]->NeighborOffsets = currContourTreeMesh->NeighborOffsets;
+    localDataBlocks[bi]->MaxNeighbors = currContourTreeMesh->MaxNeighbors;
     localDataBlocks[bi]->BlockOrigin = localBlocksOriginPortal.Get(static_cast<vtkm::Id>(bi));
     localDataBlocks[bi]->BlockSize = localBlocksSizesPortal.Get(static_cast<vtkm::Id>(bi));
     localDataBlocks[bi]->GlobalSize =
@@ -425,9 +425,9 @@ VTKM_CONT void ContourTreeAugmented::DoPostExecute(
     contourTreeMeshOut.SortIndices = vtkm::cont::ArrayHandleIndex(contourTreeMeshOut.NumVertices);
     contourTreeMeshOut.SortedValues = localDataBlocks[0]->SortedValue;
     contourTreeMeshOut.GlobalMeshIndex = localDataBlocks[0]->GlobalMeshIndex;
-    contourTreeMeshOut.Neighbours = localDataBlocks[0]->Neighbours;
-    contourTreeMeshOut.FirstNeighbour = localDataBlocks[0]->FirstNeighbour;
-    contourTreeMeshOut.MaxNeighbours = localDataBlocks[0]->MaxNeighbours;
+    contourTreeMeshOut.NeighborConnectivity = localDataBlocks[0]->NeighborConnectivity;
+    contourTreeMeshOut.NeighborOffsets = localDataBlocks[0]->NeighborOffsets;
+    contourTreeMeshOut.MaxNeighbors = localDataBlocks[0]->MaxNeighbors;
     // Construct the mesh boundary exectuion object needed for boundary augmentation
     vtkm::Id3 minIdx(0, 0, 0);
     vtkm::Id3 maxIdx = this->MultiBlockTreeHelper->MultiBlockSpatialDecomposition.GlobalSize;
@@ -455,7 +455,7 @@ VTKM_CONT void ContourTreeAugmented::DoPostExecute(
     // TODO the result we return for the parallel and serial case are different right now. This should be made consistent. However, only in the parallel case are we useing the result output
     vtkm::cont::DataSet temp;
     vtkm::cont::Field rfield(this->GetOutputFieldName(),
-                             vtkm::cont::Field::Association::WHOLE_MESH,
+                             vtkm::cont::Field::Association::WholeMesh,
                              contourTreeMeshOut.SortedValues);
     temp.AddField(rfield);
     output = vtkm::cont::PartitionedDataSet(temp);

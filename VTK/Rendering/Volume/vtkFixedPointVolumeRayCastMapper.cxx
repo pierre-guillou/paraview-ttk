@@ -52,21 +52,27 @@ vtkStandardNewMacro(vtkFixedPointVolumeRayCastMapper);
 vtkCxxSetObjectMacro(vtkFixedPointVolumeRayCastMapper, RayCastImage, vtkFixedPointRayCastImage);
 
 #define vtkVRCMultiplyPointMacro(A, B, M)                                                          \
-  B[0] = A[0] * M[0] + A[1] * M[1] + A[2] * M[2] + M[3];                                           \
-  B[1] = A[0] * M[4] + A[1] * M[5] + A[2] * M[6] + M[7];                                           \
-  B[2] = A[0] * M[8] + A[1] * M[9] + A[2] * M[10] + M[11];                                         \
-  B[3] = A[0] * M[12] + A[1] * M[13] + A[2] * M[14] + M[15];                                       \
-  if (B[3] != 1.0)                                                                                 \
+  do                                                                                               \
   {                                                                                                \
-    B[0] /= B[3];                                                                                  \
-    B[1] /= B[3];                                                                                  \
-    B[2] /= B[3];                                                                                  \
-  }
+    B[0] = A[0] * M[0] + A[1] * M[1] + A[2] * M[2] + M[3];                                         \
+    B[1] = A[0] * M[4] + A[1] * M[5] + A[2] * M[6] + M[7];                                         \
+    B[2] = A[0] * M[8] + A[1] * M[9] + A[2] * M[10] + M[11];                                       \
+    B[3] = A[0] * M[12] + A[1] * M[13] + A[2] * M[14] + M[15];                                     \
+    if (B[3] != 1.0)                                                                               \
+    {                                                                                              \
+      B[0] /= B[3];                                                                                \
+      B[1] /= B[3];                                                                                \
+      B[2] /= B[3];                                                                                \
+    }                                                                                              \
+  } while (false)
 
 #define vtkVRCMultiplyNormalMacro(A, B, M)                                                         \
-  B[0] = A[0] * M[0] + A[1] * M[4] + A[2] * M[8];                                                  \
-  B[1] = A[0] * M[1] + A[1] * M[5] + A[2] * M[9];                                                  \
-  B[2] = A[0] * M[2] + A[1] * M[6] + A[2] * M[10]
+  do                                                                                               \
+  {                                                                                                \
+    B[0] = A[0] * M[0] + A[1] * M[4] + A[2] * M[8];                                                \
+    B[1] = A[0] * M[1] + A[1] * M[5] + A[2] * M[9];                                                \
+    B[2] = A[0] * M[2] + A[1] * M[6] + A[2] * M[10];                                               \
+  } while (false)
 
 //------------------------------------------------------------------------------
 template <class T>
@@ -1488,7 +1494,7 @@ VTK_THREAD_RETURN_TYPE FixedPointVolumeRayCastMapper_CastRays(void* arg)
   return VTK_THREAD_RETURN_VALUE;
 }
 
-// Create an image into the vtkImageData argmument. Used generally for
+// Create an image into the vtkImageData argument. Used generally for
 // creating thumbnail images
 void vtkFixedPointVolumeRayCastMapper::CreateCanonicalView(
   vtkVolume* vol, vtkImageData* image, int blend_mode, double direction[3], double viewUp[3])
@@ -2313,7 +2319,7 @@ void vtkFixedPointVolumeRayCastMapper::ComputeMatrices(double inputOrigin[3],
   // Get the volume matrix. This is a volume to world matrix right now.
   // We'll need to invert it, translate by the origin and scale by the
   // spacing to change it to a world to voxels matrix.
-  this->VolumeMatrix->DeepCopy(vol->GetMatrix());
+  vol->GetModelToWorldMatrix(this->VolumeMatrix);
 
   this->VoxelsToViewTransform->SetMatrix(this->VolumeMatrix);
 

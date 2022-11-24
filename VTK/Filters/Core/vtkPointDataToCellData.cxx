@@ -14,12 +14,7 @@
 =========================================================================*/
 #include "vtkPointDataToCellData.h"
 
-#include <algorithm>
-#include <cassert>
-#include <limits>
-#include <set>
-#include <vector>
-
+#include "vtkArrayDispatch.h"
 #include "vtkArrayListTemplate.h"
 #include "vtkCellData.h"
 #include "vtkDataArray.h"
@@ -33,40 +28,45 @@
 #include "vtkSMPThreadLocalObject.h"
 #include "vtkSMPTools.h"
 
+#include <algorithm>
+#include <cassert>
+#include <limits>
+#include <set>
+#include <vector>
+
 #define VTK_EPSILON 1.e-6
 
 // Anonymous namespace
 namespace
 {
-
-struct PointDataToCellData
+//------------------------------------------------------------------------------
+class PointDataToCellDataFunctor
 {
+private:
   vtkDataSet* Input;
-  vtkPointData* InPD;
-  vtkCellData* OutCD;
   ArrayList Arrays;
-  vtkSMPThreadLocal<vtkSmartPointer<vtkIdList>> CellPts; // scratch array
+  vtkSMPThreadLocalObject<vtkIdList> TLCellPts; // scratch array
 
-  PointDataToCellData(vtkDataSet* input, vtkPointData* inPD, vtkCellData* outCD)
+public:
+  PointDataToCellDataFunctor(vtkDataSet* input, vtkPointData* inPD, vtkCellData* outCD)
     : Input(input)
-    , InPD(inPD)
-    , OutCD(outCD)
   {
     vtkIdType numCells = input->GetNumberOfCells();
     this->Arrays.AddArrays(numCells, inPD, outCD);
+
+    // call everything we will call on the data object on the main thread first
+    // so that it can build its caching structures
+    vtkNew<vtkGenericCell> cell;
+    this->Input->GetCell(0, cell);
   }
 
-  void Initialize()
-  {
-    this->CellPts.Local().TakeReference(vtkIdList::New());
-    this->CellPts.Local()->Allocate(128);
-  }
+  void Initialize() { this->TLCellPts.Local()->Allocate(128); }
 
-  void operator()(vtkIdType cellId, vtkIdType endCellId)
+  void operator()(vtkIdType beginCellId, vtkIdType endCellId)
   {
-    vtkIdList* cellPts = this->CellPts.Local();
+    auto& cellPts = this->TLCellPts.Local();
 
-    for (; cellId < endCellId; ++cellId)
+    for (vtkIdType cellId = beginCellId; cellId < endCellId; ++cellId)
     {
       this->Input->GetCellPoints(cellId, cellPts);
       vtkIdType numPts = cellPts->GetNumberOfIds();
@@ -84,7 +84,8 @@ struct PointDataToCellData
   void Reduce() {}
 };
 
-// Used to process categroical data
+//------------------------------------------------------------------------------
+// Used to process categorical data
 class Histogram
 {
 public:
@@ -113,11 +114,9 @@ public:
   typedef std::vector<Bin> HistogramBins;
   typedef HistogramBins::iterator BinIt;
 
-  Histogram(vtkIdType size)
-  {
-    // Construct the array of bins.
-    this->Bins.assign(size + 1, Histogram::Init);
-  }
+  Histogram() = default;
+
+  void Initialize(vtkIdType size) { this->Bins.assign(size + 1, Histogram::Init); }
 
   // Reset the fields of the bins in the histogram.
   void Reset(vtkIdType size)
@@ -149,8 +148,10 @@ public:
   vtkIdType Counter;
 };
 
+//------------------------------------------------------------------------------
 Histogram::Bin Histogram::Init(-1, 1, std::numeric_limits<double>::max());
 
+//------------------------------------------------------------------------------
 bool BinCountCmp(const Histogram::Bin& b1, const Histogram::Bin& b2)
 {
   if (b1.Count < b2.Count)
@@ -167,6 +168,7 @@ bool BinCountCmp(const Histogram::Bin& b1, const Histogram::Bin& b2)
   }
 }
 
+//------------------------------------------------------------------------------
 vtkIdType Histogram::IndexOfLargestBin()
 {
   // If there is only one datapoint, return its index
@@ -184,7 +186,7 @@ vtkIdType Histogram::IndexOfLargestBin()
   for (; (*it2).Assigned() && it2 != this->Bins.end(); ++it2)
   {
     // If the adjacent bins are close enough to be merged...
-    if (fabs((*it1).Value - (*it2).Value) < VTK_EPSILON)
+    if (std::abs((*it1).Value - (*it2).Value) < VTK_EPSILON)
     {
       //...then increment the count of the first bin. We need not worry about
       // the count of the second bin, since it will remain 1 and will therefore
@@ -204,15 +206,94 @@ vtkIdType Histogram::IndexOfLargestBin()
   return std::max_element(this->Bins.begin(), it2, BinCountCmp)->Index;
 }
 
+//------------------------------------------------------------------------------
+template <typename ArrayType>
+class PointDataToCellDataCategoricalFunctor
+{
+private:
+  vtkDataSet* Input;
+  ArrayType* Scalars;
+  using ScalarsValueT = vtk::GetAPIType<ArrayType>;
+
+  ArrayList Arrays;
+  int MaxCellSize;
+  vtkSMPThreadLocal<Histogram> TLHistogram;
+  vtkSMPThreadLocalObject<vtkIdList> TLCellPts;
+
+public:
+  PointDataToCellDataCategoricalFunctor(
+    vtkDataSet* input, vtkPointData* inPD, vtkCellData* outCD, ArrayType* scalars)
+    : Input(input)
+    , Scalars(scalars)
+  {
+    vtkIdType numCells = input->GetNumberOfCells();
+    this->Arrays.AddArrays(numCells, inPD, outCD);
+
+    this->MaxCellSize = input->GetMaxCellSize();
+    // call everything we will call on the data object on the main thread first
+    // so that it can build its caching structures
+    vtkNew<vtkGenericCell> cell;
+    this->Input->GetCell(0, cell);
+  }
+
+  void Initialize()
+  {
+    this->TLHistogram.Local().Initialize(this->MaxCellSize);
+    this->TLCellPts.Local()->Allocate(this->MaxCellSize);
+  }
+
+  void operator()(vtkIdType beginCellId, vtkIdType endCellId)
+  {
+    auto& cellPts = this->TLCellPts.Local();
+    auto& histogram = this->TLHistogram.Local();
+    const auto scalars = vtk::DataArrayValueRange<1>(this->Scalars);
+
+    for (vtkIdType cellId = beginCellId; cellId < endCellId; cellId++)
+    {
+      this->Input->GetCellPoints(cellId, cellPts);
+      vtkIdType numPts = cellPts->GetNumberOfIds();
+
+      if (numPts == 0)
+      {
+        continue;
+      }
+
+      // Populate a histogram from the scalar values at each
+      // point, and then select the bin with the most elements.
+      histogram.Reset(numPts);
+      for (vtkIdType ptId = 0; ptId < numPts; ++ptId)
+      {
+        auto pointId = cellPts->GetId(ptId);
+        histogram.Fill(pointId, static_cast<ScalarsValueT>(scalars[pointId]));
+      }
+      this->Arrays.Copy(histogram.IndexOfLargestBin(), cellId);
+    }
+  }
+
+  void Reduce() {}
+};
+
+//------------------------------------------------------------------------------
+struct PointDataToCellDataCategoricalWorker
+{
+  template <typename ArrayType>
+  void operator()(ArrayType* scalars, vtkDataSet* input, vtkPointData* inPD, vtkCellData* outCD)
+  {
+    PointDataToCellDataCategoricalFunctor<ArrayType> pd2cd(input, inPD, outCD, scalars);
+    vtkSMPTools::For(0, input->GetNumberOfCells(), pd2cd);
+  }
+};
 } // End anonymous namespace
 
+//------------------------------------------------------------------------------
 class vtkPointDataToCellData::Internals
 {
 public:
   std::set<std::string> PointDataArrays;
 };
 
-vtkStandardNewMacro(vtkPointDataToCellData);
+//------------------------------------------------------------------------------
+vtkObjectFactoryNewMacro(vtkPointDataToCellData);
 
 //------------------------------------------------------------------------------
 // Instantiate object so that point data is not passed to output.
@@ -267,6 +348,22 @@ void vtkPointDataToCellData::ClearPointDataArrays()
 }
 
 //------------------------------------------------------------------------------
+vtkIdType vtkPointDataToCellData::GetNumberOfPointArraysToProcess()
+{
+  return static_cast<vtkIdType>(this->Implementation->PointDataArrays.size());
+}
+
+//------------------------------------------------------------------------------
+void vtkPointDataToCellData::GetPointArraysToProcess(const char* names[])
+{
+  for (const auto& n : this->Implementation->PointDataArrays)
+  {
+    *names = n.c_str();
+    ++names;
+  }
+}
+
+//------------------------------------------------------------------------------
 int vtkPointDataToCellData::RequestData(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -276,8 +373,7 @@ int vtkPointDataToCellData::RequestData(
   vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
   vtkDataSet* input = vtkDataSet::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-  vtkIdType cellId, ptId, pointId;
-  vtkIdType numCells, numPts;
+  vtkIdType numCells;
   vtkPointData* inputInPD = input->GetPointData();
   vtkSmartPointer<vtkPointData> inPD;
   vtkCellData* outCD = output->GetCellData();
@@ -338,7 +434,6 @@ int vtkPointDataToCellData::RequestData(
   // Pass the cell data first. The fields and attributes
   // which also exist in the point data of the input will
   // be over-written during CopyAllocate
-  output->GetCellData()->CopyGlobalIdsOff();
   output->GetCellData()->PassData(input->GetCellData());
   output->GetCellData()->CopyFieldOff(vtkDataSetAttributes::GhostArrayName());
 
@@ -349,53 +444,17 @@ int vtkPointDataToCellData::RequestData(
   // Create a threaded fast path for non-categorical data.
   if (!this->CategoricalData)
   {
-    // Note vtkPolyData::BuildCells() is not thread safe, preemptively call it
-    if (input->IsA("vtkPolyData"))
-    {
-      vtkPolyData::SafeDownCast(input)->BuildCells();
-    }
-
     // Thread the process
-    PointDataToCellData pd2cd(input, inPD, outCD);
+    PointDataToCellDataFunctor pd2cd(input, inPD, outCD);
     vtkSMPTools::For(0, numCells, pd2cd);
-  } // fastpath - no categorical data
-
-  // Slow path when histograms need to be built, and hence nearest neighbor
-  // interpolation.
+  }
+  // Create a threaded fast path for categorical data.
   else
   {
-    const int maxCellSize = input->GetMaxCellSize();
-    Histogram hist(maxCellSize);
-    vtkNew<vtkIdList> cellPts;
-    cellPts->Allocate(maxCellSize);
-
-    int abort = 0;
-    vtkIdType progressInterval = numCells / 20 + 1;
-    for (cellId = 0; cellId < numCells && !abort; cellId++)
+    PointDataToCellDataCategoricalWorker worker;
+    if (!vtkArrayDispatch::Dispatch::Execute(inPD->GetScalars(), worker, input, inPD, outCD))
     {
-      if (!(cellId % progressInterval))
-      {
-        this->UpdateProgress((double)cellId / numCells);
-        abort = GetAbortExecute();
-      }
-
-      input->GetCellPoints(cellId, cellPts);
-      numPts = cellPts->GetNumberOfIds();
-
-      if (numPts == 0)
-      {
-        continue;
-      }
-
-      // Populate a histogram from the scalar values at each
-      // point, and then select the bin with the most elements.
-      hist.Reset(numPts);
-      for (ptId = 0; ptId < numPts; ptId++)
-      {
-        pointId = cellPts->GetId(ptId);
-        hist.Fill(pointId, input->GetPointData()->GetScalars()->GetTuple1(pointId));
-      }
-      outCD->CopyData(inPD, hist.IndexOfLargestBin(), cellId);
+      worker(inPD->GetScalars(), input, inPD, outCD);
     }
   } // categorical data
 

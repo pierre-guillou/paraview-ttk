@@ -39,7 +39,7 @@ bool compareMask(vtkBitArray* bm, const std::vector<bool>& ref_bm)
   {
     const bool ref_val = ref_bm.at(i);
     const vtkIdType vtkIdx = static_cast<vtkIdType>(i);
-    const bool act_val = bm->GetValue(vtkIdx) == 0 ? false : true;
+    const bool act_val = bm->GetValue(vtkIdx) != 0;
     if (ref_val != act_val)
     {
       std::cout << "Mask value different for idx " << i << ": " << ref_val << "[REF] vs " << act_val
@@ -88,7 +88,7 @@ void initUniformHyperTreeOneRootCell(vtkUniformHyperTreeGrid* uhtg)
 
   vtkNew<vtkHyperTreeGridNonOrientedCursor> cursor;
   const unsigned int treeId = 1;
-  const vtkIdType nbElementsInHTG = uhtg->GetNumberOfVertices();
+  const vtkIdType nbElementsInHTG = uhtg->GetNumberOfCells();
   uhtg->InitializeNonOrientedCursor(cursor, treeId, true);
   cursor->SetGlobalIndexStart(nbElementsInHTG);
   cursor->SetMask(false);
@@ -102,11 +102,11 @@ int TestUniformHyperTreeOneRootCell()
   //                       0
   return !compareMask(bm, { false });
 }
-void subdivide(vtkHyperTreeGridNonOrientedCursor* cursor, const std::vector<char>& sub)
+void subdivide(vtkHyperTreeGridNonOrientedCursor* cursor, const std::vector<int>& sub)
 {
   for (size_t i = 0; i < sub.size(); ++i)
   {
-    const char subIdx = sub[i];
+    const int subIdx = sub[i];
     if (subIdx == -1)
     {
       cursor->ToParent();
@@ -152,7 +152,7 @@ int TestUniformHyperTreeOneRootCellSubdivided()
 }
 //------------------------------------------------------------------------------
 void initUniformHyperTreeSeveralRootCells(
-  vtkUniformHyperTreeGrid* uhtg, const std::vector<std::vector<char>>& sub = {})
+  vtkUniformHyperTreeGrid* uhtg, const std::vector<std::vector<int>>& sub = {})
 {
   std::cout << "Init Uniform Grid several root cells\n";
   std::cout.flush();
@@ -167,7 +167,7 @@ void initUniformHyperTreeSeveralRootCells(
   unsigned int treeIndex = 0;
   for (unsigned int treeId : treeIds)
   {
-    const vtkIdType nbElementsInHTG = uhtg->GetNumberOfVertices();
+    const vtkIdType nbElementsInHTG = uhtg->GetNumberOfCells();
     uhtg->InitializeNonOrientedCursor(cursor, treeId, true);
     cursor->SetGlobalIndexStart(nbElementsInHTG);
     // std::cout << "GlobalIndexStart of HT " << treeId << " : " << nbElementsInHTG << std::endl;

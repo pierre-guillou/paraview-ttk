@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkRenderWindow.h"
 
 #include "vtkCamera.h"
@@ -185,6 +182,20 @@ void vtkRenderWindow::SetInteractor(vtkRenderWindowInteractor* rwi)
       }
     }
   }
+}
+
+void vtkRenderWindow::GetPhysicalToWorldMatrix(vtkMatrix4x4* matrix)
+{
+  if (matrix)
+  {
+    matrix->Identity();
+  }
+}
+
+bool vtkRenderWindow::GetDeviceToWorldMatrixForDevice(
+  vtkEventDataDevice vtkNotUsed(device), vtkMatrix4x4* vtkNotUsed(deviceToWorldMatrix))
+{
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -670,30 +681,4 @@ const char* vtkRenderWindow::GetStereoTypeAsString(int type)
     default:
       return "";
   }
-}
-
-vtkTypeBool vtkRenderWindow::GetIsPicking()
-{
-  VTK_LEGACY_BODY(vtkRenderWindow::GetIsPicking, "VTK 9.0");
-  return false;
-}
-void vtkRenderWindow::SetIsPicking(vtkTypeBool)
-{
-  VTK_LEGACY_BODY(vtkRenderWindow::SetIsPicking, "VTK 9.0");
-}
-void vtkRenderWindow::IsPickingOn()
-{
-  VTK_LEGACY_BODY(vtkRenderWindow::IsPickingOn, "VTK 9.0");
-}
-void vtkRenderWindow::IsPickingOff()
-{
-  VTK_LEGACY_BODY(vtkRenderWindow::IsPickingOff, "VTK 9.0");
-}
-
-//----------------------------------------------------------------------------
-bool vtkRenderWindow::IsDrawable()
-{
-  VTK_LEGACY_BODY(vtkRenderWindow::IsDrawable, "VTK 9.1");
-
-  return true;
 }

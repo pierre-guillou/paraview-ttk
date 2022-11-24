@@ -138,7 +138,7 @@ void vtkBoostBreadthFirstSearch::SetOriginVertex(vtkIdType index)
 // know the specific index of the vertex.
 void vtkBoostBreadthFirstSearch::SetOriginVertex(vtkStdString arrayName, vtkVariant value)
 {
-  this->SetInputArrayName(arrayName);
+  this->SetInputArrayName(arrayName.c_str());
   this->OriginValue = value;
   this->Modified();
 }
@@ -167,7 +167,7 @@ vtkIdType vtkBoostBreadthFirstSearch::GetVertexIndex(vtkAbstractArray* abstract,
   else
   {
     vtkStringArray* stringArray = vtkArrayDownCast<vtkStringArray>(abstract);
-    vtkStdString stringValue(value.ToString());
+    std::string stringValue(value.ToString());
     for (int i = 0; i < stringArray->GetNumberOfTuples(); ++i)
     {
       if (stringValue == stringArray->GetValue(i))

@@ -214,7 +214,6 @@ void vtkOBJExporter::WriteAnActor(
 
   // Actor has the texture
   bool hasTexture = anActor->GetTexture() != nullptr;
-  ;
 
   // Actor's property has the texture. We choose the albedo texture
   // since it seems to be similar to the texture we expect
@@ -422,6 +421,8 @@ void vtkOBJExporter::WriteAnActor(
           else
           {
             // treating vtkIdType as int
+            fpObj << "f " << static_cast<int>(indx[i1]) + idStart << "//"
+                  << static_cast<int>(indx[i1]) + idStart << " ";
             fpObj << static_cast<int>(indx[i2]) + idStart << "//"
                   << static_cast<int>(indx[i2]) + idStart << " ";
             fpObj << static_cast<int>(indx[i]) + idStart << "//"

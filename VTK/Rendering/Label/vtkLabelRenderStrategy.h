@@ -26,8 +26,7 @@
 #include "vtkObject.h"
 #include "vtkRenderingLabelModule.h" // For export macro
 
-#include "vtkStdString.h"     // For string support
-#include "vtkUnicodeString.h" // For unicode string support
+#include "vtkStdString.h" // For string support
 
 class vtkRenderer;
 class vtkWindow;
@@ -73,41 +72,20 @@ public:
 
   /**
    * Compute the bounds of a label. Must be performed after the renderer is set.
-   * Only the unicode string version must be implemented in subclasses.
    */
-  virtual void ComputeLabelBounds(vtkTextProperty* tprop, vtkStdString label, double bds[4])
-  {
-    this->ComputeLabelBounds(tprop, vtkUnicodeString::from_utf8(label.c_str()), bds);
-  }
-  VTK_DEPRECATED_IN_9_1_0(
-    "Use void ComputeLabelBounds(vtkTextProperty* tprop, vtkStdString label, double bds[4])")
-  virtual void ComputeLabelBounds(
-    vtkTextProperty* tprop, vtkUnicodeString label, double bds[4]) = 0;
+  virtual void ComputeLabelBounds(vtkTextProperty* tprop, vtkStdString label, double bds[4]) = 0;
 
   /**
    * Render a label at a location in display coordinates.
    * Must be performed between StartFrame() and EndFrame() calls.
-   * Only the unicode string version must be implemented in subclasses.
    * The optional final parameter maxWidth specifies a maximum width for the label.
    * Longer labels can be shorted with an ellipsis (...). Only renderer strategies
    * that return true from SupportsBoundedSize must implement this version of th
    * method.
    */
-  virtual void RenderLabel(int x[2], vtkTextProperty* tprop, vtkStdString label)
-  {
-    this->RenderLabel(x, tprop, vtkUnicodeString::from_utf8(label));
-  }
-  virtual void RenderLabel(int x[2], vtkTextProperty* tprop, vtkStdString label, int maxWidth)
-  {
-    this->RenderLabel(x, tprop, vtkUnicodeString::from_utf8(label), maxWidth);
-  }
-  VTK_DEPRECATED_IN_9_1_0(
-    "Use void RenderLabel(int x[2], vtkTextProperty* tprop, vtkStdString label)")
-  virtual void RenderLabel(int x[2], vtkTextProperty* tprop, vtkUnicodeString label) = 0;
-  VTK_DEPRECATED_IN_9_1_0(
-    "Use void RenderLabel(int x[2], vtkTextProperty* tprop, vtkStdString label, int maxWidth)")
+  virtual void RenderLabel(int x[2], vtkTextProperty* tprop, vtkStdString label) = 0;
   virtual void RenderLabel(
-    int x[2], vtkTextProperty* tprop, vtkUnicodeString label, int vtkNotUsed(maxWidth))
+    int x[2], vtkTextProperty* tprop, vtkStdString label, int vtkNotUsed(maxWidth))
   {
     this->RenderLabel(x, tprop, label);
   }

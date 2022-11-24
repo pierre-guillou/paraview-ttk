@@ -40,7 +40,6 @@
 #include "vtkTextProperty.h"
 #include "vtkTextRenderer.h"
 #include "vtkTransform.h"
-#include "vtkUnicodeString.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkVectorOperators.h"
 
@@ -1305,18 +1304,6 @@ void vtkPDFContextDevice2D::ComputeStringBounds(const vtkStdString& string, floa
 }
 
 //------------------------------------------------------------------------------
-void vtkPDFContextDevice2D::DrawString(float* point, const vtkUnicodeString& string)
-{
-  this->DrawString(point, std::string(string.utf8_str()));
-}
-
-//------------------------------------------------------------------------------
-void vtkPDFContextDevice2D::ComputeStringBounds(const vtkUnicodeString& string, float bounds[4])
-{
-  this->ComputeStringBounds(string.utf8_str(), bounds);
-}
-
-//------------------------------------------------------------------------------
 void vtkPDFContextDevice2D::ComputeJustifiedStringBounds(const char* string, float bounds[4])
 {
   this->ComputeStringBounds(string, bounds);
@@ -1630,21 +1617,21 @@ void vtkPDFContextDevice2D::ApplyLineWidth(float width)
 void vtkPDFContextDevice2D::ApplyLineType(int type)
 {
   // These match the OpenGL2 implementation:
-  static const HPDF_UINT16 noPen[] = { 0, 10 };
+  static const HPDF_REAL noPen[] = { 0.f, 10.f };
   static const HPDF_UINT noPenLen = 2;
 
-  static const HPDF_UINT16 dash[] = { 8 };
+  static const HPDF_REAL dash[] = { 8.f };
   static const HPDF_UINT dashLen = 1;
 
-  static const HPDF_UINT16 dot[] = { 1, 7 };
-  static const HPDF_UINT16 denseDot[] = { 1, 3 };
+  static const HPDF_REAL dot[] = { 1.f, 7.f };
+  static const HPDF_REAL denseDot[] = { 1.f, 3.f };
   static const HPDF_UINT dotLen = 2;
 
-  static const HPDF_UINT16 dashDot[] = { 4, 6, 2, 4 };
+  static const HPDF_REAL dashDot[] = { 4.f, 6.f, 2.f, 4.f };
   static const HPDF_UINT dashDotLen = 4;
 
   // This is dash-dot-dash, but eh. It matches the OpenGL2 0x1C47 pattern.
-  static const HPDF_UINT16 dashDotDot[] = { 3, 3, 1, 3, 3, 3 };
+  static const HPDF_REAL dashDotDot[] = { 3.f, 3.f, 1.f, 3.f, 3.f, 3.f };
   static const HPDF_UINT dashDotDotLen = 6;
 
   switch (type)

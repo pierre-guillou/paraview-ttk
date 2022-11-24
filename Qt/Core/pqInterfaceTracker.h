@@ -50,7 +50,7 @@ class PQCORE_EXPORT pqInterfaceTracker : public QObject
   typedef QObject Superclass;
 
 public:
-  pqInterfaceTracker(QObject* parent = 0);
+  pqInterfaceTracker(QObject* parent = nullptr);
   ~pqInterfaceTracker() override;
 
   /**
@@ -67,7 +67,7 @@ public:
   {
     QList<T> list;
     QObjectList objList = this->interfaces();
-    foreach (QObject* object, objList)
+    Q_FOREACH (QObject* object, objList)
     {
       if (object && qobject_cast<T>(object))
       {
@@ -106,7 +106,6 @@ protected:
    */
   void onPluginLoaded(vtkObject*, unsigned long, void* calldata);
 
-protected:
   QObjectList Interfaces;
   QObjectList RegisteredInterfaces;
   unsigned long ObserverID;

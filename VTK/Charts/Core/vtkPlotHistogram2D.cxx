@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPlotHistogram2D.h"
 
 #include "vtkAxis.h"
@@ -42,9 +39,32 @@ vtkPlotHistogram2D::vtkPlotHistogram2D()
 //------------------------------------------------------------------------------
 vtkPlotHistogram2D::~vtkPlotHistogram2D() = default;
 
+//------------------------------------------------------------------------------
 void vtkPlotHistogram2D::Update()
 {
-  this->GenerateHistogram();
+  if (!this->Visible)
+  {
+    return;
+  }
+  // Check if we have an input image
+  if (!this->Input)
+  {
+    vtkDebugMacro(<< "Update event called with no input image.");
+    return;
+  }
+
+  bool dataUpdated = false;
+  if (this->Input->GetMTime() > this->BuildTime)
+  {
+    dataUpdated = true;
+  }
+
+  if (dataUpdated || this->CacheRequiresUpdate())
+  {
+    vtkDebugMacro(<< "Updating cached values.");
+    this->UpdateCache();
+    this->BuildTime.Modified();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -122,22 +142,6 @@ vtkRectf vtkPlotHistogram2D::GetPosition()
 vtkIdType vtkPlotHistogram2D::GetNearestPoint(const vtkVector2f& point,
   const vtkVector2f& tolerance, vtkVector2f* location, vtkIdType* vtkNotUsed(segmentId))
 {
-  if (!this->LegacyRecursionFlag)
-  {
-    this->LegacyRecursionFlag = true;
-    vtkIdType ret = this->GetNearestPoint(point, tolerance, location);
-    this->LegacyRecursionFlag = false;
-    if (ret != -1)
-    {
-      VTK_LEGACY_REPLACED_BODY(vtkPlotHistogram2D::GetNearestPoint(const vtkVector2f& point,
-                                 const vtkVector2f& tolerance, vtkVector2f* location),
-        "VTK 9.0",
-        vtkPlotHistogram2D::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
-          vtkVector2f* location, vtkIdType* segmentId));
-      return ret;
-    }
-  }
-
   if (!this->Input)
   {
     return -1;
@@ -175,8 +179,8 @@ vtkStdString vtkPlotHistogram2D::GetTooltipLabel(
 {
   // This does not call the Superclass vtkPlot::GetTooltipLabel(), since the
   // format tags internally refer to different values
-  vtkStdString tooltipLabel;
-  vtkStdString& format =
+  std::string tooltipLabel;
+  std::string& format =
     this->TooltipLabelFormat.empty() ? this->TooltipDefaultLabelFormat : this->TooltipLabelFormat;
 
   if (!this->Input)
@@ -249,11 +253,11 @@ vtkStdString vtkPlotHistogram2D::GetTooltipLabel(
 }
 
 //------------------------------------------------------------------------------
-void vtkPlotHistogram2D::GenerateHistogram()
+bool vtkPlotHistogram2D::UpdateCache()
 {
   if (!this->Input)
   {
-    return;
+    return false;
   }
   if (!this->Output)
   {
@@ -271,6 +275,8 @@ void vtkPlotHistogram2D::GenerateHistogram()
   {
     this->TransferFunction->MapScalarsThroughTable2(input, output, inputType, dimension, 1, 4);
   }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------

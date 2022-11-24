@@ -28,9 +28,14 @@
 #include "vtkJPEGWriter.h"
 #include "vtkJSONDataSetWriter.h"
 #include "vtkMapper.h"
+#include "vtkMolecule.h"
+#include "vtkMoleculeMapper.h"
+#include "vtkMoleculeToAtomBallFilter.h"
+#include "vtkMoleculeToBondStickFilter.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPiecewiseFunction.h"
+#include "vtkPolyDataNormals.h"
 #include "vtkProp.h"
 #include "vtkPropCollection.h"
 #include "vtkProperty.h"
@@ -134,6 +139,78 @@ void vtkJSONSceneExporter::WriteDataObject(
       this->WriteDataObject(os, iter->GetCurrentDataObject(), actor, volume);
       iter->GoToNextItem();
     }
+
+    return;
+  }
+
+  // Handle molecule
+  if (dataObject->IsA("vtkMolecule"))
+  {
+    vtkMolecule* molecule = vtkMolecule::SafeDownCast(dataObject);
+
+    // Create tubes for each bond
+    vtkNew<vtkMoleculeToBondStickFilter> stickFilter;
+    stickFilter->SetInputDataObject(molecule);
+    stickFilter->Update();
+
+    // Create spheres for each atom
+    vtkNew<vtkMoleculeToAtomBallFilter> ballFilter;
+    ballFilter->SetInputDataObject(molecule);
+
+    if (actor)
+    {
+      // Retrieve radius type and scale factor from mapper
+      vtkMoleculeMapper* mapper = vtkMoleculeMapper::SafeDownCast(actor->GetMapper());
+
+      switch (mapper->GetAtomicRadiusType())
+      {
+        case vtkMoleculeMapper::CovalentRadius:
+        {
+          ballFilter->SetRadiusSource(vtkMoleculeToAtomBallFilter::CovalentRadius);
+          break;
+        }
+        case vtkMoleculeMapper::VDWRadius:
+        {
+          ballFilter->SetRadiusSource(vtkMoleculeToAtomBallFilter::VDWRadius);
+          break;
+        }
+        case vtkMoleculeMapper::UnitRadius:
+        {
+          ballFilter->SetRadiusSource(vtkMoleculeToAtomBallFilter::UnitRadius);
+          break;
+        }
+        default:
+        {
+          // Default to Van Der Waals
+          ballFilter->SetRadiusSource(vtkMoleculeToAtomBallFilter::VDWRadius);
+          break;
+        }
+      }
+
+      ballFilter->SetRadiusScale(mapper->GetAtomicRadiusScaleFactor());
+    }
+    else
+    {
+      // Set default radius type and scale
+      ballFilter->SetRadiusSource(vtkMoleculeToAtomBallFilter::VDWRadius);
+      ballFilter->SetRadiusScale(0.3);
+    }
+
+    // Reduce resolution when the number of atoms is high
+    // The threshold value has been arbitrarily chosen
+    if (molecule->GetNumberOfAtoms() > 100)
+    {
+      ballFilter->SetResolution(20);
+    }
+
+    // Create vertex normals for a smoother appearance
+    vtkNew<vtkPolyDataNormals> normalFilter;
+    normalFilter->SetInputConnection(ballFilter->GetOutputPort());
+    normalFilter->Update();
+
+    // Write tubes and spheres
+    this->WriteDataObject(os, stickFilter->GetOutput(), actor, volume);
+    this->WriteDataObject(os, normalFilter->GetOutput(), actor, volume);
   }
 }
 
@@ -364,10 +441,15 @@ std::string vtkJSONSceneExporter::ExtractActorRenderingSetup(vtkActor* actor)
 
 //------------------------------------------------------------------------------
 
+std::string vtkJSONSceneExporter::GetTemporaryPath() const
+{
+  return std::string(this->FileName) + ".pvtmp";
+}
+
 std::string vtkJSONSceneExporter::CurrentDataSetPath() const
 {
   std::stringstream path;
-  path << this->FileName << "/" << this->DatasetCount + 1;
+  path << this->GetTemporaryPath() << "/" << this->DatasetCount + 1;
   return vtksys::SystemTools::ConvertToOutputPath(path.str());
 }
 
@@ -542,9 +624,11 @@ void vtkJSONSceneExporter::WriteData()
     return;
   }
 
-  if (!vtksys::SystemTools::MakeDirectory(this->FileName))
+  std::string tmpPath = this->GetTemporaryPath();
+
+  if (!vtksys::SystemTools::MakeDirectory(tmpPath))
   {
-    vtkErrorMacro(<< "Can not create directory " << this->FileName);
+    vtkErrorMacro(<< "Cannot create directory " << tmpPath);
     return;
   }
 
@@ -583,8 +667,7 @@ void vtkJSONSceneExporter::WriteData()
   size_t nbLuts = this->LookupTables.size();
   for (auto const& lut : this->LookupTables)
   {
-    sceneJsonFile << "    \"" << lut.first.c_str() << "\": " << lut.second.c_str()
-                  << (--nbLuts ? "," : "") << "\n";
+    sceneJsonFile << "    \"" << lut.first << "\": " << lut.second << (--nbLuts ? "," : "") << "\n";
   }
 
   sceneJsonFile << "  }\n"
@@ -592,12 +675,25 @@ void vtkJSONSceneExporter::WriteData()
 
   // Write meta-data file
   std::stringstream scenePath;
-  scenePath << this->FileName << "/index.json";
+  scenePath << tmpPath << "/index.json";
 
   vtksys::ofstream file;
   file.open(scenePath.str().c_str(), ios::out);
-  file << sceneJsonFile.str().c_str();
+  file << sceneJsonFile.str();
   file.close();
+
+  if (vtksys::SystemTools::FileExists(this->FileName))
+  {
+    vtksys::SystemTools::RemoveFile(this->FileName);
+  }
+
+  int result = std::rename(tmpPath.c_str(), this->FileName);
+
+  if (result != 0)
+  {
+    vtkErrorMacro("Cannot rename temporary file.");
+    return;
+  }
 }
 
 namespace
@@ -615,7 +711,7 @@ size_t getFileSize(const std::string& path)
   int res = vtksys::SystemTools::Stat(path, &stat_buf);
   if (res < 0)
   {
-    std::cerr << "Failed to get size of file " << path.c_str() << std::endl;
+    std::cerr << "Failed to get size of file " << path << std::endl;
     return 0;
   }
 
@@ -683,7 +779,7 @@ std::string vtkJSONSceneExporter::WriteTextureLODSeries(vtkTexture* texture)
 
   // Write these into the parent directory of our file.
   // This next line also converts the path to unix slashes.
-  std::string path = vtksys::SystemTools::GetParentDirectory(this->FileName);
+  std::string path = vtksys::SystemTools::GetParentDirectory(this->GetTemporaryPath());
   path += "/";
   path = vtksys::SystemTools::ConvertToOutputPath(path);
 
@@ -763,7 +859,7 @@ vtkSmartPointer<vtkPolyData> vtkJSONSceneExporter::WritePolyLODSeries(
   // Write these into the parent directory of our file.
   // This next line also converts the path to unix slashes.
   vtkNew<vtkJSONDataSetWriter> dsWriter;
-  std::string path = vtksys::SystemTools::GetParentDirectory(this->FileName) + "/";
+  std::string path = vtksys::SystemTools::GetParentDirectory(this->GetTemporaryPath()) + "/";
   path = vtksys::SystemTools::ConvertToOutputPath(path);
 
   // If the new size is not at least 5% different from the old size,

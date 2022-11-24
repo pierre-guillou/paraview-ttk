@@ -12,6 +12,9 @@
 
 #include <vtkm/internal/IndexTag.h>
 
+#include <vtkm/cont/DefaultTypes.h>
+#include <vtkm/cont/UnknownArrayHandle.h>
+
 #include <utility>
 
 namespace vtkm
@@ -25,8 +28,6 @@ class Field;
 template <typename T, typename S>
 class ArrayHandle;
 
-class UnknownArrayHandle;
-
 template <vtkm::IdComponent>
 class CellSetStructured;
 template <typename T>
@@ -36,6 +37,8 @@ class CellSetExplicit;
 template <typename T, typename S>
 class CellSetPermutation;
 class CellSetExtrude;
+
+class UnknownCellSet;
 
 /// A Generic interface to CastAndCall. The default implementation simply calls
 /// DynamicObject's CastAndCall, but specializations of this function exist for
@@ -48,15 +51,20 @@ void CastAndCall(const DynamicObject& dynamicObject, Functor&& f, Args&&... args
 
 /// A specialization of CastAndCall for basic CoordinateSystem to make
 /// it be treated just like any other dynamic object
-// actually implemented in vtkm/cont/CoordinateSystem
+// actually implemented in vtkm/cont/CoordinateSystem.h
 template <typename Functor, typename... Args>
 void CastAndCall(const CoordinateSystem& coords, Functor&& f, Args&&... args);
 
 /// A specialization of CastAndCall for basic Field to make
 /// it be treated just like any other dynamic object
-// actually implemented in vtkm/cont/Field
+// actually implemented in vtkm/cont/Field.h
 template <typename Functor, typename... Args>
 void CastAndCall(const vtkm::cont::Field& field, Functor&& f, Args&&... args);
+
+/// A specialization of CastAndCall for unknown cell sets.
+// actually implemented in vtkm/cont/UnknownCellSet.h
+template <typename Functor, typename... Args>
+void CastAndCall(const vtkm::cont::UnknownCellSet& cellSet, Functor&& f, Args&&... args);
 
 /// A specialization of CastAndCall for basic ArrayHandle types,
 /// Since the type is already known no deduction is needed.
@@ -70,9 +78,13 @@ void CastAndCall(const vtkm::cont::ArrayHandle<T, U>& handle, Functor&& f, Args&
 /// A specialization of CastAndCall for UnknownArrayHandle.
 /// Since we have no hints on the types, use VTKM_DEFAULT_TYPE_LIST
 /// and VTKM_DEFAULT_STORAGE_LIST.
-// actually implemented in vtkm/cont/UnknownArrayHandle
+// Implemented here to avoid circular dependencies.
 template <typename Functor, typename... Args>
-void CastAndCall(const UnknownArrayHandle& handle, Functor&& f, Args&&... args);
+void CastAndCall(const UnknownArrayHandle& handle, Functor&& f, Args&&... args)
+{
+  handle.CastAndCallForTypes<VTKM_DEFAULT_TYPE_LIST, VTKM_DEFAULT_STORAGE_LIST>(
+    std::forward<Functor>(f), std::forward<Args>(args)...);
+}
 
 /// A specialization of CastAndCall for basic CellSetStructured types,
 /// Since the type is already known no deduction is needed.
@@ -172,7 +184,16 @@ struct DynamicTransformTraits
   ///
   using DynamicTag = vtkm::cont::internal::DynamicTransformTagStatic;
 };
-}
+
+// Implemented here to avoid circular dependencies.
+template <>
+struct DynamicTransformTraits<vtkm::cont::UnknownArrayHandle>
+{
+  using DynamicTag = vtkm::cont::internal::DynamicTransformTagCastAndCall;
+};
+
+} // namespace internal
+
 }
 } // namespace vtkm::cont
 

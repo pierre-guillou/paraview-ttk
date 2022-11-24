@@ -13,11 +13,15 @@
 #include <vtkm/cont/CellLocatorBoundingIntervalHierarchy.h>
 #include <vtkm/cont/DataSetBuilderUniform.h>
 #include <vtkm/cont/Invoker.h>
+#include <vtkm/cont/RuntimeDeviceInformation.h>
 #include <vtkm/cont/Timer.h>
+#include <vtkm/cont/openmp/internal/DeviceAdapterTagOpenMP.h>
 #include <vtkm/cont/testing/Testing.h>
 #include <vtkm/exec/CellInterpolate.h>
 #include <vtkm/exec/ParametricCoordinates.h>
 #include <vtkm/io/VTKDataSetReader.h>
+#include <vtkm/worklet/WorkletMapField.h>
+#include <vtkm/worklet/WorkletMapTopology.h>
 
 namespace
 {
@@ -49,7 +53,7 @@ struct BoundingIntervalHierarchyTester : public vtkm::worklet::WorkletMapField
                                          const vtkm::Id expectedId) const
   {
     vtkm::Vec3f parametric;
-    vtkm::Id cellId;
+    vtkm::Id cellId = -1;
     bih.FindCell(point, cellId, parametric);
     return (1 - static_cast<vtkm::IdComponent>(expectedId == cellId));
   }
@@ -63,7 +67,7 @@ vtkm::cont::DataSet ConstructDataSet(vtkm::Id size)
 void TestBoundingIntervalHierarchy(vtkm::cont::DataSet dataSet, vtkm::IdComponent numPlanes)
 {
 
-  vtkm::cont::DynamicCellSet cellSet = dataSet.GetCellSet();
+  vtkm::cont::UnknownCellSet cellSet = dataSet.GetCellSet();
   auto vertices = dataSet.GetCoordinateSystem().GetDataAsMultiplexer();
 
   vtkm::cont::CellLocatorBoundingIntervalHierarchy bih =
@@ -93,7 +97,11 @@ void RunTest()
 //cpu usage it will fail, so we limit the number of threads
 //to avoid the test timing out
 #ifdef VTKM_ENABLE_OPENMP
-  omp_set_num_threads(std::min(4, omp_get_max_threads()));
+  auto& runtimeConfig = vtkm::cont::RuntimeDeviceInformation{}.GetRuntimeConfiguration(
+    vtkm::cont::DeviceAdapterTagOpenMP());
+  vtkm::Id maxThreads = 0;
+  runtimeConfig.GetMaxThreads(maxThreads);
+  runtimeConfig.SetThreads(std::min(static_cast<vtkm::Id>(4), maxThreads));
 #endif
 
   TestBoundingIntervalHierarchy(ConstructDataSet(8), 3);

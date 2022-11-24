@@ -106,9 +106,6 @@
 //
 // ---------------------------------------------------------------------------
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 // Hijack the CRC routine of zlib to omit CRC check for gzipped files
 // (on OSes other than Windows where the mechanism doesn't work due
 // to pre-bound DLL symbols) if set to 1, or not (set to 0). Affects
@@ -207,7 +204,6 @@
 #include "vtkTypeUInt8Array.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkVertex.h"
-#include "vtkWeakPointer.h"
 #include "vtkWedge.h"
 
 #if !(defined(_WIN32) && !defined(__CYGWIN__) || defined(__LIBCATAMOUNT__))
@@ -321,7 +317,7 @@ void appendUniq(vtkStringArray* list, vtkStringArray* items)
 {
   for (int i = 0; i < items->GetNumberOfTuples(); ++i)
   {
-    vtkStdString& str = items->GetValue(i);
+    std::string& str = items->GetValue(i);
     if (list->LookupValue(str) == -1)
     {
       list->InsertNextValue(str);
@@ -2050,7 +2046,7 @@ public:
 
 //------------------------------------------------------------------------------
 // class vtkFoamFile
-// Read and tokenize the input. Retains format and label/scalar size informatio
+// Read and tokenize the input. Retains format and label/scalar size information
 struct vtkFoamFile
   : public vtkFoamStreamOption
   , public vtkFoamFileStack
@@ -4245,7 +4241,7 @@ void vtkFoamEntryValue::ReadDimensionSet(vtkFoamIOobject& io)
     {
       // Some unknown token type (eg, encountered human-readable units)
       // - skip until ']'
-      while ((goodInput = io.Read(tok)) == true)
+      while ((goodInput = io.Read(tok)))
       {
         if (tok.IsPunctuation() && (tok == expectEnding))
         {
@@ -7306,12 +7302,12 @@ void vtkOpenFOAMReaderPrivate::InsertCellsToGrid(
       }
     }
 
-    // Cell shape constructor based on the one implementd by Terry
+    // Cell shape constructor based on the one implemented by Terry
     // Jordan, with lots of improvements. Not as elegant as the one in
     // OpenFOAM but it's simple and works reasonably fast.
 
     // Note: faces are flipped around their 0 point (as per OpenFOAM)
-    // to keep predicable face point ordering
+    // to keep predictable face point ordering
 
     // OpenFOAM "hex" | vtkHexahedron
     if (cellType == VTK_HEXAHEDRON)
@@ -10575,7 +10571,7 @@ int vtkOpenFOAMReaderPrivate::RequestData(vtkMultiBlockDataSet* output)
   if (createEulerians && recreateInternalMesh && this->Parent->GetReadZones())
   {
     vtkSmartPointer<vtkPoints> tmpPoints; // Localized vtkPoints storage
-    vtkWeakPointer<vtkPoints> points;
+    vtkPoints* points;
 
     if (this->InternalMesh != nullptr)
     {
@@ -10670,7 +10666,7 @@ int vtkOpenFOAMReaderPrivate::RequestData(vtkMultiBlockDataSet* output)
   if (createEulerians && moveInternalPoints)
   {
     vtkSmartPointer<vtkPoints> tmpPoints; // Localized vtkPoints storage
-    vtkWeakPointer<vtkPoints> points;
+    vtkPoints* points;
 
     if (this->InternalMesh != nullptr)
     {
@@ -11152,8 +11148,7 @@ int vtkOpenFOAMReader::RequestInformation(vtkInformation* vtkNotUsed(request),
     // vtkPOpenFOAMReader
     this->NumberOfReaders = 0;
 
-    if (!this->MakeInformationVector(outputVector, vtkStdString("")) ||
-      !this->MakeMetaDataAtTimeStep(true))
+    if (!this->MakeInformationVector(outputVector, {}) || !this->MakeMetaDataAtTimeStep(true))
     {
       return 0;
     }

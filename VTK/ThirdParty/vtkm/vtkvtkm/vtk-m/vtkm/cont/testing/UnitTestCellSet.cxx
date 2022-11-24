@@ -7,7 +7,7 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
-#include <vtkm/cont/ArrayCopy.h>
+#include <vtkm/cont/ArrayCopyDevice.h>
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/ArrayHandleConstant.h>
 #include <vtkm/cont/ArrayHandleCounting.h>
@@ -17,6 +17,7 @@
 #include <vtkm/cont/CellSetPermutation.h>
 #include <vtkm/cont/CellSetSingleType.h>
 #include <vtkm/cont/CellSetStructured.h>
+#include <vtkm/cont/ConvertNumComponentsToOffsets.h>
 #include <vtkm/cont/testing/Testing.h>
 
 // Make sure deprecated types still work (while applicable)
@@ -142,18 +143,15 @@ auto PermutationArray = vtkm::cont::ArrayHandleCounting<vtkm::Id>(0, 2, BaseLine
 vtkm::cont::CellSetExplicit<> MakeCellSetExplicit()
 {
   vtkm::cont::ArrayHandle<vtkm::UInt8> shapes;
-  vtkm::cont::ArrayCopy(vtkm::cont::ArrayHandleConstant<vtkm::UInt8>{ vtkm::CELL_SHAPE_HEXAHEDRON,
-                                                                      BaseLineNumberOfCells },
-                        shapes);
+  shapes.AllocateAndFill(BaseLineNumberOfCells, vtkm::CELL_SHAPE_HEXAHEDRON);
 
   vtkm::cont::ArrayHandle<vtkm::IdComponent> numIndices;
-  vtkm::cont::ArrayCopy(
-    vtkm::cont::ArrayHandleConstant<vtkm::IdComponent>{ 8, BaseLineNumberOfCells }, numIndices);
+  numIndices.AllocateAndFill(BaseLineNumberOfCells, 8);
 
   vtkm::cont::ArrayHandle<vtkm::Id> connectivity;
-  vtkm::cont::ArrayCopy(BaseLineConnectivity, connectivity);
+  vtkm::cont::ArrayCopyDevice(BaseLineConnectivity, connectivity);
 
-  auto offsets = vtkm::cont::ConvertNumIndicesToOffsets(numIndices);
+  auto offsets = vtkm::cont::ConvertNumComponentsToOffsets(numIndices);
 
   vtkm::cont::CellSetExplicit<> cellset;
   cellset.Fill(BaseLineNumberOfPoints, shapes, connectivity, offsets);

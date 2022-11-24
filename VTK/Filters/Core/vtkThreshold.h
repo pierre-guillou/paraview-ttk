@@ -37,7 +37,6 @@
 #ifndef vtkThreshold_h
 #define vtkThreshold_h
 
-#include "vtkDeprecation.h"       // For VTK_DEPRECATED_IN_9_1_0
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkUnstructuredGridAlgorithm.h"
 
@@ -81,26 +80,6 @@ public:
   void SetThresholdFunction(int function);
   int GetThresholdFunction();
   ///@}
-
-  /**
-   * Criterion is cells whose scalars are less or equal to lower threshold.
-   */
-  VTK_DEPRECATED_IN_9_1_0("Use 'SetLowerThreshold' and 'SetThresholdFunction' instead.")
-  void ThresholdByLower(double lower);
-
-  /**
-   * Criterion is cells whose scalars are greater or equal to upper threshold.
-   */
-  VTK_DEPRECATED_IN_9_1_0("Use 'SetUpperThreshold' and 'SetThresholdFunction' instead.")
-  void ThresholdByUpper(double upper);
-
-  /**
-   * Criterion is cells whose scalars are between lower and upper thresholds
-   * (inclusive of the end values).
-   */
-  VTK_DEPRECATED_IN_9_1_0(
-    "Use 'SetLowerThreshold', 'SetUpperThreshold' and 'SetThresholdFunction' instead.")
-  void ThresholdBetween(double lower, double upper);
 
   ///@{
   /**
@@ -173,7 +152,7 @@ public:
   ///@{
   /**
    * If this is on (default is off), we will use the continuous interval
-   * [minimum cell scalar, maxmimum cell scalar] to intersect the threshold bound
+   * [minimum cell scalar, maximum cell scalar] to intersect the threshold bound
    * , rather than the set of discrete scalar values from the vertices
    * *WARNING*: For higher order cells, the scalar range of the cell is
    * not the same as the vertex scalar interval used here, so the

@@ -154,6 +154,17 @@ public:
    */
   T& operator*() const noexcept { return *static_cast<T*>(this->Object); }
 
+  /**
+   * Move assignment operator.
+   */
+  vtkNew<T>& operator=(vtkNew<T>&& other) noexcept
+  {
+    this->Reset();
+    this->Object = other.Object;
+    other.Object = nullptr;
+    return *this;
+  }
+
 private:
   vtkNew(vtkNew<T> const&) = delete;
   void operator=(vtkNew<T> const&) = delete;

@@ -156,7 +156,7 @@ public:
   /**
    * Destructor
    */
-  ~QQuickVTKRenderWindow();
+  ~QQuickVTKRenderWindow() override;
 
   /**
    * Set up the graphics surface format and api.
@@ -178,8 +178,8 @@ public:
    * By default, a vtkGenericOpenGLRenderWindow is created and set on this item at construction
    * time.
    */
-  void setRenderWindow(vtkRenderWindow* renWin);
-  void setRenderWindow(vtkGenericOpenGLRenderWindow* renWin);
+  virtual void setRenderWindow(vtkRenderWindow* renWin);
+  virtual void setRenderWindow(vtkGenericOpenGLRenderWindow* renWin);
   vtkRenderWindow* renderWindow() const;
   ///@}
 

@@ -38,13 +38,9 @@
 #include "vtkInformationVector.h"
 #include "vtkLongArray.h"
 #include "vtkLongLongArray.h"
-#ifdef IOADIOS2_HAVE_MPI
-#include "vtkMPI.h"
-#include "vtkMPIController.h"
-#include "vtkMultiProcessController.h" // For the MPI controller member
-#endif
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
+#include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
@@ -52,7 +48,6 @@
 #include "vtkPolyData.h"
 #include "vtkShortArray.h"
 #include "vtkSignedCharArray.h"
-#include "vtkStdString.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkType.h"
@@ -62,6 +57,11 @@
 #include "vtkUnsignedShortArray.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtksys/SystemTools.hxx"
+
+#ifdef IOADIOS2_HAVE_MPI
+#include "vtkMPI.h"
+#include "vtkMPIController.h"
+#endif
 
 #include <adios2.h> // adios2
 #include <istream>  // istringStream
@@ -305,8 +305,7 @@ void vtkADIOS2CoreImageReader::SetController(vtkMultiProcessController* controll
   }
 #endif
 
-  this->Controller = controller;
-  this->Modified();
+  vtkSetSmartPointerBodyMacro(Controller, vtkMultiProcessController, controller);
 }
 
 //------------------------------------------------------------------------------
@@ -421,10 +420,7 @@ vtkADIOS2CoreImageReader::vtkADIOS2CoreImageReader()
 }
 
 //------------------------------------------------------------------------------
-vtkADIOS2CoreImageReader::~vtkADIOS2CoreImageReader()
-{
-  this->SetController(nullptr);
-}
+vtkADIOS2CoreImageReader::~vtkADIOS2CoreImageReader() = default;
 
 //------------------------------------------------------------------------------
 int vtkADIOS2CoreImageReader::RequestInformation(
@@ -510,13 +506,13 @@ int vtkADIOS2CoreImageReader::RequestData(vtkInformation* vtkNotUsed(request),
     this->RequestTimeStep = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP());
     if (!this->Impl->TimeStepsReverseMap.count(this->RequestTimeStep))
     {
-      vtkErrorMacro("The requested time step " << this->RequestTimeStep << " is not avaible!");
+      vtkErrorMacro("The requested time step " << this->RequestTimeStep << " is not available!");
       return 0;
     }
     this->Impl->RequestStep = this->Impl->TimeStepsReverseMap[this->RequestTimeStep];
   }
 
-  // Initailize work distribution for each rank
+  // Initialize work distribution for each rank
   if (!this->InitWorkDistribution())
   {
     this->Impl->Adios.reset(nullptr);

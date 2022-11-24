@@ -23,8 +23,11 @@
  * objects that represent text. The advantage of using this class is to easily
  * integrate mathematical expressions into renderings by automatically switching
  * between FreeType and MathText backends. If the input string contains at least
- * two "$" symbols separated by text, the MathText backend will be used. If
- * the string does not meet this criteria, or if no MathText implementation is
+ * two "$" symbols separated by text, the MathText backend will be used.
+ * Alternatively, the presence of unescaped "|" symbols defines multicolumn lines,
+ * which are processed with the MathText backend.
+ *
+ * If the string does not meet these criteria, or if no MathText implementation is
  * available, the faster FreeType rendering facilities are used. Literal $
  * symbols can be used by escaping them with backslashes, "\$" (or "\\$" if the
  * string is set programmatically).
@@ -43,7 +46,6 @@
 #ifndef vtkTextRenderer_h
 #define vtkTextRenderer_h
 
-#include "vtkDeprecation.h" // for deprecation macros
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkTuple.h"               // For metrics struct
@@ -52,7 +54,6 @@
 class vtkImageData;
 class vtkPath;
 class vtkStdString;
-class vtkUnicodeString;
 class vtkTextProperty;
 
 namespace vtksys
@@ -167,7 +168,6 @@ public:
    * Determine the appropriate back end needed to render the given string.
    */
   virtual int DetectBackend(const vtkStdString& str);
-  virtual int DetectBackend(const vtkUnicodeString& str);
   ///@}
 
   /**
@@ -189,13 +189,6 @@ public:
   {
     return this->GetBoundingBoxInternal(tprop, str, bbox, dpi, backend);
   }
-  VTK_DEPRECATED_IN_9_1_0("Use bool GetBoundingBox(vtkTextProperty* tprop, const vtkStdString& "
-                          "str, int bbox[4], int dpi, int backend)")
-  bool GetBoundingBox(vtkTextProperty* tprop, const vtkUnicodeString& str, int bbox[4], int dpi,
-    int backend = Default)
-  {
-    return this->GetBoundingBoxInternal(tprop, str, bbox, dpi, backend);
-  }
   ///@}
 
   ///@{
@@ -205,13 +198,6 @@ public:
    * Return true on success, false otherwise.
    */
   bool GetMetrics(vtkTextProperty* tprop, const vtkStdString& str, Metrics& metrics, int dpi,
-    int backend = Default)
-  {
-    return this->GetMetricsInternal(tprop, str, metrics, dpi, backend);
-  }
-  VTK_DEPRECATED_IN_9_1_0("Use bool GetMetrics(vtkTextProperty* tprop, const vtkStdString& str, "
-                          "Metrics& metrics, int dpi, int backend)")
-  bool GetMetrics(vtkTextProperty* tprop, const vtkUnicodeString& str, Metrics& metrics, int dpi,
     int backend = Default)
   {
     return this->GetMetricsInternal(tprop, str, metrics, dpi, backend);
@@ -238,13 +224,6 @@ public:
   {
     return this->RenderStringInternal(tprop, str, data, textDims, dpi, backend);
   }
-  VTK_DEPRECATED_IN_9_1_0("Use bool RenderString(vtkTextProperty* tprop, const vtkStdString& str, "
-                          "vtkImageData* data, int textDims[2], int dpi, int backend)")
-  bool RenderString(vtkTextProperty* tprop, const vtkUnicodeString& str, vtkImageData* data,
-    int textDims[2], int dpi, int backend = Default)
-  {
-    return this->RenderStringInternal(tprop, str, data, textDims, dpi, backend);
-  }
   ///@}
 
   ///@{
@@ -255,15 +234,6 @@ public:
    * this function will return -1.
    */
   int GetConstrainedFontSize(const vtkStdString& str, vtkTextProperty* tprop, int targetWidth,
-    int targetHeight, int dpi, int backend = Default)
-  {
-    return this->GetConstrainedFontSizeInternal(
-      str, tprop, targetWidth, targetHeight, dpi, backend);
-  }
-  VTK_DEPRECATED_IN_9_1_0(
-    "Use int GetConstrainedFontSize(const vtkStdString& str, vtkTextProperty* tprop, int "
-    "targetWidth, int targetHeight, int dpi, int backend)")
-  int GetConstrainedFontSize(const vtkUnicodeString& str, vtkTextProperty* tprop, int targetWidth,
     int targetHeight, int dpi, int backend = Default)
   {
     return this->GetConstrainedFontSizeInternal(
@@ -281,13 +251,6 @@ public:
    */
   bool StringToPath(
     vtkTextProperty* tprop, const vtkStdString& str, vtkPath* path, int dpi, int backend = Default)
-  {
-    return this->StringToPathInternal(tprop, str, path, dpi, backend);
-  }
-  VTK_DEPRECATED_IN_9_1_0("Use bool StringToPath(vtkTextProperty* tprop, const vtkStdString& str, "
-                          "vtkPath* path, int dpi, int backend)")
-  bool StringToPath(vtkTextProperty* tprop, const vtkUnicodeString& str, vtkPath* path, int dpi,
-    int backend = Default)
   {
     return this->StringToPathInternal(tprop, str, path, dpi, backend);
   }
@@ -313,36 +276,14 @@ protected:
    */
   virtual bool GetBoundingBoxInternal(
     vtkTextProperty* tprop, const vtkStdString& str, int bbox[4], int dpi, int backend) = 0;
-  VTK_DEPRECATED_IN_9_1_0("Use bool GetBoundingBoxInternal(vtkTextProperty* tprop, const "
-                          "vtkStdString& str, int bbox[4], int dpi, int backend)")
-  virtual bool GetBoundingBoxInternal(
-    vtkTextProperty* tprop, const vtkUnicodeString& str, int bbox[4], int dpi, int backend) = 0;
   virtual bool GetMetricsInternal(
     vtkTextProperty* tprop, const vtkStdString& str, Metrics& metrics, int dpi, int backend) = 0;
-  VTK_DEPRECATED_IN_9_1_0("Use bool GetMetricsInternal(vtkTextProperty* tprop, const vtkStdString& "
-                          "str, Metrics& metrics, int dpi, int backend)")
-  virtual bool GetMetricsInternal(vtkTextProperty* tprop, const vtkUnicodeString& str,
-    Metrics& metrics, int dpi, int backend) = 0;
   virtual bool RenderStringInternal(vtkTextProperty* tprop, const vtkStdString& str,
-    vtkImageData* data, int textDims[2], int dpi, int backend) = 0;
-  VTK_DEPRECATED_IN_9_1_0(
-    "Use bool RenderStringInternal(vtkTextProperty* tprop, const vtkStdString& str, vtkImageData* "
-    "data, int textDims[2], int dpi, int backend)")
-  virtual bool RenderStringInternal(vtkTextProperty* tprop, const vtkUnicodeString& str,
     vtkImageData* data, int textDims[2], int dpi, int backend) = 0;
   virtual int GetConstrainedFontSizeInternal(const vtkStdString& str, vtkTextProperty* tprop,
     int targetWidth, int targetHeight, int dpi, int backend) = 0;
-  VTK_DEPRECATED_IN_9_1_0(
-    "Use int GetConstrainedFontSizeInternal(const vtkStdString& str, vtkTextProperty* tprop, int "
-    "targetWidth, int targetHeight, int dpi, int backend)")
-  virtual int GetConstrainedFontSizeInternal(const vtkUnicodeString& str, vtkTextProperty* tprop,
-    int targetWidth, int targetHeight, int dpi, int backend) = 0;
   virtual bool StringToPathInternal(
     vtkTextProperty* tprop, const vtkStdString& str, vtkPath* path, int dpi, int backend) = 0;
-  VTK_DEPRECATED_IN_9_1_0("Use bool StringToPathInternal(vtkTextProperty* tprop, const "
-                          "vtkStdString& str, vtkPath* path, int dpi, int backend)")
-  virtual bool StringToPathInternal(
-    vtkTextProperty* tprop, const vtkUnicodeString& str, vtkPath* path, int dpi, int backend) = 0;
   virtual void SetScaleToPowerOfTwoInternal(bool scale) = 0;
   ///@}
 
@@ -369,8 +310,6 @@ protected:
    * Replace all instances of "\$" with "$".
    */
   virtual void CleanUpFreeTypeEscapes(vtkStdString& str);
-  VTK_DEPRECATED_IN_9_1_0("Use void CleanUpFreeTypeEscapes(vtkStdString& str)")
-  virtual void CleanUpFreeTypeEscapes(vtkUnicodeString& str);
   ///@}
 
   /**

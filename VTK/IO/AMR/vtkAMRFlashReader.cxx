@@ -153,7 +153,7 @@ void vtkAMRFlashReader::ComputeStats(
 
   for (int i = 0; i < internal->NumberOfBlocks; ++i)
   {
-    Block& theBlock = internal->Blocks[i];
+    FlashReaderBlock& theBlock = internal->Blocks[i];
     double* gridMin = theBlock.MinBounds;
     if (gridMin[0] < min[0])
     {
@@ -184,7 +184,7 @@ int vtkAMRFlashReader::FillMetaData()
   std::vector<int> blocksPerLevel;
   this->ComputeStats(this->Internal, blocksPerLevel, origin);
 
-  this->Metadata->Initialize(static_cast<int>(blocksPerLevel.size()), &blocksPerLevel[0]);
+  this->Metadata->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
   this->Metadata->SetGridDescription(VTK_XYZ_GRID);
   this->Metadata->SetOrigin(origin);
 
@@ -193,7 +193,7 @@ int vtkAMRFlashReader::FillMetaData()
 
   for (int i = 0; i < this->Internal->NumberOfBlocks; ++i)
   {
-    Block& theBlock = this->Internal->Blocks[i];
+    FlashReaderBlock& theBlock = this->Internal->Blocks[i];
 
     // Start numbering levels from 0!
     int level = this->Internal->Blocks[i].Level - 1;

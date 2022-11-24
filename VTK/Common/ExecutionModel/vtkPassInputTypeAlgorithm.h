@@ -39,6 +39,7 @@
 
 class vtkDataObject;
 class vtkGraph;
+class vtkHyperTreeGrid;
 class vtkImageData;
 class vtkMolecule;
 class vtkPolyData;
@@ -76,6 +77,7 @@ public:
   vtkGraph* GetGraphOutput();
   vtkMolecule* GetMoleculeOutput();
   vtkTable* GetTableOutput();
+  vtkHyperTreeGrid* GetHyperTreeGridOutput();
   ///@}
 
   /**
@@ -141,7 +143,7 @@ protected:
   /**
    * This is called within ProcessRequest when a request ask for temporal
    * information to be updated. This special pass is only used for
-   * temporal data, this happend after the RequestInformation pass of the
+   * temporal data, this happened after the RequestInformation pass of the
    * pipeline execution process.
    */
   virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
@@ -152,7 +154,7 @@ protected:
   /**
    * This is called within ProcessRequest when a request ask for meta
    * information to be updated. This special pass is only used for
-   * temporal data, this happend after the RequestUpdateTime pass of the
+   * temporal data, this happened after the RequestUpdateTime pass of the
    * pipeline execution process.
    */
   virtual int RequestUpdateTimeDependentInformation(

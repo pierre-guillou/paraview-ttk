@@ -37,6 +37,7 @@
 #include <set>
 
 vtkStandardNewMacro(vtkPIOReader);
+vtkCxxSetObjectMacro(vtkPIOReader, Controller, vtkMultiProcessController);
 
 //------------------------------------------------------------------------------
 // Constructor for PIO Reader
@@ -67,7 +68,8 @@ vtkPIOReader::vtkPIOReader()
   // External PIO_DATA for actually reading files
   this->pioAdaptor = nullptr;
 
-  this->Controller = vtkMultiProcessController::GetGlobalController();
+  this->Controller = nullptr;
+  this->SetController(vtkMultiProcessController::GetGlobalController());
   if (this->Controller)
   {
     this->Rank = this->Controller->GetLocalProcessId();
@@ -96,8 +98,7 @@ vtkPIOReader::~vtkPIOReader()
   this->TimeDataStringArray->Delete();
   this->SetActiveTimeDataArrayName(nullptr);
 
-  // Do not delete the Controller which is a singleton
-  this->Controller = nullptr;
+  this->SetController(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -167,7 +168,7 @@ int vtkPIOReader::RequestInformation(vtkInformation* vtkNotUsed(reqInfo),
   }
 
   // Set the current TIME_STEP() data based on requested TimeArrayName
-  if (strcmp(this->ActiveTimeDataArrayName, this->CurrentTimeDataArrayName.c_str()) != 0)
+  if (this->ActiveTimeDataArrayName != this->CurrentTimeDataArrayName)
   {
     this->CurrentTimeDataArrayName = this->ActiveTimeDataArrayName;
     if (strcmp(this->ActiveTimeDataArrayName, "SimulationTime") == 0)
@@ -270,7 +271,7 @@ int vtkPIOReader::RequestData(vtkInformation* vtkNotUsed(reqInfo),
   }
   else
   {
-    // Pipeline actived from python script
+    // Pipeline activated from python script
     if (this->CurrentTimeStep < 0 || this->CurrentTimeStep >= this->NumberOfTimeSteps)
     {
       this->CurrentTimeStep = 0;
@@ -378,8 +379,9 @@ const char* vtkPIOReader::GetTimeDataArray(int idx) const
   if (idx < 0 || idx > static_cast<int>(this->TimeDataStringArray->GetNumberOfValues()))
   {
     vtkErrorMacro("Invalid index for 'GetTimeDataArray': " << idx);
+    return nullptr;
   }
-  return this->TimeDataStringArray->GetValue(idx);
+  return this->TimeDataStringArray->GetValue(idx).c_str();
 }
 
 void vtkPIOReader::PrintSelf(ostream& os, vtkIndent indent)

@@ -26,11 +26,14 @@
 #include "vtkTestUtilities.h"
 
 #define expect(x, msg)                                                                             \
-  if (!(x))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    cerr << __LINE__ << ": " msg << endl;                                                          \
-    return false;                                                                                  \
-  }
+    if (!(x))                                                                                      \
+    {                                                                                              \
+      cerr << __LINE__ << ": " msg << endl;                                                        \
+      return false;                                                                                \
+    }                                                                                              \
+  } while (false)
 
 namespace
 {
@@ -43,13 +46,13 @@ bool Validate0(vtkMultiBlockDataSet* mb, int num_timesteps)
   expect(b0 != nullptr, "expecting a vtkTable for block 0");
   expect(b0->GetNumberOfRows() == num_timesteps,
     "mismatched rows, expecting " << num_timesteps << ", got " << b0->GetNumberOfRows());
-  expect(b0->GetNumberOfColumns() > 100, "mismatched columns");
+  expect(b0->GetNumberOfColumns() == 139, "mismatched columns");
 
   vtkTable* b1 = vtkTable::SafeDownCast(mb->GetBlock(1));
   expect(b1 != nullptr, "expecting a vtkTable for block 1");
   expect(b1->GetNumberOfRows() == num_timesteps,
     "mismatched rows, expecting " << num_timesteps << ", got " << b1->GetNumberOfRows());
-  expect(b1->GetNumberOfColumns() > 100, "mismatched columns");
+  expect(b1->GetNumberOfColumns() == 139, "mismatched columns");
   return true;
 }
 

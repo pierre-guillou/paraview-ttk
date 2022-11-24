@@ -107,7 +107,7 @@ void vtkInteractorStyleUnicam::PrintSelf(ostream& os, vtkIndent indent)
 
 void vtkInteractorStyleUnicam::OnTimer()
 {
-  ; // timer just keeps ticking since we are using repeating timers
+  // timer just keeps ticking since we are using repeating timers
 }
 
 void vtkInteractorStyleUnicam::SetWorldUpVector(double x, double y, double z)
@@ -356,7 +356,7 @@ void vtkInteractorStyleUnicam::ChooseXY(int X, int Y)
   }
 }
 
-// define some utilty functions
+// define some utility functions
 template <class Type>
 inline Type clamp(const Type a, const Type b, const Type c)
 {

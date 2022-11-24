@@ -44,7 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCommand.h"
 #include "vtkMinimalStandardRandomSequence.h"
 #include "vtkNetworkAccessManager.h"
-#include "vtkPVConfig.h"
+#include "vtkPVVersion.h"
 #include "vtkPVXMLElement.h"
 #include "vtkProcessModule.h"
 #include "vtkRemotingCoreConfiguration.h"
@@ -201,7 +201,7 @@ QProcessEnvironment getDefaultEnvironment(const pqServerConfiguration& configura
 
   // Now append the pre-defined runtime environment to this.
   options.insert("PV_CLIENT_HOST", QHostInfo::localHostName());
-  options.insert("PV_CONNECTION_URI", resource.toURI());
+  options.insert("PV_CONNECTION_URI", resource.schemeHostsPorts().toURI());
   options.insert("PV_CONNECTION_SCHEME", resource.scheme());
   options.insert("PV_VERSION_MAJOR", QString::number(PARAVIEW_VERSION_MAJOR));
   options.insert("PV_VERSION_MINOR", QString::number(PARAVIEW_VERSION_MINOR));
@@ -423,7 +423,7 @@ void updateEnvironment(const QMap<QString, pqWidget*>& widgets,
 {
   pqSettings* settings = pqApplicationCore::instance()->settings();
   pqServerResource resource = configuration.resource();
-  foreach (const pqWidget* item, widgets)
+  Q_FOREACH (const pqWidget* item, widgets)
   {
     QString name = item->Widget->objectName();
     QVariant chosen_value = item->get();
@@ -554,7 +554,7 @@ pqServerConfiguration& pqServerLauncher::configuration() const
 }
 
 //-----------------------------------------------------------------------------
-bool pqServerLauncher::connectToServer()
+bool pqServerLauncher::connectToServer(bool showConnectionDialog)
 {
   pqServerConfiguration::StartupType startupType = this->Internals->Configuration.startupType();
   if (startupType != pqServerConfiguration::MANUAL && startupType != pqServerConfiguration::COMMAND)
@@ -602,8 +602,8 @@ bool pqServerLauncher::connectToServer()
   pqObjectBuilder* builder = pqApplicationCore::instance()->getObjectBuilder();
   bool force = builder->forceWaitingForConnection(true);
   bool launched = false;
-  while (!(launched = this->connectToPrelaunchedServer()) && nam->GetWrongConnectID() &&
-    dialog.exec() == QDialog::Accepted)
+  while (!(launched = this->connectToPrelaunchedServer(showConnectionDialog)) &&
+    nam->GetWrongConnectID() && dialog.exec() == QDialog::Accepted)
   {
     config->SetConnectID(ui.connectId->value());
   }
@@ -612,30 +612,58 @@ bool pqServerLauncher::connectToServer()
 }
 
 //-----------------------------------------------------------------------------
-bool pqServerLauncher::connectToPrelaunchedServer()
+bool pqServerLauncher::connectToPrelaunchedServer(bool showConnectionDialog)
 {
   pqObjectBuilder* builder = pqApplicationCore::instance()->getObjectBuilder();
 
-  QDialog dialog(pqCoreUtilities::mainWidget(), Qt::WindowStaysOnTopHint);
-  QObject::connect(&dialog, SIGNAL(rejected()), builder, SLOT(abortPendingConnections()));
+  //  default timeout of reverse connection is infinite, 60s otherwise
+  int timeout =
+    this->Internals->Configuration.connectionTimeout(this->isReverseConnection() ? -1 : 60);
 
-  Ui::pqServerLauncherDialog ui;
-  ui.setupUi(&dialog);
-  ui.message->setText(QString("Establishing connection to '%1' \n"
-                              "Waiting for server to connect.")
-                        .arg(this->Internals->Configuration.name()));
-  dialog.setWindowTitle("Waiting for Server Connection");
-  if (this->isReverseConnection())
+  vtkNetworkAccessManager::ConnectionResult result;
+  do
   {
-    // using reverse connect, popup the dialog.
-    dialog.show();
-    dialog.raise();
-    dialog.activateWindow();
-  }
+    QDialog dialog(pqCoreUtilities::mainWidget(), Qt::WindowStaysOnTopHint);
+    if (showConnectionDialog)
+    {
+      QObject::connect(&dialog, SIGNAL(rejected()), builder, SLOT(abortPendingConnections()));
 
-  const pqServerResource& resource = this->Internals->Configuration.actualResource();
-  this->Internals->Server =
-    builder->createServer(resource, this->Internals->Configuration.connectionTimeout());
+      Ui::pqServerLauncherDialog ui;
+      ui.setupUi(&dialog);
+
+      if (timeout < 0)
+      {
+        ui.message->setText(QString("Establishing connection to '%1' \n"
+                                    "Waiting for server to connect.")
+                              .arg(this->Internals->Configuration.name()));
+        dialog.setWindowTitle("Waiting for Server Connection");
+      }
+      else
+      {
+        ui.message->setText(QString("Establishing connection to '%1' \n"
+                                    "Waiting %2 seconds for connection to server.")
+                              .arg(this->Internals->Configuration.name())
+                              .arg(timeout));
+        dialog.setWindowTitle("Waiting for Connection to Server");
+      }
+
+      dialog.setModal(true);
+      dialog.show();
+      dialog.raise();
+      dialog.activateWindow();
+    }
+
+    const pqServerResource& resource = this->Internals->Configuration.actualResource();
+    this->Internals->Server = builder->createServer(resource, timeout, result);
+
+    // Make sure events have been processed
+    pqEventDispatcher::processEventsAndWait(100);
+
+  } while (result == vtkNetworkAccessManager::ConnectionResult::CONNECTION_TIMEOUT &&
+    QMessageBox::question(pqCoreUtilities::mainWidget(), QString("Connection Failed"),
+      QString("Unable to connect sucessfully. Try again for %1 seconds ?").arg(timeout)) ==
+      QMessageBox::Yes);
+
   return this->Internals->Server != nullptr;
 }
 
@@ -722,8 +750,8 @@ void pqServerLauncher::launchServerForReverseConnection()
 bool pqServerLauncher::launchServer(bool show_status_dialog)
 {
   // We need launch the server.
-  double timeout, delay;
-  QString command = this->Internals->Configuration.command(timeout, delay);
+  double processWait, delay;
+  QString command = this->Internals->Configuration.command(processWait, delay);
   if (command.isEmpty())
   {
     qCritical() << "Could not determine command to launch the server.";
@@ -755,12 +783,12 @@ bool pqServerLauncher::launchServer(bool show_status_dialog)
     command.replace(before, after);
   }
 
-  return this->processCommand(command, timeout, delay, &this->Internals->Options);
+  return this->processCommand(command, processWait, delay, &this->Internals->Options);
 }
 
 //-----------------------------------------------------------------------------
 bool pqServerLauncher::processCommand(
-  QString command, double timeout, double delay, const QProcessEnvironment* options)
+  QString command, double processWait, double delay, const QProcessEnvironment* options)
 {
   QProcess* process = new QProcess(pqApplicationCore::instance());
 
@@ -774,12 +802,20 @@ bool pqServerLauncher::processCommand(
   QObject::connect(process, SIGNAL(readyReadStandardError()), this, SLOT(readStandardError()));
   QObject::connect(process, SIGNAL(readyReadStandardOutput()), this, SLOT(readStandardOutput()));
 
+// QProcess::start(QString) has been deprecated in Qt 5.15
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
   process->start(command);
+#else
+  QStringList splitCommand = QProcess::splitCommand(command);
+  QString program = splitCommand.takeAt(0);
+  process->start(program, splitCommand);
+#endif
 
   // wait for process to start.
   // waitForStarted() may block until the process starts. That is generally a short
   // span of time, hence we don't worry about it too much.
-  if (process->waitForStarted(timeout > 0. ? static_cast<int>(timeout * 1000.) : -1) == false)
+  if (process->waitForStarted(processWait > 0. ? static_cast<int>(processWait * 1000.) : -1) ==
+    false)
   {
     qCritical() << "Command launch timed out.";
     process->kill();

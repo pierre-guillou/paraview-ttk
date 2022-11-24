@@ -203,17 +203,88 @@ void vtkXRenderWindowInteractor::TerminateApp()
 
   XSendEvent(client.display, client.window, True, NoEventMask, reinterpret_cast<XEvent*>(&client));
   XFlush(client.display);
-  this->RenderWindow->Finalize();
 }
 
 void vtkXRenderWindowInteractor::ProcessEvents()
 {
+  std::vector<int> rwiFileDescriptors;
+  fd_set in_fds;
+  struct timeval tv;
+  struct timeval minTv;
+
+  bool wait = true;
+  bool done = true;
+  minTv.tv_sec = 1000;
+  minTv.tv_usec = 1000;
   XEvent event;
-  while (XPending(this->DisplayId) && !this->Done)
+
+  rwiFileDescriptors.reserve(vtkXRenderWindowInteractorInternals::Instances.size());
+  for (auto rwi : vtkXRenderWindowInteractorInternals::Instances)
   {
-    XNextEvent(this->DisplayId, &event);
-    this->DispatchEvent(&event);
+    rwiFileDescriptors.push_back(ConnectionNumber(rwi->DisplayId));
   }
+
+  for (auto rwi = vtkXRenderWindowInteractorInternals::Instances.begin();
+       rwi != vtkXRenderWindowInteractorInternals::Instances.end();)
+  {
+
+    if (XPending((*rwi)->DisplayId) == 0)
+    {
+      // get how long to wait for the next timer
+      (*rwi)->Internal->GetTimeToNextTimer(tv);
+      minTv.tv_sec = std::min(tv.tv_sec, minTv.tv_sec);
+      minTv.tv_usec = std::min(tv.tv_usec, minTv.tv_usec);
+    }
+    else
+    {
+      // If events are pending, dispatch them to the right RenderWindowInteractor
+      XNextEvent((*rwi)->DisplayId, &event);
+      (*rwi)->DispatchEvent(&event);
+      wait = false;
+    }
+    (*rwi)->FireTimers();
+
+    // Check if all RenderWindowInteractors have been terminated
+    done = done && (*rwi)->Done;
+
+    // If current RenderWindowInteractor have been terminated, handle its last event,
+    // then remove it from the Instance vector
+    if ((*rwi)->Done)
+    {
+      // Empty the event list
+      while (XPending((*rwi)->DisplayId) != 0)
+      {
+        XNextEvent((*rwi)->DisplayId, &event);
+        (*rwi)->DispatchEvent(&event);
+      }
+
+      // Finalize the rwi
+      (*rwi)->Finalize();
+
+      // Adjust the file descriptors vector
+      int rwiPosition = std::distance(vtkXRenderWindowInteractorInternals::Instances.begin(), rwi);
+      rwi = vtkXRenderWindowInteractorInternals::Instances.erase(rwi);
+      rwiFileDescriptors.erase(rwiFileDescriptors.begin() + rwiPosition);
+    }
+    else
+    {
+      ++rwi;
+    }
+  }
+
+  if (wait && !done)
+  {
+    // select will wait until 'tv' elapses or something else wakes us
+    FD_ZERO(&in_fds);
+    for (auto rwiFileDescriptor : rwiFileDescriptors)
+    {
+      FD_SET(rwiFileDescriptor, &in_fds);
+    }
+    int maxFileDescriptor = *std::max_element(rwiFileDescriptors.begin(), rwiFileDescriptors.end());
+    select(maxFileDescriptor + 1, &in_fds, nullptr, nullptr, &minTv);
+  }
+
+  this->Done = done;
 }
 
 //------------------------------------------------------------------------------
@@ -222,84 +293,14 @@ void vtkXRenderWindowInteractor::ProcessEvents()
 // loop is exited.
 void vtkXRenderWindowInteractor::StartEventLoop()
 {
-  std::vector<int> rwiFileDescriptors;
-  fd_set in_fds;
-  struct timeval tv;
-  struct timeval minTv;
-
   for (auto rwi : vtkXRenderWindowInteractorInternals::Instances)
   {
     rwi->Done = false;
-    rwiFileDescriptors.push_back(ConnectionNumber(rwi->DisplayId));
   }
-
-  bool done = true;
   do
   {
-    bool wait = true;
-    done = true;
-    minTv.tv_sec = 1000;
-    minTv.tv_usec = 1000;
-    XEvent event;
-    for (auto rwi = vtkXRenderWindowInteractorInternals::Instances.begin();
-         rwi != vtkXRenderWindowInteractorInternals::Instances.end();)
-    {
-
-      if (XPending((*rwi)->DisplayId) == 0)
-      {
-        // get how long to wait for the next timer
-        (*rwi)->Internal->GetTimeToNextTimer(tv);
-        minTv.tv_sec = std::min(tv.tv_sec, minTv.tv_sec);
-        minTv.tv_usec = std::min(tv.tv_usec, minTv.tv_usec);
-      }
-      else
-      {
-        // If events are pending, dispatch them to the right RenderWindowInteractor
-        XNextEvent((*rwi)->DisplayId, &event);
-        (*rwi)->DispatchEvent(&event);
-        wait = false;
-      }
-      (*rwi)->FireTimers();
-
-      // Check if all RenderWindowInteractors have been terminated
-      done = done && (*rwi)->Done;
-
-      // If current RenderWindowInteractor have been terminated, handle its last event,
-      // then remove it from the Instance vector
-      if ((*rwi)->Done)
-      {
-        // Empty the event list
-        while (XPending((*rwi)->DisplayId) != 0)
-        {
-          XNextEvent((*rwi)->DisplayId, &event);
-          (*rwi)->DispatchEvent(&event);
-        }
-        // Adjust the file descriptors vector
-        int rwiPosition =
-          std::distance(vtkXRenderWindowInteractorInternals::Instances.begin(), rwi);
-        rwi = vtkXRenderWindowInteractorInternals::Instances.erase(rwi);
-        rwiFileDescriptors.erase(rwiFileDescriptors.begin() + rwiPosition);
-      }
-      else
-      {
-        ++rwi;
-      }
-    }
-
-    if (wait && !done)
-    {
-      // select will wait until 'tv' elapses or something else wakes us
-      FD_ZERO(&in_fds);
-      for (auto rwiFileDescriptor : rwiFileDescriptors)
-      {
-        FD_SET(rwiFileDescriptor, &in_fds);
-      }
-      int maxFileDescriptor =
-        *std::max_element(rwiFileDescriptors.begin(), rwiFileDescriptors.end());
-      select(maxFileDescriptor + 1, &in_fds, nullptr, nullptr, &minTv);
-    }
-
-  } while (!done);
+    this->ProcessEvents();
+  } while (!this->Done);
 }
 
 //------------------------------------------------------------------------------
@@ -331,6 +332,7 @@ void vtkXRenderWindowInteractor::Initialize()
   {
     vtkDebugMacro("opening display");
     this->DisplayId = XOpenDisplay(nullptr);
+    this->OwnDisplay = true;
     vtkDebugMacro("opened display");
     ren->SetDisplayId(this->DisplayId);
   }
@@ -358,6 +360,23 @@ void vtkXRenderWindowInteractor::Initialize()
   this->Enable();
   this->Size[0] = size[0];
   this->Size[1] = size[1];
+}
+
+void vtkXRenderWindowInteractor::Finalize()
+{
+  if (this->RenderWindow)
+  {
+    // Finalize the window
+    this->RenderWindow->Finalize();
+  }
+
+  // if we create the display, we'll delete it
+  if (this->OwnDisplay && this->DisplayId)
+  {
+    XCloseDisplay(this->DisplayId);
+    this->DisplayId = nullptr;
+    this->OwnDisplay = false;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -671,13 +690,11 @@ void vtkXRenderWindowInteractor::DispatchEvent(XEvent* event)
       int ctrl = ((reinterpret_cast<XButtonEvent*>(event))->state & ControlMask) ? 1 : 0;
       int shift = ((reinterpret_cast<XButtonEvent*>(event))->state & ShiftMask) ? 1 : 0;
       int alt = ((reinterpret_cast<XButtonEvent*>(event))->state & Mod1Mask) ? 1 : 0;
-      vtkKeySym ks;
-      static char buffer[20];
-      buffer[0] = '\0';
-      XLookupString(reinterpret_cast<XKeyEvent*>(event), buffer, 20, &ks, nullptr);
+      vtkKeySym keySym = XLookupKeysym(reinterpret_cast<XKeyEvent*>(event), 0);
+      char keyCode = keySym < 128 ? static_cast<char>(keySym) : 0;
       xp = (reinterpret_cast<XKeyEvent*>(event))->x;
       yp = (reinterpret_cast<XKeyEvent*>(event))->y;
-      this->SetEventInformationFlipY(xp, yp, ctrl, shift, buffer[0], 1, XKeysymToString(ks));
+      this->SetEventInformationFlipY(xp, yp, ctrl, shift, keyCode, 1, XKeysymToString(keySym));
       this->SetAltKey(alt);
       this->InvokeEvent(vtkCommand::KeyPressEvent, nullptr);
       this->InvokeEvent(vtkCommand::CharEvent, nullptr);
@@ -693,13 +710,11 @@ void vtkXRenderWindowInteractor::DispatchEvent(XEvent* event)
       int ctrl = ((reinterpret_cast<XButtonEvent*>(event))->state & ControlMask) ? 1 : 0;
       int shift = ((reinterpret_cast<XButtonEvent*>(event))->state & ShiftMask) ? 1 : 0;
       int alt = ((reinterpret_cast<XButtonEvent*>(event))->state & Mod1Mask) ? 1 : 0;
-      vtkKeySym ks;
-      static char buffer[20];
-      buffer[0] = '\0';
-      XLookupString(reinterpret_cast<XKeyEvent*>(event), buffer, 20, &ks, nullptr);
+      vtkKeySym keySym = XLookupKeysym(reinterpret_cast<XKeyEvent*>(event), 0);
+      char keyCode = keySym < 128 ? static_cast<char>(keySym) : 0;
       xp = (reinterpret_cast<XKeyEvent*>(event))->x;
       yp = (reinterpret_cast<XKeyEvent*>(event))->y;
-      this->SetEventInformationFlipY(xp, yp, ctrl, shift, buffer[0], 1, XKeysymToString(ks));
+      this->SetEventInformationFlipY(xp, yp, ctrl, shift, keyCode, 1, XKeysymToString(keySym));
       this->SetAltKey(alt);
       this->InvokeEvent(vtkCommand::KeyReleaseEvent, nullptr);
     }
@@ -778,7 +793,7 @@ void vtkXRenderWindowInteractor::DispatchEvent(XEvent* event)
       this->InvokeEvent(vtkCommand::DropFilesEvent, filePaths);
       XFree(data);
 
-      // Inform the source the the drag and drop operation was sucessfull
+      // Inform the source the the drag and drop operation was successful
       XEvent reply;
       memset(&reply, 0, sizeof(reply));
 
@@ -835,7 +850,7 @@ void vtkXRenderWindowInteractor::DispatchEvent(XEvent* event)
 
         // Check one of these format is an URI list
         // Which is the only supported format
-        for (int i = 0; i < count; i++)
+        for (unsigned long i = 0; i < count; i++)
         {
           if (formats[i] == this->XdndURIListAtom)
           {
@@ -853,7 +868,7 @@ void vtkXRenderWindowInteractor::DispatchEvent(XEvent* event)
       if (event->xclient.message_type == this->XdndPositionAtom)
       {
         // Drag and drop event inside the window
-        if (this->XdndSource != event->xclient.data.l[0])
+        if (this->XdndSource != static_cast<Window>(event->xclient.data.l[0]))
         {
           vtkWarningMacro("Only one dnd action at a time is supported");
           return;
@@ -894,7 +909,7 @@ void vtkXRenderWindowInteractor::DispatchEvent(XEvent* event)
       else if (event->xclient.message_type == this->XdndDropAtom)
       {
         // Item dropped in the window
-        if (this->XdndSource != event->xclient.data.l[0])
+        if (this->XdndSource != static_cast<Window>(event->xclient.data.l[0]))
         {
           vtkWarningMacro("Only one dnd action at a time is supported");
           return;
@@ -914,7 +929,6 @@ void vtkXRenderWindowInteractor::DispatchEvent(XEvent* event)
 
           reply.type = ClientMessage;
           reply.xclient.window = this->XdndSource;
-          ;
           reply.xclient.message_type = this->XdndFinishedAtom;
           reply.xclient.format = 32;
           reply.xclient.data.l[0] = this->WindowId;

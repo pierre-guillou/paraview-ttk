@@ -116,8 +116,15 @@ public:
    * Create the octree decomposition of the cells of the data set
    * or data sets.  Cells are assigned to octree spatial regions
    * based on the location of their centroids.
+   *
+   * This will NOT do anything if UseExistingSearchStructure is on.
    */
   void BuildLocator() override;
+
+  /**
+   * Build the locator from the input dataset (even if UseExistingSearchStructure is on).
+   */
+  void ForceBuildLocator() override;
 
   ///@{
   /**
@@ -189,6 +196,8 @@ protected:
   vtkOctreePointLocator();
   ~vtkOctreePointLocator() override;
 
+  void BuildLocatorInternal() override;
+
   vtkOctreePointLocatorNode* Top;
   vtkOctreePointLocatorNode** LeafNodeList; // indexed by region/node ID
 
@@ -234,7 +243,7 @@ protected:
    * Given a leaf node id and point, return the local id and the squared distance
    * between the closest point and the given point.
    */
-  int _FindClosestPointInRegion(int leafNodeId, double x, double y, double z, double& dist2);
+  int FindClosestPointInRegion_(int leafNodeId, double x, double y, double z, double& dist2);
 
   /**
    * Given a location and a radiues, find the closest point within

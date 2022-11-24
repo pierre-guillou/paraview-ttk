@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqPluginManager_h
-#define _pqPluginManager_h
+#ifndef pqPluginManager_h
+#define pqPluginManager_h
 
 #include "pqCoreModule.h"
 #include <QObject>
@@ -59,7 +59,7 @@ class PQCORE_EXPORT pqPluginManager : public QObject
   typedef QObject Superclass;
 
 public:
-  pqPluginManager(QObject* p = 0);
+  pqPluginManager(QObject* p = nullptr);
   ~pqPluginManager() override;
 
   /**
@@ -86,7 +86,7 @@ public:
    * message is put in the errorMsg string
    */
   LoadStatus loadExtension(
-    pqServer* session, const QString& lib, QString* errorMsg = 0, bool remote = true);
+    pqServer* session, const QString& lib, QString* errorMsg = nullptr, bool remote = true);
 
   /**
    * attempt to load all available plugins on a server, or client plugins if
@@ -134,7 +134,7 @@ Q_SIGNALS:
 protected:
   void initialize(vtkSMPluginManager*);
 
-protected Q_SLOTS:
+protected Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * attempts to load the configuration for plugins for the particular server.
    */

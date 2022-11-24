@@ -1,7 +1,7 @@
 /*=========================================================================
 
    Program: ParaView
-   Module:    $RCSfile$
+   Module:  pqMaterialEditor.cxx
 
    Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
    All rights reserved.
@@ -53,6 +53,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
 #include "pqCoreUtilities.h"
+#include "pqFileDialog.h"
 #include "pqLoadMaterialsReaction.h"
 #include "pqMaterialAttributesDelegate.h"
 #include "pqNewMaterialDialog.h"
@@ -100,7 +101,7 @@ void AddDefaultValue(
       ml->AddShaderVariable(matName, variable, { 1.0, 1.0, 1.0 });
       break;
     case vtkOSPRayMaterialLibrary::ParameterType::TEXTURE:
-      ml->AddTexture(matName, variable, nullptr, "<None>");
+      ml->AddTexture(matName, variable, nullptr, "<None>", "");
       break;
     default:
       vtkGenericWarningMacro("Material property " << variable << " is unsupported.");
@@ -345,7 +346,7 @@ bool pqMaterialProxyModel::setData(const QModelIndex& index, const QVariant& var
     ::AddDefaultValue(ml, this->MaterialName, this->VariableNames[row]);
 
     QModelIndex sibling = index.sibling(index.row(), 1); // emit for value too
-    emit this->dataChanged(index, sibling);
+    Q_EMIT this->dataChanged(index, sibling);
     return true;
   }
   if (index.column() == 1 &&
@@ -405,7 +406,8 @@ bool pqMaterialProxyModel::setData(const QModelIndex& index, const QVariant& var
             vtkNew<vtkTexture> texture;
             texture->SetInputData(reader->GetOutput());
             texture->Update();
-            ml->AddTexture(this->MaterialName, varName, texture, fileInfo.baseName().toStdString());
+            ml->AddTexture(this->MaterialName, varName, texture, fileInfo.baseName().toStdString(),
+              fileInfo.absoluteFilePath().toStdString());
           }
           else
           {
@@ -481,6 +483,8 @@ pqMaterialEditor::pqMaterialEditor(QWidget* parentObject)
     &pqMaterialEditor::loadMaterials);
   QObject::connect(this->Internals->Ui.AttachMaterial, &QPushButton::clicked, this,
     &pqMaterialEditor::attachMaterial);
+  QObject::connect(this->Internals->Ui.SaveMaterials, &QPushButton::clicked, this,
+    &pqMaterialEditor::saveMaterials);
 
   // attributes
   QObject::connect(this->Internals->Ui.SelectMaterial,
@@ -664,6 +668,30 @@ void pqMaterialEditor::attachMaterial()
   else
   {
     vtkGenericWarningMacro("No representation for selected source in the selected view.");
+  }
+}
+
+//-----------------------------------------------------------------------------
+void pqMaterialEditor::saveMaterials()
+{
+  pqServer* server = pqActiveObjects::instance().activeServer();
+  QString extension = ".json";
+  auto filepath = pqFileDialog::getSaveFileName(
+    server, this, "Save Materials As", "", QString("OSPRay material library (*%1)").arg(extension));
+  if (filepath.isEmpty())
+  {
+    // User canceled
+    return;
+  }
+
+  if (!filepath.endsWith(".json"))
+  {
+    filepath.append(".json");
+  }
+
+  if (auto mlp = this->Internals->MaterialLibrary)
+  {
+    mlp->WriteFile(filepath.toStdString());
   }
 }
 

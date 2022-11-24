@@ -47,7 +47,7 @@
  *
  * While this class provides traversal methods (the legacy InitTraversal(),
  * GetNextCell() methods, and the newer method GetCellAtId()) these are in
- * general not thread-safe. Whenever possible it is preferrable to use a
+ * general not thread-safe. Whenever possible it is preferable to use a
  * local thread-safe, vtkCellArrayIterator object, which can be obtained via:
  *
  * ```
@@ -221,7 +221,7 @@ public:
    *
    * This currently allocates both the offsets and connectivity arrays to @a sz.
    *
-   * @note It is preferrable to use AllocateEstimate(numCells, maxCellSize)
+   * @note It is preferable to use AllocateEstimate(numCells, maxCellSize)
    * or AllocateExact(numCells, connectivitySize) instead.
    */
   vtkTypeBool Allocate(vtkIdType sz, vtkIdType vtkNotUsed(ext) = 1000)
@@ -336,6 +336,21 @@ public:
     else
     {
       return this->Storage.GetArrays32().Offsets->GetNumberOfValues();
+    }
+  }
+
+  /**
+   * Get the offset (into the connectivity) for a specified cell id.
+   */
+  vtkIdType GetOffset(vtkIdType cellId)
+  {
+    if (this->Storage.Is64Bit())
+    {
+      return this->Storage.GetArrays64().Offsets->GetValue(cellId);
+    }
+    else
+    {
+      return this->Storage.GetArrays32().Offsets->GetValue(cellId);
     }
   }
 
@@ -590,6 +605,19 @@ public:
     VTK_SIZEHINT(cellPoints, cellSize) VTK_EXPECTS(0 <= cellId && cellId < GetNumberOfCells());
 
   /**
+   * Return the point ids for the cell at @a cellId.
+   *
+   * Subsequent calls to this method may invalidate previous call
+   * results if the internal storage type is not the same as vtkIdType and
+   * cannot be shared through the @a cellPoints pointer. If that occurs,
+   * the method will use ptIds, which is an object that is created by each thread,
+   * to guarantee thread safety.
+   */
+  void GetCellAtId(
+    vtkIdType cellId, vtkIdType& cellSize, vtkIdType const*& cellPoints, vtkIdList* ptIds)
+    VTK_SIZEHINT(cellPoints, cellSize) VTK_EXPECTS(0 <= cellId && cellId < GetNumberOfCells());
+
+  /**
    * Return the point ids for the cell at @a cellId. This always copies
    * the cell ids (i.e., the list of points @a pts into the supplied
    * vtkIdList). This method is thread safe.
@@ -679,6 +707,15 @@ public:
   void ReplaceCellAtId(vtkIdType cellId, vtkIdType cellSize, const vtkIdType* cellPoints)
     VTK_EXPECTS(0 <= cellId && cellId < GetNumberOfCells()) VTK_SIZEHINT(cellPoints, cellSize);
   /**@}*/
+
+  /**
+   * Replaces the pointId at cellPointIndex of a cell with newPointId.
+   *
+   * @warning This can ONLY replace the cell if the size does not change.
+   * Attempting to change cell size through this method will have undefined
+   * results.
+   */
+  void ReplaceCellPointAtId(vtkIdType cellId, vtkIdType cellPointIndex, vtkIdType newPointId);
 
   /**
    * Overload that allows `ReplaceCellAtId(cellId, {0, 1, 2})` syntax.
@@ -1532,6 +1569,13 @@ inline void vtkCellArray::GetCellAtId(vtkIdType cellId, vtkIdType& cellSize,
   vtkIdType const*& cellPoints) VTK_SIZEHINT(cellPoints, cellSize)
 {
   this->Visit(vtkCellArray_detail::GetCellAtIdImpl{}, cellId, cellSize, cellPoints, this->TempCell);
+}
+
+//----------------------------------------------------------------------------
+inline void vtkCellArray::GetCellAtId(vtkIdType cellId, vtkIdType& cellSize,
+  vtkIdType const*& cellPoints, vtkIdList* ptIds) VTK_SIZEHINT(cellPoints, cellSize)
+{
+  this->Visit(vtkCellArray_detail::GetCellAtIdImpl{}, cellId, cellSize, cellPoints, ptIds);
 }
 
 //----------------------------------------------------------------------------

@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================*/
-#ifndef pqTextWindowLocationWidget_h
-#define pqTextWindowLocationWidget_h
+#ifndef pqTextLocationWidget_h
+#define pqTextLocationWidget_h
 
 #include "pqApplicationComponentsModule.h"
 #include "pqPropertyWidget.h"
@@ -49,7 +49,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqTextLocationWidget : public pqPropertyWid
   typedef pqPropertyWidget Superclass;
 
 public:
-  pqTextLocationWidget(vtkSMProxy* proxy, vtkSMPropertyGroup* smgroup, QWidget* parent = 0);
+  pqTextLocationWidget(vtkSMProxy* proxy, vtkSMPropertyGroup* smgroup, QWidget* parent = nullptr);
   ~pqTextLocationWidget() override;
 
   QString windowLocation() const;
@@ -60,7 +60,7 @@ Q_SIGNALS:
 protected:
   void setWindowLocation(QString&);
 
-protected Q_SLOTS:
+protected Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   void radioButtonLocationClicked();
   void radioButtonPositionClicked();
   void updateUI();
@@ -71,4 +71,4 @@ private:
   pqInternals* Internals;
 };
 
-#endif // pqTextWindowLocationWidget_h
+#endif // pqTextLocationWidget_h

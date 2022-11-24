@@ -17,28 +17,10 @@
 
 #include <vtkm/cont/vtkm_cont_export.h>
 
-#ifdef VTKM_ENABLE_LOGGING
-
-// disable MSVC warnings in loguru.hpp
-#ifdef VTKM_MSVC
-#pragma warning(push)
-#pragma warning(disable : 4722)
-#endif // VTKM_MSVC
-
-#define LOGURU_EXPORT VTKM_CONT_EXPORT
-#define LOGURU_WITH_STREAMS 1
-#define LOGURU_SCOPE_TIME_PRECISION 6
-#include <vtkm/thirdparty/loguru/vtkmloguru/loguru.hpp>
-
-#ifdef VTKM_MSVC
-#pragma warning(pop)
-#endif // VTKM_MSVC
-
-#else // VTKM_ENABLE_LOGGING
 #include <iostream>
-#endif // VTKM_ENABLE_LOGGING
-
+#include <sstream>
 #include <string>
+#include <typeindex>
 #include <typeinfo>
 
 /// \file Logging.h
@@ -60,7 +42,7 @@
 /// (or preferably, vtkm::cont::Initialize) in an executable. This will:
 /// - Set human-readable names for the log levels in the output.
 /// - Allow the stderr logging level to be set at runtime by passing a
-///   '-v [level]' argument to the executable.
+///   '--vtkm-log-level [level]' argument to the executable.
 /// - Name the main thread.
 /// - Print a preamble with details of the program's startup (args, etc).
 /// - Install signal handlers to automatically print stacktraces and error
@@ -84,12 +66,12 @@
 /// per-thread messages can be easily tracked.
 ///
 /// By default, only Warn, Error, and Fatal messages are printed to
-/// stderr. This can be changed at runtime by passing the '-v' flag to an
+/// stderr. This can be changed at runtime by passing the '--vtkm-log-level' flag to an
 /// executable that calls vtkm::cont::InitLogging. Alternatively, the
 /// application can explicitly call vtkm::cont::SetStderrLogLevel to change the
 /// verbosity. When specifying a verbosity, all log levels with enum values
 /// less-than-or-equal-to the requested level are printed.
-/// vtkm::cont::LogLevel::Off (or "-v Off") may be used to silence the log
+/// vtkm::cont::LogLevel::Off (or "--vtkm-log-level Off") may be used to silence the log
 /// completely.
 ///
 /// The helper functions vtkm::cont::GetHumanReadableSize and
@@ -207,17 +189,23 @@
 
 #if defined(VTKM_ENABLE_LOGGING)
 
-#define VTKM_LOG_S(level, ...) VLOG_S(static_cast<loguru::Verbosity>(level)) << __VA_ARGS__
-#define VTKM_LOG_F(level, ...) VLOG_F(static_cast<loguru::Verbosity>(level), __VA_ARGS__)
 #define VTKM_LOG_IF_S(level, cond, ...) \
-  VLOG_IF_S(static_cast<loguru::Verbosity>(level), cond) << __VA_ARGS__
+  vtkm::cont::LogCondStream(level, cond, __FILE__, __LINE__) << __VA_ARGS__
+
 #define VTKM_LOG_IF_F(level, cond, ...) \
-  VLOG_IF_F(static_cast<loguru::Verbosity>(level), cond, __VA_ARGS__)
-#define VTKM_LOG_SCOPE(level, ...) VLOG_SCOPE_F(static_cast<loguru::Verbosity>(level), __VA_ARGS__)
-#define VTKM_LOG_SCOPE_FUNCTION(level) \
-  VTKM_LOG_SCOPE(static_cast<loguru::Verbosity>(level), __func__)
-#define VTKM_LOG_ERROR_CONTEXT(desc, data) ERROR_CONTEXT(desc, data)
+  vtkm::cont::LogCond(level, cond, __FILE__, __LINE__, __VA_ARGS__)
+
+#define VTKM_LOG_S(level, ...) VTKM_LOG_IF_S(level, true, __VA_ARGS__)
+#define VTKM_LOG_F(level, ...) VTKM_LOG_IF_F(level, true, __VA_ARGS__)
+
+#define VTKM_LOG_SCOPE(level, ...) vtkm::cont::LogScope(level, __FILE__, __LINE__, __VA_ARGS__)
+
+#define VTKM_LOG_SCOPE_FUNCTION(level) VTKM_LOG_SCOPE(level, __func__)
 #define VTKM_LOG_ALWAYS_S(level, ...) VTKM_LOG_S(level, __VA_ARGS__)
+
+// VTKM_LOG_ERROR_CONTEXT is disabled as it is deprecated
+#define VTKM_LOG_ERROR_CONTEXT(desc, data)
+
 
 // Convenience macros:
 
@@ -351,16 +339,17 @@ enum class LogLevel
   UserVerboseLast = 2047
 };
 
+
 /**
  * This shouldn't be called directly -- prefer calling vtkm::cont::Initialize,
  * which takes care of logging as well as other initializations.
  *
  * Initializes logging. Sets up custom log level and thread names. Parses any
- * "-v [LogLevel]" arguments to set the stderr log level. This argument may
+ * "--vtkm-log-level [LogLevel]" arguments to set the stderr log level. This argument may
  * be either numeric, or the 4-character string printed in the output. Note that
- * loguru will consume the "-v [LogLevel]" argument and shrink the arg list.
+ * loguru will consume the "--vtkm-log-level [LogLevel]" argument and shrink the arg list.
  *
- * If the parameterless overload is used, the `-v` parsing is not used, but
+ * If the parameterless overload is used, the `--vtkm-log-level` parsing is not used, but
  * other functionality should still work.
  *
  * @note This function is not threadsafe and should only be called from a single
@@ -369,7 +358,7 @@ enum class LogLevel
  */
 VTKM_CONT_EXPORT
 VTKM_CONT
-void InitLogging(int& argc, char* argv[]);
+void InitLogging(int& argc, char* argv[], const std::string& loggingFlag = "--vtkm-log-level");
 VTKM_CONT_EXPORT
 VTKM_CONT
 void InitLogging();
@@ -378,10 +367,16 @@ void InitLogging();
 /**
  * Set the range of log levels that will be printed to stderr. All levels
  * with an enum value less-than-or-equal-to \a level will be printed.
+ * @{
  */
 VTKM_CONT_EXPORT
 VTKM_CONT
+void SetStderrLogLevel(const char* verbosity);
+
+VTKM_CONT_EXPORT
+VTKM_CONT
 void SetStderrLogLevel(vtkm::cont::LogLevel level);
+/**@}*/
 
 /**
  * Get the active highest log level that will be printed to stderr.
@@ -472,14 +467,8 @@ VTKM_CONT inline std::string GetSizeString(T&& bytes, int prec = 2)
  * enabled and the platform supports it, the type name will also be demangled.
  * @{
  */
-inline VTKM_CONT std::string TypeToString(const std::type_info& t)
-{
-#ifdef VTKM_ENABLE_LOGGING
-  return loguru::demangle(t.name()).c_str();
-#else  // VTKM_ENABLE_LOGGING
-  return t.name();
-#endif // VTKM_ENABLE_LOGGING
-}
+VTKM_CONT_EXPORT VTKM_CONT std::string TypeToString(const std::type_info& t);
+VTKM_CONT_EXPORT VTKM_CONT std::string TypeToString(const std::type_index& t);
 template <typename T>
 inline VTKM_CONT std::string TypeToString()
 {
@@ -491,6 +480,76 @@ inline VTKM_CONT std::string TypeToString(const T&)
   return TypeToString(typeid(T));
 }
 /**@}*/
+
+#ifdef VTKM_ENABLE_LOGGING
+
+/**
+ * \brief Conditionally logs a message with a printf-like format.
+ *
+ * \param level  Desired LogLevel value for the log message.
+ * \param cond   When false this function is no-op.
+ * \param format Printf like format string.
+ */
+VTKM_CONT_EXPORT
+VTKM_CONT
+void LogCond(LogLevel level, bool cond, const char* file, unsigned line, const char* format...);
+
+/**
+ * \brief Logs a scoped message with a printf-like format.
+ *
+ * The indentation level will be determined based on its LogLevel and it will
+ * print out its wall time upon exiting its scope.
+ *
+ * \param level  Desired LogLevel value for the log message.
+ * \param cond   When false this function is no-op.
+ * \param format Printf like format string.
+ */
+VTKM_CONT_EXPORT
+VTKM_CONT
+void LogScope(LogLevel level, const char* file, unsigned line, const char* format...);
+
+/**
+ * \brief Conditionally logs a message with a stream-like interface.
+ *
+ * Messages are flushed to output by the destructor.
+ */
+struct VTKM_CONT_EXPORT LogCondStream
+{
+  VTKM_CONT
+  LogCondStream(LogLevel level, bool cond, const char* file, int line)
+    : Level(level)
+    , Condition(cond)
+    , File(file)
+    , Line(line)
+  {
+  }
+
+  VTKM_CONT
+  ~LogCondStream() noexcept(false);
+
+  template <typename T>
+  VTKM_CONT LogCondStream& operator<<(const T& in)
+  {
+    SStream << in;
+    return *this;
+  }
+
+  VTKM_CONT
+  LogCondStream& operator<<(std::ostream& (*f)(std::ostream&))
+  {
+    f(SStream);
+    return *this;
+  }
+
+private:
+  LogLevel Level;
+  bool Condition;
+  const char* File;
+  int Line;
+  std::ostringstream SStream;
+};
+#endif // VTKM_ENABLE_LOGGING
+
 }
 } // end namespace vtkm::cont
 

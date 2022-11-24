@@ -258,7 +258,7 @@ public:
   void FreeStatement();
   void FreeUserParameterList();
   void FreeBoundParameters();
-  bool SetQuery(const char* queryString, MYSQL* db, vtkStdString& error_message);
+  bool SetQuery(const char* queryString, MYSQL* db, std::string& error_message);
   bool SetBoundParameter(int index, vtkMySQLBoundParameter* param);
   bool BindParametersToStatement();
 
@@ -325,13 +325,13 @@ void vtkMySQLQueryInternals::FreeStatement()
 //------------------------------------------------------------------------------
 
 bool vtkMySQLQueryInternals::SetQuery(
-  const char* queryString, MYSQL* db, vtkStdString& error_message)
+  const char* queryString, MYSQL* db, std::string& error_message)
 {
   this->FreeStatement();
   this->FreeUserParameterList();
   this->FreeBoundParameters();
 
-  if (this->ValidPreparedStatementSQL(queryString) == false)
+  if (!this->ValidPreparedStatementSQL(queryString))
   {
     return true; // we'll have to handle this query in immediate mode
   }
@@ -339,7 +339,7 @@ bool vtkMySQLQueryInternals::SetQuery(
   this->Statement = mysql_stmt_init(db);
   if (this->Statement == nullptr)
   {
-    error_message = vtkStdString("vtkMySQLQuery: mysql_stmt_init returned out of memory error");
+    error_message = "vtkMySQLQuery: mysql_stmt_init returned out of memory error";
     return false;
   }
 
@@ -352,7 +352,7 @@ bool vtkMySQLQueryInternals::SetQuery(
   }
   else
   {
-    error_message = vtkStdString(mysql_stmt_error(this->Statement));
+    error_message = mysql_stmt_error(this->Statement);
     return false;
   }
 }
@@ -542,14 +542,7 @@ bool vtkMySQLQuery::Execute()
         // mysql_field_count will return 0 for statements like INSERT.
         // set Active to false so that we don't call mysql_fetch_row on a nullptr
         // argument and segfault
-        if (mysql_field_count(db) == 0)
-        {
-          this->Active = false;
-        }
-        else
-        {
-          this->Active = true;
-        }
+        this->Active = mysql_field_count(db) != 0;
         return true;
       }
       else
@@ -818,7 +811,7 @@ bool vtkMySQLQuery::NextRow()
 
 vtkVariant vtkMySQLQuery::DataValue(vtkIdType column)
 {
-  if (this->IsActive() == false)
+  if (!this->IsActive())
   {
     vtkWarningMacro(<< "DataValue() called on inactive query");
     return vtkVariant();
@@ -840,7 +833,7 @@ vtkVariant vtkMySQLQuery::DataValue(vtkIdType column)
     if (!isNull)
     {
       // Make a string holding the data, including possible embedded null characters.
-      vtkStdString s(this->Internals->CurrentRow[column],
+      std::string s(this->Internals->CurrentRow[column],
         static_cast<size_t>(this->Internals->CurrentLengths[column]));
       base = vtkVariant(s);
     }
@@ -897,7 +890,7 @@ bool vtkMySQLQuery::HasError()
 
 vtkStdString vtkMySQLQuery::EscapeString(vtkStdString src, bool addSurroundingQuotes)
 {
-  vtkStdString dst;
+  std::string dst;
   vtkMySQLDatabase* dbContainer = static_cast<vtkMySQLDatabase*>(this->Database);
   assert(dbContainer != nullptr);
 
@@ -979,12 +972,12 @@ bool vtkMySQLQuery::SetQuery(const char* newQuery)
   MYSQL* db = dbContainer->Private->Connection;
   assert(db != nullptr);
 
-  vtkStdString errorMessage;
+  std::string errorMessage;
   bool success = this->Internals->SetQuery(this->Query, db, errorMessage);
   if (!success)
   {
     this->SetLastErrorText(errorMessage.c_str());
-    vtkErrorMacro(<< "SetQuery: Error while preparing statement: " << errorMessage.c_str());
+    vtkErrorMacro(<< "SetQuery: Error while preparing statement: " << errorMessage);
   }
   return success;
 }

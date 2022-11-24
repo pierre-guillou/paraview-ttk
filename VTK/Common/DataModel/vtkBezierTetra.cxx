@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkBezierTetra.h"
 #include "vtkBezierInterpolation.h"
 
@@ -110,18 +107,6 @@ vtkCell* vtkBezierTetra::GetFace(int faceId)
   return result;
 }
 
-/**\brief EvaluateLocation Given a point_id. This is required by Bezier because the interior points
- * are non-interpolatory .
- */
-void vtkBezierTetra::EvaluateLocationProjectedNode(
-  int& subId, const vtkIdType point_id, double x[3], double* weights)
-{
-  this->vtkHigherOrderTetra::SetParametricCoords();
-  double pcoords[3];
-  this->PointParametricCoordinates->GetPoint(this->PointIds->FindIdLocation(point_id), pcoords);
-  this->vtkHigherOrderTetra::EvaluateLocation(subId, pcoords, x, weights);
-}
-
 /**\brief Set the rational weight of the cell, given a vtkDataSet
  */
 void vtkBezierTetra::SetRationalWeightsFromPointData(
@@ -148,7 +133,7 @@ void vtkBezierTetra::InterpolateFunctions(const double pcoords[3], double* weigh
   const vtkIdType nPoints = this->GetPoints()->GetNumberOfPoints();
   std::vector<double> coeffs(nPoints, 0.0);
 
-  vtkBezierInterpolation::DeCasteljauSimplex(dim, deg, pcoords, &coeffs[0]);
+  vtkBezierInterpolation::DeCasteljauSimplex(dim, deg, pcoords, coeffs.data());
   for (vtkIdType i = 0; i < nPoints; ++i)
   {
     vtkVector3i bv = vtkBezierInterpolation::UnFlattenSimplex(dim, deg, i);
@@ -180,7 +165,7 @@ void vtkBezierTetra::InterpolateDerivs(const double pcoords[3], double* derivs)
   const vtkIdType nPoints = this->GetPoints()->GetNumberOfPoints();
 
   std::vector<double> coeffs(nPoints, 0.0);
-  vtkBezierInterpolation::DeCasteljauSimplexDeriv(dim, deg, pcoords, &coeffs[0]);
+  vtkBezierInterpolation::DeCasteljauSimplexDeriv(dim, deg, pcoords, coeffs.data());
   for (vtkIdType i = 0; i < nPoints; ++i)
   {
     vtkVector3i bv = vtkBezierInterpolation::UnFlattenSimplex(dim, deg, i);

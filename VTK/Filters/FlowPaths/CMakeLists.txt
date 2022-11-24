@@ -10,6 +10,7 @@ set(classes
   vtkLagrangianMatidaIntegrationModel
   vtkLagrangianParticle
   vtkLagrangianParticleTracker
+  vtkLinearTransformCellLocator
   vtkModifiedBSPTree
   vtkParallelVectors
   vtkParticlePathFilter
@@ -19,13 +20,12 @@ set(classes
   vtkStreamSurface
   vtkStreamTracer
   vtkTemporalInterpolatedVelocityField
-  vtkTemporalStreamTracer
   vtkVectorFieldTopology
   vtkVortexCore)
 
-set(headers
+set(nowrap_headers
   vtkLagrangianThreadedData.h)
 
 vtk_module_add_module(VTK::FiltersFlowPaths
   CLASSES ${classes}
-  HEADERS ${headers})
+  NOWRAP_HEADERS ${nowrap_headers})

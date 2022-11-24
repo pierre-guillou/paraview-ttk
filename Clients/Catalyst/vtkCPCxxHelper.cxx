@@ -19,7 +19,6 @@
 #include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkPVConfig.h" // Required to get build options for paraview
 #include "vtkPVPluginTracker.h"
 #include "vtkProcessModule.h"
 #include "vtkProcessModuleConfiguration.h"
@@ -87,7 +86,8 @@ vtkCPCxxHelper* vtkCPCxxHelper::New()
 
   vtkCPCxxHelper::Instance = instance;
 
-  if (auto pm = vtkProcessModule::GetProcessModule())
+  auto pm = vtkProcessModule::GetProcessModule();
+  if (pm)
   {
     vtkCPCxxHelper::ParaViewExternallyInitialized = true;
   }
@@ -117,11 +117,11 @@ vtkCPCxxHelper* vtkCPCxxHelper::New()
 
     delete[] argv[0];
     delete[] argv;
-  }
 
-  // Create session, if none exists.
-  auto pm = vtkProcessModule::GetProcessModule();
-  assert(pm != nullptr);
+    // Create session when none exists.
+    pm = vtkProcessModule::GetProcessModule();
+    assert(pm != nullptr);
+  }
 
   // register static plugins
   ParaView_paraview_plugins_initialize();

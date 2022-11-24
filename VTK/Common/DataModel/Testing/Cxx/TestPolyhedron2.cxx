@@ -13,16 +13,12 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPlane.h"
 #include "vtkPolyhedron.h"
 #include "vtkUnstructuredGrid.h"
 
 #include "vtkCutter.h"
 #include "vtkNew.h"
-#include "vtkPlane.h"
 #include "vtkTestUtilities.h"
 #include "vtkXMLPolyDataWriter.h"
 #include "vtkXMLUnstructuredGridReader.h"

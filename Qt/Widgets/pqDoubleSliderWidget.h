@@ -12,8 +12,8 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#ifndef pqDoubleSliderWidget_H
-#define pqDoubleSliderWidget_H
+#ifndef pqDoubleSliderWidget_h
+#define pqDoubleSliderWidget_h
 
 #include "pqDoubleLineEdit.h"
 #include "pqWidgetsModule.h"
@@ -35,7 +35,7 @@ class PQWIDGETS_EXPORT pqDoubleSliderWidget : public QWidget
       setUseGlobalPrecisionAndNotation)
 public:
   pqDoubleSliderWidget(QWidget* parent = nullptr);
-  ~pqDoubleSliderWidget();
+  ~pqDoubleSliderWidget() override;
 
   /**
    * get the value
@@ -116,7 +116,7 @@ private Q_SLOTS:
   void emitValueEdited();
   void emitIfDeferredValueEdited();
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   double Value;
   QSlider* Slider;
   pqDoubleLineEdit* DoubleLineEdit;

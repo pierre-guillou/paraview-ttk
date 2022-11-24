@@ -14,9 +14,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkGhostCellsGenerator.h"
 
 #include "vtkCompositeDataIterator.h"
@@ -93,12 +90,6 @@ int vtkGhostCellsGenerator::RequestData(
     outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
   int numberOfGhostLayersToCompute =
     this->BuildIfRequired ? reqGhostLayers : std::max(reqGhostLayers, this->NumberOfGhostLayers);
-
-  if (numberOfGhostLayersToCompute < 1)
-  {
-    outputDO->ShallowCopy(inputDO);
-    return 1;
-  }
 
   std::vector<vtkDataObject*> inputPDSs, outputPDSs;
 
@@ -202,15 +193,15 @@ int vtkGhostCellsGenerator::RequestData(
                       << "Ghosts are not exchanged between data sets of different types.");
     }
 
-    retVal &= vtkDIYGhostUtilities::GenerateGhostCells(
+    retVal &= vtkDIYGhostUtilities::GenerateGhostCellsImageData(
                 inputsID, outputsID, numberOfGhostLayersToCompute, this->Controller) &&
-      vtkDIYGhostUtilities::GenerateGhostCells(
+      vtkDIYGhostUtilities::GenerateGhostCellsRectilinearGrid(
         inputsRG, outputsRG, numberOfGhostLayersToCompute, this->Controller) &&
-      vtkDIYGhostUtilities::GenerateGhostCells(
+      vtkDIYGhostUtilities::GenerateGhostCellsStructuredGrid(
         inputsSG, outputsSG, numberOfGhostLayersToCompute, this->Controller) &&
-      vtkDIYGhostUtilities::GenerateGhostCells(
+      vtkDIYGhostUtilities::GenerateGhostCellsUnstructuredGrid(
         inputsUG, outputsUG, numberOfGhostLayersToCompute, this->Controller) &&
-      vtkDIYGhostUtilities::GenerateGhostCells(
+      vtkDIYGhostUtilities::GenerateGhostCellsPolyData(
         inputsPD, outputsPD, numberOfGhostLayersToCompute, this->Controller);
   }
 

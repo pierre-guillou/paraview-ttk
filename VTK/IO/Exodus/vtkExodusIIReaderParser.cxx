@@ -266,7 +266,7 @@ void vtkExodusIIReaderParser::FinishedParsing()
     {
       if (this->Part_To_VertexID.find(iterIS->second) == this->Part_To_VertexID.end())
       {
-        // This block blongs to a part not present in the assembly.
+        // This block belongs to a part not present in the assembly.
         continue;
       }
       vtkIdType partVertex = this->Part_To_VertexID[iterIS->second];
@@ -290,8 +290,8 @@ void vtkExodusIIReaderParser::FinishedParsing()
     }
 
     std::ostringstream stream;
-    stream << "Block: " << iter->first << " (" << desc.c_str() << ") "
-           << this->BlockID_To_Part[iter->first].c_str();
+    stream << "Block: " << iter->first << " (" << desc << ") "
+           << this->BlockID_To_Part[iter->first];
     this->NamesArray->SetValue(iter->second, stream.str().c_str());
   }
 

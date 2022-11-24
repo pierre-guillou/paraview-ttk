@@ -46,7 +46,7 @@ public:
   VTKM_CONT
   void SetActiveField(
     const std::string& name,
-    vtkm::cont::Field::Association association = vtkm::cont::Field::Association::ANY)
+    vtkm::cont::Field::Association association = vtkm::cont::Field::Association::Any)
   {
     this->ActiveFieldName = name;
     this->ActiveFieldAssociation = association;
@@ -98,6 +98,11 @@ public:
   //@}
 
 protected:
+  vtkm::filter::FilterField<Derived>& operator=(const vtkm::filter::FilterField<Derived>&) =
+    default;
+  VTKM_CONT
+  void CopyStateFrom(const FilterField<Derived>* filter) { *this = *filter; }
+
 private:
   std::string OutputFieldName;
   vtkm::Id CoordinateSystemIndex;

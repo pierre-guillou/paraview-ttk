@@ -16,9 +16,11 @@
  * @class   vtkPStreamTracer
  * @brief    parallel streamline generators
  *
- * This class implements parallel streamline generators.  Note that all
+ * This class implements parallel streamline generators. By default all
  * processes must have access to the WHOLE seed source, i.e. the source must
- * be identical on all processes.
+ * be identical on all processes. If property `UseLocalSeedSource` is set to
+ * false then this filter will aggregate seed sources from all ranks into a
+ * single dataset.
  * @sa
  * vtkStreamTracer
  */
@@ -41,8 +43,15 @@ class AbstractPStreamTracerUtils;
 class VTKFILTERSPARALLELFLOWPATHS_EXPORT vtkPStreamTracer : public vtkStreamTracer
 {
 public:
+  ///@{
+  /**
+   * Standard methods to instantiate the class, obtain type information and
+   * print object state.
+   */
+  static vtkPStreamTracer* New();
   vtkTypeMacro(vtkPStreamTracer, vtkStreamTracer);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+  ///@}
 
   ///@{
   /**
@@ -53,8 +62,6 @@ public:
   virtual void SetController(vtkMultiProcessController* controller);
   vtkGetObjectMacro(Controller, vtkMultiProcessController);
   ///@}
-
-  static vtkPStreamTracer* New();
 
 protected:
   vtkPStreamTracer();

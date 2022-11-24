@@ -353,7 +353,7 @@ VisItInit::Initialize(int &argc, char *argv[], int r, int n, bool strip, bool si
     RemovePrependedDirs(argv[0], progname_wo_dir);
     strcpy(executableName, progname_wo_dir);
     strcpy(componentName, progname_wo_dir);
-#ifdef WIN32
+#ifdef _WIN32
     // On windows, we want timings and log files to go in user's directory,
     // not install directory, because users may not have write permissions.
     std::string homedir = GetUserVisItDirectory();

@@ -175,8 +175,7 @@ public:
   /**
    * Participate in garbage collection.
    */
-  void Register(vtkObjectBase* o) override;
-  void UnRegister(vtkObjectBase* o) override;
+  bool UsesGarbageCollector() const override { return true; }
   ///@}
 
   /**
@@ -245,6 +244,12 @@ protected:
   // the recursive request information object, if any.  It is used to
   // construct the error message.
   int CheckAlgorithm(const char* method, vtkInformation* request);
+
+  /**
+   * Checks to see if an inputs have ABORTED set. Returns true if any
+   * ABORTED values true set. Returns false otherwise.
+   */
+  bool CheckAbortedInput(vtkInformationVector** inInfoVec);
 
   virtual int ForwardDownstream(vtkInformation* request);
   virtual int ForwardUpstream(vtkInformation* request);

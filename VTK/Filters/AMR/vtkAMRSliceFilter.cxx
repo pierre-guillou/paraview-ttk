@@ -44,6 +44,7 @@
 
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkAMRSliceFilter);
+vtkCxxSetObjectMacro(vtkAMRSliceFilter, Controller, vtkMultiProcessController);
 
 //------------------------------------------------------------------------------
 vtkAMRSliceFilter::vtkAMRSliceFilter()
@@ -52,8 +53,15 @@ vtkAMRSliceFilter::vtkAMRSliceFilter()
   this->SetNumberOfOutputPorts(1);
   this->OffsetFromOrigin = 0.0;
   this->Normal = X_NORMAL;
-  this->Controller = vtkMultiProcessController::GetGlobalController();
+  this->Controller = nullptr;
+  this->SetController(vtkMultiProcessController::GetGlobalController());
   this->MaxResolution = 1;
+}
+
+//------------------------------------------------------------------------------
+vtkAMRSliceFilter::~vtkAMRSliceFilter()
+{
+  this->SetController(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -81,12 +89,7 @@ bool vtkAMRSliceFilter::IsAMRData2D(vtkOverlappingAMR* input)
 {
   assert("pre: Input AMR dataset is nullptr" && (input != nullptr));
 
-  if (input->GetGridDescription() != VTK_XYZ_GRID)
-  {
-    return true;
-  }
-
-  return false;
+  return input->GetGridDescription() != VTK_XYZ_GRID;
 }
 
 //------------------------------------------------------------------------------
@@ -322,7 +325,7 @@ void vtkAMRSliceFilter::GetAMRSliceInPlane(
     }
   }
 
-  out->Initialize(static_cast<int>(blocksPerLevel.size()), &blocksPerLevel[0]);
+  out->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
   out->SetGridDescription(description);
   out->SetOrigin(p->GetOrigin());
   vtkTimerLog::MarkStartEvent("AMRSlice::GetAMRSliceInPlane");
@@ -573,7 +576,7 @@ int vtkAMRSliceFilter::RequestUpdateExtent(vtkInformation*, vtkInformationVector
   // Send upstream request for higher resolution
   if (!this->BlocksToLoad.empty())
   {
-    inInfo->Set(vtkCompositeDataPipeline::UPDATE_COMPOSITE_INDICES(), &this->BlocksToLoad[0],
+    inInfo->Set(vtkCompositeDataPipeline::UPDATE_COMPOSITE_INDICES(), this->BlocksToLoad.data(),
       static_cast<int>(this->BlocksToLoad.size()));
   }
   return 1;

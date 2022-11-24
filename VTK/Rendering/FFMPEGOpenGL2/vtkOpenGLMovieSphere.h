@@ -24,7 +24,7 @@
  * stalls. In a quick test between the two classes playing a 4K30p video
  * sphere along with VR rendering, decoding etc just switching out the
  * vtkSkybox for this class resulting in CPU usage going from 124 seconds
- * down to 81 seconds. Likewise the frame timings in VR became noticably
+ * down to 81 seconds. Likewise the frame timings in VR became noticeably
  * better which could partially be due to pushing half as much data to the
  * GPU. (YUV420 is half the size of RGB)
  */
@@ -35,7 +35,9 @@
 #include "vtkNew.h" // for ivars
 #include "vtkOpenGLSkybox.h"
 #include "vtkRenderingFFMPEGOpenGL2Module.h" // For export macro
+#include "vtkSmartPointer.h"                 // for ivars
 #include <atomic>                            // for ivars
+#include <mutex>                             // for ivars
 
 class vtkFFMPEGVideoSource;
 struct vtkFFMPEGVideoSourceVideoCallbackData;
@@ -57,6 +59,7 @@ public:
   void Render(vtkRenderer* ren, vtkMapper* mapper) override;
 
   void SetVideoSource(vtkFFMPEGVideoSource* val);
+  vtkFFMPEGVideoSource* GetVideoSource();
 
 protected:
   vtkOpenGLMovieSphere();
@@ -73,7 +76,7 @@ protected:
 
   void VideoCallback(vtkFFMPEGVideoSourceVideoCallbackData const& cbd);
 
-  vtkNew<vtkMutexLock> TextureUpdateMutex;
+  std::mutex TextureUpdateMutex;
   unsigned char* TextureData[6];
   int ReadIndex; // access only within mutex
   int WriteIndex;
@@ -85,6 +88,7 @@ protected:
   int Width;
   int UVHeight;
   int UVWidth;
+  vtkSmartPointer<vtkFFMPEGVideoSource> VideoSource;
 
 private:
   vtkOpenGLMovieSphere(const vtkOpenGLMovieSphere&) = delete;

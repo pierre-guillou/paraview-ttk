@@ -19,6 +19,8 @@ if (PARAVIEW_USE_QT)
 endif ()
 
 paraview_add_plugin(StreamLinesRepresentation
+  REQUIRED_ON_CLIENT
+  REQUIRED_ON_SERVER
   VERSION "0.1"
   UI_INTERFACES ${interfaces}
   SOURCES ${sources}
@@ -30,6 +32,7 @@ if (PARAVIEW_USE_QT)
   target_link_libraries(StreamLinesRepresentation
     PRIVATE
       ParaView::RemotingViews)
+    target_compile_definitions(StreamLinesRepresentation PRIVATE QT_NO_KEYWORDS)
 endif ()
 
 if (BUILD_TESTING)

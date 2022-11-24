@@ -38,13 +38,6 @@ target_link_libraries(qmlvtkplugin
     VTK::GUISupportQtQuick
     "Qt${vtk_qt_major_version}::Qml")
 
-if(NOT APPLE)
-  # QML plugins should have a "d" suffix in debug builds.
-  set_property(TARGET qmlvtkplugin
-    PROPERTY
-      DEBUG_POSTFIX "d")
-endif()
-
 install(
   TARGETS qmlvtkplugin
   EXPORT  "${_vtk_build_INSTALL_EXPORT}"
@@ -67,8 +60,8 @@ file(GENERATE
 # Generate the qmltypes file for the VTK QML plugin
 
 # First, find the qmlplugindump executable
-get_target_property(qt_core_location "Qt${vtk_qt_major_version}::Core" LOCATION)
-get_filename_component(qt_bin_dir "${qt_core_location}" PATH)
+get_target_property(qt_qmake_location "Qt${vtk_qt_major_version}::qmake" LOCATION)
+get_filename_component(qt_bin_dir "${qt_qmake_location}" PATH)
 if (APPLE)
   get_filename_component(qt_bin_dir "${qt_bin_dir}" PATH)
 endif ()
@@ -96,13 +89,40 @@ if (config_subdir AND CMAKE_VERSION VERSION_LESS "3.20")
 endif ()
 
 get_target_property(qt_config "Qt${vtk_qt_major_version}::Core" IMPORTED_CONFIGURATIONS)
-if (WIN32 AND ("DEBUG" IN_LIST qt_config) AND ("RELEASE" IN_LIST qt_config))
-  message(AUTHOR_WARNING
-    "Qt5 is configured in both Debug and Release modes. Due to Qt issue "
-    "47774 (https://bugreports.qt.io/browse/QTBUG-47774), skipping "
-    "generation of qmltypes file. Using the one provided with the source "
-    "tree instead.")
 
+set(copy_qmlplugintypes FALSE)
+if (vtk_qt_major_version VERSION_GREATER 5)
+  set(copy_qmlplugintypes TRUE)
+endif ()
+
+if (NOT copy_qmlplugintypes)
+  if (WIN32 AND ("DEBUG" IN_LIST qt_config) AND ("RELEASE" IN_LIST qt_config))
+    if (NOT VTK_DISABLE_QT_MULTICONFIG_WINDOWS_WARNING)
+      message(AUTHOR_WARNING
+        "Qt5 is configured in both Debug and Release modes. Due to Qt issue "
+        "47774 (https://bugreports.qt.io/browse/QTBUG-47774), skipping "
+        "generation of qmltypes file. Using the one provided with the source "
+        "tree instead.")
+    endif ()
+    set(copy_qmlplugintypes TRUE)
+  else ()
+    add_custom_command(
+      TARGET qmlvtkplugin
+      POST_BUILD
+      COMMAND
+        "${QMLPLUGINDUMP_EXECUTABLE}"
+        -output "${qmltypes_file_output}"
+        "${_vtk_build_PACKAGE}"
+        "${VTK_MAJOR_VERSION}.${VTK_MINOR_VERSION}"
+        "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_QMLDIR}${config_subdir}"
+      WORKING_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}"
+      ${byproducts}
+      COMMENT "Generating qmltypes file using qmlplugindump"
+      VERBATIM)
+  endif ()
+endif()
+if (copy_qmlplugintypes)
   add_custom_command(
     TARGET qmlvtkplugin
     POST_BUILD
@@ -114,21 +134,6 @@ if (WIN32 AND ("DEBUG" IN_LIST qt_config) AND ("RELEASE" IN_LIST qt_config))
       "${CMAKE_CURRENT_BINARY_DIR}"
     ${byproducts}
     COMMENT "Copying qmltypes file from the source tree to ${qmltypes_file_output}")
-else ()
-  add_custom_command(
-    TARGET qmlvtkplugin
-    POST_BUILD
-    COMMAND
-      "${QMLPLUGINDUMP_EXECUTABLE}"
-      -output "${qmltypes_file_output}"
-      "${_vtk_build_PACKAGE}"
-      "${VTK_MAJOR_VERSION}.${VTK_MINOR_VERSION}"
-      "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_QMLDIR}${config_subdir}"
-    WORKING_DIRECTORY
-      "${CMAKE_CURRENT_BINARY_DIR}"
-    ${byproducts}
-    COMMENT "Generating qmltypes file using qmlplugindump"
-    VERBATIM)
 endif ()
 
 # Install the QML plugin module

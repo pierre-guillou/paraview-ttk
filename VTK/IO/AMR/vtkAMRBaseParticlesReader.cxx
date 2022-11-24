@@ -24,9 +24,12 @@
 
 #include <cassert>
 
+vtkCxxSetObjectMacro(vtkAMRBaseParticlesReader, Controller, vtkMultiProcessController);
+
 vtkAMRBaseParticlesReader::vtkAMRBaseParticlesReader()
 {
   this->FileName = nullptr;
+  this->Controller = nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -38,6 +41,8 @@ vtkAMRBaseParticlesReader::~vtkAMRBaseParticlesReader()
 
   delete[] this->FileName;
   this->FileName = nullptr;
+
+  this->SetController(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -64,7 +69,7 @@ int vtkAMRBaseParticlesReader::GetNumberOfParticleArrays()
 //------------------------------------------------------------------------------
 const char* vtkAMRBaseParticlesReader::GetParticleArrayName(int index)
 {
-  assert("pre: array inded out-of-bounds!" && (index >= 0) &&
+  assert("pre: array index out-of-bounds!" && (index >= 0) &&
     (index < this->ParticleDataArraySelection->GetNumberOfArrays()));
 
   return this->ParticleDataArraySelection->GetArrayName(index);
@@ -108,7 +113,7 @@ void vtkAMRBaseParticlesReader::Initialize()
   this->Initialized = false;
   this->InitialRequest = true;
   this->FileName = nullptr;
-  this->Controller = vtkMultiProcessController::GetGlobalController();
+  this->SetController(vtkMultiProcessController::GetGlobalController());
 
   for (int i = 0; i < 3; ++i)
   {
@@ -161,11 +166,7 @@ void vtkAMRBaseParticlesReader::SetFileName(const char* fileName)
 //------------------------------------------------------------------------------
 bool vtkAMRBaseParticlesReader::IsParallel()
 {
-  if (this->Controller != nullptr && this->Controller->GetNumberOfProcesses() > 1)
-  {
-    return true;
-  }
-  return false;
+  return this->Controller != nullptr && this->Controller->GetNumberOfProcesses() > 1;
 }
 
 //------------------------------------------------------------------------------
@@ -177,11 +178,7 @@ bool vtkAMRBaseParticlesReader::IsBlockMine(const int blkIdx)
   }
 
   int myRank = this->Controller->GetLocalProcessId();
-  if (myRank == this->GetBlockProcessId(blkIdx))
-  {
-    return true;
-  }
-  return false;
+  return myRank == this->GetBlockProcessId(blkIdx);
 }
 
 //------------------------------------------------------------------------------

@@ -17,6 +17,7 @@
   Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
   the U.S. Government retains certain rights in this software.
 -------------------------------------------------------------------------*/
+
 #include "vtkQtTreeModelAdapter.h"
 
 #include "vtkAdjacentVertexIterator.h"
@@ -30,10 +31,8 @@
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTree.h"
-#include "vtkUnicodeStringArray.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkVariantArray.h"
 
@@ -261,12 +260,7 @@ QVariant vtkQtTreeModelAdapterArrayValue(vtkAbstractArray* arr, vtkIdType i, vtk
 
   if (vtkStringArray* const data = vtkArrayDownCast<vtkStringArray>(arr))
   {
-    return QVariant(data->GetValue(i * comps + j));
-  }
-
-  if (vtkUnicodeStringArray* const data = vtkArrayDownCast<vtkUnicodeStringArray>(arr))
-  {
-    return QVariant(QString::fromUtf8(data->GetValue(i * comps + j).utf8_str()));
+    return QVariant(data->GetValue(i * comps + j).c_str());
   }
 
   if (vtkVariantArray* const data = vtkArrayDownCast<vtkVariantArray>(arr))
@@ -300,7 +294,7 @@ QVariant vtkQtTreeModelAdapter::data(const QModelIndex& idx, int role) const
   vtkAbstractArray* arr = this->Tree->GetVertexData()->GetAbstractArray(column);
   if (role == Qt::DisplayRole)
   {
-    return QString::fromUtf8(arr->GetVariantValue(vertex).ToUnicodeString().utf8_str()).trimmed();
+    return QString::fromUtf8(arr->GetVariantValue(vertex).ToString().c_str()).trimmed();
   }
   else if (role == Qt::UserRole)
   {

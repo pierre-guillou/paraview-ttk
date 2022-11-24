@@ -12,6 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
 #include "vtkAbstractArray.h"
 
 #include "vtkBitArray.h"
@@ -35,8 +36,16 @@
 #include "vtkShortArray.h"
 #include "vtkSignedCharArray.h"
 #include "vtkStringArray.h"
-#include "vtkUnicodeString.h" // for vtkSuperExtraExtendedTemplateMacro
-#include "vtkUnicodeStringArray.h"
+#include "vtkTypeFloat32Array.h"
+#include "vtkTypeFloat64Array.h"
+#include "vtkTypeInt16Array.h"
+#include "vtkTypeInt32Array.h"
+#include "vtkTypeInt64Array.h"
+#include "vtkTypeInt8Array.h"
+#include "vtkTypeUInt16Array.h"
+#include "vtkTypeUInt32Array.h"
+#include "vtkTypeUInt64Array.h"
+#include "vtkTypeUInt8Array.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
@@ -58,7 +67,7 @@ vtkInformationKeyRestrictedMacro(
 
 namespace
 {
-typedef std::vector<vtkStdString*> vtkInternalComponentNameBase;
+typedef std::vector<std::string*> vtkInternalComponentNameBase;
 }
 class vtkAbstractArray::vtkInternalComponentNames : public vtkInternalComponentNameBase
 {
@@ -114,7 +123,7 @@ void vtkAbstractArray::SetComponentName(vtkIdType component, const char* name)
   if (index == this->ComponentNames->size())
   {
     // the array isn't large enough, so we will resize
-    this->ComponentNames->push_back(new vtkStdString(name));
+    this->ComponentNames->push_back(new std::string(name));
     return;
   }
   else if (index > this->ComponentNames->size())
@@ -123,10 +132,10 @@ void vtkAbstractArray::SetComponentName(vtkIdType component, const char* name)
   }
 
   // replace an existing element
-  vtkStdString* compName = this->ComponentNames->at(index);
+  std::string* compName = this->ComponentNames->at(index);
   if (!compName)
   {
-    compName = new vtkStdString(name);
+    compName = new std::string(name);
     this->ComponentNames->at(index) = compName;
   }
   else
@@ -145,7 +154,7 @@ const char* vtkAbstractArray::GetComponentName(vtkIdType component) const
     return nullptr;
   }
 
-  vtkStdString* compName = this->ComponentNames->at(index);
+  std::string* compName = this->ComponentNames->at(index);
   return (compName) ? compName->c_str() : nullptr;
 }
 
@@ -354,7 +363,6 @@ int vtkAbstractArray::GetDataTypeSize(int type)
 
     case VTK_BIT:
     case VTK_STRING:
-    case VTK_UNICODE_STRING:
       return 0;
 
     default:
@@ -367,6 +375,44 @@ int vtkAbstractArray::GetDataTypeSize(int type)
 //------------------------------------------------------------------------------
 vtkAbstractArray* vtkAbstractArray::CreateArray(int dataType)
 {
+  // First we check IntT and FloatN type to allow downcasting to such array types.
+  switch (dataType)
+  {
+    case VTK_TYPE_UINT8:
+      return vtkTypeUInt8Array::New();
+
+    case VTK_TYPE_INT8:
+      return vtkTypeInt8Array::New();
+
+    case VTK_TYPE_UINT16:
+      return vtkTypeUInt16Array::New();
+
+    case VTK_TYPE_INT16:
+      return vtkTypeInt16Array::New();
+
+    case VTK_TYPE_UINT32:
+      return vtkTypeUInt32Array::New();
+
+    case VTK_TYPE_INT32:
+      return vtkTypeInt32Array::New();
+
+    case VTK_TYPE_UINT64:
+      return vtkTypeUInt64Array::New();
+
+    case VTK_TYPE_INT64:
+      return vtkTypeInt64Array::New();
+
+    case VTK_TYPE_FLOAT32:
+      return vtkTypeFloat32Array::New();
+
+    case VTK_TYPE_FLOAT64:
+      return vtkTypeFloat64Array::New();
+
+    default:
+      break;
+  }
+
+  // Didn't find any IntN or FloatN? The array we want should be down there.
   switch (dataType)
   {
     case VTK_BIT:
@@ -416,9 +462,6 @@ vtkAbstractArray* vtkAbstractArray::CreateArray(int dataType)
 
     case VTK_STRING:
       return vtkStringArray::New();
-
-    case VTK_UNICODE_STRING:
-      return vtkUnicodeStringArray::New();
 
     case VTK_VARIANT:
       return vtkVariantArray::New();
@@ -485,6 +528,29 @@ void vtkAbstractArray::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
+const char* vtkAbstractArray::GetArrayTypeAsString() const
+{
+  switch (this->GetArrayType())
+  {
+    case AbstractArray:
+      return "AbstractArray";
+    case DataArray:
+      return "DataArray";
+    case AoSDataArrayTemplate:
+      return "AoSDataArrayTemplate";
+    case SoADataArrayTemplate:
+      return "SoADataArrayTemplate";
+    case TypedDataArray:
+      return "TypedDataArray";
+    case MappedDataArray:
+      return "MappedDataArray";
+    case ScaleSoADataArrayTemplate:
+      return "ScaleSoADataArrayTemplate";
+  }
+  return "Unknown";
+}
+
+//------------------------------------------------------------------------------
 void vtkAbstractArray::GetProminentComponentValues(
   int comp, vtkVariantArray* values, double uncertainty, double minimumProminence)
 {
@@ -530,9 +596,8 @@ void vtkAbstractArray::GetProminentComponentValues(
     }
     // Are parameter values requesting more certainty in reporting or
     // that less-prominent values be reported? If so, recompute.
-    bool tighterParams = lastParams
-      ? (lastParams[0] > uncertainty || lastParams[1] > minimumProminence ? true : false)
-      : true;
+    bool tighterParams =
+      lastParams ? (lastParams[0] > uncertainty || lastParams[1] > minimumProminence) : true;
     // Recompute discrete value set when the array has been
     // modified since the information was written.
     if (!info->Has(DISCRETE_VALUES()) || tighterParams || this->GetMTime() > info->GetMTime() ||
@@ -707,12 +772,13 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
   //
   // N is chosen to satisfy the requested uncertainty and prominence criteria
   // specified.
-#define VTK_CACHE_LINE_SIZE 64
-#define VTK_SAMPLE_FACTOR 5
+  constexpr int cacheLineSize = 64;
+  constexpr int sampleFactor = 5;
+
   // I. Determine the granularity at which the array should be sampled.
   int numberOfComponentsWithProminentValues = 0;
   int nc = this->NumberOfComponents;
-  int blockSize = VTK_CACHE_LINE_SIZE / (this->GetDataTypeSize() * nc);
+  int blockSize = cacheLineSize / (this->GetDataTypeSize() * nc);
   if (!blockSize)
   {
     blockSize = 4;
@@ -729,7 +795,7 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
     }
     if (!vtkMath::IsInf(logfac))
     {
-      numberOfSampleTuples = static_cast<vtkIdType>(VTK_SAMPLE_FACTOR * logfac);
+      numberOfSampleTuples = static_cast<vtkIdType>(sampleFactor * logfac);
     }
   }
   /*
@@ -750,9 +816,8 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
   std::vector<std::vector<vtkVariant>> uniques(nc > 1 ? nc + 1 : nc);
   switch (this->GetDataType())
   {
-    vtkSuperExtraExtendedTemplateMacro(
-      SampleProminentValues(uniques, this->MaxId, nc, nt, blockSize, numberOfBlocks,
-        static_cast<VTK_TT*>(this->GetVoidPointer(0)), this->MaxDiscreteValues));
+    vtkExtraExtendedTemplateMacro(SampleProminentValues(uniques, this->MaxId, nc, nt, blockSize,
+      numberOfBlocks, static_cast<VTK_TT*>(this->GetVoidPointer(0)), this->MaxDiscreteValues));
     default:
       vtkErrorMacro("Array type " << this->GetClassName() << " not supported.");
       break;
@@ -775,7 +840,7 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
         iv = this->GetInformation()->Get(PER_COMPONENT());
       }
       iv->GetInformationObject(c)->Set(
-        DISCRETE_VALUES(), &uniques[c][0], static_cast<int>(uniques[c].size()));
+        DISCRETE_VALUES(), uniques[c].data(), static_cast<int>(uniques[c].size()));
     }
     else
     {
@@ -790,7 +855,7 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
   {
     ++numberOfComponentsWithProminentValues;
     this->GetInformation()->Set(
-      DISCRETE_VALUES(), &uniques[nc][0], static_cast<int>(uniques[nc].size()));
+      DISCRETE_VALUES(), uniques[nc].data(), static_cast<int>(uniques[nc].size()));
   }
   else
   { // Remove the key

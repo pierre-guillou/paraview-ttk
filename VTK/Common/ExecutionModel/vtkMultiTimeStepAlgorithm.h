@@ -87,16 +87,6 @@ protected:
   ///@}
 
   /**
-   * This is called by the superclass.
-   * This is the method you should override.
-   */
-  VTK_DEPRECATED_IN_9_1_0("cannot support all input data types; use `Execute` instead.")
-  virtual int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
-  {
-    return 1;
-  }
-
-  /**
    * Subclasses should override this method to do the actual execution.
    * For backwards compatibility, the default implementation returns -1. If -1
    * is returned, its assumed that this method is not overridden and the

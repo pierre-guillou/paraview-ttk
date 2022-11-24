@@ -11,6 +11,7 @@
 set(headers
   Algorithm.h
   ArrayCopy.h
+  ArrayCopyDevice.h
   ArrayExtractComponent.h
   ArrayGetValues.h
   ArrayHandle.h
@@ -73,8 +74,10 @@ set(headers
   ColorTable.h
   ColorTableMap.h
   ColorTableSamples.h
+  ConvertNumComponentsToOffsets.h
   CoordinateSystem.h
   DataSet.h
+  DataSetBuilderCurvilinear.h
   DataSetBuilderExplicit.h
   DataSetBuilderRectilinear.h
   DataSetBuilderUniform.h
@@ -84,7 +87,7 @@ set(headers
   DeviceAdapterList.h
   DeviceAdapterListTag.h
   DeviceAdapterTag.h
-  DynamicCellSet.h
+  DynamicCellSet.h # Deprecated, replaced by Unknown/UncertainCellSet.h
   EnvironmentTracker.h
   Error.h
   ErrorBadAllocation.h
@@ -103,6 +106,7 @@ set(headers
   Initialize.h
   Invoker.h
   Logging.h
+  MergePartitionedDataSet.h
   ParticleArrayCopy.h
   PartitionedDataSet.h
   PointLocatorUniformGrid.h
@@ -119,9 +123,10 @@ set(headers
   TryExecute.h
   SerializableTypeString.h
   UncertainArrayHandle.h
+  UncertainCellSet.h
   UnknownArrayHandle.h
-  VariantArrayHandle.h
-  VirtualObjectHandle.h
+  UnknownCellSet.h
+  VariantArrayHandle.h # Deprecated, replaces with Unknown/UncertainArrayHandle.h
   )
 
 set(template_sources
@@ -137,56 +142,76 @@ set(sources
   ArrayHandleSOA.cxx
   ArrayHandleStride.cxx
   ArrayHandleUniformPointCoordinates.cxx
+  AssignerPartitionedDataSet.cxx
   BitField.cxx
+  BoundsCompute.cxx
+  BoundsGlobalCompute.cxx
+  CellLocatorGeneral.cxx
+  CellLocatorRectilinearGrid.cxx
+  CellLocatorUniformGrid.cxx
+  CellSet.cxx
+  CellSetStructured.cxx
   ColorTablePresets.cxx
+  CoordinateSystem.cxx
+  DataSet.cxx
+  DataSetBuilderCurvilinear.cxx
+  DataSetBuilderExplicit.cxx
+  DataSetBuilderRectilinear.cxx
+  DataSetBuilderUniform.cxx
   DeviceAdapterTag.cxx
   EnvironmentTracker.cxx
   ErrorBadDevice.cxx
   ErrorBadType.cxx
-  internal/Buffer.cxx
+  FieldRangeCompute.cxx
+  FieldRangeGlobalCompute.cxx
   internal/DeviceAdapterMemoryManager.cxx
   internal/DeviceAdapterMemoryManagerShared.cxx
-  internal/TransferInfo.cxx
-  internal/VirtualObjectTransfer.cxx
+  internal/RuntimeDeviceConfiguration.cxx
+  internal/RuntimeDeviceConfigurationOptions.cxx
+  internal/RuntimeDeviceOption.cxx
   Initialize.cxx
   Logging.cxx
   RuntimeDeviceTracker.cxx
+  PartitionedDataSet.cxx
   Storage.cxx
   Token.cxx
   TryExecute.cxx
+  UnknownArrayHandle.cxx
+  UnknownCellSet.cxx
   )
+
+if(VTKm_ENABLE_TESTING_LIBRARY)
+  list(APPEND sources
+    # This file should really be part of the vtkm_cont_testing library (in the testing
+    # subdirectory) It supports external code using deprecated functionality. In particular,
+    # testing/MakeTestDataSet.h now needs symbols compiled in MakeTestDataSet.cxx, but the
+    # deprecated behavior expects to only need to include vtkm_cont. As a workaround, add the code
+    # to vtkm_cont for now. This should probably be changed back to be in vtkm_cont_testing for the
+    # 2.0 release.
+    testing/MakeTestDataSet.cxx
+    )
+endif()
 
 # This list of sources has code that uses devices and so might need to be
 # compiled with a device-specific compiler (like CUDA).
 set(device_sources
   ArrayCopy.cxx
+  ArrayGetValues.cxx
   ArrayRangeCompute.cxx
-  AssignerPartitionedDataSet.cxx
-  BoundsCompute.cxx
-  BoundsGlobalCompute.cxx
   CellLocatorBoundingIntervalHierarchy.cxx
-  CellLocatorGeneral.cxx
-  CellLocatorRectilinearGrid.cxx
   CellLocatorTwoLevel.cxx
-  CellLocatorUniformGrid.cxx
-  CellSet.cxx
   CellSetExplicit.cxx
   CellSetExtrude.cxx
-  CellSetStructured.cxx
   ColorTable.cxx
-  CoordinateSystem.cxx
-  DataSet.cxx
-  DataSetBuilderExplicit.cxx
-  DataSetBuilderRectilinear.cxx
-  DataSetBuilderUniform.cxx
+  ConvertNumComponentsToOffsets.cxx
   Field.cxx
-  FieldRangeCompute.cxx
-  FieldRangeGlobalCompute.cxx
-  PartitionedDataSet.cxx
+  internal/ArrayCopyUnknown.cxx
+  internal/Buffer.cxx
+  internal/MapArrayPermutation.cxx
+  MergePartitionedDataSet.cxx
   PointLocatorSparseGrid.cxx
   RuntimeDeviceInformation.cxx
   Timer.cxx
-  UnknownArrayHandle.cxx
   )
 
 if (NOT VTKm_NO_DEPRECATED_VIRTUAL)
@@ -196,6 +221,7 @@ if (NOT VTKm_NO_DEPRECATED_VIRTUAL)
     CellLocator.h
     PointLocator.h
     StorageVirtual.h
+    VirtualObjectHandle.h
     )
 
   set(template_sources ${template_sources}
@@ -206,6 +232,8 @@ if (NOT VTKm_NO_DEPRECATED_VIRTUAL)
   set(device_sources ${device_sources}
     ArrayHandleVirtual.cxx
     CellLocator.cxx
+    internal/TransferInfo.cxx
+    internal/VirtualObjectTransfer.cxx
     PointLocator.cxx
     StorageVirtual.cxx
     )
@@ -311,4 +339,6 @@ if(TARGET vtkm_loguru)
 endif()
 
 #-----------------------------------------------------------------------------
-add_subdirectory(testing)
+if(VTKm_ENABLE_TESTING_LIBRARY)
+  add_subdirectory(testing)
+endif()

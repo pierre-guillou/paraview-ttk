@@ -52,7 +52,81 @@ PyVTKClass::PyVTKClass(
 }
 
 //------------------------------------------------------------------------------
-// C API
+// Create a Python "override" method
+// See the help string below this function for details.
+static PyObject* PyVTKClass_override(PyObject* cls, PyObject* type)
+{
+  PyTypeObject* typeobj = (PyTypeObject*)cls;
+  std::string clsName = vtkPythonUtil::StripModule(typeobj->tp_name);
+
+  if (Py_TYPE(type) == &PyType_Type)
+  {
+    PyTypeObject* newtypeobj = (PyTypeObject*)type;
+    if (PyType_IsSubtype(newtypeobj, typeobj))
+    {
+      // Make sure "type" and intermediate classes aren't wrapped classes
+      for (PyTypeObject* tp = newtypeobj; tp && tp != typeobj; tp = tp->tp_base)
+      {
+        if (vtkPythonUtil::FindClass(vtkPythonUtil::StripModule(tp->tp_name)))
+        {
+          std::string str("method requires overriding with a pure python subclass of ");
+          str += clsName;
+          str += ", subclassing from VTK C++ subclasses is not allowed.";
+          PyErr_SetString(PyExc_TypeError, str.c_str());
+          return nullptr;
+        }
+      }
+
+      // Set the override
+      PyVTKClass* thecls = vtkPythonUtil::FindClass(clsName.c_str());
+      thecls->py_type = newtypeobj;
+      // Store override in dict of old type, to keep a reference to it
+      PyDict_SetItemString(typeobj->tp_dict, "__override__", type);
+    }
+    else
+    {
+      std::string str("method requires a subtype of ");
+      str += clsName;
+      PyErr_SetString(PyExc_TypeError, str.c_str());
+      return nullptr;
+    }
+  }
+  else if (type == Py_None)
+  {
+    // Clear the override
+    PyVTKClass* thecls = vtkPythonUtil::FindClass(clsName.c_str());
+    thecls->py_type = typeobj;
+    // Delete the __override__ attribute if it exists
+    if (PyDict_DelItemString(typeobj->tp_dict, "__override__") == -1)
+    {
+      // Clear the KeyError that occurs if __override__ doesn't exist
+      PyErr_Clear();
+    }
+  }
+  else
+  {
+    PyErr_SetString(PyExc_TypeError, "method requires a type object or None.");
+    return nullptr;
+  }
+
+  Py_INCREF(type);
+  return type;
+}
+
+static PyMethodDef PyVTKClass_override_def = { "override", PyVTKClass_override, METH_CLASS | METH_O,
+  "This method can be used to override a VTK class with a Python subclass.\n"
+  "The class type passed to override will afterwards be instantiated\n"
+  "instead of the type override is called on.\n"
+  "For example,\n"
+  "\n"
+  "class foo(vtk.vtkPoints):\n"
+  "  pass\n"
+  "vtk.vtkPoints.override(foo)\n"
+  "\n"
+  "will lead to foo being instantied everytime vtkPoints() is called.\n"
+  "The main objective of this functionality is to enable developers to\n"
+  "extend VTK classes with more pythonic subclasses that contain\n"
+  "convenience functionality.\n" };
 
 //------------------------------------------------------------------------------
 // Add a class, add methods and members to its type object.  A return
@@ -92,6 +166,14 @@ PyTypeObject* PyVTKClass_Add(
     Py_DECREF(func);
   }
 
+  // Add the override method
+  if (strcmp(classname, "vtkObjectBase") == 0)
+  {
+    PyObject* func = PyDescr_NewClassMethod(pytype, &PyVTKClass_override_def);
+    PyDict_SetItemString(pytype->tp_dict, PyVTKClass_override_def.ml_name, func);
+    Py_DECREF(func);
+  }
+
   return pytype;
 }
 
@@ -117,10 +199,9 @@ PyObject* PyVTKObject_String(PyObject* op)
 //------------------------------------------------------------------------------
 PyObject* PyVTKObject_Repr(PyObject* op)
 {
-  char buf[255];
-  snprintf(buf, sizeof(buf), "(%.200s)%p", Py_TYPE(op)->tp_name, static_cast<void*>(op));
-
-  return PyString_FromString(buf);
+  PyVTKObject* obj = (PyVTKObject*)op;
+  return PyString_FromFormat("<%s(%p) at %p>", Py_TYPE(op)->tp_name,
+    static_cast<void*>(obj->vtk_ptr), static_cast<void*>(obj));
 }
 
 //------------------------------------------------------------------------------
@@ -483,7 +564,7 @@ PyBufferProcs PyVTKObject_AsBuffer = {
 };
 
 //------------------------------------------------------------------------------
-PyObject* PyVTKObject_FromPointer(PyTypeObject* pytype, PyObject* pydict, vtkObjectBase* ptr)
+PyObject* PyVTKObject_FromPointer(PyTypeObject* pytype, PyObject* ghostdict, vtkObjectBase* ptr)
 {
   // This will be set if we create a new C++ object
   bool created = false;
@@ -586,7 +667,8 @@ PyObject* PyVTKObject_FromPointer(PyTypeObject* pytype, PyObject* pydict, vtkObj
     pytype = cls->py_type;
   }
 
-  // Create a new dict unless one was provided
+  // Create a new dict unless object is being resurrected from a ghost
+  PyObject* pydict = ghostdict;
   if (pydict)
   {
     Py_INCREF(pydict);
@@ -616,6 +698,18 @@ PyObject* PyVTKObject_FromPointer(PyTypeObject* pytype, PyObject* pydict, vtkObj
   if (created)
   {
     ptr->Delete();
+  }
+  else if (ghostdict == nullptr && pytype->tp_init != nullptr)
+  {
+    // Call __init__(self)
+    PyObject* arglist = Py_BuildValue("()");
+    int res = pytype->tp_init((PyObject*)self, arglist, nullptr);
+    Py_DECREF(arglist);
+    if (res < 0)
+    {
+      Py_DECREF(self);
+      self = nullptr;
+    }
   }
 
   return (PyObject*)self;

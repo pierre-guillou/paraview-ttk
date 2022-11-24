@@ -23,7 +23,6 @@
 
 #include "vtkCellType.h"              // For GetCellType.
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For deprecation macros
 #include "vtkNew.h"                   // For member variable.
 #include "vtkNonLinearCell.h"
 #include "vtkSmartPointer.h" // For member variable.
@@ -95,15 +94,13 @@ public:
   bool TransformApproxToCellParams(int subCell, double* pcoords);
 
   virtual vtkHigherOrderCurve* GetEdgeCell() = 0;
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetEdgeCell")
-  virtual vtkHigherOrderCurve* getEdgeCell();
 
 protected:
   vtkHigherOrderQuadrilateral();
   ~vtkHigherOrderQuadrilateral() override;
 
   vtkQuad* GetApprox();
-  // The verion of GetApproximateQuad between Lagrange and Bezier is different because Bezier is
+  // The version of GetApproximateQuad between Lagrange and Bezier is different because Bezier is
   // non-interpolatory
   void PrepareApproxData(
     vtkPointData* pd, vtkCellData* cd, vtkIdType cellId, vtkDataArray* cellScalars);

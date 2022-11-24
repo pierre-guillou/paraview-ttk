@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqDoubleRangeDialog_h
-#define _pqDoubleRangeDialog_h
+#ifndef pqDoubleRangeDialog_h
+#define pqDoubleRangeDialog_h
 
 #include "pqWidgetsModule.h"
 
@@ -47,7 +47,8 @@ class PQWIDGETS_EXPORT pqDoubleRangeDialog : public QDialog
   Q_OBJECT
 
 public:
-  pqDoubleRangeDialog(const QString& label, double minimum, double maximum, QWidget* parent = 0);
+  pqDoubleRangeDialog(
+    const QString& label, double minimum, double maximum, QWidget* parent = nullptr);
   ~pqDoubleRangeDialog() override;
 
   void setValue(double value);
@@ -57,4 +58,4 @@ private:
   pqDoubleRangeWidget* Widget;
 };
 
-#endif // !_pqDoubleRangeDialog_h
+#endif // !pqDoubleRangeDialog_h

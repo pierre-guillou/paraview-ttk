@@ -126,7 +126,7 @@ public:
       {
         const char* value = node.child_value();
         std::istringstream iss(value);
-        std::array<float, 3> color;
+        std::array<double, 3> color;
         for (size_t i = 0; i < color.size(); ++i)
         {
           iss >> color[i];
@@ -141,8 +141,13 @@ public:
         }
         else if (std::string(node.name()) == "app:transparency")
         {
-          float transparency = this->UseTransparencyAsOpacity ? 1 - color[0] : color[0];
+          double transparency = this->UseTransparencyAsOpacity ? 1 - color[0] : color[0];
           material.Transparency = transparency;
+        }
+        else if (std::string(node.name()) == "app:shininess")
+        {
+          double shininess = color[0];
+          material.Shininess = shininess;
         }
       }
       this->Materials.push_back(material);
@@ -418,7 +423,7 @@ public:
           ++i;
         }
       } while (validPoint);
-      // gml:posList repeates the last point in a
+      // gml:posList repeats the last point in a
       // polygon (there are n points). We only need the first n - 1.
       polyPointIds->SetNumberOfIds(polyPointIds->GetNumberOfIds() - 1);
       points->SetNumberOfPoints(points->GetNumberOfPoints() - 1);
@@ -431,7 +436,7 @@ public:
       // go over all gml:pos children
       for (pugi::xml_node pos : nodeRing.children())
       {
-        // Part-1-Terrain-WaterBody-Vegetation-V2.gml repeates the last point in a
+        // Part-1-Terrain-WaterBody-Vegetation-V2.gml repeats the last point in a
         // polygon (there are n points). We only read the first n - 1.
         if (i == n - 1)
         {
@@ -514,7 +519,7 @@ public:
     else
     {
       std::array<double, 3> p;
-      // Part-1-Terrain-WaterBody-Vegetation-V2.gml repeates the first point at the end
+      // Part-1-Terrain-WaterBody-Vegetation-V2.gml repeats the first point at the end
       vtkIdType n = std::distance(nodeRing.begin(), nodeRing.end());
 
       auto it = nodeRing.begin();
@@ -525,7 +530,7 @@ public:
           iss >> p[j];
         }
       }
-      points->InsertNextPoint(&p[0]);
+      points->InsertNextPoint(p.data());
       vtkIdType firstPointIndex = points->GetNumberOfPoints() - 1;
       vtkIdType i = 1;
       for (++it; it != nodeRing.end(); ++it, ++i)
@@ -543,7 +548,7 @@ public:
         line->GetPointIds()->SetId(0, points->GetNumberOfPoints() - 1);
         if (i < n - 1)
         {
-          points->InsertNextPoint(&p[0]);
+          points->InsertNextPoint(p.data());
           line->GetPointIds()->SetId(1, points->GetNumberOfPoints() - 1);
         }
         else
@@ -589,7 +594,7 @@ public:
     fd->AddArray(sa);
   }
 
-  static void SetField(vtkDataObject* obj, const char* name, float* value, vtkIdType size)
+  static void SetField(vtkDataObject* obj, const char* name, double* value, vtkIdType components)
   {
     vtkFieldData* fd = obj->GetFieldData();
     if (!fd)
@@ -597,12 +602,10 @@ public:
       vtkNew<vtkFieldData> newfd;
       obj->SetFieldData(newfd);
     }
-    vtkNew<vtkFloatArray> da;
-    da->SetNumberOfTuples(size);
-    for (vtkIdType i = 0; i < size; ++i)
-    {
-      da->SetValue(i, value[i]);
-    }
+    vtkNew<vtkDoubleArray> da;
+    da->SetNumberOfTuples(1);
+    da->SetNumberOfComponents(components);
+    da->SetTypedTuple(0, value);
     da->SetName(name);
     fd->AddArray(da);
   }
@@ -662,11 +665,13 @@ public:
           {
             Material material = this->Materials[materialIndex];
             vtkCityGMLReader::Implementation::SetField(
-              polyData, "diffuse_color", &material.Diffuse[0], 3);
+              polyData, "diffuse_color", material.Diffuse.data(), 3);
             vtkCityGMLReader::Implementation::SetField(
-              polyData, "specular_color", &material.Specular[0], 3);
+              polyData, "specular_color", material.Specular.data(), 3);
             vtkCityGMLReader::Implementation::SetField(
               polyData, "transparency", &material.Transparency, 1);
+            vtkCityGMLReader::Implementation::SetField(
+              polyData, "shininess", &material.Shininess, 1);
             break;
           }
           case PolygonType::NONE:
@@ -947,7 +952,7 @@ public:
       {
         pugi::xml_node node = it->node();
         std::istringstream iss(node.child_value());
-        // Part-1-Terrain-WaterBody-Vegetation-V2.gml repeates the last point in a
+        // Part-1-Terrain-WaterBody-Vegetation-V2.gml repeats the last point in a
         // triangle (there are 4 points). We only read the first 3.
         for (vtkIdType i = 0; i < 3; ++i)
         {
@@ -1007,9 +1012,10 @@ private:
       std::fill(this->Specular.begin(), this->Specular.end(), 1.0);
       this->Transparency = 1.0;
     }
-    std::array<float, 3> Diffuse;
-    std::array<float, 3> Specular;
-    float Transparency;
+    std::array<double, 3> Diffuse;
+    std::array<double, 3> Specular;
+    double Transparency;
+    double Shininess;
   };
 
   vtkCityGMLReader* Reader;

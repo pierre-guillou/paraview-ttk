@@ -25,12 +25,15 @@
 #include "vtkUnsignedShortArray.h"
 
 #define CheckNumbers(name, first, second)                                                          \
-  if (first != second)                                                                             \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Error : wrong number of " << #name << ". Got " << first << " but expects " << second  \
-         << endl;                                                                                  \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (first != second)                                                                           \
+    {                                                                                              \
+      cerr << "Error : wrong number of " << #name << ". Got " << first << " but expects "          \
+           << second << endl;                                                                      \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 int TestPointSetToMoleculeFilter(int, char*[])
 {
@@ -106,9 +109,9 @@ int TestPointSetToMoleculeFilter(int, char*[])
     cerr << "Error: No atomic numbers array was found." << endl;
     return EXIT_FAILURE;
   }
-  CheckNumbers("atomic number value", atomicNumbers->GetTuple1(0), firstAtomicNb)
+  CheckNumbers("atomic number value", atomicNumbers->GetTuple1(0), firstAtomicNb);
 
-    filter->ConvertLinesIntoBondsOff();
+  filter->ConvertLinesIntoBondsOff();
   filter->Update();
   molecule = filter->GetOutput();
 

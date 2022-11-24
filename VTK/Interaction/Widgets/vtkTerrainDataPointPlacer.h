@@ -60,8 +60,8 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   ///@}
 
-  // Descuription:
-  // Add an actor (that represents a terrain in a rendererd scene) to the
+  // Description:
+  // Add an actor (that represents a terrain in a rendered scene) to the
   // list. Only props in this list are considered by the PointPlacer
   virtual void AddProp(vtkProp*);
   virtual void RemoveAllProps();

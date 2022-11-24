@@ -94,6 +94,12 @@ int vtkWrap_IsVTKObject(ValueInfo* val)
     !val->IsEnum);
 }
 
+int vtkWrap_IsVTKSmartPointer(ValueInfo* val)
+{
+  return ((val->Type & VTK_PARSE_BASE_TYPE) == VTK_PARSE_OBJECT && val->Class &&
+    strncmp(val->Class, "vtkSmartPointer<", 16) == 0);
+}
+
 int vtkWrap_IsSpecialObject(ValueInfo* val)
 {
   /* exclude classes in std:: space, they will have separate handlers */
@@ -101,7 +107,8 @@ int vtkWrap_IsSpecialObject(ValueInfo* val)
   return (
     (t == VTK_PARSE_UNKNOWN || t == VTK_PARSE_OBJECT || t == VTK_PARSE_QOBJECT ||
       t == VTK_PARSE_UNKNOWN_REF || t == VTK_PARSE_OBJECT_REF || t == VTK_PARSE_QOBJECT_REF) &&
-    !val->IsEnum && val->Class && strncmp(val->Class, "std::", 5) != 0);
+    !val->IsEnum && val->Class && strncmp(val->Class, "std::", 5) != 0 &&
+    strncmp(val->Class, "vtkSmartPointer<", 16) != 0);
 }
 
 int vtkWrap_IsPythonObject(ValueInfo* val)
@@ -158,7 +165,7 @@ int vtkWrap_IsNumeric(ValueInfo* val)
 int vtkWrap_IsString(ValueInfo* val)
 {
   unsigned int t = (val->Type & VTK_PARSE_BASE_TYPE);
-  return (t == VTK_PARSE_STRING || t == VTK_PARSE_UNICODE_STRING);
+  return (t == VTK_PARSE_STRING);
 }
 
 /* -------------------------------------------------------------------- */
@@ -721,7 +728,7 @@ void vtkWrap_FindCountHints(ClassInfo* data, FileInfo* finfo, HierarchyInfo* hin
       if (count)
       {
         char counttext[24];
-        sprintf(counttext, "%d", count);
+        snprintf(counttext, sizeof(counttext), "%d", count);
         theFunc->Parameters[0]->Count = count;
         vtkParse_AddStringToArray(&theFunc->Parameters[0]->Dimensions,
           &theFunc->Parameters[0]->NumberOfDimensions,
@@ -763,19 +770,31 @@ void vtkWrap_FindNewInstanceMethods(ClassInfo* data, HierarchyInfo* hinfo)
   {
     theFunc = data->Functions[i];
     if (theFunc->Name && theFunc->ReturnValue && vtkWrap_IsVTKObject(theFunc->ReturnValue) &&
+      (theFunc->ReturnValue->Attributes & VTK_PARSE_NEWINSTANCE) == 0 &&
       vtkWrap_IsVTKObjectBaseType(hinfo, theFunc->ReturnValue->Class))
     {
-      if (strcmp(theFunc->Name, "NewInstance") == 0 || strcmp(theFunc->Name, "NewIterator") == 0 ||
-        strcmp(theFunc->Name, "CreateInstance") == 0)
+      int needsNewInstance = 0;
+      if (strcmp(theFunc->Name, "NewInstance") == 0 || strcmp(theFunc->Name, "CreateInstance") == 0)
       {
-        if ((theFunc->ReturnValue->Attributes & VTK_PARSE_NEWINSTANCE) == 0)
-        {
-          /* get the command-line options */
-          options = vtkParse_GetCommandLineOptions();
-          fprintf(stderr, "Warning: %s without VTK_NEWINSTANCE hint in %s\n", theFunc->Name,
-            options->InputFileName);
-          theFunc->ReturnValue->Attributes |= VTK_PARSE_NEWINSTANCE;
-        }
+        needsNewInstance = 1;
+      }
+      else if (strcmp(theFunc->Name, "NewIterator") == 0)
+      {
+        needsNewInstance = 1;
+      }
+      else if (strcmp(theFunc->Name, "MakeKey") == 0 &&
+        vtkWrap_IsTypeOf(hinfo, data->Name, "vtkInformationKey"))
+      {
+        needsNewInstance = 1;
+      }
+
+      if (needsNewInstance)
+      {
+        /* get the command-line options */
+        options = vtkParse_GetCommandLineOptions();
+        fprintf(stderr, "Warning: %s without VTK_NEWINSTANCE hint in %s\n", theFunc->Name,
+          options->InputFileName);
+        theFunc->ReturnValue->Attributes |= VTK_PARSE_NEWINSTANCE;
       }
     }
   }
@@ -989,8 +1008,6 @@ const char* vtkWrap_GetTypeName(ValueInfo* val)
       return "signed char";
     case VTK_PARSE_BOOL:
       return "bool";
-    case VTK_PARSE_UNICODE_STRING:
-      return "vtkUnicodeString";
     case VTK_PARSE_SSIZE_T:
       return "ssize_t";
     case VTK_PARSE_SIZE_T:
@@ -1030,14 +1047,15 @@ void vtkWrap_DeclareVariable(
   {
     /* use a typedef to work around compiler issues when someone used
        the same name for the enum type as for a variable or method */
-    newTypeName = (char*)malloc(strlen(name) + 16);
+    size_t newTypeNameLen = strlen(name) + 19 + 5 + 1;
+    newTypeName = (char*)malloc(newTypeNameLen);
     if (i >= 0)
     {
-      sprintf(newTypeName, "%s%i_type", name, i);
+      snprintf(newTypeName, newTypeNameLen, "%s%i_type", name, i);
     }
     else
     {
-      sprintf(newTypeName, "%s_type", name);
+      snprintf(newTypeName, newTypeNameLen, "%s_type", name);
     }
     fprintf(fp, "  typedef %s::%s %s;\n", data->Name, typeName, newTypeName);
     typeName = newTypeName;
@@ -1134,7 +1152,7 @@ void vtkWrap_DeclareVariable(
       vtkWrap_QualifyExpression(fp, data, val->Value);
     }
     else if (aType == VTK_PARSE_CHAR_PTR || aType == VTK_PARSE_VOID_PTR ||
-      (!val->IsEnum &&
+      (!val->IsEnum && !vtkWrap_IsVTKSmartPointer(val) &&
         (aType == VTK_PARSE_OBJECT_PTR || aType == VTK_PARSE_OBJECT_REF ||
           aType == VTK_PARSE_OBJECT)))
     {
@@ -1167,7 +1185,7 @@ void vtkWrap_DeclareVariableSize(FILE* fp, ValueInfo* val, const char* name, int
   idx[0] = '\0';
   if (i >= 0)
   {
-    sprintf(idx, "%d", i);
+    snprintf(idx, sizeof(idx), "%d", i);
   }
 
   if (val->NumberOfDimensions > 1)
@@ -1289,4 +1307,18 @@ char* vtkWrap_SafeSuperclassName(const char* name)
     return NULL;
   }
   return safe_name;
+}
+
+char* vtkWrap_TemplateArg(const char* name)
+{
+  /* ignore 2nd arg if present (e.g. std::vector allocator) */
+  const char* defaults[2] = { NULL, "" };
+  const char** args;
+  char* arg;
+
+  vtkParse_DecomposeTemplatedType(name, NULL, 2, &args, defaults);
+  arg = strdup(args[0]);
+  vtkParse_FreeTemplateDecomposition(NULL, 2, args);
+
+  return arg;
 }

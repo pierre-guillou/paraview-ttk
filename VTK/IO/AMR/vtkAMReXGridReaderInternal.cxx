@@ -20,6 +20,7 @@
 #include "vtkFloatArray.h"
 #include "vtkIndent.h"
 #include "vtkObject.h"
+#include "vtkPointData.h"
 #include "vtkSetGet.h"
 
 #include <sstream>
@@ -35,7 +36,7 @@ std::string ReadFile(const std::string& filename)
   if (stream)
   {
     stream.seekg(0, std::ios::end);
-    int flength = static_cast<int>(stream.tellg());
+    long flength = static_cast<long>(stream.tellg());
     stream.seekg(0, std::ios::beg);
     std::vector<char> data(flength + 1 + (flength + 1) % 8); // padded for better alignment.
     stream.read(data.data(), flength);
@@ -56,7 +57,7 @@ RealDescriptor::RealDescriptor(const long* fr_, const int* ord_, int ordl_)
 
 const long* RealDescriptor::format() const&
 {
-  return &fr[0];
+  return fr.data();
 }
 
 const std::vector<long>& RealDescriptor::formatarray() const&
@@ -66,7 +67,7 @@ const std::vector<long>& RealDescriptor::formatarray() const&
 
 const int* RealDescriptor::order() const&
 {
-  return &ord[0];
+  return ord.data();
 }
 
 const std::vector<int>& RealDescriptor::orderarray() const&
@@ -74,7 +75,7 @@ const std::vector<int>& RealDescriptor::orderarray() const&
   return ord;
 }
 
-int RealDescriptor::numBytes() const
+long RealDescriptor::numBytes() const
 {
   return (fr[0] + 7) >> 3;
 }
@@ -250,7 +251,7 @@ int vtkAMReXGridHeader::CheckComponent(const std::string& name)
 {
   const std::size_t pos = name.find_last_of(this->nameDelim);
   // we expect to use the character just past pos
-  // so we don't want to accidentially jump outside the string
+  // so we don't want to accidentally jump outside the string
   if (pos > name.size() - 1)
   {
     return -1;
@@ -274,6 +275,7 @@ int vtkAMReXGridHeader::CheckComponent(const std::string& name)
 bool vtkAMReXGridHeader::ParseGenericHeader(const std::string& headerData)
 {
   char c;
+  const std::string deliminater = "/";
   std::istringstream hstream(headerData);
   hstream >> this->versionName;
   if (this->versionName.empty())
@@ -377,8 +379,6 @@ bool vtkAMReXGridHeader::ParseGenericHeader(const std::string& headerData)
   double tmpTime;
   int tmpLevelSteps;
   this->levelCells.resize(this->finestLevel + 1);
-  std::string pathName;
-  std::string deliminator = "/";
   this->levelPrefix.resize(this->finestLevel + 1);
   this->multiFabPrefix.resize(this->finestLevel + 1);
   for (int level = 0; level <= this->finestLevel; ++level)
@@ -406,12 +406,57 @@ bool vtkAMReXGridHeader::ParseGenericHeader(const std::string& headerData)
         }
       }
     }
+    std::string pathName;
     hstream >> pathName;
     size_t pos = 0;
-    pos = pathName.find(deliminator);
+    pos = pathName.find(deliminater);
     this->levelPrefix[level] = pathName.substr(0, pos);
-    pathName.erase(0, pos + deliminator.length());
+    pathName.erase(0, pos + deliminater.length());
     this->multiFabPrefix[level] = pathName.substr(0, pathName.length());
+  }
+
+  // read in extra multifabs
+  extraMultiFabCount = 0;
+  if (!hstream.eof())
+  {
+    // get the number of extra multifabs
+    hstream >> extraMultiFabCount;
+    extraMultiFabPrefixes.resize(
+      extraMultiFabCount, std::vector<std::string>(this->finestLevel + 1));
+    extraMultiFabVariables.resize(extraMultiFabCount);
+    // loop over extra multifabs
+    for (int i = 0; i < extraMultiFabCount; ++i)
+    {
+      // get number of variables stored in the multifab
+      int nVars = 0;
+      hstream >> nVars;
+      // get the variable names in the multifab
+      extraMultiFabVariables[i].resize(nVars);
+      for (int j = 0; j < nVars; ++j)
+      {
+        std::string var;
+        hstream >> var;
+        extraMultiFabVariables[i][j] = var;
+        // build vector name map
+        std::string baseName = this->GetBaseVariableName(this->extraMultiFabVariables[i][j]);
+        int component = this->CheckComponent(this->extraMultiFabVariables[i][j]);
+        // resize variable map for scalar or vector
+        extraMultiFabParsedVarNames[baseName].resize(component < 0 ? 1 : 3);
+        component = (component < 0) ? 0 : component;
+        extraMultiFabParsedVarNames[baseName][component] = j;
+        extraMultiFabParsedVarMap[baseName] = i;
+      }
+      // get the name of the files of the fab in each level
+      for (int j = 0; j < this->finestLevel + 1; ++j)
+      {
+        std::string pathName;
+        hstream >> pathName;
+        size_t pos = 0;
+        pos = pathName.find(deliminater);
+        pathName.erase(0, pos + deliminater.length());
+        this->extraMultiFabPrefixes[i][j] = pathName.substr(0, pathName.length());
+      }
+    }
   }
   return true;
 }
@@ -735,6 +780,10 @@ void vtkAMReXGridReaderInternal::ReadMetaData()
       if (this->ReadHeader())
       {
         this->headersAreRead = this->ReadLevelHeader();
+        if (this->Header->extraMultiFabCount)
+        {
+          this->extraMultiFabHeadersAreRead = this->ReadExtraFabHeader();
+        }
       }
     }
   }
@@ -789,6 +838,59 @@ bool vtkAMReXGridReaderInternal::ReadLevelHeader()
     }
 
     this->LevelHeader[level] = headerPtr;
+  }
+  return true;
+}
+
+bool vtkAMReXGridReaderInternal::ReadExtraFabHeader()
+{
+  this->ExtraMultiFabHeader.resize(this->Header->extraMultiFabCount);
+  this->Header->extraMultiFabVarTopology.resize(this->Header->extraMultiFabCount);
+
+  for (int fab = 0; fab < this->Header->extraMultiFabCount; ++fab)
+  {
+    this->ExtraMultiFabHeader[fab].resize(this->Header->finestLevel + 1);
+    for (int level = 0; level <= this->Header->finestLevel; ++level)
+    {
+      // add loop over levels
+      const std::string fabHeaderFileName = this->FileName + "/" +
+        this->Header->levelPrefix[level] + "/" + this->Header->extraMultiFabPrefixes[fab][level] +
+        "_H";
+
+      const auto headerData = ::ReadFile(fabHeaderFileName);
+      if (headerData.empty())
+      {
+        return false;
+      }
+
+      auto headerPtr = new vtkAMReXGridLevelHeader();
+      if (!headerPtr->Parse(level, this->Header->dim, headerData))
+      {
+        delete headerPtr;
+        return false;
+      }
+
+      this->ExtraMultiFabHeader[fab][level] = headerPtr;
+    }
+    // check what the topology of the fab is
+    const auto& topoVec = this->ExtraMultiFabHeader[fab][0]->levelBoxArrays[0][2];
+    // check if all values are 1 or 0
+    if (std::equal(topoVec.begin() + 1, topoVec.end(), topoVec.begin()))
+    {
+      // all values in topoVec are equal, check if its referencing point or cell data
+      if (topoVec[0] == 0) // cell centered data
+      {
+        this->Header->extraMultiFabVarTopology[fab] = 3;
+      }
+      if (topoVec[0] == 1) // point centered data
+      {
+        this->Header->extraMultiFabVarTopology[fab] = 0;
+      }
+    }
+    else
+    {
+      this->Header->extraMultiFabVarTopology[fab] = -1; // face and edge data not supported
+    }
   }
   return true;
 }
@@ -862,18 +964,18 @@ void vtkAMReXGridReaderInternal::GetBlockAttribute(
     // orders.
     //
     // int big_float_order[] = { 1, 2, 3, 4 };
-    int little_float_order[] = { 4, 3, 2, 1 };
+    constexpr int little_float_order[] = { 4, 3, 2, 1 };
     // int mid_float_order_2[] = { 2, 1, 4, 3 };
     // int big_double_order[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
-    int little_double_order[] = { 8, 7, 6, 5, 4, 3, 2, 1 };
+    constexpr int little_double_order[] = { 8, 7, 6, 5, 4, 3, 2, 1 };
     // int mid_double_order_2[] = { 2, 1, 4, 3, 6, 5, 8, 7 };
     //
     // formats.
     //
-    long ieee_float[] = { 32L, 8L, 23L, 0L, 1L, 9L, 0L, 0x7FL };
-    long ieee_double[] = { 64L, 11L, 52L, 0L, 1L, 12L, 0L, 0x3FFL };
+    constexpr long ieee_float[] = { 32L, 8L, 23L, 0L, 1L, 9L, 0L, 0x7FL };
+    constexpr long ieee_double[] = { 64L, 11L, 52L, 0L, 1L, 12L, 0L, 0x3FFL };
 
-    int offsetOfAttribute = this->GetOffsetOfAttribute(attribute);
+    long offsetOfAttribute = this->GetOffsetOfAttribute(attribute);
     int theLevel = this->GetBlockLevel(blockIdx);
     int blockIdxWithinLevel = this->GetBlockIndexWithinLevel(blockIdx, theLevel);
     if (debugReader)
@@ -900,7 +1002,7 @@ void vtkAMReXGridReaderInternal::GetBlockAttribute(
       RealDescriptor* ird = this->ReadRealDescriptor(is);
       std::vector<int> boxArray(3 * dimension);
       std::vector<int> boxArrayDim(dimension);
-      int numberOfPoints = ReadBoxArray(is, boxArray.data(), boxArrayDim.data());
+      long numberOfPoints = ReadBoxArray(is, boxArray.data(), boxArrayDim.data());
       // int numberOfAttributes =
       this->ReadNumberOfAttributes(is);
 
@@ -909,7 +1011,7 @@ void vtkAMReXGridReaderInternal::GetBlockAttribute(
       // Jump to the desired attribute (offsetOfAttribute*(numberOfPoints*ird->numBytes()))
       // - Patrick O'Leary
       //
-      int linefeed = is.tellg();
+      long linefeed = is.tellg();
 
       if (debugReader)
       {
@@ -964,14 +1066,157 @@ void vtkAMReXGridReaderInternal::GetBlockAttribute(
   }
 }
 
+void vtkAMReXGridReaderInternal::GetExtraMultiFabBlockAttribute(
+  const char* attribute, int blockIdx, vtkDataSet* pDataSet)
+{
+  if (this->extraMultiFabHeadersAreRead)
+  {
+    if (attribute == nullptr || blockIdx < 0 || pDataSet == nullptr ||
+      blockIdx >= this->GetNumberOfBlocks())
+    {
+      return;
+    }
+
+    //
+    // orders.
+    //
+    // int big_float_order[] = { 1, 2, 3, 4 };
+    constexpr int little_float_order[] = { 4, 3, 2, 1 };
+    // int mid_float_order_2[] = { 2, 1, 4, 3 };
+    // int big_double_order[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    constexpr int little_double_order[] = { 8, 7, 6, 5, 4, 3, 2, 1 };
+    // int mid_double_order_2[] = { 2, 1, 4, 3, 6, 5, 8, 7 };
+    //
+    // formats.
+    //
+    constexpr long ieee_float[] = { 32L, 8L, 23L, 0L, 1L, 9L, 0L, 0x7FL };
+    constexpr long ieee_double[] = { 64L, 11L, 52L, 0L, 1L, 12L, 0L, 0x3FFL };
+
+    // get the index of the extra multifab
+    if (this->Header->extraMultiFabParsedVarNames[attribute].empty())
+    {
+      return; // variable is malformed or nonexistent
+    }
+    int fabIndex = this->Header->extraMultiFabParsedVarMap[std::string(attribute)];
+    if (fabIndex == -1)
+    {
+      return; // variable not found in a multifab
+    }
+
+    int theLevel = this->GetBlockLevel(blockIdx);
+    int blockIdxWithinLevel = this->GetBlockIndexWithinLevel(blockIdx, theLevel);
+
+    // get file name
+    const std::string FABFileName = this->FileName + "/" + this->Header->levelPrefix[theLevel] +
+      "/" + this->ExtraMultiFabHeader[fabIndex][theLevel]->levelFABFile[blockIdxWithinLevel];
+
+    if (debugReader)
+    {
+      std::cout
+        << "FABFile " << FABFileName << " Offset "
+        << this->ExtraMultiFabHeader[fabIndex][theLevel]->levelFileOffset[blockIdxWithinLevel]
+        << std::endl;
+    }
+
+    std::filebuf fb;
+    if (fb.open(FABFileName, std::ios::binary | std::ios::in))
+    {
+      std::istream is(&fb);
+      is.seekg(this->ExtraMultiFabHeader[fabIndex][theLevel]->levelFileOffset[blockIdxWithinLevel]);
+      //
+      // Read FAB Header
+      //
+      this->ReadFAB(is);
+      // int version =
+      this->ReadVersion(is);
+      int dimension = this->ExtraMultiFabHeader[fabIndex][theLevel]->dim;
+      RealDescriptor* ird = this->ReadRealDescriptor(is);
+      std::vector<int> boxArray(3 * dimension);
+      std::vector<int> boxArrayDim(dimension);
+      int numberOfPoints = ReadBoxArray(is, boxArray.data(), boxArrayDim.data());
+      // int numberOfAttributes =
+      this->ReadNumberOfAttributes(is);
+
+      //
+      // Skip the Line Feed (linefeed+1)
+      // Jump to the desired attribute (offsetOfAttribute*(numberOfPoints*ird->numBytes()))
+      //
+      int linefeed = is.tellg();
+
+      if (debugReader)
+      {
+        for (int i = 0; i < dimension; ++i)
+          std::cout << boxArrayDim[i] << " ";
+        std::cout << std::endl;
+      }
+
+      // read every component of the variable into the buffers vector
+      std::string attributeName(attribute);
+      int nComps =
+        static_cast<int>(this->Header->extraMultiFabParsedVarNames[attributeName].size());
+      std::vector<std::vector<char>> buffers(nComps);
+      for (int i = 0; i < nComps; ++i)
+      {
+        int compIndex = this->Header->extraMultiFabParsedVarNames[attributeName][i];
+        std::string compName = this->Header->extraMultiFabVariables[fabIndex][compIndex];
+        int offsetOfAttribute = this->GetAttributeOffsetExtraMultiFab(compName.c_str(), fabIndex);
+        is.seekg((linefeed + 1) + (offsetOfAttribute * (numberOfPoints * ird->numBytes())));
+        buffers[i].resize(numberOfPoints * ird->numBytes());
+        this->ReadBlockAttribute(is, numberOfPoints, ird->numBytes(), buffers[i].data());
+      }
+
+      RealDescriptor* ord = nullptr;
+      // copy buffers into vtkAOSDataArrayTemplate
+      if (ird->numBytes() == 4)
+      {
+        vtkNew<vtkAOSDataArrayTemplate<float>> dataArray;
+        ord = new RealDescriptor(ieee_float, little_float_order, 4);
+        this->CreateVTKAttributeArray(
+          dataArray.Get(), ord, ird, buffers, numberOfPoints, attributeName);
+
+        // associate the array to points or cells
+        if (this->Header->extraMultiFabVarTopology[fabIndex] == 3)
+        {
+          pDataSet->GetCellData()->AddArray(dataArray);
+        }
+        else if (this->Header->extraMultiFabVarTopology[fabIndex] == 0)
+        {
+          pDataSet->GetPointData()->AddArray(dataArray);
+        }
+      }
+      else
+      {
+        vtkNew<vtkAOSDataArrayTemplate<double>> dataArray;
+        ord = new RealDescriptor(ieee_double, little_double_order, 8);
+        this->CreateVTKAttributeArray(
+          dataArray.Get(), ord, ird, buffers, numberOfPoints, attributeName);
+
+        // associate the array to points or cells
+        if (this->Header->extraMultiFabVarTopology[fabIndex] == 3)
+        {
+          pDataSet->GetCellData()->AddArray(dataArray);
+        }
+        else if (this->Header->extraMultiFabVarTopology[fabIndex] == 0)
+        {
+          pDataSet->GetPointData()->AddArray(dataArray);
+        }
+      }
+
+      delete ord;
+      delete ird;
+      fb.close();
+    }
+  }
+}
+
 int vtkAMReXGridReaderInternal::GetOffsetOfAttribute(const char* attribute)
 {
-  int i = 0, position = 0;
+  long i = 0, position = 0;
   bool found = false;
 
   while (i < this->Header->variableNamesSize && !found)
   {
-    if (strcmp(this->Header->variableNames[i].c_str(), attribute) == 0)
+    if (this->Header->variableNames[i] == attribute)
     {
       found = true;
       position = i;
@@ -984,6 +1229,34 @@ int vtkAMReXGridReaderInternal::GetOffsetOfAttribute(const char* attribute)
   }
   else
     return (-1);
+}
+
+int vtkAMReXGridReaderInternal::GetExtraMultiFabIndex(const char* attribute)
+{
+  std::string attr = attribute;
+  // loop over extra fabs, find the
+  for (int i = 0; i < this->Header->extraMultiFabCount; ++i)
+  {
+    const auto& vars = this->Header->extraMultiFabVariables[i];
+    if (std::find(vars.begin(), vars.end(), attr) != vars.end())
+    {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int vtkAMReXGridReaderInternal::GetAttributeOffsetExtraMultiFab(
+  const char* attribute, const int fabIndex)
+{
+  std::string attr = attribute;
+  const auto& vars = this->Header->extraMultiFabVariables[fabIndex];
+  auto itr = std::find(vars.begin(), vars.end(), attr);
+  if (itr != vars.end())
+  {
+    return itr - vars.begin();
+  }
+  return -1;
 }
 
 void vtkAMReXGridReaderInternal::ReadFAB(std::istream& is)
@@ -1048,12 +1321,12 @@ void vtkAMReXGridReaderInternal::ReadFormat(std::istream& is, std::vector<long>&
 {
   char c;
   is >> c; // '('
-  int size;
+  long size;
   is >> size;
   is >> c; // ','
   is >> c; // '('
   ar.resize(size);
-  for (int i = 0; i < size; ++i)
+  for (long i = 0; i < size; ++i)
     is >> ar[i];
   is >> c; // ')'
   is >> c; // ')'
@@ -1095,10 +1368,10 @@ RealDescriptor* vtkAMReXGridReaderInternal::ReadRealDescriptor(std::istream& is)
   //
   // ord.size() is either 4 or 8 for float or double respectively - cast to int is safe
   //
-  return new RealDescriptor(&fmt[0], &ord[0], static_cast<int>(ord.size()));
+  return new RealDescriptor(fmt.data(), ord.data(), static_cast<int>(ord.size()));
 }
 
-int vtkAMReXGridReaderInternal::ReadBoxArray(std::istream& is, int* boxArray, int* boxArrayDim)
+long vtkAMReXGridReaderInternal::ReadBoxArray(std::istream& is, int* boxArray, int* boxArrayDim)
 {
   char c;
   is >> c; // read '('
@@ -1123,7 +1396,7 @@ int vtkAMReXGridReaderInternal::ReadBoxArray(std::istream& is, int* boxArray, in
   //
   // block dimension - '(hi - lo + 1)' is the number of cells '+ 1' is the number of points
   //
-  int numberOfPoints = 1;
+  long numberOfPoints = 1;
   for (int i = 0; i < this->Header->dim; ++i)
   {
     boxArrayDim[i] =
@@ -1175,7 +1448,7 @@ int vtkAMReXGridReaderInternal::ReadNumberOfAttributes(std::istream& is)
 }
 
 void vtkAMReXGridReaderInternal::ReadBlockAttribute(
-  std::istream& is, int numberOfPoints, int size, char* buffer)
+  std::istream& is, long numberOfPoints, long size, char* buffer)
 {
   is.read(buffer, numberOfPoints * size);
 }

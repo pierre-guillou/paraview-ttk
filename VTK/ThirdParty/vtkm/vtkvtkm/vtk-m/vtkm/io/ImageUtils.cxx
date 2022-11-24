@@ -7,15 +7,19 @@
 //  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
-#include <vtkm/io/ImageUtils.h>
+
+#include <vtkm/cont/ErrorExecution.h>
 
 #include <vtkm/io/FileUtils.h>
 #include <vtkm/io/ImageReaderBase.h>
 #include <vtkm/io/ImageReaderPNG.h>
 #include <vtkm/io/ImageReaderPNM.h>
+#include <vtkm/io/ImageUtils.h>
 #include <vtkm/io/ImageWriterBase.h>
 #include <vtkm/io/ImageWriterPNG.h>
 #include <vtkm/io/ImageWriterPNM.h>
+
+#include <vtkm/cont/ErrorBadValue.h>
 
 #include <memory>
 
@@ -46,7 +50,7 @@ vtkm::cont::DataSet ReadImageFile(const std::string& fullPath, const std::string
   std::ifstream check(fullPath.c_str());
   if (!check.good())
   {
-    throw vtkm::cont::ErrorExecution("File does not exist: " + fullPath);
+    throw vtkm::cont::ErrorBadValue("File does not exist: " + fullPath);
   }
 
   std::unique_ptr<vtkm::io::ImageReaderBase> reader;

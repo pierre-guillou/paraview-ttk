@@ -24,7 +24,6 @@ vtkAMRVelodyneReaderInternal::~vtkAMRVelodyneReaderInternal()
 
 void vtkAMRVelodyneReaderInternal::Init()
 {
-  this->FileName = nullptr;
   this->nLevels = 0;
   this->nBlocks = 0;
   this->nLeaves = 0;
@@ -40,9 +39,9 @@ void vtkAMRVelodyneReaderInternal::Init()
   this->arrayMap.clear();
 }
 
-void vtkAMRVelodyneReaderInternal::SetFileName(char* fileName)
+void vtkAMRVelodyneReaderInternal::SetFileName(VTK_FUTURE_CONST char* fileName)
 {
-  this->FileName = fileName;
+  this->FileName = fileName ? fileName : "";
   if (this->file_id > 0)
   {
     herr_t ierr = this->CloseFile(this->file_id);
@@ -56,7 +55,7 @@ void vtkAMRVelodyneReaderInternal::SetFileName(char* fileName)
 
 void vtkAMRVelodyneReaderInternal::ReadMetaData()
 {
-  if (this->FileName == nullptr || !strcmp(this->FileName, ""))
+  if (this->FileName.empty())
   {
     return;
   }
@@ -64,7 +63,7 @@ void vtkAMRVelodyneReaderInternal::ReadMetaData()
   {
     return;
   }
-  this->file_id = H5Fopen(this->FileName, H5F_ACC_RDONLY, H5P_DEFAULT);
+  this->file_id = H5Fopen(this->FileName.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
   if (this->file_id < 0)
   {
     vtkGenericWarningMacro("Failed to open file " << this->FileName << endl);

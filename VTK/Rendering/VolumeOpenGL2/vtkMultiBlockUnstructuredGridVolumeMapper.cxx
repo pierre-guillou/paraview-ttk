@@ -47,7 +47,8 @@ vtkStandardNewMacro(vtkMultiBlockUnstructuredGridVolumeMapper);
 
 //------------------------------------------------------------------------------
 vtkMultiBlockUnstructuredGridVolumeMapper::vtkMultiBlockUnstructuredGridVolumeMapper()
-  : BlockLoadingTime(0)
+  : UseFloatingPointFrameBuffer(false)
+  , BlockLoadingTime(0)
   , BoundsComputeTime(0)
 {
 #ifdef MB_DEBUG
@@ -85,7 +86,8 @@ void vtkMultiBlockUnstructuredGridVolumeMapper::Render(vtkRenderer* ren, vtkVolu
     this->BlockLoadingTime = dataObj->GetMTime();
   }
 
-  this->SortMappers(ren, vol->GetMatrix());
+  vol->GetModelToWorldMatrix(this->TempMatrix4x4);
+  this->SortMappers(ren, this->TempMatrix4x4);
 
   for (auto& mapper : this->Mappers)
   {

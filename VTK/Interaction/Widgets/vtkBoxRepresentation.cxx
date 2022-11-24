@@ -1591,9 +1591,12 @@ vtkTypeBool vtkBoxRepresentation::HasTranslucentPolygonalGeometry()
 }
 
 #define VTK_AVERAGE(a, b, c)                                                                       \
-  c[0] = (a[0] + b[0]) / 2.0;                                                                      \
-  c[1] = (a[1] + b[1]) / 2.0;                                                                      \
-  c[2] = (a[2] + b[2]) / 2.0;
+  do                                                                                               \
+  {                                                                                                \
+    c[0] = (a[0] + b[0]) / 2.0;                                                                    \
+    c[1] = (a[1] + b[1]) / 2.0;                                                                    \
+    c[2] = (a[2] + b[2]) / 2.0;                                                                    \
+  } while (false)
 
 //------------------------------------------------------------------------------
 void vtkBoxRepresentation::PositionHandles()
@@ -1769,6 +1772,23 @@ void vtkBoxRepresentation::RegisterPickers()
   }
   pm->AddPicker(this->HandlePicker, this);
   pm->AddPicker(this->HexPicker, this);
+}
+
+//------------------------------------------------------------------------------
+void vtkBoxRepresentation::GetActors(vtkPropCollection* pc)
+{
+  if (!pc)
+  {
+    return;
+  }
+  pc->AddItem(this->HexActor);
+  pc->AddItem(this->HexFace);
+  pc->AddItem(this->HexOutline);
+  for (int j = 0; j < 7; j++)
+  {
+    pc->AddItem(this->Handle[j]);
+  }
+  this->Superclass::GetActors(pc);
 }
 
 //------------------------------------------------------------------------------

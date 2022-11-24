@@ -12,6 +12,7 @@ vtk_add_test_python(
   TestFilePath.py
   TestGhost.py
   TestIterateCollection.py
+  TestObjectName.py
   TestPassByReference.py
   TestNumpySupport.py
   TestNumpyInterface.py
@@ -22,7 +23,6 @@ vtk_add_test_python(
   TestSetGet.py
   TestSingleton.py
   TestSOADataArrays.py
-  TestStdVector.py
   TestStrings.py
   TestSubClass.py
   TestSwigPointer.py

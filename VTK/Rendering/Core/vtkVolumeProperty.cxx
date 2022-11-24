@@ -509,7 +509,18 @@ vtkPiecewiseFunction* vtkVolumeProperty::GetGradientOpacity(int index)
 //------------------------------------------------------------------------------
 void vtkVolumeProperty::SetTransferFunction2D(int index, vtkImageData* function)
 {
-  if (this->TransferFunction2D[index] != function)
+  if ((this->TransferFunction2D[index] == nullptr && function == nullptr) ||
+    (this->TransferFunction2D[index] == function))
+  {
+    return;
+  }
+  if (this->TransferFunction2D[index] != nullptr)
+  {
+    this->TransferFunction2D[index]->UnRegister(this);
+    this->TransferFunction2D[index] = nullptr;
+  }
+
+  if (function != nullptr)
   {
     vtkDataArray* dataArr = function->GetPointData()->GetScalars();
     const int* dims = function->GetDimensions();
@@ -531,11 +542,6 @@ void vtkVolumeProperty::SetTransferFunction2D(int index, vtkImageData* function)
       return;
     }
 
-    if (this->TransferFunction2D[index] != nullptr)
-    {
-      this->TransferFunction2D[index]->UnRegister(this);
-    }
-
     this->TransferFunction2D[index] = function;
     if (this->TransferFunction2D[index] != nullptr)
     {
@@ -544,7 +550,6 @@ void vtkVolumeProperty::SetTransferFunction2D(int index, vtkImageData* function)
 
     this->TransferFunction2DMTime[index].Modified();
     this->Modified();
-    this->TransferFunctionMode = vtkVolumeProperty::TF_2D;
   }
 }
 

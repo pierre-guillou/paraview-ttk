@@ -179,7 +179,7 @@ bool vtkTransposeTableInternal::TransposeTable(vtkTable* inTable, vtkTable* outT
       vtkErrorWithObjectMacro(this->Parent, << "Unable to transpose column " << c);                \
       return false;                                                                                \
     }                                                                                              \
-    break;
+    break
 
       switch (column->GetDataType())
       {
@@ -226,7 +226,7 @@ bool vtkTransposeTableInternal::TransposeTable(vtkTable* inTable, vtkTable* outT
     vtkAbstractArray* destColumn = this->OutTable->GetColumn(r);
     if (this->Parent->GetUseIdColumn())
     {
-      destColumn->SetName(firstCol->GetVariantValue(r).ToString());
+      destColumn->SetName(firstCol->GetVariantValue(r).ToString().c_str());
     }
     else
     {

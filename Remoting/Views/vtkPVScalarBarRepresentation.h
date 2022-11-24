@@ -26,8 +26,8 @@
  * @class   vtkPVScalarBarRepresentation
  * @brief   Represent scalar bar for vtkScalarBarWidget.
  *
- * Subclass of vtkScalarBarRepresentation that provides convenience functions
- * for placing the scalar bar widget in the scene.
+ * Subclass of vtkScalarBarRepresentation that considers viewport size
+ * for placement of the representation.
  */
 
 #ifndef vtkPVScalarBarRepresentation_h
@@ -44,33 +44,6 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkPVScalarBarRepresentation* New();
 
-  enum
-  {
-    AnyLocation = 0,
-    LowerLeftCorner,
-    LowerRightCorner,
-    LowerCenter,
-    UpperLeftCorner,
-    UpperRightCorner,
-    UpperCenter
-  };
-
-  //@{
-  /**
-   * Set the scalar bar position, by enumeration (
-   * AnyLocation = 0,
-   * LowerLeftCorner,
-   * LowerRightCorner,
-   * LowerCenter,
-   * UpperLeftCorner,
-   * UpperRightCorner,
-   * UpperCenter)
-   * related to the render window.
-   */
-  vtkSetMacro(WindowLocation, int);
-  vtkGetMacro(WindowLocation, int);
-  //@}
-
   /**
    * Override to obtain viewport size and potentially adjust placement
    * of the representation.
@@ -78,14 +51,12 @@ public:
   int RenderOverlay(vtkViewport*) override;
 
 protected:
-  vtkPVScalarBarRepresentation();
-  ~vtkPVScalarBarRepresentation() override;
-
-  int WindowLocation;
+  vtkPVScalarBarRepresentation() = default;
+  ~vtkPVScalarBarRepresentation() override = default;
 
 private:
   vtkPVScalarBarRepresentation(const vtkPVScalarBarRepresentation&) = delete;
   void operator=(const vtkPVScalarBarRepresentation&) = delete;
 };
 
-#endif // vtkPVScalarBarRepresentation
+#endif // vtkPVScalarBarRepresentation_h

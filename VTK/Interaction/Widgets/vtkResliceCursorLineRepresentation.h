@@ -104,6 +104,11 @@ public:
    */
   virtual void SetUserMatrix(vtkMatrix4x4* matrix);
 
+  /**
+   * Re-implemented to set the tolerance of the picker.
+   */
+  void SetTolerance(int t) override;
+
 protected:
   vtkResliceCursorLineRepresentation();
   ~vtkResliceCursorLineRepresentation() override;
@@ -111,6 +116,7 @@ protected:
   vtkResliceCursorPolyDataAlgorithm* GetCursorAlgorithm() override;
 
   double RotateAxis(double evenPos[2], int axis);
+  double TranslateAxis(double evenPos[2], int axis);
 
   void RotateAxis(int axis, double angle);
 
@@ -119,6 +125,8 @@ protected:
     double angle,   // angle in radians
     double o[3]);
   int DisplayToReslicePlaneIntersection(double displayPos[2], double intersectionPos[3]);
+
+  void ApplyTolerance();
 
   vtkResliceCursorActor* ResliceCursorActor;
   vtkResliceCursorPicker* Picker;

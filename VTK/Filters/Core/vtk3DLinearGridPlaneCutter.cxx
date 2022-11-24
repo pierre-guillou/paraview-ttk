@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtk3DLinearGridPlaneCutter.h"
 
 #include "vtk3DLinearGridInternal.h"
@@ -69,27 +66,33 @@ vtkCxxSetObjectMacro(vtk3DLinearGridPlaneCutter, Plane, vtkPlane);
 // parallel processing mode. The _REDUCE_ version is used to called functors
 // with a Reduce() method).
 #define EXECUTE_SMPFOR(_seq, _num, _op)                                                            \
-  if (!_seq)                                                                                       \
+  do                                                                                               \
   {                                                                                                \
-    vtkSMPTools::For(0, _num, _op);                                                                \
-  }                                                                                                \
-  else                                                                                             \
-  {                                                                                                \
-    _op(0, _num);                                                                                  \
-  }
+    if (!_seq)                                                                                     \
+    {                                                                                              \
+      vtkSMPTools::For(0, _num, _op);                                                              \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+      _op(0, _num);                                                                                \
+    }                                                                                              \
+  } while (false)
 
 #define EXECUTE_REDUCED_SMPFOR(_seq, _num, _op, _nt)                                               \
-  if (!_seq)                                                                                       \
+  do                                                                                               \
   {                                                                                                \
-    vtkSMPTools::For(0, _num, _op);                                                                \
-  }                                                                                                \
-  else                                                                                             \
-  {                                                                                                \
-    _op.Initialize();                                                                              \
-    _op(0, _num);                                                                                  \
-    _op.Reduce();                                                                                  \
-  }                                                                                                \
-  _nt = _op.NumThreadsUsed;
+    if (!_seq)                                                                                     \
+    {                                                                                              \
+      vtkSMPTools::For(0, _num, _op);                                                              \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+      _op.Initialize();                                                                            \
+      _op(0, _num);                                                                                \
+      _op.Reduce();                                                                                \
+    }                                                                                              \
+    _nt = _op.NumThreadsUsed;                                                                      \
+  } while (false)
 
 namespace
 {
@@ -344,7 +347,7 @@ struct ExtractEdges : public ExtractEdgesBase<IDType, TIP>
             double deltaScalar = s[v1] - s[v0];
             // the t here is computed for each edges of each cell
             // so it is computed twice for most edges.
-            // This could be improved by deffering the computation
+            // This could be improved by deferring the computation
             // of t to the last moment (when we are producing points / attributes)
             // This way, we should be able to compute t only once per output edge.
             double t = (deltaScalar == 0.0 ? 0.0 : (-s[v0] / deltaScalar));
@@ -537,7 +540,7 @@ struct ProduceMergedTriangles
 
   void Initialize()
   {
-    ; // without this method Reduce() is not called
+    // without this method Reduce() is not called
   }
 
   struct Impl
@@ -784,7 +787,7 @@ int ProcessEdges(vtkIdType numCells, vtkPoints* inPts, CellIter* cellIter, vtkPl
       {
         ArrayList pointArrays;
         outPD->InterpolateAllocate(inPD, numPts);
-        pointArrays.AddArrays(numPts, inPD, outPD);
+        pointArrays.AddArrays(numPts, inPD, outPD, /*nullValue*/ 0.0, /*promote*/ false);
         ProducePDAttributes<TIds> interpolatePoints(mergeEdges, &pointArrays);
         EXECUTE_SMPFOR(seqProcessing, numPts, interpolatePoints);
       }
@@ -794,7 +797,7 @@ int ProcessEdges(vtkIdType numCells, vtkPoints* inPts, CellIter* cellIter, vtkPl
       {
         ArrayList cellArrays;
         outCD->CopyAllocate(inCD, numTris);
-        cellArrays.AddArrays(numTris, inCD, outCD);
+        cellArrays.AddArrays(numTris, inCD, outCD, /*nullValue*/ 0.0, /*promote*/ false);
         ProduceCDAttributes<TIds> interpolateCells(originalCells, &cellArrays);
         EXECUTE_SMPFOR(seqProcessing, numTris, interpolateCells);
       }
@@ -862,7 +865,7 @@ int ProcessEdges(vtkIdType numCells, vtkPoints* inPts, CellIter* cellIter, vtkPl
       {
         ArrayList pointArrays;
         outPD->InterpolateAllocate(inPD, numPts);
-        pointArrays.AddArrays(numPts, inPD, outPD);
+        pointArrays.AddArrays(numPts, inPD, outPD, /*nullValue*/ 0.0, /*promote*/ false);
         ProduceMergedAttributes<TIds> interpolatePoints(mergeEdges, offsets, &pointArrays);
         EXECUTE_SMPFOR(seqProcessing, numPts, interpolatePoints);
       }
@@ -872,7 +875,7 @@ int ProcessEdges(vtkIdType numCells, vtkPoints* inPts, CellIter* cellIter, vtkPl
       {
         ArrayList cellArrays;
         outCD->CopyAllocate(inCD, numTris);
-        cellArrays.AddArrays(numTris, inCD, outCD);
+        cellArrays.AddArrays(numTris, inCD, outCD, /*nullValue*/ 0.0, /*promote*/ false);
         ProduceCDAttributes<TIds> interpolateCells(originalCells, &cellArrays);
         EXECUTE_SMPFOR(seqProcessing, numTris, interpolateCells);
       }
@@ -1065,7 +1068,7 @@ int vtk3DLinearGridPlaneCutter::ProcessPiece(
   this->LargeIds = (numPts >= VTK_INT_MAX || numCells >= VTK_INT_MAX);
 
   // Generate all of the merged points and triangles
-  if (this->LargeIds == false)
+  if (!this->LargeIds)
   {
     if (!ProcessEdges<int>(numCells, inPts, cellIter, plane, inout, distance, outPts, newPolys,
           this->MergePoints, this->InterpolateAttributes, this->SequentialProcessing,
@@ -1245,16 +1248,17 @@ bool vtk3DLinearGridPlaneCutter::CanFullyProcessDataObject(vtkDataObject* object
   if (ug)
   {
     // Get list of cell types in the unstructured grid
-    vtkNew<vtkCellTypes> cellTypes;
-    ug->GetCellTypes(cellTypes);
-    for (vtkIdType i = 0; i < cellTypes->GetNumberOfTypes(); ++i)
+    if (vtkUnsignedCharArray* cellTypes = ug->GetDistinctCellTypesArray())
     {
-      unsigned char cellType = cellTypes->GetCellType(i);
-      if (cellType != VTK_VOXEL && cellType != VTK_TETRA && cellType != VTK_HEXAHEDRON &&
-        cellType != VTK_WEDGE && cellType != VTK_PYRAMID)
+      for (vtkIdType i = 0; i < cellTypes->GetNumberOfValues(); ++i)
       {
-        // Unsupported cell type, can't process data
-        return false;
+        unsigned char cellType = cellTypes->GetValue(i);
+        if (cellType != VTK_VOXEL && cellType != VTK_TETRA && cellType != VTK_HEXAHEDRON &&
+          cellType != VTK_WEDGE && cellType != VTK_PYRAMID)
+        {
+          // Unsupported cell type, can't process data
+          return false;
+        }
       }
     }
 

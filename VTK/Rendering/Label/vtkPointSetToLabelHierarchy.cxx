@@ -35,8 +35,6 @@
 #include "vtkStringArray.h"
 #include "vtkTextProperty.h"
 #include "vtkTimerLog.h"
-#include "vtkUnicodeString.h"
-#include "vtkUnicodeStringArray.h"
 
 #include <vector>
 
@@ -47,7 +45,6 @@ vtkPointSetToLabelHierarchy::vtkPointSetToLabelHierarchy()
 {
   this->MaximumDepth = 5;
   this->TargetLabelCount = 32;
-  this->UseUnicodeStrings = false;
   this->TextProperty = vtkTextProperty::New();
   this->SetInputArrayToProcess(0, 0, 0, vtkDataObject::POINT, "Priority");
   this->SetInputArrayToProcess(1, 0, 0, vtkDataObject::POINT, "LabelSize");
@@ -240,29 +237,9 @@ int vtkPointSetToLabelHierarchy::RequestData(vtkInformation* vtkNotUsed(request)
   ouData->SetPriorities(priorities);
   if (labels)
   {
-    if ((this->UseUnicodeStrings && vtkArrayDownCast<vtkUnicodeStringArray>(labels)) ||
-      (!this->UseUnicodeStrings && vtkArrayDownCast<vtkStringArray>(labels)))
+    if (vtkArrayDownCast<vtkStringArray>(labels))
     {
       ouData->SetLabels(labels);
-    }
-    else if (this->UseUnicodeStrings)
-    {
-      vtkSmartPointer<vtkUnicodeStringArray> arr = vtkSmartPointer<vtkUnicodeStringArray>::New();
-      vtkIdType numComps = labels->GetNumberOfComponents();
-      vtkIdType numTuples = labels->GetNumberOfTuples();
-      arr->SetNumberOfComponents(numComps);
-      arr->SetNumberOfTuples(numTuples);
-      for (vtkIdType i = 0; i < numTuples; ++i)
-      {
-        for (vtkIdType j = 0; j < numComps; ++j)
-        {
-          vtkIdType ind = i * numComps + j;
-          arr->SetValue(ind, labels->GetVariantValue(ind).ToUnicodeString());
-        }
-      }
-      arr->SetName(labels->GetName());
-      ouData->GetPointData()->AddArray(arr);
-      ouData->SetLabels(arr);
     }
     else
     {
@@ -301,7 +278,6 @@ void vtkPointSetToLabelHierarchy::PrintSelf(ostream& os, vtkIndent indent)
 {
   os << indent << "MaximumDepth: " << this->MaximumDepth << "\n";
   os << indent << "TargetLabelCount: " << this->TargetLabelCount << "\n";
-  os << indent << "UseUnicodeStrings: " << this->UseUnicodeStrings << "\n";
   os << indent << "TextProperty: " << this->TextProperty << "\n";
   this->Superclass::PrintSelf(os, indent);
 }

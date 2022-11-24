@@ -80,7 +80,7 @@ int readNodeData<char>(int cgioNum, double nodeId, std::vector<char>& data)
   data.resize(size + 1);
 
   // read data
-  if (cgio_read_all_data_type(cgioNum, nodeId, "C1", &data[0]) != CG_OK)
+  if (cgio_read_all_data_type(cgioNum, nodeId, "C1", data.data()) != CG_OK)
   {
     return 1;
   }
@@ -312,14 +312,14 @@ int readBaseIteration(int cgioNum, double nodeId, CGNSRead::BaseInformation& bas
     }
   }
 
-  if (createIterStates == true)
+  if (createIterStates)
   {
     for (int i = 0; i < nstates; ++i)
     {
       baseInfo.steps.push_back(i);
     }
   }
-  if (createTimeStates == true)
+  if (createTimeStates)
   {
     for (int i = 0; i < nstates; ++i)
     {
@@ -367,11 +367,8 @@ int readZoneIterInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& base
 //------------------------------------------------------------------------------
 int readSolInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& baseInfo)
 {
-  CGNS_ENUMT(GridLocation_t) varCentering;
-  varCentering = CGNS_ENUMV(Vertex);
-
+  CGNS_ENUMT(GridLocation_t) varCentering = CGNS_ENUMV(Vertex);
   CGNSRead::char_33 nodeLabel;
-
   std::vector<double> solChildId;
 
   getNodeChildrenId(cgioNum, nodeId, solChildId);
@@ -458,6 +455,10 @@ int readSolInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& baseInfo)
       {
         varCentering = CGNS_ENUMV(CellCenter);
       }
+      else if (location == "FaceCenter")
+      {
+        varCentering = CGNS_ENUMV(FaceCenter);
+      }
       else
       {
         varCentering = CGNS_ENUMV(GridLocationNull);
@@ -468,11 +469,17 @@ int readSolInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& baseInfo)
       cgio_release_id(cgioNum, solChildId[nn]);
     }
   }
-  //
-  if (varCentering != CGNS_ENUMV(Vertex) && varCentering != CGNS_ENUMV(CellCenter))
+
+  if (nvars == 0)
   {
-    std::cerr << "Bad Centering encountered !"
-                 "Only Vertex and CellCenter are supported"
+    return 1;
+  }
+
+  if (varCentering != CGNS_ENUMV(Vertex) && varCentering != CGNS_ENUMV(CellCenter) &&
+    varCentering != CGNS_ENUMV(FaceCenter))
+  {
+    std::cerr << "Unsupported centering type encountered! Only Vertex, CellCenter and "
+                 "FaceCenter are supported."
               << std::endl;
     return 1;
   }
@@ -481,7 +488,7 @@ int readSolInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& baseInfo)
 
   for (std::size_t ii = 0; ii < cgnsVars.size(); ++ii)
   {
-    if (cgnsVars[ii].isComponent == true)
+    if (cgnsVars[ii].isComponent)
     {
       continue;
     }
@@ -492,14 +499,22 @@ int readSolInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& baseInfo)
         {
           baseInfo.PointDataArraySelection.AddArray(cgnsVars[ii].name, false);
         }
-
         break;
+
       case CGNS_ENUMV(CellCenter):
         if (!baseInfo.CellDataArraySelection.HasArray(cgnsVars[ii].name))
         {
           baseInfo.CellDataArraySelection.AddArray(cgnsVars[ii].name, false);
         }
         break;
+
+      case CGNS_ENUMV(FaceCenter):
+        if (!baseInfo.FaceDataArraySelection.HasArray(cgnsVars[ii].name))
+        {
+          baseInfo.FaceDataArraySelection.AddArray(cgnsVars[ii].name, false);
+        }
+        break;
+
       default:
         break;
     }
@@ -513,14 +528,22 @@ int readSolInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& baseInfo)
         {
           baseInfo.PointDataArraySelection.AddArray(cgnsVectors[jj].name, false);
         }
-
         break;
+
       case CGNS_ENUMV(CellCenter):
         if (!baseInfo.CellDataArraySelection.HasArray(cgnsVectors[jj].name))
         {
           baseInfo.CellDataArraySelection.AddArray(cgnsVectors[jj].name, false);
         }
         break;
+
+      case CGNS_ENUMV(FaceCenter):
+        if (!baseInfo.FaceDataArraySelection.HasArray(cgnsVectors[jj].name))
+        {
+          baseInfo.FaceDataArraySelection.AddArray(cgnsVectors[jj].name, false);
+        }
+        break;
+
       default:
         break;
     }
@@ -651,7 +674,7 @@ int readZoneInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& baseInfo
 
     if (cgio_get_label(cgioNum, zoneChildId[nn], nodeLabel) != CG_OK)
     {
-      std::cerr << "Error while reading nodelabel" << std::endl;
+      std::cerr << "Error while reading node label" << std::endl;
       return 1;
     }
 
@@ -667,8 +690,10 @@ int readZoneInfo(int cgioNum, double nodeId, CGNSRead::BaseInformation& baseInfo
       //    2. C time 1s
       //    3. V time 1s
 
-      readSolInfo(cgioNum, zoneChildId[nn], baseInfo);
-      nflows++;
+      if (readSolInfo(cgioNum, zoneChildId[nn], baseInfo) == 0)
+      {
+        nflows++;
+      }
     }
     else if (strcmp(nodeLabel, "ZoneIterativeData_t") == 0)
     {

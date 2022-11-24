@@ -20,6 +20,7 @@
 #include <vtkm/rendering/Scene.h>
 #include <vtkm/rendering/TextAnnotation.h>
 
+#include <functional>
 #include <memory>
 
 namespace vtkm
@@ -99,6 +100,8 @@ public:
   virtual void RenderScreenAnnotations() = 0;
   virtual void RenderWorldAnnotations() = 0;
 
+  void RenderAnnotations();
+
   void SaveAs(const std::string& fileName) const;
 
   VTKM_CONT VTKM_DEPRECATED(1.6, "Use ClearTextAnnotations Instead") void ClearAnnotations();
@@ -126,7 +129,6 @@ protected:
 
   void SetupForScreenSpace(bool viewportClip = false);
 
-  void RenderAnnotations();
 
   vtkm::rendering::Color AxisColor = vtkm::rendering::Color::white;
   bool WorldAnnotationsEnabled = true;

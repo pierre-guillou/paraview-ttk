@@ -316,14 +316,7 @@ bool vtkSQLiteQuery::NextRow()
   {
     vtkDebugMacro(<< "NextRow(): Initial fetch being handled.");
     this->InitialFetch = false;
-    if (this->InitialFetchResult == SQLITE_DONE)
-    {
-      return false;
-    }
-    else
-    {
-      return true;
-    }
+    return this->InitialFetchResult != SQLITE_DONE;
   }
   else
   {
@@ -353,7 +346,7 @@ bool vtkSQLiteQuery::NextRow()
 //------------------------------------------------------------------------------
 vtkVariant vtkSQLiteQuery::DataValue(vtkIdType column)
 {
-  if (this->IsActive() == false)
+  if (!this->IsActive())
   {
     vtkWarningMacro(<< "DataValue() called on inactive query");
     return vtkVariant();
@@ -656,7 +649,7 @@ bool vtkSQLiteQuery::BindIntegerParameter(int index, int value)
     std::ostringstream errormessage;
     errormessage << "sqlite_bind_int returned error: " << status;
     this->SetLastErrorText(errormessage.str().c_str());
-    vtkErrorMacro(<< errormessage.str().c_str());
+    vtkErrorMacro(<< errormessage.str());
     return false;
   }
   return true;

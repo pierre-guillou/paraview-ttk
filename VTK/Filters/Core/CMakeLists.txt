@@ -8,6 +8,7 @@ set(classes
   vtkAppendPolyData
   vtkAppendSelection
   vtkArrayCalculator
+  vtkArrayRename
   vtkAssignAttribute
   vtkAttributeDataToFieldDataFilter
   vtkBinCellDataFilter
@@ -20,12 +21,14 @@ set(classes
   vtkCompositeCutter
   vtkCompositeDataProbeFilter
   vtkConnectivityFilter
+  vtkConstrainedSmoothingFilter
   vtkContour3DLinearGrid
   vtkContourFilter
   vtkContourGrid
   vtkContourHelper
   vtkConvertToMultiBlockDataSet
   vtkConvertToPartitionedDataSetCollection
+  vtkConvertToPolyhedra
   vtkCutter
   vtkDataObjectGenerator
   vtkDataObjectToDataSetFilter
@@ -40,6 +43,8 @@ set(classes
   vtkExecutionTimer
   vtkExplicitStructuredGridCrop
   vtkExplicitStructuredGridToUnstructuredGrid
+  vtkExtractCellsAlongPolyLine
+  vtkExtractEdges
   vtkFeatureEdges
   vtkFieldDataToAttributeDataFilter
   vtkFlyingEdges2D
@@ -50,6 +55,7 @@ set(classes
   vtkGridSynchronizedTemplates3D
   vtkHedgeHog
   vtkHull
+  vtkHyperTreeGridProbeFilter
   vtkIdFilter
   vtkImageAppend
   vtkImageDataToExplicitStructuredGrid
@@ -73,6 +79,7 @@ set(classes
   vtkPolyDataEdgeConnectivityFilter
   vtkPolyDataNormals
   vtkPolyDataPlaneClipper
+  vtkPolyDataPlaneCutter
   vtkPolyDataTangents
   vtkProbeFilter
   vtkQuadricClustering
@@ -87,12 +94,15 @@ set(classes
   vtkSimpleElevationFilter
   vtkSmoothPolyDataFilter
   vtkSphereTreeFilter
+  vtkStructuredDataPlaneCutter
   vtkStaticCleanPolyData
+  vtkStaticCleanUnstructuredGrid
   vtkStreamerBase
   vtkStreamingTessellator
   vtkStripper
   vtkStructuredGridAppend
   vtkStructuredGridOutlineFilter
+  vtkSurfaceNets2D
   vtkSynchronizedTemplates2D
   vtkSynchronizedTemplates3D
   vtkSynchronizedTemplatesCutter3D

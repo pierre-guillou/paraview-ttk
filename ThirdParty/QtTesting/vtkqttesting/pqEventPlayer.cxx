@@ -158,23 +158,24 @@ void pqEventPlayer::playEvent(
 void pqEventPlayer::playEvent(const QString& objectString, const QString& command,
   const QString& arguments, int eventType, bool& error)
 {
-  emit this->eventAboutToBePlayed(objectString, command, arguments);
+  Q_EMIT this->eventAboutToBePlayed(objectString, command, arguments);
   // If we can't find an object with the right name, we're done ...
   QObject* const object = pqObjectNaming::GetObject(objectString);
 
   // Scroll bar depends on monitor's resolution
   if (!object && objectString.contains(QString("QScrollBar")))
   {
-    emit this->eventPlayed(objectString, command, arguments);
+    Q_EMIT this->eventPlayed(objectString, command, arguments);
     error = false;
     return;
   }
 
   if (!object && !command.startsWith("comment"))
   {
-    QString errorMsg = pqObjectNaming::lastErrorMessage();
-    qCritical() << (errorMsg.toUtf8().data());
-    emit this->errorMessage(errorMsg);
+    QString errorMsg = QString("In event 'object=%1' 'command=%2' 'arguments=%3':\n%4")
+                         .arg(objectString, command, arguments, pqObjectNaming::lastErrorMessage());
+    qCritical() << qUtf8Printable(errorMsg);
+    Q_EMIT this->errorMessage(errorMsg);
     error = true;
     return;
   }
@@ -206,10 +207,12 @@ void pqEventPlayer::playEvent(const QString& objectString, const QString& comman
   // The event wasn't handled at all ...
   if (!accepted)
   {
-    QString errorMessage = QString("Unhandled event %1 object %2\n")
-                             .arg(command, object ? object->objectName() : objectString);
-    qCritical() << errorMessage;
-    emit this->errorMessage(errorMessage);
+    QString errorMessage =
+      QString("In event 'object=%1' 'command=%2' 'arguments=%3':\nUnhandled event.")
+        .arg(object ? object->objectName() : objectString, command, arguments,
+          pqObjectNaming::lastErrorMessage());
+    qCritical() << qUtf8Printable(errorMessage);
+    Q_EMIT this->errorMessage(errorMessage);
     error = true;
     return;
   }
@@ -217,15 +220,16 @@ void pqEventPlayer::playEvent(const QString& objectString, const QString& comman
   // The event was handled, but there was a problem ...
   if (accepted && tmpError)
   {
-    QString errorMessage = QString("Event error %1 object %2 with args:%3\n")
-                             .arg(command, object ? object->objectName() : objectString, arguments);
-    qCritical() << errorMessage;
-    emit this->errorMessage(errorMessage);
+    QString errorMessage =
+      QString("In event 'object=%1' 'command=%2' 'arguments=%3':\nUnhandled error.")
+        .arg(object ? object->objectName() : objectString, command, arguments);
+    qCritical() << qUtf8Printable(errorMessage);
+    Q_EMIT this->errorMessage(errorMessage);
     error = true;
     return;
   }
 
   // The event was handled successfully ...
-  emit this->eventPlayed(objectString, command, arguments);
+  Q_EMIT this->eventPlayed(objectString, command, arguments);
   error = false;
 }

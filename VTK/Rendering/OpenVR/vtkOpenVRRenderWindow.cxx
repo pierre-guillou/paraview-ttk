@@ -11,91 +11,39 @@ This software is distributed WITHOUT ANY WARRANTY; without even
 the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE.  See the above copyright notice for more information.
 
-Parts Copyright Valve Coproration from hellovr_opengl_main.cpp
+Parts Copyright Valve Corporation from hellovr_opengl_main.cpp
 under their BSD license found here:
 https://github.com/ValveSoftware/openvr/blob/master/LICENSE
 
 =========================================================================*/
 #include "vtkOpenVRRenderWindow.h"
 
-#include "vtkCommand.h"
-#include "vtkFloatArray.h"
-#include "vtkIdList.h"
-#include "vtkMath.h"
 #include "vtkMatrix4x4.h"
-#include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkOpenGLError.h"
-#include "vtkOpenGLIndexBufferObject.h"
-#include "vtkOpenGLRenderWindow.h"
-#include "vtkOpenGLRenderer.h"
-#include "vtkOpenGLShaderCache.h"
 #include "vtkOpenGLState.h"
-#include "vtkOpenGLTexture.h"
-#include "vtkOpenGLVertexArrayObject.h"
-#include "vtkOpenGLVertexBufferObject.h"
-#include "vtkOpenVRCamera.h"
 #include "vtkOpenVRDefaultOverlay.h"
 #include "vtkOpenVRModel.h"
 #include "vtkOpenVRRenderWindowInteractor.h"
-#include "vtkOpenVRRenderer.h"
-#include "vtkPointData.h"
-#include "vtkPolyData.h"
-#include "vtkPolyDataMapper.h"
-#include "vtkRenderWindowInteractor.h"
 #include "vtkRendererCollection.h"
-#include "vtkShaderProgram.h"
-#include "vtkTextureObject.h"
-#include "vtkTransform.h"
-
-#include <cmath>
-#include <sstream>
-
-#include "vtkOpenGLError.h"
+#include "vtkVRCamera.h"
 
 vtkStandardNewMacro(vtkOpenVRRenderWindow);
 
-vtkCxxSetObjectMacro(vtkOpenVRRenderWindow, DashboardOverlay, vtkOpenVROverlay);
-
 //------------------------------------------------------------------------------
 vtkOpenVRRenderWindow::vtkOpenVRRenderWindow()
-  : BaseStationVisibility(false)
 {
-  this->OpenVRRenderModels = nullptr;
-  this->HMD = nullptr;
-
-  this->TrackHMD = true;
-
-  this->TrackedDeviceToRenderModel.resize(vr::k_unMaxTrackedDeviceCount);
-
-  this->DashboardOverlay = vtkOpenVRDefaultOverlay::New();
+  this->DashboardOverlay = vtkSmartPointer<vtkOpenVRDefaultOverlay>::New();
 }
 
 //------------------------------------------------------------------------------
-vtkOpenVRRenderWindow::~vtkOpenVRRenderWindow()
-{
-  if (this->DashboardOverlay)
-  {
-    this->DashboardOverlay->Delete();
-    this->DashboardOverlay = nullptr;
-  }
-
-  this->HMDTransform->Delete();
-  this->HMDTransform = nullptr;
-}
-
-//------------------------------------------------------------------------------
-// Create an interactor that will work with this renderer.
 vtkRenderWindowInteractor* vtkOpenVRRenderWindow::MakeRenderWindowInteractor()
 {
-  this->Interactor = vtkOpenVRRenderWindowInteractor::New();
+  this->Interactor = vtkSmartPointer<vtkOpenVRRenderWindowInteractor>::New();
   this->Interactor->SetRenderWindow(this);
   return this->Interactor;
 }
 
 //------------------------------------------------------------------------------
-// Purpose: Helper to get a string from a tracked device property and turn it
-//      into a std::string
 std::string vtkOpenVRRenderWindow::GetTrackedDeviceString(vr::IVRSystem* pHmd,
   vr::TrackedDeviceIndex_t unDevice, vr::TrackedDeviceProperty prop,
   vr::TrackedPropertyError* peError)
@@ -116,7 +64,6 @@ std::string vtkOpenVRRenderWindow::GetTrackedDeviceString(vr::IVRSystem* pHmd,
 }
 
 //------------------------------------------------------------------------------
-// Purpose: Finds a render model we've already loaded or loads a new one
 vtkOpenVRModel* vtkOpenVRRenderWindow::FindOrLoadRenderModel(const char* pchRenderModelName)
 {
   // create the model
@@ -129,8 +76,6 @@ vtkOpenVRModel* vtkOpenVRRenderWindow::FindOrLoadRenderModel(const char* pchRend
   if (status == vr::EVRRenderModelError::VRRenderModelError_NoShapes)
   {
     pRenderModel->SetVisibility(false);
-    this->VTKRenderModels.push_back(pRenderModel);
-
     return pRenderModel;
   }
 
@@ -143,8 +88,6 @@ vtkOpenVRModel* vtkOpenVRRenderWindow::FindOrLoadRenderModel(const char* pchRend
   }
 
   pRenderModel->SetVisibility(true);
-  this->VTKRenderModels.push_back(pRenderModel);
-
   return pRenderModel;
 }
 
@@ -171,32 +114,26 @@ void vtkOpenVRRenderWindow::RenderModels()
     }
 
     // do we not have a model loaded yet? try loading one
-    if (!this->TrackedDeviceToRenderModel[unTrackedDevice])
+    auto handle = this->GetDeviceHandleForOpenVRHandle(unTrackedDevice);
+    auto* pRenderModel = this->GetModelForDeviceHandle(handle);
+    if (!pRenderModel)
     {
       std::string sRenderModelName =
         this->GetTrackedDeviceString(this->HMD, unTrackedDevice, vr::Prop_RenderModelName_String);
-      vtkOpenVRModel* pRenderModel = this->FindOrLoadRenderModel(sRenderModelName.c_str());
-      if (pRenderModel)
+      vtkSmartPointer<vtkOpenVRModel> newModel;
+      newModel.TakeReference(this->FindOrLoadRenderModel(sRenderModelName.c_str()));
+      if (newModel)
       {
-        this->TrackedDeviceToRenderModel[unTrackedDevice] = pRenderModel;
-        pRenderModel->TrackedDevice = this->GetDeviceFromDeviceIndex(unTrackedDevice);
+        this->SetModelForDeviceHandle(handle, newModel);
       }
+      pRenderModel = newModel;
     }
-    // if we still have no model or it is not set to show
-    if (!this->TrackedDeviceToRenderModel[unTrackedDevice] ||
-      !this->TrackedDeviceToRenderModel[unTrackedDevice]->GetVisibility())
+    // if we have a model and it is visible
+    vtkMatrix4x4* deviceToPhysical = this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
+    if (deviceToPhysical && pRenderModel && pRenderModel->GetVisibility())
     {
-      continue;
+      pRenderModel->Render(this, deviceToPhysical);
     }
-    // is the model's pose not valid?
-    const vr::TrackedDevicePose_t& pose = this->TrackedDevicePose[unTrackedDevice];
-    if (!pose.bPoseIsValid)
-    {
-      continue;
-    }
-
-    this->TrackedDeviceToRenderModel[unTrackedDevice]->Render(
-      this, pose.mDeviceToAbsoluteTracking.m);
   }
 }
 
@@ -207,97 +144,63 @@ void vtkOpenVRRenderWindow::UpdateHMDMatrixPose()
   {
     return;
   }
+
+  // Retrieve Open VR poses
+  vr::TrackedDevicePose_t OpenVRTrackedDevicePoses[vr::k_unMaxTrackedDeviceCount];
   vr::VRCompositor()->WaitGetPoses(
-    this->TrackedDevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
+    OpenVRTrackedDevicePoses, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
+
+  // Store poses with generic type
+  for (uint32_t deviceIdx = 0; deviceIdx < vr::k_unMaxTrackedDeviceCount; ++deviceIdx)
+  {
+    if (OpenVRTrackedDevicePoses[deviceIdx].bPoseIsValid)
+    {
+      auto handle = this->GetDeviceHandleForOpenVRHandle(deviceIdx);
+      auto device = this->GetDeviceForOpenVRHandle(deviceIdx);
+      this->AddDeviceHandle(handle, device);
+      vtkMatrix4x4* tdPose = this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
+      this->SetMatrixFromOpenVRPose(tdPose, OpenVRTrackedDevicePoses[deviceIdx]);
+    }
+  }
 
   // update the camera values based on the pose
-  if (this->TrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid)
+  auto hmdHandle = this->GetDeviceHandleForOpenVRHandle(vr::k_unTrackedDeviceIndex_Hmd);
+  vtkNew<vtkMatrix4x4> d2wMat;
+  this->GetDeviceToWorldMatrixForDeviceHandle(hmdHandle, d2wMat);
+
+  vtkRenderer* ren;
+  vtkCollectionSimpleIterator rit;
+  this->Renderers->InitTraversal(rit);
+  while ((ren = this->Renderers->GetNextRenderer(rit)))
   {
-    vtkRenderer* ren;
-    vtkCollectionSimpleIterator rit;
-    this->Renderers->InitTraversal(rit);
-    while ((ren = this->Renderers->GetNextRenderer(rit)))
+    vtkVRCamera* cam = vtkVRCamera::SafeDownCast(ren->GetActiveCamera());
+    cam->SetCameraFromDeviceToWorldMatrix(d2wMat, this->GetPhysicalScale());
+    if (ren->GetLightFollowCamera())
     {
-      vtkOpenVRCamera* cam = static_cast<vtkOpenVRCamera*>(ren->GetActiveCamera());
-      this->HMDTransform->Identity();
-
-      // get the position and orientation of the HMD
-      vr::TrackedDevicePose_t& tdPose = this->TrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd];
-
-      // Note: Scaling is applied through moving the camera closer to the focal point, because
-      // scaling of all actors is not feasible, and vtkCamera::ModelTransformMatrix is not supported
-      // throughout VTK (clipping issues etc.). To achieve this, a new coordinate system called
-      // NonScaledWorld is introduced. The relationship between Physical (in which the HMD pose
-      // is given by OpenVR) and NonScaledWorld is described by the PhysicalViewUp etc. member
-      // variables. After getting the HMD pose in Physical, those coordinates and axes are converted
-      // to the NonScaledWorld coordinate system, on which the PhysicalScaling trick of modifying
-      // the camera position is applied, resulting the World coordinate system.
-
-      // construct physical to non-scaled world axes (scaling is used later to move camera closer)
-      double physicalZ_NonscaledWorld[3] = { -this->PhysicalViewDirection[0],
-        -this->PhysicalViewDirection[1], -this->PhysicalViewDirection[2] };
-      double* physicalY_NonscaledWorld = this->PhysicalViewUp;
-      double physicalX_NonscaledWorld[3] = { 0.0 };
-      vtkMath::Cross(physicalY_NonscaledWorld, physicalZ_NonscaledWorld, physicalX_NonscaledWorld);
-
-      // extract HMD axes and position
-      double hmdX_Physical[3] = { tdPose.mDeviceToAbsoluteTracking.m[0][0],
-        tdPose.mDeviceToAbsoluteTracking.m[1][0], tdPose.mDeviceToAbsoluteTracking.m[2][0] };
-      double hmdY_Physical[3] = { tdPose.mDeviceToAbsoluteTracking.m[0][1],
-        tdPose.mDeviceToAbsoluteTracking.m[1][1], tdPose.mDeviceToAbsoluteTracking.m[2][1] };
-      double hmdPosition_Physical[3] = { tdPose.mDeviceToAbsoluteTracking.m[0][3],
-        tdPose.mDeviceToAbsoluteTracking.m[1][3], tdPose.mDeviceToAbsoluteTracking.m[2][3] };
-
-      // convert position to non-scaled world coordinates
-      double hmdPosition_NonscaledWorld[3];
-      hmdPosition_NonscaledWorld[0] = hmdPosition_Physical[0] * physicalX_NonscaledWorld[0] +
-        hmdPosition_Physical[1] * physicalY_NonscaledWorld[0] +
-        hmdPosition_Physical[2] * physicalZ_NonscaledWorld[0];
-      hmdPosition_NonscaledWorld[1] = hmdPosition_Physical[0] * physicalX_NonscaledWorld[1] +
-        hmdPosition_Physical[1] * physicalY_NonscaledWorld[1] +
-        hmdPosition_Physical[2] * physicalZ_NonscaledWorld[1];
-      hmdPosition_NonscaledWorld[2] = hmdPosition_Physical[0] * physicalX_NonscaledWorld[2] +
-        hmdPosition_Physical[1] * physicalY_NonscaledWorld[2] +
-        hmdPosition_Physical[2] * physicalZ_NonscaledWorld[2];
-      // now adjust for scale and translation
-      double hmdPosition_World[3] = { 0.0 };
-      for (int i = 0; i < 3; i++)
-      {
-        hmdPosition_World[i] =
-          hmdPosition_NonscaledWorld[i] * this->PhysicalScale - this->PhysicalTranslation[i];
-      }
-
-      // convert axes to non-scaled world coordinate system
-      double hmdX_NonscaledWorld[3] = { hmdX_Physical[0] * physicalX_NonscaledWorld[0] +
-          hmdX_Physical[1] * physicalY_NonscaledWorld[0] +
-          hmdX_Physical[2] * physicalZ_NonscaledWorld[0],
-        hmdX_Physical[0] * physicalX_NonscaledWorld[1] +
-          hmdX_Physical[1] * physicalY_NonscaledWorld[1] +
-          hmdX_Physical[2] * physicalZ_NonscaledWorld[1],
-        hmdX_Physical[0] * physicalX_NonscaledWorld[2] +
-          hmdX_Physical[1] * physicalY_NonscaledWorld[2] +
-          hmdX_Physical[2] * physicalZ_NonscaledWorld[2] };
-      double hmdY_NonscaledWorld[3] = { hmdY_Physical[0] * physicalX_NonscaledWorld[0] +
-          hmdY_Physical[1] * physicalY_NonscaledWorld[0] +
-          hmdY_Physical[2] * physicalZ_NonscaledWorld[0],
-        hmdY_Physical[0] * physicalX_NonscaledWorld[1] +
-          hmdY_Physical[1] * physicalY_NonscaledWorld[1] +
-          hmdY_Physical[2] * physicalZ_NonscaledWorld[1],
-        hmdY_Physical[0] * physicalX_NonscaledWorld[2] +
-          hmdY_Physical[1] * physicalY_NonscaledWorld[2] +
-          hmdY_Physical[2] * physicalZ_NonscaledWorld[2] };
-      double hmdZ_NonscaledWorld[3] = { 0.0 };
-      vtkMath::Cross(hmdY_NonscaledWorld, hmdX_NonscaledWorld, hmdZ_NonscaledWorld);
-
-      cam->SetPosition(hmdPosition_World);
-      cam->SetFocalPoint(hmdPosition_World[0] + hmdZ_NonscaledWorld[0] * this->PhysicalScale,
-        hmdPosition_World[1] + hmdZ_NonscaledWorld[1] * this->PhysicalScale,
-        hmdPosition_World[2] + hmdZ_NonscaledWorld[2] * this->PhysicalScale);
-      cam->SetViewUp(hmdY_NonscaledWorld);
-
       ren->UpdateLightsGeometryToFollowCamera();
     }
   }
+}
+
+//------------------------------------------------------------------------------
+void vtkOpenVRRenderWindow::SetMatrixFromOpenVRPose(
+  vtkMatrix4x4* result, const vr::TrackedDevicePose_t& vrPose)
+{
+  const float(*openVRPose)[4] = vrPose.mDeviceToAbsoluteTracking.m;
+
+  for (vtkIdType i = 0; i < 3; ++i)
+  {
+    for (vtkIdType j = 0; j < 4; ++j)
+    {
+      result->SetElement(i, j, openVRPose[i][j]);
+    }
+  }
+
+  // Add last row
+  result->SetElement(3, 0, 0.0);
+  result->SetElement(3, 1, 0.0);
+  result->SetElement(3, 2, 0.0);
+  result->SetElement(3, 3, 1.0);
 }
 
 //------------------------------------------------------------------------------
@@ -309,8 +212,23 @@ void vtkOpenVRRenderWindow::Render()
   }
   else
   {
+    // Retrieve OpenVR poses
+    vr::TrackedDevicePose_t OpenVRTrackedDevicePoses[vr::k_unMaxTrackedDeviceCount];
     vr::VRCompositor()->WaitGetPoses(
-      this->TrackedDevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
+      OpenVRTrackedDevicePoses, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
+
+    // Store poses with generic type
+    for (uint32_t deviceIdx = 0; deviceIdx < vr::k_unMaxTrackedDeviceCount; ++deviceIdx)
+    {
+      if (OpenVRTrackedDevicePoses[deviceIdx].bPoseIsValid)
+      {
+        auto handle = this->GetDeviceHandleForOpenVRHandle(deviceIdx);
+        auto device = this->GetDeviceForOpenVRHandle(deviceIdx);
+        this->AddDeviceHandle(handle, device);
+        vtkMatrix4x4* tdPose = this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
+        this->SetMatrixFromOpenVRPose(tdPose, OpenVRTrackedDevicePoses[deviceIdx]);
+      }
+    }
   }
 
   this->Superclass::Render();
@@ -343,13 +261,6 @@ void vtkOpenVRRenderWindow::StereoRenderComplete()
   this->RenderModels();
 
   // reset the camera to a neutral position
-  vtkRenderer* ren = static_cast<vtkRenderer*>(this->GetRenderers()->GetItemAsObject(0));
-  if (ren && !ren->GetSelector())
-  {
-    vtkOpenVRCamera* cam = static_cast<vtkOpenVRCamera*>(ren->GetActiveCamera());
-    cam->ApplyEyePose(this, false, -1.0);
-  }
-
   this->GetState()->vtkglDisable(GL_MULTISAMPLE);
 
   // for now as fast as possible
@@ -366,11 +277,8 @@ void vtkOpenVRRenderWindow::StereoRenderComplete()
 }
 
 //------------------------------------------------------------------------------
-bool vtkOpenVRRenderWindow::CreateFramebuffers()
+bool vtkOpenVRRenderWindow::CreateFramebuffers(uint32_t viewCount)
 {
-  // We have two eyes
-  // TODO be more generic
-  const uint32_t viewCount = 2;
   this->FramebufferDescs.resize(viewCount);
   for (uint32_t vc = 0; vc < viewCount; vc++)
   {
@@ -410,6 +318,7 @@ bool vtkOpenVRRenderWindow::CreateOneFramebuffer(
   return true;
 }
 
+//------------------------------------------------------------------------------
 bool vtkOpenVRRenderWindow::IsHMDPresent()
 {
   // Returns true if the system believes that an HMD is present on the system. This function is much
@@ -418,6 +327,7 @@ bool vtkOpenVRRenderWindow::IsHMDPresent()
   return vr::VR_IsHmdPresent();
 }
 
+//------------------------------------------------------------------------------
 bool vtkOpenVRRenderWindow::GetSizeFromAPI()
 {
   if (!this->HMD)
@@ -435,6 +345,7 @@ bool vtkOpenVRRenderWindow::GetSizeFromAPI()
   return true;
 }
 
+//------------------------------------------------------------------------------
 std::string vtkOpenVRRenderWindow::GetWindowTitleFromAPI()
 {
   std::string strDriver = "No Driver";
@@ -449,7 +360,6 @@ std::string vtkOpenVRRenderWindow::GetWindowTitleFromAPI()
 }
 
 //------------------------------------------------------------------------------
-// Initialize the rendering window.
 void vtkOpenVRRenderWindow::Initialize()
 {
   // Loading the SteamVR Runtime
@@ -499,6 +409,7 @@ void vtkOpenVRRenderWindow::Initialize()
   this->DashboardOverlay->Create(this);
 }
 
+//------------------------------------------------------------------------------
 void vtkOpenVRRenderWindow::ReleaseGraphicsResources(vtkWindow* renWin)
 {
   this->Superclass::ReleaseGraphicsResources(renWin);
@@ -517,89 +428,28 @@ void vtkOpenVRRenderWindow::RenderOverlay()
 }
 
 //------------------------------------------------------------------------------
-bool vtkOpenVRRenderWindow::GetPoseMatrixWorldFromDevice(
-  vtkEventDataDevice device, vtkMatrix4x4* poseMatrixWorld)
+uint32_t vtkOpenVRRenderWindow::GetDeviceHandleForOpenVRHandle(vr::TrackedDeviceIndex_t index)
 {
-  vr::TrackedDevicePose_t* tdPose = this->GetTrackedDevicePose(device);
-  if (tdPose && tdPose->bPoseIsValid)
-  {
-    this->ConvertOpenVRPoseToMatrices(*tdPose, poseMatrixWorld);
-    return true;
-  }
-  return false;
+  return static_cast<uint32_t>(index);
 }
 
-//------------------------------------------------------------------------------
-void vtkOpenVRRenderWindow::ConvertOpenVRPoseToMatrices(const vr::TrackedDevicePose_t& tdPose,
-  vtkMatrix4x4* poseMatrixWorld, vtkMatrix4x4* poseMatrixPhysical /*=nullptr*/)
+vtkEventDataDevice vtkOpenVRRenderWindow::GetDeviceForOpenVRHandle(vr::TrackedDeviceIndex_t ohandle)
 {
-  if (!poseMatrixWorld && !poseMatrixPhysical)
-  {
-    return;
-  }
-
-  vtkNew<vtkMatrix4x4> poseMatrixPhysicalTemp;
-  for (int row = 0; row < 3; ++row)
-  {
-    for (int col = 0; col < 4; ++col)
-    {
-      poseMatrixPhysicalTemp->SetElement(row, col, tdPose.mDeviceToAbsoluteTracking.m[row][col]);
-    }
-  }
-  if (poseMatrixPhysical)
-  {
-    poseMatrixPhysical->DeepCopy(poseMatrixPhysicalTemp);
-  }
-
-  if (poseMatrixWorld)
-  {
-    vtkNew<vtkMatrix4x4> physicalToWorldMatrix;
-    this->GetPhysicalToWorldMatrix(physicalToWorldMatrix);
-    vtkMatrix4x4::Multiply4x4(physicalToWorldMatrix, poseMatrixPhysicalTemp, poseMatrixWorld);
-  }
-}
-
-//------------------------------------------------------------------------------
-vtkEventDataDevice vtkOpenVRRenderWindow::GetDeviceFromDeviceIndex(vr::TrackedDeviceIndex_t index)
-{
-  if (index == vr::k_unTrackedDeviceIndex_Hmd)
+  if (ohandle == vr::k_unTrackedDeviceIndex_Hmd)
   {
     return vtkEventDataDevice::HeadMountedDisplay;
   }
-  if (index ==
+  if (ohandle ==
     this->HMD->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_LeftHand))
   {
     return vtkEventDataDevice::LeftController;
   }
-  if (index ==
+  if (ohandle ==
     this->HMD->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_RightHand))
   {
     return vtkEventDataDevice::RightController;
   }
-  else
-  {
-    // TODO: return Unknown if trackedDeviceIndexInvalid
-    return vtkEventDataDevice::GenericTracker;
-  }
-}
 
-//------------------------------------------------------------------------------
-vr::TrackedDeviceIndex_t vtkOpenVRRenderWindow::GetTrackedDeviceIndexForDevice(
-  vtkEventDataDevice dev, uint32_t index)
-{
-  if (dev == vtkEventDataDevice::HeadMountedDisplay)
-  {
-    return vr::k_unTrackedDeviceIndex_Hmd;
-  }
-  if (dev == vtkEventDataDevice::LeftController)
-  {
-    return this->HMD->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_LeftHand);
-  }
-  if (dev == vtkEventDataDevice::RightController)
-  {
-    return this->HMD->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_RightHand);
-  }
-  if (dev == vtkEventDataDevice::GenericTracker)
   {
     bool notDone = true;
     uint32_t arraySize(1024);
@@ -622,47 +472,16 @@ vr::TrackedDeviceIndex_t vtkOpenVRRenderWindow::GetTrackedDeviceIndexForDevice(
       }
     }
 
-    uint32_t devIndex = devices[index];
-    delete[] devices;
-
-    if (index > deviceCount)
+    for (uint32_t i = 0; i < arraySize; i++)
     {
-      return vr::k_unTrackedDeviceIndexInvalid;
+      if (devices[i] == ohandle)
+      {
+        delete[] devices;
+        return vtkEventDataDevice::GenericTracker;
+      }
     }
-
-    return devIndex;
+    delete[] devices;
   }
-  return vr::k_unTrackedDeviceIndexInvalid;
-}
 
-//------------------------------------------------------------------------------
-uint32_t vtkOpenVRRenderWindow::GetNumberOfTrackedDevicesForDevice(vtkEventDataDevice)
-{
-  vr::TrackedDeviceIndex_t devices[1];
-  return this->HMD->GetSortedTrackedDeviceIndicesOfClass(
-    vr::TrackedDeviceClass_GenericTracker, devices, 1);
-}
-
-//------------------------------------------------------------------------------
-vtkVRModel* vtkOpenVRRenderWindow::GetTrackedDeviceModel(vtkEventDataDevice dev, uint32_t index)
-{
-  vr::TrackedDeviceIndex_t idx = this->GetTrackedDeviceIndexForDevice(dev, index);
-  if (idx != vr::k_unTrackedDeviceIndexInvalid)
-  {
-    // TODO: remove this static_cast and use eventDataDevice instead (change in superclass)
-    return this->GetTrackedDeviceModel(static_cast<uint32_t>(idx));
-  }
-  return nullptr;
-}
-
-//------------------------------------------------------------------------------
-vr::TrackedDevicePose_t* vtkOpenVRRenderWindow::GetTrackedDevicePose(
-  vtkEventDataDevice dev, uint32_t index)
-{
-  vr::TrackedDeviceIndex_t idx = this->GetTrackedDeviceIndexForDevice(dev, index);
-  if (idx < vr::k_unMaxTrackedDeviceCount)
-  {
-    return &this->TrackedDevicePose[idx];
-  }
-  return nullptr;
+  return vtkEventDataDevice::Unknown;
 }

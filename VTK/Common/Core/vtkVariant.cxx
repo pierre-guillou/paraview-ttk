@@ -29,7 +29,6 @@
 #include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkType.h"
-#include "vtkUnicodeString.h"
 #include "vtkVariantArray.h"
 
 #include "vtksys/SystemTools.hxx"
@@ -69,9 +68,6 @@ bool vtkVariantStrictWeakOrder::operator()(const vtkVariant& s1, const vtkVarian
   {
     case VTK_STRING:
       return (*(s1.Data.String) < *(s2.Data.String));
-
-    case VTK_UNICODE_STRING:
-      return (*(s1.Data.UnicodeString) < *(s2.Data.UnicodeString));
 
     case VTK_OBJECT:
       return (s1.Data.VTKObject < s2.Data.VTKObject);
@@ -149,10 +145,7 @@ bool vtkVariantStrictEquality::operator()(const vtkVariant& s1, const vtkVariant
         cerr << "Strings differ: '" << *(s1.Data.String) << "' and '" << *(s2.Data.String) << "'\n";
       }
       return (*(s1.Data.String) == *(s2.Data.String));
-    };
-
-    case VTK_UNICODE_STRING:
-      return (*(s1.Data.UnicodeString) == *(s2.Data.UnicodeString));
+    }
 
     case VTK_OBJECT:
       return (s1.Data.VTKObject == s2.Data.VTKObject);
@@ -235,9 +228,6 @@ vtkVariant::vtkVariant(const vtkVariant& other)
       case VTK_STRING:
         this->Data.String = new vtkStdString(*other.Data.String);
         break;
-      case VTK_UNICODE_STRING:
-        this->Data.UnicodeString = new vtkUnicodeString(*other.Data.UnicodeString);
-        break;
       case VTK_OBJECT:
         this->Data.VTKObject->Register(nullptr);
         break;
@@ -255,11 +245,6 @@ vtkVariant::vtkVariant(const vtkVariant& s2, unsigned int type)
     {
       case VTK_STRING:
         this->Data.String = new vtkStdString(s2.ToString());
-        valid = true;
-        break;
-
-      case VTK_UNICODE_STRING:
-        this->Data.UnicodeString = new vtkUnicodeString(s2.ToUnicodeString());
         valid = true;
         break;
 
@@ -346,9 +331,6 @@ vtkVariant& vtkVariant::operator=(const vtkVariant& other)
       case VTK_STRING:
         delete this->Data.String;
         break;
-      case VTK_UNICODE_STRING:
-        delete this->Data.UnicodeString;
-        break;
       case VTK_OBJECT:
         this->Data.VTKObject->Delete();
         break;
@@ -366,9 +348,6 @@ vtkVariant& vtkVariant::operator=(const vtkVariant& other)
       case VTK_STRING:
         this->Data.String = new vtkStdString(*other.Data.String);
         break;
-      case VTK_UNICODE_STRING:
-        this->Data.UnicodeString = new vtkUnicodeString(*other.Data.UnicodeString);
-        break;
       case VTK_OBJECT:
         this->Data.VTKObject->Register(nullptr);
         break;
@@ -385,9 +364,6 @@ vtkVariant::~vtkVariant()
     {
       case VTK_STRING:
         delete this->Data.String;
-        break;
-      case VTK_UNICODE_STRING:
-        delete this->Data.UnicodeString;
         break;
       case VTK_OBJECT:
         this->Data.VTKObject->Delete();
@@ -513,13 +489,6 @@ vtkVariant::vtkVariant(vtkStdString value)
   this->Type = VTK_STRING;
 }
 
-vtkVariant::vtkVariant(const vtkUnicodeString& value)
-{
-  this->Data.UnicodeString = new vtkUnicodeString(value);
-  this->Valid = 1;
-  this->Type = VTK_UNICODE_STRING;
-}
-
 vtkVariant::vtkVariant(vtkObjectBase* value)
 {
   this->Valid = 0;
@@ -541,11 +510,6 @@ bool vtkVariant::IsValid() const
 bool vtkVariant::IsString() const
 {
   return this->Type == VTK_STRING;
-}
-
-bool vtkVariant::IsUnicodeString() const
-{
-  return this->Type == VTK_UNICODE_STRING;
 }
 
 bool vtkVariant::IsNumeric() const
@@ -609,16 +573,6 @@ bool vtkVariant::IsLong() const
 bool vtkVariant::IsUnsignedLong() const
 {
   return this->Type == VTK_UNSIGNED_LONG;
-}
-
-bool vtkVariant::Is__Int64() const
-{
-  return false;
-}
-
-bool vtkVariant::IsUnsigned__Int64() const
-{
-  return false;
 }
 
 bool vtkVariant::IsLongLong() const
@@ -696,15 +650,11 @@ vtkStdString vtkVariant::ToString(int formatting, int precision) const
 {
   if (!this->IsValid())
   {
-    return vtkStdString();
+    return {};
   }
   if (this->IsString())
   {
-    return vtkStdString(*(this->Data.String));
-  }
-  if (this->IsUnicodeString())
-  {
-    return vtkUnicodeString(*(this->Data.UnicodeString)).utf8_str();
+    return *this->Data.String;
   }
   if (this->IsFloat())
   {
@@ -713,7 +663,7 @@ vtkStdString vtkVariant::ToString(int formatting, int precision) const
     SetFormattingOnStream(formatting, ostr);
     ostr << std::setprecision(precision);
     ostr << this->Data.Float;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsDouble())
   {
@@ -722,85 +672,85 @@ vtkStdString vtkVariant::ToString(int formatting, int precision) const
     SetFormattingOnStream(formatting, ostr);
     ostr << std::setprecision(precision);
     ostr << this->Data.Double;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsChar())
   {
     std::ostringstream ostr;
     ostr << this->Data.Char;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsUnsignedChar())
   {
     std::ostringstream ostr;
     ostr << static_cast<unsigned int>(this->Data.UnsignedChar);
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsSignedChar())
   {
     std::ostringstream ostr;
     ostr << this->Data.SignedChar;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsShort())
   {
     std::ostringstream ostr;
     ostr << this->Data.Short;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsUnsignedShort())
   {
     std::ostringstream ostr;
     ostr << this->Data.UnsignedShort;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsInt())
   {
     std::ostringstream ostr;
     ostr.imbue(std::locale::classic());
     ostr << this->Data.Int;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsUnsignedInt())
   {
     std::ostringstream ostr;
     ostr.imbue(std::locale::classic());
     ostr << this->Data.UnsignedInt;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsLong())
   {
     std::ostringstream ostr;
     ostr.imbue(std::locale::classic());
     ostr << this->Data.Long;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsUnsignedLong())
   {
     std::ostringstream ostr;
     ostr.imbue(std::locale::classic());
     ostr << this->Data.UnsignedLong;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsLongLong())
   {
     std::ostringstream ostr;
     ostr.imbue(std::locale::classic());
     ostr << this->Data.LongLong;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsUnsignedLongLong())
   {
     std::ostringstream ostr;
     ostr.imbue(std::locale::classic());
     ostr << this->Data.UnsignedLongLong;
-    return vtkStdString(ostr.str());
+    return ostr.str();
   }
   if (this->IsArray())
   {
     vtkAbstractArray* arr = vtkAbstractArray::SafeDownCast(this->Data.VTKObject);
     vtkArrayIterator* iter = arr->NewIterator();
-    vtkStdString str;
+    std::string str;
     switch (arr->GetDataType())
     {
       vtkArrayIteratorTemplateMacro(
@@ -811,25 +761,7 @@ vtkStdString vtkVariant::ToString(int formatting, int precision) const
   }
   vtkGenericWarningMacro(<< "Cannot convert unknown type (" << this->GetTypeAsString()
                          << ") to a string.");
-  return vtkStdString();
-}
-
-vtkUnicodeString vtkVariant::ToUnicodeString(int formatting, int precision) const
-{
-  if (!this->IsValid())
-  {
-    return vtkUnicodeString();
-  }
-  if (this->IsString())
-  {
-    return vtkUnicodeString::from_utf8(*this->Data.String);
-  }
-  if (this->IsUnicodeString())
-  {
-    return *this->Data.UnicodeString;
-  }
-
-  return vtkUnicodeString::from_utf8(this->ToString(formatting, precision));
+  return {};
 }
 
 vtkObjectBase* vtkVariant::ToVTKObject() const
@@ -1043,17 +975,7 @@ ostream& operator<<(ostream& os, const vtkVariant& val)
     case VTK_STRING:
       if (val.Data.String)
       {
-        os << "\"" << val.Data.String->c_str() << "\"";
-      }
-      else
-      {
-        os << "\"\"";
-      }
-      break;
-    case VTK_UNICODE_STRING:
-      if (val.Data.UnicodeString)
-      {
-        os << "\"" << val.Data.UnicodeString->utf8_str() << "\"";
+        os << "\"" << *val.Data.String << "\"";
       }
       else
       {

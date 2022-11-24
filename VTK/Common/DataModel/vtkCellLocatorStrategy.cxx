@@ -26,11 +26,6 @@ vtkStandardNewMacro(vtkCellLocatorStrategy);
 //------------------------------------------------------------------------------
 vtkCellLocatorStrategy::vtkCellLocatorStrategy()
 {
-  // You may ask, why this OwnsLocator rigamarole. The reason is because the
-  // reference counting garbage collecter gets confused when the locator,
-  // point set, and strategy are all mixed together; resulting in memory
-  // leaks etc.
-  this->OwnsLocator = false;
   this->CellLocator = nullptr;
 }
 
@@ -88,10 +83,14 @@ int vtkCellLocatorStrategy::Initialize(vtkPointSet* ps)
   vtkAbstractCellLocator* psCL = ps->GetCellLocator();
   if (psCL == nullptr)
   {
-    if (this->CellLocator != nullptr && this->OwnsLocator)
+    if (this->CellLocator != nullptr)
     {
-      this->CellLocator->SetDataSet(ps);
-      this->CellLocator->BuildLocator();
+      // only the owner of the locator can change it
+      if (this->OwnsLocator)
+      {
+        this->CellLocator->SetDataSet(ps);
+        this->CellLocator->BuildLocator();
+      }
     }
     else
     {
@@ -103,8 +102,17 @@ int vtkCellLocatorStrategy::Initialize(vtkPointSet* ps)
   }
   else
   {
-    this->CellLocator = psCL;
-    this->OwnsLocator = false;
+    if (psCL != this->CellLocator)
+    {
+      this->CellLocator = psCL;
+      this->OwnsLocator = false;
+    }
+    // ensure that the point-set's locator is up-to-date
+    // this should be done only by one thread
+    if (!this->IsACopy)
+    {
+      this->CellLocator->BuildLocator();
+    }
   }
 
   this->InitializeTime.Modified();
@@ -129,8 +137,37 @@ vtkIdType vtkCellLocatorStrategy::FindCell(double x[3], vtkCell* cell, vtkGeneri
   }
 
   // Okay cache miss, try the cell locator
-  subId = 0; // The cell locator FindCell API should return subId.
-  return this->CellLocator->FindCell(x, tol2, gencell, pcoords, weights);
+  return this->CellLocator->FindCell(x, tol2, gencell, subId, pcoords, weights);
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkCellLocatorStrategy::FindClosestPointWithinRadius(double x[3], double radius,
+  double closestPoint[3], vtkGenericCell* cell, vtkIdType& cellId, int& subId, double& dist2,
+  int& inside)
+{
+  return this->CellLocator->FindClosestPointWithinRadius(
+    x, radius, closestPoint, cell, cellId, subId, dist2, inside);
+}
+
+//------------------------------------------------------------------------------
+bool vtkCellLocatorStrategy::InsideCellBounds(double x[3], vtkIdType cellId)
+{
+  return this->CellLocator->InsideCellBounds(x, cellId);
+}
+
+//------------------------------------------------------------------------------
+void vtkCellLocatorStrategy::CopyParameters(vtkFindCellStrategy* from)
+{
+  this->Superclass::CopyParameters(from);
+
+  if (auto strategy = vtkCellLocatorStrategy::SafeDownCast(from))
+  {
+    if (strategy->CellLocator)
+    {
+      this->CellLocator = strategy->CellLocator;
+      this->OwnsLocator = false;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

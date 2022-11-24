@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqColorEditorPropertyWidget_h
-#define _pqColorEditorPropertyWidget_h
+#ifndef pqColorEditorPropertyWidget_h
+#define pqColorEditorPropertyWidget_h
 
 #include "pqApplicationComponentsModule.h"
 #include "pqPropertyWidget.h"
@@ -46,17 +46,17 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqColorEditorPropertyWidget : public pqProp
 public:
   typedef pqPropertyWidget Superclass;
 
-  pqColorEditorPropertyWidget(vtkSMProxy* proxy, QWidget* parent = 0);
+  pqColorEditorPropertyWidget(vtkSMProxy* proxy, QWidget* parent = nullptr);
   ~pqColorEditorPropertyWidget() override;
 
 private Q_SLOTS:
   void updateEnableState();
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   class pqInternals;
   pqInternals* Internals;
 
   Q_DISABLE_COPY(pqColorEditorPropertyWidget)
 };
 
-#endif // _pqColorEditorPropertyWidget_h
+#endif // pqColorEditorPropertyWidget_h

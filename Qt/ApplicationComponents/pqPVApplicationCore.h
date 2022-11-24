@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqApplicationCore.h"
 
 #include "pqApplicationComponentsModule.h" // for exports
+#include "vtkParaViewDeprecation.h"        // for PARAVIEW_DEPRECATED_IN_5_10_0
 #include <QList>
 #include <QPointer>
 
@@ -63,7 +64,8 @@ public:
   /**
    * @deprecated in ParaView 5.10.
    */
-  VTK_LEGACY(pqPVApplicationCore(int& argc, char** argv, pqOptions* options));
+  PARAVIEW_DEPRECATED_IN_5_10_0("Use the `vtkCLIOptions` overload")
+  pqPVApplicationCore(int& argc, char** argv, pqOptions* options);
 
   /**
    * Returns the pqPVApplicationCore instance. If no pqPVApplicationCore has been
@@ -108,11 +110,18 @@ public:
 
   void loadStateFromPythonFile(const QString& filename, pqServer* server);
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
+  /**
+   * A useful slot to trigger an apply on the pipeline.
+   * This is just emitting a signal usually caught by a pqApplyBehavior.
+   */
+  void applyPipeline();
+
   /**
    * Pops-up the quick launch dialog.
    */
   void quickLaunch();
+
   /**
    * Pops-up the search dialog if the focused widget is
    * QAsbstractItemView type.
@@ -126,6 +135,8 @@ Q_SIGNALS:
    * dialog.
    */
   void aboutToShowQuickLaunch();
+
+  void triggerApply();
 
 protected:
   /**

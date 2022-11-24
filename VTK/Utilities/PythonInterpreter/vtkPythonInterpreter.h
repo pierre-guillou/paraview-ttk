@@ -57,10 +57,13 @@
 #ifndef vtkPythonInterpreter_h
 #define vtkPythonInterpreter_h
 
-#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_0_0
 #include "vtkObject.h"
 #include "vtkPythonInterpreterModule.h" // For export macro
 #include "vtkStdString.h"               // needed for vtkStdString.
+
+#if defined(_WIN32)
+#include <vector> // for vtkWideArgsConverter
+#endif
 
 class VTKPYTHONINTERPRETER_EXPORT vtkPythonInterpreter : public vtkObject
 {
@@ -160,8 +163,13 @@ public:
   static bool GetCaptureStdin();
   ///@}
 
-  VTK_DEPRECATED_IN_9_0_0("Use vtkPythonInterpreter::GetLogVerbosity")
-  static int GetPythonVerboseFlag();
+  ///@{
+  /**
+   * Enable/disable VTK from redirecting Python output to vtkOutputWindow. On by default.
+   */
+  static void SetRedirectOutput(bool redirect);
+  static bool GetRedirectOutput();
+  ///@}
 
   ///@{
   /**
@@ -171,6 +179,8 @@ public:
   static void SetLogVerbosity(int);
   static int GetLogVerbosity();
   ///@}
+
+  static bool InitializeWithArgs(int initsigs, int argc, char* argv[]);
 
 protected:
   vtkPythonInterpreter();
@@ -195,6 +205,7 @@ private:
 
   static bool InitializedOnce;
   static bool CaptureStdin;
+  static bool RedirectOutput;
   /**
    * If true, buffer output to console and sent it to other modules at
    * the end of the operation. If false, send the output as it becomes available.
@@ -242,5 +253,24 @@ private:
 
 // This is here to implement the Schwarz counter idiom.
 static vtkPythonGlobalInterpreters vtkPythonInterpreters;
+
+#if defined(_WIN32)
+class VTKPYTHONINTERPRETER_EXPORT vtkWideArgsConverter
+{
+public:
+  vtkWideArgsConverter(int argc, wchar_t* wargv[]);
+  ~vtkWideArgsConverter();
+
+  char** GetArgs() { return &this->Args[0]; }
+  int GetArgCount() { return this->Argc; }
+
+private:
+  int Argc;
+  std::vector<char*> Args;
+  std::vector<char*> MemCache;
+  vtkWideArgsConverter(const vtkWideArgsConverter&) = delete;
+  vtkWideArgsConverter& operator=(const vtkWideArgsConverter&) = delete;
+};
+#endif
 
 #endif

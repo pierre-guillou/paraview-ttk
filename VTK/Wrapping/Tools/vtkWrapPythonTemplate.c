@@ -118,11 +118,6 @@ size_t vtkWrapPython_PyTemplateName(const char* name, char* pname)
     strcpy(pname, "str");
     return n;
   }
-  else if (n == 16 && strncmp(name, "vtkUnicodeString", n) == 0)
-  {
-    strcpy(pname, "unicode");
-    return n;
-  }
 
   /* check whether name is templated */
   for (i = 0; i < n; i++)
@@ -292,11 +287,11 @@ int vtkWrapPython_WrapTemplatedClass(
         {
           if (nargs == 0)
           {
-            sprintf(classname, "%s", entry->Name);
+            snprintf(classname, sizeof(classname), "%s", entry->Name);
           }
           else
           {
-            sprintf(classname, "%s<%s>", entry->Name, types[i]);
+            snprintf(classname, sizeof(classname), "%s<%s>", entry->Name, types[i]);
           }
         }
 

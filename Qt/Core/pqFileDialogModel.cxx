@@ -254,6 +254,7 @@ QIcon pqFileDialogModelIconProvider::icon(QFileIconProvider::IconType ico) const
   return QFileIconProvider::icon(ico);
 }
 
+// NOLINTNEXTLINE(readability-redundant-member-init)
 Q_GLOBAL_STATIC(pqFileDialogModelIconProvider, Icons);
 
 namespace
@@ -267,24 +268,6 @@ bool CaseInsensitiveSort(const pqFileDialogModelFileInfo& A, const pqFileDialogM
   // Sort alphabetically (but case-insensitively)
   return A.label().toLower() < B.label().toLower();
 }
-
-class CaseInsensitiveSortGroup
-  : public std::binary_function<pqFileDialogModelFileInfo, pqFileDialogModelFileInfo, bool>
-{
-public:
-  CaseInsensitiveSortGroup(const QString& groupName) { this->numPrefix = groupName.length(); }
-  bool operator()(const pqFileDialogModelFileInfo& A, const pqFileDialogModelFileInfo& B) const
-  {
-    QString aLabel = A.label();
-    QString bLabel = B.label();
-    aLabel = aLabel.right(aLabel.length() - numPrefix);
-    bLabel = bLabel.right(bLabel.length() - numPrefix);
-    return aLabel < bLabel;
-  }
-
-private:
-  int numPrefix;
-};
 
 bool getShowDetailedInformationSetting()
 {
@@ -321,6 +304,9 @@ void setShowDetailedInformationSetting(pqServer* server, bool show)
 class pqFileDialogModel::pqImplementation
 {
 public:
+  Qt::ItemFlags FileItemFlags = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+  Qt::ItemFlags DirItemFlags = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+
   pqImplementation(pqServer* server)
     : Separator(0)
     , Server(server)
@@ -614,6 +600,16 @@ pqFileDialogModel::~pqFileDialogModel()
   delete this->Implementation;
 }
 
+void pqFileDialogModel::setFileItemFlags(const Qt::ItemFlags& flags)
+{
+  this->Implementation->FileItemFlags = flags;
+}
+
+void pqFileDialogModel::setDirectoryItemFlags(const Qt::ItemFlags& flags)
+{
+  this->Implementation->DirItemFlags = flags;
+}
+
 bool pqFileDialogModel::isShowingDetailedInfo()
 {
   return this->Implementation->isShowingDetailedInformation();
@@ -675,7 +671,7 @@ bool pqFileDialogModel::isHidden(const QModelIndex& localIndex)
   return false;
 }
 
-bool pqFileDialogModel::isDir(const QModelIndex& localIndex)
+bool pqFileDialogModel::isDir(const QModelIndex& localIndex) const
 {
   if (localIndex.model() == this)
   {
@@ -1113,7 +1109,8 @@ bool pqFileDialogModel::setData(const QModelIndex& idx, const QVariant& value, i
 
 Qt::ItemFlags pqFileDialogModel::flags(const QModelIndex& idx) const
 {
-  Qt::ItemFlags ret = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+  Qt::ItemFlags ret =
+    this->isDir(idx) ? this->Implementation->DirItemFlags : this->Implementation->FileItemFlags;
   const pqFileDialogModelFileInfo* file = this->Implementation->infoForIndex(idx);
   if (file && !file->isGroup())
   {

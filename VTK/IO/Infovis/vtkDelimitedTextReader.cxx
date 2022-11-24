@@ -30,11 +30,12 @@
 #include "vtkStringArray.h"
 #include "vtkStringToNumeric.h"
 #include "vtkTable.h"
-#include "vtkUnicodeStringArray.h"
 
 #include "vtkTextCodec.h"
 #include "vtkTextCodecFactory.h"
 #include "vtksys/FStream.hxx"
+
+#include <vtk_utf8.h>
 
 #include <algorithm>
 #include <iostream>
@@ -60,16 +61,15 @@ class DelimitedTextIterator : public vtkTextCodec::OutputIterator
 {
 public:
   typedef std::forward_iterator_tag iterator_category;
-  typedef vtkUnicodeStringValueType value_type;
+  typedef vtkTypeUInt32 value_type;
   typedef std::string::difference_type difference_type;
   typedef value_type* pointer;
   typedef value_type& reference;
 
-  DelimitedTextIterator(const vtkIdType max_records, const vtkUnicodeString& record_delimiters,
-    const vtkUnicodeString& field_delimiters, const vtkUnicodeString& string_delimiters,
-    const vtkUnicodeString& whitespace, const vtkUnicodeString& escape, bool have_headers,
-    bool unicode_array_output, bool merg_cons_delimiters, bool use_string_delimeter,
-    vtkTable* const output_table)
+  DelimitedTextIterator(const vtkIdType max_records, const std::string& record_delimiters,
+    const std::string& field_delimiters, const std::string& string_delimiters,
+    const std::string& whitespace, const std::string& escape, bool have_headers,
+    bool merg_cons_delimiters, bool use_string_delimeter, vtkTable* const output_table)
     : MaxRecords(max_records)
     , MaxRecordIndex(have_headers ? max_records + 1 : max_records)
     , RecordDelimiters(record_delimiters.begin(), record_delimiters.end())
@@ -78,7 +78,6 @@ public:
     , Whitespace(whitespace.begin(), whitespace.end())
     , EscapeDelimiter(escape.begin(), escape.end())
     , HaveHeaders(have_headers)
-    , UnicodeArrayOutput(unicode_array_output)
     , WhiteSpaceOnlyString(true)
     , OutputTable(output_table)
     , CurrentRecordIndex(0)
@@ -109,15 +108,20 @@ public:
   // ...
   void ReachedEndOfInput()
   {
-    if (this->CurrentField.empty())
+    if (!this->CurrentField.empty())
     {
-      return;
-    }
-    vtkUnicodeString::value_type value =
-      this->CurrentField[this->CurrentField.character_count() - 1];
-    if (!this->RecordDelimiters.count(value) && !this->Whitespace.count(value))
-    {
-      this->InsertField();
+      std::string::iterator start = this->CurrentField.begin();
+      std::string::iterator end = this->CurrentField.end();
+      std::string::size_type size = utf8::distance(start, end);
+
+      std::string::iterator iterator = start;
+      utf8::advance(iterator, size - 1, end);
+      vtkTypeUInt32 value = utf8::next(iterator, end);
+      // if the last character is not a CR/LF add a column
+      if (!this->RecordDelimiters.count(value) && !this->Whitespace.count(value))
+      {
+        this->InsertField();
+      }
     }
   }
 
@@ -156,7 +160,7 @@ public:
     // Look for field delimiters unless we're in a string ...
     if (!this->WithinString && this->FieldDelimiters.count(value))
     {
-      // Handle special case of merging consective delimiters ...
+      // Handle special case of merging consecutive delimiters ...
       if (!(this->CurrentField.empty() && this->MergeConsDelims))
       {
         this->InsertField();
@@ -176,47 +180,43 @@ public:
     // Process escape sequence ...
     if (this->ProcessEscapeSequence)
     {
-      vtkUnicodeString curr_char;
-      curr_char += value;
-      if (curr_char == vtkUnicodeString::from_utf8("0"))
+      std::string curr_char;
+      utf8::append(value, std::back_inserter(curr_char));
+      if (curr_char == "a")
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\0");
+        this->CurrentField += "\a";
       }
-      else if (curr_char == vtkUnicodeString::from_utf8("a"))
+      else if (curr_char == "b")
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\a");
+        this->CurrentField += "\b";
       }
-      else if (curr_char == vtkUnicodeString::from_utf8("b"))
+      else if (curr_char == "t")
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\b");
+        this->CurrentField += "\t";
       }
-      else if (curr_char == vtkUnicodeString::from_utf8("t"))
+      else if (curr_char == "n")
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\t");
+        this->CurrentField += "\n";
       }
-      else if (curr_char == vtkUnicodeString::from_utf8("n"))
+      else if (curr_char == "v")
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\n");
+        this->CurrentField += "\v";
       }
-      else if (curr_char == vtkUnicodeString::from_utf8("v"))
+      else if (curr_char == "f")
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\v");
+        this->CurrentField += "\f";
       }
-      else if (curr_char == vtkUnicodeString::from_utf8("f"))
+      else if (curr_char == "r")
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\f");
+        this->CurrentField += "\r";
       }
-      else if (curr_char == vtkUnicodeString::from_utf8("r"))
+      else if (curr_char == "\\")
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\r");
+        this->CurrentField += "\\";
       }
-      else if (curr_char == vtkUnicodeString::from_utf8("\\"))
+      else if (!(curr_char == "0"))
       {
-        this->CurrentField += vtkUnicodeString::from_utf8("\\");
-      }
-      else
-      {
-        this->CurrentField += value;
+        this->CurrentField += curr_char;
       }
       this->ProcessEscapeSequence = false;
       return *this;
@@ -242,7 +242,7 @@ public:
       this->WhiteSpaceOnlyString = false;
     }
     // Keep growing the current field ...
-    this->CurrentField += value;
+    utf8::append(value, std::back_inserter(this->CurrentField));
     return *this;
   }
 
@@ -252,37 +252,19 @@ private:
     if (this->CurrentFieldIndex >= this->OutputTable->GetNumberOfColumns() &&
       0 == this->CurrentRecordIndex)
     {
-      vtkAbstractArray* array;
-      if (this->UnicodeArrayOutput)
-      {
-        array = vtkUnicodeStringArray::New();
-      }
-      else
-      {
-        array = vtkStringArray::New();
-      }
+      vtkAbstractArray* array = vtkStringArray::New();
 
       if (this->HaveHeaders)
       {
-        array->SetName(this->CurrentField.utf8_str());
+        array->SetName(this->CurrentField.c_str());
       }
       else
       {
         std::stringstream buffer;
         buffer << "Field " << this->CurrentFieldIndex;
         array->SetName(buffer.str().c_str());
-        if (this->UnicodeArrayOutput)
-        {
-          array->SetNumberOfTuples(this->CurrentRecordIndex + 1);
-          vtkArrayDownCast<vtkUnicodeStringArray>(array)->SetValue(
-            this->CurrentRecordIndex, this->CurrentField);
-        }
-        else
-        {
-          std::string s;
-          this->CurrentField.utf8_str(s);
-          vtkArrayDownCast<vtkStringArray>(array)->InsertValue(this->CurrentRecordIndex, s);
-        }
+        vtkArrayDownCast<vtkStringArray>(array)->InsertValue(
+          this->CurrentRecordIndex, this->CurrentField);
       }
       this->OutputTable->AddColumn(array);
       array->Delete();
@@ -290,53 +272,36 @@ private:
     else if (this->CurrentFieldIndex < this->OutputTable->GetNumberOfColumns())
     {
       // Handle case where input file has header information ...
-      vtkIdType rec_index;
+      vtkIdType rec_index = this->CurrentRecordIndex;
       if (this->HaveHeaders)
       {
-        rec_index = this->CurrentRecordIndex - 1;
-      }
-      else
-      {
-        rec_index = this->CurrentRecordIndex;
+        rec_index--;
       }
 
-      if (this->UnicodeArrayOutput)
-      {
-        vtkUnicodeStringArray* uarray = vtkArrayDownCast<vtkUnicodeStringArray>(
-          this->OutputTable->GetColumn(this->CurrentFieldIndex));
-        uarray->SetNumberOfTuples(rec_index + 1);
-        uarray->SetValue(rec_index, this->CurrentField);
-      }
-      else
-      {
-        vtkStringArray* sarray =
-          vtkArrayDownCast<vtkStringArray>(this->OutputTable->GetColumn(this->CurrentFieldIndex));
-        std::string s;
-        this->CurrentField.utf8_str(s);
-        sarray->InsertValue(rec_index, s);
-      }
+      vtkStringArray* sarray =
+        vtkArrayDownCast<vtkStringArray>(this->OutputTable->GetColumn(this->CurrentFieldIndex));
+      sarray->InsertValue(rec_index, this->CurrentField);
     }
   }
 
   vtkIdType MaxRecords;
   vtkIdType MaxRecordIndex;
-  std::set<vtkUnicodeString::value_type> RecordDelimiters;
-  std::set<vtkUnicodeString::value_type> FieldDelimiters;
-  std::set<vtkUnicodeString::value_type> StringDelimiters;
-  std::set<vtkUnicodeString::value_type> Whitespace;
-  std::set<vtkUnicodeString::value_type> EscapeDelimiter;
+  std::set<vtkTypeUInt32> RecordDelimiters;
+  std::set<vtkTypeUInt32> FieldDelimiters;
+  std::set<vtkTypeUInt32> StringDelimiters;
+  std::set<vtkTypeUInt32> Whitespace;
+  std::set<vtkTypeUInt32> EscapeDelimiter;
   bool HaveHeaders;
-  bool UnicodeArrayOutput;
   bool WhiteSpaceOnlyString;
   vtkTable* OutputTable;
   vtkIdType CurrentRecordIndex;
   vtkIdType CurrentFieldIndex;
-  vtkUnicodeString CurrentField;
+  std::string CurrentField;
   bool RecordAdjacent;
   bool MergeConsDelims;
   bool ProcessEscapeSequence;
   bool UseStringDelimiter;
-  vtkUnicodeString::value_type WithinString;
+  vtkTypeUInt32 WithinString;
 };
 
 } // End anonymous namespace
@@ -350,11 +315,11 @@ vtkDelimitedTextReader::vtkDelimitedTextReader()
   : FileName(nullptr)
   , UnicodeCharacterSet(nullptr)
   , MaxRecords(0)
-  , UnicodeRecordDelimiters(vtkUnicodeString::from_utf8("\r\n"))
-  , UnicodeFieldDelimiters(vtkUnicodeString::from_utf8(","))
-  , UnicodeStringDelimiters(vtkUnicodeString::from_utf8("\""))
-  , UnicodeWhitespace(vtkUnicodeString::from_utf8(" \t\r\n\v\f"))
-  , UnicodeEscapeCharacter(vtkUnicodeString::from_utf8("\\"))
+  , UnicodeRecordDelimiters("\r\n")
+  , UnicodeFieldDelimiters(",")
+  , UnicodeStringDelimiters("\"")
+  , UnicodeWhitespace(" \t\r\n\v\f")
+  , UnicodeEscapeCharacter("\\")
   , HaveHeaders(false)
   , ReplacementCharacter('x')
 {
@@ -370,7 +335,6 @@ vtkDelimitedTextReader::vtkDelimitedTextReader()
   this->GeneratePedigreeIds = true;
   this->OutputPedigreeIds = false;
   this->AddTabFieldDelimiter = false;
-  this->UnicodeOutputArrays = false;
   this->FieldDelimiterCharacters = nullptr;
   this->SetFieldDelimiterCharacters(",");
   this->StringDelimiter = '"';
@@ -407,12 +371,9 @@ void vtkDelimitedTextReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "UnicodeCharacterSet: "
      << (this->UnicodeCharacterSet ? this->UnicodeCharacterSet : "(none)") << endl;
   os << indent << "MaxRecords: " << this->MaxRecords << endl;
-  os << indent << "UnicodeRecordDelimiters: '" << this->UnicodeRecordDelimiters.utf8_str() << "'"
-     << endl;
-  os << indent << "UnicodeFieldDelimiters: '" << this->UnicodeFieldDelimiters.utf8_str() << "'"
-     << endl;
-  os << indent << "UnicodeStringDelimiters: '" << this->UnicodeStringDelimiters.utf8_str() << "'"
-     << endl;
+  os << indent << "UnicodeRecordDelimiters: '" << this->UnicodeRecordDelimiters << "'" << endl;
+  os << indent << "UnicodeFieldDelimiters: '" << this->UnicodeFieldDelimiters << "'" << endl;
+  os << indent << "UnicodeStringDelimiters: '" << this->UnicodeStringDelimiters << "'" << endl;
   os << indent << "StringDelimiter: " << this->StringDelimiter << endl;
   os << indent << "ReplacementCharacter: " << this->ReplacementCharacter << endl;
   os << indent << "FieldDelimiterCharacters: "
@@ -475,70 +436,37 @@ void vtkDelimitedTextReader::SetInputString(const char* in, int len)
   this->Modified();
 }
 
-void vtkDelimitedTextReader::SetUnicodeRecordDelimiters(const vtkUnicodeString& delimiters)
+void vtkDelimitedTextReader::SetUTF8RecordDelimiters(const char* delimiters)
 {
   this->UnicodeRecordDelimiters = delimiters;
   this->Modified();
 }
 
-vtkUnicodeString vtkDelimitedTextReader::GetUnicodeRecordDelimiters()
-{
-  return this->UnicodeRecordDelimiters;
-}
-
-void vtkDelimitedTextReader::SetUTF8RecordDelimiters(const char* delimiters)
-{
-  this->UnicodeRecordDelimiters = vtkUnicodeString::from_utf8(delimiters);
-  this->Modified();
-}
-
 const char* vtkDelimitedTextReader::GetUTF8RecordDelimiters()
 {
-  return this->UnicodeRecordDelimiters.utf8_str();
+  return this->UnicodeRecordDelimiters.c_str();
 }
 
-void vtkDelimitedTextReader::SetUnicodeFieldDelimiters(const vtkUnicodeString& delimiters)
+void vtkDelimitedTextReader::SetUTF8FieldDelimiters(const char* delimiters)
 {
   this->UnicodeFieldDelimiters = delimiters;
   this->Modified();
 }
 
-vtkUnicodeString vtkDelimitedTextReader::GetUnicodeFieldDelimiters()
-{
-  return this->UnicodeFieldDelimiters;
-}
-
-void vtkDelimitedTextReader::SetUTF8FieldDelimiters(const char* delimiters)
-{
-  this->UnicodeFieldDelimiters = vtkUnicodeString::from_utf8(delimiters);
-  this->Modified();
-}
-
 const char* vtkDelimitedTextReader::GetUTF8FieldDelimiters()
 {
-  return this->UnicodeFieldDelimiters.utf8_str();
+  return this->UnicodeFieldDelimiters.c_str();
 }
 
-void vtkDelimitedTextReader::SetUnicodeStringDelimiters(const vtkUnicodeString& delimiters)
+void vtkDelimitedTextReader::SetUTF8StringDelimiters(const char* delimiters)
 {
   this->UnicodeStringDelimiters = delimiters;
   this->Modified();
 }
 
-vtkUnicodeString vtkDelimitedTextReader::GetUnicodeStringDelimiters()
-{
-  return this->UnicodeStringDelimiters;
-}
-
-void vtkDelimitedTextReader::SetUTF8StringDelimiters(const char* delimiters)
-{
-  this->UnicodeStringDelimiters = vtkUnicodeString::from_utf8(delimiters);
-  this->Modified();
-}
-
 const char* vtkDelimitedTextReader::GetUTF8StringDelimiters()
 {
-  return this->UnicodeStringDelimiters.utf8_str();
+  return this->UnicodeStringDelimiters.c_str();
 }
 
 vtkStdString vtkDelimitedTextReader::GetLastError()
@@ -596,40 +524,63 @@ int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
       // const vtkIdType total_bytes = file_stream.tellg();
       file_stream.seekg(0, ios::beg);
 
-      input_stream_pt = dynamic_cast<istream*>(&file_stream);
+      input_stream_pt = &file_stream;
     }
     else
     {
       string_stream.str(this->InputString);
-      input_stream_pt = dynamic_cast<istream*>(&string_stream);
+      input_stream_pt = &string_stream;
     }
 
-    vtkStdString character_set;
+    {
+      namespace vtkfs = vtksys::FStream;
+      vtkfs::BOM fBOM = vtkfs::ReadBOM(*input_stream_pt);
+
+      if (!this->UnicodeCharacterSet)
+      {
+        switch (fBOM)
+        {
+          case vtkfs::BOM_UTF8:
+            this->UnicodeCharacterSet = new char[6];
+            strcpy(this->UnicodeCharacterSet, "UTF-8");
+            break;
+          case vtkfs::BOM_UTF16BE:
+            this->UnicodeCharacterSet = new char[9];
+            strcpy(this->UnicodeCharacterSet, "UTF-16BE");
+            break;
+          case vtkfs::BOM_UTF16LE:
+            this->UnicodeCharacterSet = new char[9];
+            strcpy(this->UnicodeCharacterSet, "UTF-16LE");
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
     vtkTextCodec* transCodec = nullptr;
 
     if (this->UnicodeCharacterSet)
     {
-      this->UnicodeOutputArrays = true;
-      character_set = this->UnicodeCharacterSet;
       transCodec = vtkTextCodecFactory::CodecForName(this->UnicodeCharacterSet);
     }
     else
     {
-      char tstring[2];
-      tstring[1] = '\0';
-      tstring[0] = this->StringDelimiter;
-      // don't use Set* methods since they change the MTime in
-      // RequestData() !!!!!
-      std::string fieldDelimiterCharacters = this->FieldDelimiterCharacters;
-      if (this->AddTabFieldDelimiter)
-      {
-        fieldDelimiterCharacters.push_back('\t');
-      }
-      this->UnicodeFieldDelimiters = vtkUnicodeString::from_utf8(fieldDelimiterCharacters);
-      this->UnicodeStringDelimiters = vtkUnicodeString::from_utf8(tstring);
-      this->UnicodeOutputArrays = false;
       transCodec = vtkTextCodecFactory::CodecToHandle(*input_stream_pt);
     }
+
+    char tstring[2];
+    tstring[1] = '\0';
+    tstring[0] = this->StringDelimiter;
+    // don't use Set* methods since they change the MTime in
+    // RequestData() !!!!!
+    std::string fieldDelimiterCharacters = this->FieldDelimiterCharacters;
+    if (this->AddTabFieldDelimiter)
+    {
+      fieldDelimiterCharacters.push_back('\t');
+    }
+    this->UnicodeFieldDelimiters = fieldDelimiterCharacters;
+    this->UnicodeStringDelimiters = tstring;
 
     if (nullptr == transCodec)
     {
@@ -639,12 +590,10 @@ int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
 
     DelimitedTextIterator iterator(this->MaxRecords, this->UnicodeRecordDelimiters,
       this->UnicodeFieldDelimiters, this->UnicodeStringDelimiters, this->UnicodeWhitespace,
-      this->UnicodeEscapeCharacter, this->HaveHeaders, this->UnicodeOutputArrays,
-      this->MergeConsecutiveDelimiters, this->UseStringDelimiter, output_table);
+      this->UnicodeEscapeCharacter, this->HaveHeaders, this->MergeConsecutiveDelimiters,
+      this->UseStringDelimiter, output_table);
 
-    vtkTextCodec::OutputIterator& outIter = iterator;
-
-    transCodec->ToUnicode(*input_stream_pt, outIter);
+    transCodec->ToUnicode(*input_stream_pt, iterator);
     iterator.ReachedEndOfInput();
     transCodec->Delete();
 
@@ -672,12 +621,12 @@ int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
         else
         {
           throw std::runtime_error(
-            "Could not find pedigree id array: " + vtkStdString(this->PedigreeIdArrayName));
+            "Could not find pedigree id array: " + std::string(this->PedigreeIdArrayName));
         }
       }
     }
 
-    if (this->DetectNumericColumns && !this->UnicodeOutputArrays)
+    if (this->DetectNumericColumns)
     {
       vtkStringToNumeric* converter = vtkStringToNumeric::New();
       converter->SetForceDouble(this->ForceDouble);

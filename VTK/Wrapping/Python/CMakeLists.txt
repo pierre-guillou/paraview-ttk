@@ -65,6 +65,12 @@ if (NOT VTK_WHEEL_BUILD)
   endif ()
 endif ()
 
+# goes in __init__.py for when vtkmodules is BUILD_STATIC
+set(_vtkmodules_static_import "_load_vtkmodules_static()")
+if (BUILD_SHARED_LIBS)
+    string(PREPEND _vtkmodules_static_import "#")
+endif ()
+
 set(_vtkmodules_all)
 set(_vtk_python_imports)
 foreach (_vtk_python_module IN LISTS vtk_python_wrapped_modules)
@@ -93,9 +99,17 @@ configure_file(
 list(APPEND _vtk_python_files
   "${CMAKE_BINARY_DIR}/${VTK_PYTHON_SITE_PACKAGES_SUFFIX}/vtkmodules/all.py")
 
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/vtkmodules/generate_pyi.py"
+  "${CMAKE_BINARY_DIR}/${VTK_PYTHON_SITE_PACKAGES_SUFFIX}/vtkmodules/generate_pyi.py"
+  COPYONLY)
+list(APPEND _vtk_python_files
+  "${CMAKE_BINARY_DIR}/${VTK_PYTHON_SITE_PACKAGES_SUFFIX}/vtkmodules/generate_pyi.py")
+
 if (BUILD_SHARED_LIBS)
   install(
     FILES       "${CMAKE_BINARY_DIR}/${VTK_PYTHON_SITE_PACKAGES_SUFFIX}/vtkmodules/all.py"
+                "${CMAKE_BINARY_DIR}/${VTK_PYTHON_SITE_PACKAGES_SUFFIX}/vtkmodules/generate_pyi.py"
     DESTINATION "${VTK_PYTHON_SITE_PACKAGES_SUFFIX}/vtkmodules"
     COMPONENT   "python")
 endif ()
@@ -179,9 +193,14 @@ endforeach ()
 set(vtk_build_paths_module
   "${CMAKE_BINARY_DIR}/${VTK_PYTHON_SITE_PACKAGES_SUFFIX}/vtkmodules/_build_paths.py")
 if (WIN32 AND VTK_DLL_PATHS)
-  string(REPLACE ";" "',\n    '" vtk_dll_paths_python "${VTK_DLL_PATHS}")
+  set(vtk_dll_paths_python)
+  foreach (vtk_dll_path IN LISTS VTK_DLL_PATHS)
+    file(TO_NATIVE_PATH "${vtk_dll_path}" vtk_dll_path_native)
+    string(APPEND vtk_dll_paths_python
+      "    r'${vtk_dll_path_native}',\n")
+  endforeach ()
   file(WRITE "${vtk_build_paths_module}"
-    "paths = [\n    '${vtk_dll_paths_python}',\n]\n")
+    "paths = [\n${vtk_dll_paths_python}]\n")
   # Add the file to the zip only if required in the install tree.
   if (NOT VTK_RELOCATABLE_INSTALL AND NOT VTK_UNIFIED_INSTALL_TREE)
     list(APPEND _vtk_python_files

@@ -18,6 +18,7 @@ set (VolumeCxxTests
   TestGPURayCastCompositeMask.cxx
   TestGPURayCastCompositeMaskBlend.cxx
   TestGPURayCastCompositeToMIP.cxx
+  TestGPURayCastComputeNormalFromOpacity.cxx
   TestGPURayCastCropping.cxx
   TestGPURayCastCropping1.cxx
   TestGPURayCastDataTypesMIP.cxx
@@ -77,6 +78,8 @@ set (VolumeCxxTests
   TestGPURayCastVolumeUniformGridBlanking.cxx
   TestGPURayCastVolumeUpdate.cxx
   TestGPUVolumeRayCastMapper.cxx
+  TestGPUVolumeRayCastMapperManyLights.cxx
+  TestGPURayCastMapperShadows.cxx
   TestMinIntensityRendering.cxx
   TestMultiBlockMapper.cxx
   TestMultiBlockMapperRectilinearGrid.cxx
@@ -97,6 +100,7 @@ vtk_add_test_cxx(vtkRenderingVolumeCxxTests tests
   )
 
 vtk_test_cxx_executable(vtkRenderingVolumeCxxTests tests
+  DISABLE_FLOATING_POINT_EXCEPTIONS
   RENDERING_FACTORY
   )
 

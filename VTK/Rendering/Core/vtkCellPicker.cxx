@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkCellPicker.h"
 #include "vtkObjectFactory.h"
 
@@ -1573,8 +1570,8 @@ void vtkCellPicker::SubCellFromCell(vtkGenericCell* cell, int subId)
   {
     case VTK_TRIANGLE_STRIP:
     {
-      static int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
-      int* order = idx[subId & 1];
+      constexpr int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
+      const int* order = idx[subId & 1];
       vtkIdType pointIds[3];
       double points[3][3];
 
@@ -1678,8 +1675,8 @@ void vtkCellPicker::GetSubCell(
   {
     case VTK_TRIANGLE_STRIP:
     {
-      static int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
-      int* order = idx[subId & 1];
+      constexpr int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
+      const int* order = idx[subId & 1];
       vtkIdType pointIds[3];
       double points[3][3];
 

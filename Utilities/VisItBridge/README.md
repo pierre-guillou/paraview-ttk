@@ -7,7 +7,6 @@ VisIt IO components are called database plugins. The VisIt developers have provi
 
 The new VisItBridge secondary goal was to provide an integrated build with ParaView. This was goal was completed by forking a subset of the VisIt source code and patching it for compilation against VTK head. The switching of VisIt to CMake made this possible as it allows us to configure VisIt to target the HDF5 and XDMF being built by ParaView.
 
-
 Classes
 ---------------
 
@@ -20,7 +19,6 @@ The following classes are subclasses that handle specific file formats:
 - vtkAvtSTMDFileFormatAlgorithm
 - vtkAvtMTSDFileFormatAlgorithm
 - vtkAvtMTMDFileFormatAlgorithm
-
 
 Which of VisIt's databases are available?
 ---------------
@@ -155,3 +153,10 @@ References
 ==========
 
 [Source](http://www.paraview.org/Wiki/VisIt_Database_Bridge)
+
+License
+=======
+
+Most of VisitBridge source code is coming from Visit,
+so VisitBridge is distributed under the same licence.
+See LICENSE file.

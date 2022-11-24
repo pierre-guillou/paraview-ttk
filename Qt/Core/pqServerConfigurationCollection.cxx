@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkProcessModule.h"
 #include "vtkRemotingCoreConfiguration.h"
 #include "vtkResourceFileLocator.h"
+#include "vtkVersion.h"
 
 #include <vtksys/SystemTools.hxx>
 
@@ -123,7 +124,8 @@ pqServerConfigurationCollection::pqServerConfigurationCollection(QObject* parent
 pqServerConfigurationCollection::~pqServerConfigurationCollection()
 {
   auto config = vtkRemotingCoreConfiguration::GetInstance();
-  if (!config->GetDisableRegistry())
+  // save to servers.pvsc only if --dr/--disable-registry flag is absent and configurations exist
+  if (!config->GetDisableRegistry() && !this->configurations().empty())
   {
     this->save(userServers(), true);
   }
@@ -216,7 +218,7 @@ QString pqServerConfigurationCollection::saveContents(bool only_mutable) const
   QString xml;
   QTextStream stream(&xml);
   stream << "<Servers>\n";
-  foreach (const pqServerConfiguration& config, this->Configurations)
+  Q_FOREACH (const pqServerConfiguration& config, this->Configurations)
   {
     if (only_mutable == false || config.isMutable())
     {
@@ -274,7 +276,7 @@ void pqServerConfigurationCollection::removeConfiguration(const QString& toremov
 QList<pqServerConfiguration> pqServerConfigurationCollection::configurations() const
 {
   QList<pqServerConfiguration> reply;
-  foreach (const pqServerConfiguration& config, this->Configurations)
+  Q_FOREACH (const pqServerConfiguration& config, this->Configurations)
   {
     // skip builtin from this list.
     if (config.name() != "builtin")
@@ -290,7 +292,7 @@ QList<pqServerConfiguration> pqServerConfigurationCollection::configurations(
   const pqServerResource& selector) const
 {
   QList<pqServerConfiguration> reply;
-  foreach (const pqServerConfiguration& config, this->Configurations)
+  Q_FOREACH (const pqServerConfiguration& config, this->Configurations)
   {
     if (config.resource().schemeHosts() == selector.schemeHosts())
     {
@@ -312,4 +314,13 @@ const pqServerConfiguration* pqServerConfigurationCollection::configuration(
   }
 
   return nullptr;
+}
+
+void pqServerConfigurationCollection::removeUserConfigurations()
+{
+  Q_FOREACH (pqServerConfiguration config, this->configurations())
+  {
+    this->removeConfiguration(config.name());
+  }
+  pqCoreUtilities::remove(::userServers());
 }

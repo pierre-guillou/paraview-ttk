@@ -14,24 +14,19 @@ PURPOSE.  See the above copyright notice for more information.
 =========================================================================*/
 #include "vtkVRModel.h"
 
-#include "vtkInteractorObserver.h"
 #include "vtkMatrix4x4.h"
-#include "vtkObjectFactory.h"
-#include "vtkOpenGLHelper.h"
 #include "vtkOpenGLIndexBufferObject.h"
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenGLShaderCache.h"
 #include "vtkOpenGLState.h"
 #include "vtkOpenGLVertexArrayObject.h"
 #include "vtkOpenGLVertexBufferObject.h"
-#include "vtkRenderWindow.h"
-#include "vtkRenderWindowInteractor.h"
 #include "vtkRendererCollection.h"
 #include "vtkShaderProgram.h"
 #include "vtkTextureObject.h"
+#include "vtkVRCamera.h"
 #include "vtkVRRay.h"
 
-#include "vtkVRCamera.h"
 #include "vtk_glew.h"
 
 //------------------------------------------------------------------------------
@@ -61,7 +56,7 @@ void vtkVRModel::PrintSelf(ostream& os, vtkIndent indent)
 
   this->ModelVBO->PrintSelf(os, indent);
   this->TextureObject->PrintSelf(os, indent);
-  this->PoseMatrix->PrintSelf(os, indent);
+  this->ModelToProjectionMatrix->PrintSelf(os, indent);
   this->Ray->PrintSelf(os, indent);
 }
 
@@ -116,7 +111,7 @@ bool vtkVRModel::Build(vtkOpenGLRenderWindow* win)
 }
 
 //------------------------------------------------------------------------------
-void vtkVRModel::Render(vtkOpenGLRenderWindow* win, const float poseInTrackingCoordinates[][4])
+void vtkVRModel::Render(vtkOpenGLRenderWindow* win, vtkMatrix4x4* modelToPhysicalMatrix)
 {
   if (this->FailedToLoad)
   {
@@ -141,26 +136,16 @@ void vtkVRModel::Render(vtkOpenGLRenderWindow* win, const float poseInTrackingCo
     {
       vtkVRCamera* cam = static_cast<vtkVRCamera*>(ren->GetActiveCamera());
 
-      double elems[16];
-      for (int j = 0; j < 3; j++)
-      {
-        for (int i = 0; i < 4; i++)
-        {
-          elems[j + i * 4] = poseInTrackingCoordinates[j][i];
-        }
-      }
-      elems[3] = 0.0;
-      elems[7] = 0.0;
-      elems[11] = 0.0;
-      elems[15] = 1.0;
-
-      vtkMatrix4x4* tcdc;
-      cam->GetTrackingToDCMatrix(tcdc);
+      // todo this is really PhysicalToProjection transpose
+      vtkMatrix4x4* physicalToProjectionMatrix;
+      cam->GetPhysicalToProjectionMatrix(physicalToProjectionMatrix);
 
       vtkMatrix4x4::Multiply4x4(
-        elems, (double*)(tcdc->Element), (double*)(this->PoseMatrix->Element));
+        physicalToProjectionMatrix, modelToPhysicalMatrix, this->ModelToProjectionMatrix);
 
-      this->ModelHelper.Program->SetUniformMatrix("matrix", this->PoseMatrix);
+      // transpose to send down to OpenGL
+      this->ModelToProjectionMatrix->Transpose();
+      this->ModelHelper.Program->SetUniformMatrix("matrix", this->ModelToProjectionMatrix);
     }
 
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(this->ModelHelper.IBO->IndexCount),
@@ -170,7 +155,7 @@ void vtkVRModel::Render(vtkOpenGLRenderWindow* win, const float poseInTrackingCo
     // Draw ray
     if (this->Ray->GetShow())
     {
-      this->Ray->Render(win, this->PoseMatrix);
+      this->Ray->Render(win, this->ModelToProjectionMatrix);
     }
   }
 }

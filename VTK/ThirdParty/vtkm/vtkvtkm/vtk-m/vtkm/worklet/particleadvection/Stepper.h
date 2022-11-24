@@ -21,7 +21,6 @@
 #include <vtkm/VectorAnalysis.h>
 
 #include <vtkm/cont/DataSet.h>
-#include <vtkm/cont/VirtualObjectHandle.h>
 
 #include <vtkm/worklet/particleadvection/GridEvaluators.h>
 #include <vtkm/worklet/particleadvection/IntegratorStatus.h>
@@ -75,7 +74,7 @@ public:
   }
 
   template <typename Particle>
-  VTKM_EXEC IntegratorStatus SmallStep(Particle particle,
+  VTKM_EXEC IntegratorStatus SmallStep(Particle& particle,
                                        vtkm::FloatDefault& time,
                                        vtkm::Vec3f& outpos) const
   {
@@ -89,7 +88,7 @@ public:
     //The binary search will be between {0, this->DeltaT}
     vtkm::FloatDefault stepRange[2] = { 0, this->DeltaT };
 
-    vtkm::Vec3f currPos(particle.Pos);
+    vtkm::Vec3f currPos(particle.GetEvaluationPosition(this->DeltaT));
     vtkm::Vec3f currVelocity(0, 0, 0);
     vtkm::VecVariable<vtkm::Vec3f, 2> currValue, tmp;
     auto evalStatus = this->Evaluator.Evaluate(currPos, particle.Time, currValue);
@@ -142,12 +141,8 @@ public:
     outpos = currPos + stepRange[1] * particle.Velocity(currValue, stepRange[1]);
     time += stepRange[1];
 
-    // Get the evaluation status for the point that is *just* outside of the data.
+    // Get the evaluation status for the point that is moved by the euler step.
     evalStatus = this->Evaluator.Evaluate(outpos, time, currValue);
-
-    // The eval should fail, and the point should be outside either spatially or temporally.
-    VTKM_ASSERT(evalStatus.CheckFail() &&
-                (evalStatus.CheckSpatialBounds() || evalStatus.CheckTemporalBounds()));
 
     IntegratorStatus status(evalStatus);
     status.SetOk(); //status is ok.

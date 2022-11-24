@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkChartBox.h"
 
 #include "vtkAnnotationLink.h"
@@ -27,6 +24,7 @@
 #include "vtkContextMouseEvent.h"
 #include "vtkContextScene.h"
 #include "vtkDataArray.h"
+#include "vtkDataSetAttributes.h"
 #include "vtkIdTypeArray.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
@@ -115,6 +113,7 @@ void vtkChartBox::Update()
     return;
   }
 
+  vtkDataSetAttributes* rowData = table->GetRowData();
   int nbCols = this->VisibleColumns->GetNumberOfTuples();
 
   this->Storage->XPosition.resize(nbCols);
@@ -123,12 +122,9 @@ void vtkChartBox::Update()
   // Now set up their ranges and locations
   for (int i = 0; i < nbCols; ++i)
   {
-    vtkDataArray* array =
-      vtkArrayDownCast<vtkDataArray>(table->GetColumnByName(this->VisibleColumns->GetValue(i)));
-    if (array)
+    double range[2];
+    if (rowData->GetRange(this->VisibleColumns->GetValue(i).c_str(), range))
     {
-      double range[2];
-      array->GetRange(range);
       if (range[0] < grange[0])
       {
         grange[0] = range[0];
@@ -187,35 +183,32 @@ bool vtkChartBox::Paint(vtkContext2D* painter)
 
   this->Storage->YAxis->Paint(painter);
 
-  if (this->Title)
-  {
-    painter->ApplyTextProp(this->TitleProperties);
-    vtkVector2f stringBounds[2];
-    painter->ComputeStringBounds(this->Title, stringBounds->GetData());
-    float height = 1.1 * stringBounds[1].GetY();
+  painter->ApplyTextProp(this->TitleProperties);
+  vtkVector2f stringBounds[2];
+  painter->ComputeStringBounds(this->Title, stringBounds->GetData());
+  float height = 1.1 * stringBounds[1].GetY();
 
-    // Shift the position of the title down if it would be outside the window
-    float shift;
-    if (this->Point2[1] + height > this->Geometry[1])
-    {
-      shift = this->Point2[1] + height - this->Geometry[1];
-    }
-    else
-    {
-      shift = 0.0f;
-    }
-    vtkPoints2D* rect = vtkPoints2D::New();
-    rect->InsertNextPoint(this->Point1[0], this->Point2[1]);
-    rect->InsertNextPoint(this->Point2[0] - this->Point1[0], height - shift);
-    painter->DrawStringRect(rect, this->Title);
-    rect->Delete();
+  // Shift the position of the title down if it would be outside the window
+  float shift;
+  if (this->Point2[1] + height > this->Geometry[1])
+  {
+    shift = this->Point2[1] + height - this->Geometry[1];
   }
+  else
+  {
+    shift = 0.0f;
+  }
+  vtkPoints2D* rect = vtkPoints2D::New();
+  rect->InsertNextPoint(this->Point1[0], this->Point2[1]);
+  rect->InsertNextPoint(this->Point2[0] - this->Point1[0], height - shift);
+  painter->DrawStringRect(rect, this->Title);
+  rect->Delete();
 
   if (this->GetShowLegend())
   {
-    vtkRectf rect;
-    rect.Set(0, 2, 10, 20);
-    this->Storage->Plot->PaintLegend(painter, rect, 0);
+    vtkRectf rectf;
+    rectf.Set(0, this->Size.GetY() + 2, 10, 20);
+    this->Storage->Plot->PaintLegend(painter, rectf, 0);
   }
 
   if (this->Tooltip && this->Tooltip->GetVisible())
@@ -349,7 +342,7 @@ vtkIdType vtkChartBox::GetColumnId(const vtkStdString& name)
   vtkIdType nbColumn = table->GetNumberOfColumns();
   for (vtkIdType i = 0; i < nbColumn; i++)
   {
-    if (!strcmp(table->GetColumnName(i), name.c_str()))
+    if (table->GetColumnName(i) == name)
     {
       return i;
     }
@@ -396,11 +389,21 @@ void vtkChartBox::UpdateGeometry(vtkContext2D* painter)
 {
   vtkVector2i geometry(this->GetScene()->GetViewWidth(), this->GetScene()->GetViewHeight());
 
-  if (geometry.GetX() != this->Geometry[0] || geometry.GetY() != this->Geometry[1] ||
-    !this->GeometryValid)
+  if (this->LayoutStrategy == vtkChart::FILL_SCENE &&
+    (geometry.GetX() != this->Geometry[0] || geometry.GetY() != this->Geometry[1]))
+  {
+    this->SetSize(vtkRectf(0.0, 0.0, geometry[0], geometry[1]));
+  }
+
+  if (!this->GeometryValid)
   {
     vtkAxis* axis = this->Storage->YAxis;
 
+    // Retrieve correct Y coordinates of Point1 and Point2 based on the new size
+    vtkVector2i tileScale = this->Scene->GetLogicalTileScale();
+    this->SetBorders(0, 30 * tileScale.GetY(), 0, 20 * tileScale.GetY());
+
+    // Use these coordinates to update the axis and calculate the leftBorder
     axis->SetPoint1(0, this->Point1[1]);
     axis->SetPoint2(0, this->Point2[1]);
     if (axis->GetBehavior() == 0)
@@ -415,13 +418,9 @@ void vtkChartBox::UpdateGeometry(vtkContext2D* painter)
       vtkRectf bounds = axis->GetBoundingRect(painter);
       leftBorder = int(bounds.GetWidth());
     }
-    axis->SetPoint1(leftBorder, this->Point1[1]);
-    axis->SetPoint2(leftBorder, this->Point2[1]);
-
-    // Take up the entire window right now, this could be made configurable
-    this->SetGeometry(geometry.GetData());
-
-    vtkVector2i tileScale = this->Scene->GetLogicalTileScale();
+    // Update axis points and chart borders using calculated leftBorder
+    axis->SetPoint1(this->Point1[0] + leftBorder, this->Point1[1]);
+    axis->SetPoint2(this->Point1[0] + leftBorder, this->Point2[1]);
     this->SetBorders(leftBorder, 30 * tileScale.GetY(), 0, 20 * tileScale.GetY());
 
     int nbPlots = static_cast<int>(this->Storage->XPosition.size());
@@ -686,11 +685,30 @@ void vtkChartBox::SetTooltipInfo(const vtkContextMouseEvent& mouse, const vtkVec
   }
 
   // Have the plot generate its tooltip label
-  vtkStdString tooltipLabel = plot->GetTooltipLabel(plotPos, seriesIndex, segmentIndex);
+  std::string tooltipLabel = plot->GetTooltipLabel(plotPos, seriesIndex, segmentIndex);
 
   // Set the tooltip
   this->Tooltip->SetText(tooltipLabel);
   this->Tooltip->SetPosition(mouse.GetScreenPos()[0] + 2, mouse.GetScreenPos()[1] + 2);
+}
+
+//------------------------------------------------------------------------------
+void vtkChartBox::SetSize(const vtkRectf& rect)
+{
+  this->Superclass::SetSize(rect);
+  this->GeometryValid = false;
+}
+
+void vtkChartBox::SetGeometry(int arg1, int arg2)
+{
+  this->Superclass::SetGeometry(arg1, arg2);
+  this->GeometryValid = false;
+}
+
+void vtkChartBox::SetLayoutStrategy(int strategy)
+{
+  this->Superclass::SetLayoutStrategy(strategy);
+  this->GeometryValid = false;
 }
 
 //------------------------------------------------------------------------------
@@ -702,7 +720,7 @@ void vtkChartBox::PrintSelf(ostream& os, vtkIndent indent)
 //------------------------------------------------------------------------------
 void vtkChartBox::SwapAxes(int a1, int a2)
 {
-  vtkStdString colTmp = this->VisibleColumns->GetValue(a1);
+  std::string colTmp = this->VisibleColumns->GetValue(a1);
   this->VisibleColumns->SetValue(a1, this->VisibleColumns->GetValue(a2));
   this->VisibleColumns->SetValue(a2, colTmp);
 

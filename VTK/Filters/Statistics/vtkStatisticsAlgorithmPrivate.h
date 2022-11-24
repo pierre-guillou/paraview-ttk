@@ -34,8 +34,6 @@ PURPOSE.  See the above copyright notice for more information.
 #ifndef vtkStatisticsAlgorithmPrivate_h
 #define vtkStatisticsAlgorithmPrivate_h
 
-#ifndef __VTK_WRAP__
-
 #include "vtkStdString.h"
 
 #include <set> // used to iterate over internal organs
@@ -90,7 +88,7 @@ public:
    */
   int AddColumnToRequests(const char* col)
   {
-    if (col && strlen(col))
+    if (col && *col)
     {
       std::set<vtkStdString> tmp;
       tmp.insert(col);
@@ -109,7 +107,7 @@ public:
    */
   int AddColumnPairToRequests(const char* cola, const char* colb)
   {
-    if (cola && colb && strlen(cola) && strlen(colb))
+    if (cola && colb && *cola && *colb)
     {
       std::set<vtkStdString> tmp;
       tmp.insert(cola);
@@ -180,8 +178,6 @@ public:
   std::set<std::set<vtkStdString>> Requests;
   std::set<vtkStdString> Buffer;
 };
-
-#endif // __VTK_WRAP__
 
 #endif // vtkStatisticsAlgorithmPrivate_h
 

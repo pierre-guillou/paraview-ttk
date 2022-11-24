@@ -63,7 +63,6 @@
 #define vtkPolyData_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // for VTK_DEPRECATED_IN_9_0_0
 #include "vtkPointSet.h"
 
 #include "vtkCellArray.h"         // Needed for inline methods
@@ -110,6 +109,7 @@ public:
   vtkCell* GetCell(vtkIdType cellId) override;
   void GetCell(vtkIdType cellId, vtkGenericCell* cell) override;
   int GetCellType(vtkIdType cellId) override;
+  vtkIdType GetCellSize(vtkIdType cellId) override;
   void GetCellBounds(vtkIdType cellId, double bounds[6]) override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   ///@}
@@ -149,7 +149,7 @@ public:
    * not return the same bounds as before. This behavior is probably the one you want
    * when using bounds.
    *
-   * The previous behavior is still availble through vtkPolyData::ComputeCellsBounds()
+   * The previous behavior is still available through vtkPolyData::ComputeCellsBounds()
    * and vtkPolyData::GetCellsBounds(). This is mainly used for rendering purpose.
    */
   void ComputeCellsBounds();
@@ -379,6 +379,16 @@ public:
    */
   void BuildLinks(int initialSize = 0);
 
+  ///@{
+  /**
+   * Set/Get the links that you created possibly without using BuildLinks.
+   *
+   * Note: Only vtkCellLinks are currently supported.
+   */
+  virtual void SetLinks(vtkAbstractCellLinks* links);
+  vtkGetSmartPointerMacro(Links, vtkAbstractCellLinks);
+  ///@}
+
   /**
    * Release data structure that allows random access of the cells. This must
    * be done before a 2nd call to BuildLinks(). DeleteCells implicitly deletes
@@ -398,9 +408,6 @@ public:
    */
   void GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkIdType*& cells)
     VTK_SIZEHINT(cells, ncells);
-  VTK_DEPRECATED_IN_9_0_0("Use vtkPolyData::GetPointCells::vtkIdType, vtkIdType&, vtkIdType*&)")
-  void GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
-    VTK_SIZEHINT(cells, ncells);
   ///@}
 
   /**
@@ -418,9 +425,28 @@ public:
    * results.
    *
    * The @a pts pointer must not be modified.
+   *
+   * Note: This method MAY NOT be thread-safe. (See GetCellAtId at vtkCellArray)
    */
   unsigned char GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts)
     VTK_SIZEHINT(pts, npts);
+
+  /**
+   * Get a list of point ids that define a cell.
+   * Requires the the cells have been built with BuildCells.
+   *
+   * This function MAY use ptIds, which is an object that is created by each thread,
+   * to guarantee thread safety.
+   *
+   * @warning Subsequent calls to this method may invalidate previous call
+   * results.
+   *
+   * The @a pts pointer must not be modified.
+   *
+   * Note: This method is thread-safe.
+   */
+  void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+    VTK_SIZEHINT(pts, npts) override;
 
   /**
    * Given three vertices, determine whether it's a triangle. Make sure
@@ -455,11 +481,20 @@ public:
   void ReplaceCell(vtkIdType cellId, int npts, const vtkIdType pts[]) VTK_SIZEHINT(pts, npts);
   /**@}*/
 
+  ///@{
   /**
    * Replace a point in the cell connectivity list with a different point. Use this
    * method only when the dataset is set as Editable.
+   *
+   * The version with cellPointIds avoids allocating/deallocating a vtkIdList at each call
+   * internally.
+   *
+   * THIS METHOD IS THREAD SAFE IF BuildCells() IS FIRST CALLED FROM A SINGLE THREAD.
    */
   void ReplaceCellPoint(vtkIdType cellId, vtkIdType oldPtId, vtkIdType newPtId);
+  void ReplaceCellPoint(
+    vtkIdType cellId, vtkIdType oldPtId, vtkIdType newPtId, vtkIdList* cellPointIds);
+  ///@}
 
   /**
    * Reverse the order of point ids defining the cell. Use this
@@ -714,16 +749,6 @@ protected:
   vtkTimeStamp CellsBoundsTime;
 
 private:
-  // Hide these from the user and the compiler.
-
-  /**
-   * For legacy compatibility. Do not use.
-   */
-  void GetCellNeighbors(vtkIdType cellId, vtkIdList& ptIds, vtkIdList& cellIds)
-  {
-    this->GetCellNeighbors(cellId, &ptIds, &cellIds);
-  }
-
   void Cleanup();
 
 private:
@@ -735,13 +760,6 @@ private:
 inline void vtkPolyData::GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkIdType*& cells)
 {
   ncells = this->Links->GetNcells(ptId);
-  cells = this->Links->GetCells(ptId);
-}
-
-inline void vtkPolyData::GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
-{
-  VTK_LEGACY_BODY(vtkPolyData::GetPointCells, "VTK 9.0");
-  ncells = static_cast<unsigned short>(this->Links->GetNcells(ptId));
   cells = this->Links->GetCells(ptId);
 }
 
@@ -760,6 +778,39 @@ inline int vtkPolyData::GetCellType(vtkIdType cellId)
     this->BuildCells();
   }
   return static_cast<int>(this->Cells->GetTag(cellId).GetCellType());
+}
+
+//------------------------------------------------------------------------------
+inline vtkIdType vtkPolyData::GetCellSize(vtkIdType cellId)
+{
+  if (!this->Cells)
+  {
+    this->BuildCells();
+  }
+  switch (this->GetCellType(cellId))
+  {
+    case VTK_EMPTY_CELL:
+      return 0;
+    case VTK_VERTEX:
+      return 1;
+    case VTK_LINE:
+      return 2;
+    case VTK_TRIANGLE:
+      return 3;
+    case VTK_QUAD:
+      return 4;
+    case VTK_POLY_VERTEX:
+      return this->Verts ? this->Verts->GetCellSize(this->GetCellIdRelativeToCellArray(cellId)) : 0;
+    case VTK_POLY_LINE:
+      return this->Lines ? this->Lines->GetCellSize(this->GetCellIdRelativeToCellArray(cellId)) : 0;
+    case VTK_POLYGON:
+      return this->Polys ? this->Polys->GetCellSize(this->GetCellIdRelativeToCellArray(cellId)) : 0;
+    case VTK_TRIANGLE_STRIP:
+      return this->Strips ? this->Strips->GetCellSize(this->GetCellIdRelativeToCellArray(cellId))
+                          : 0;
+  }
+  vtkWarningMacro(<< "Cell type not supported.");
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -875,16 +926,30 @@ inline vtkCellArray* vtkPolyData::GetCellArrayInternal(vtkPolyData::TaggedCellId
 inline void vtkPolyData::ReplaceCellPoint(vtkIdType cellId, vtkIdType oldPtId, vtkIdType newPtId)
 {
   vtkNew<vtkIdList> ids;
-  this->GetCellPoints(cellId, ids);
-  for (vtkIdType i = 0; i < ids->GetNumberOfIds(); i++)
+  this->ReplaceCellPoint(cellId, oldPtId, newPtId, ids);
+}
+
+//------------------------------------------------------------------------------
+inline void vtkPolyData::ReplaceCellPoint(
+  vtkIdType cellId, vtkIdType oldPtId, vtkIdType newPtId, vtkIdList* cellPointIds)
+{
+  if (!this->Cells)
   {
-    if (ids->GetId(i) == oldPtId)
+    this->BuildCells();
+  }
+  vtkIdType npts;
+  const vtkIdType* pts;
+  this->GetCellPoints(cellId, npts, pts, cellPointIds);
+  for (vtkIdType i = 0; i < npts; i++)
+  {
+    if (pts[i] == oldPtId)
     {
-      ids->SetId(i, newPtId);
+      const TaggedCellId tag = this->Cells->GetTag(cellId);
+      vtkCellArray* cells = this->GetCellArrayInternal(tag);
+      cells->ReplaceCellPointAtId(tag.GetCellId(), i, newPtId);
       break;
     }
   }
-  this->ReplaceCell(cellId, static_cast<int>(ids->GetNumberOfIds()), ids->GetPointer(0));
 }
 
 //------------------------------------------------------------------------------
@@ -907,6 +972,26 @@ inline unsigned char vtkPolyData::GetCellPoints(
   vtkCellArray* cells = this->GetCellArrayInternal(tag);
   cells->GetCellAtId(tag.GetCellId(), npts, pts);
   return tag.GetCellType();
+}
+
+//------------------------------------------------------------------------------
+inline void vtkPolyData::GetCellPoints(
+  vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+{
+  if (!this->Cells)
+  {
+    this->BuildCells();
+  }
+
+  const TaggedCellId tag = this->Cells->GetTag(cellId);
+  if (tag.IsDeleted())
+  {
+    npts = 0;
+    pts = nullptr;
+  }
+
+  vtkCellArray* cells = this->GetCellArrayInternal(tag);
+  cells->GetCellAtId(tag.GetCellId(), npts, pts, ptIds);
 }
 
 #endif

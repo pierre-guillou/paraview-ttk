@@ -29,8 +29,11 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================*/
+
+// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
+
 #include "pqPVApplicationCore.h"
-#include "vtkPVConfig.h"
 
 #include "pqActiveObjects.h"
 #include "pqAnimationManager.h"
@@ -60,25 +63,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QDebug>
 #include <QFileOpenEvent>
 #include <QList>
-#include <QShortcut>
 
 //-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 pqPVApplicationCore::pqPVApplicationCore(int& argc, char** argv, pqOptions* options)
   : pqPVApplicationCore(argc, argv, static_cast<vtkCLIOptions*>(nullptr), true, nullptr)
 {
   this->setOptions(options);
 }
-#endif
 
 //-----------------------------------------------------------------------------
 pqPVApplicationCore::pqPVApplicationCore(int& argc, char** argv, vtkCLIOptions* options,
   bool addStandardArgs /*=true*/, QObject* parentObject /*=nullptr*/)
   : Superclass(argc, argv, options, addStandardArgs, parentObject)
 {
-  // Initialize pqComponents resources.
+  // Initialize pqComponents resources, only for static builds.
+#if !BUILD_SHARED_LIBS
   pqApplicationComponentsInit();
-
+#endif
   this->AnimationManager = new pqAnimationManager(this);
   this->SelectionManager = new pqSelectionManager(this);
 
@@ -144,7 +145,7 @@ void pqPVApplicationCore::quickLaunch()
   if (!this->QuickLaunchMenus.empty())
   {
     pqQuickLaunchDialog dialog(pqCoreUtilities::mainWidget());
-    foreach (QWidget* menu, this->QuickLaunchMenus)
+    Q_FOREACH (QWidget* menu, this->QuickLaunchMenus)
     {
       if (menu)
       {
@@ -163,14 +164,18 @@ void pqPVApplicationCore::quickLaunch()
         }
       }
     }
-    // If shift modifier is pressed, let's force the auto apply
-    bool forceAutoApply = QApplication::keyboardModifiers() & Qt::ShiftModifier;
-    bool autoApplyState = pqPropertiesPanel::autoApply();
-    pqPropertiesPanel::setAutoApply(autoApplyState || forceAutoApply);
     dialog.exec();
-    // Restore the auto apply state
-    pqPropertiesPanel::setAutoApply(autoApplyState);
+    if (dialog.quickApply())
+    {
+      this->applyPipeline();
+    }
   }
+}
+
+//-----------------------------------------------------------------------------
+void pqPVApplicationCore::applyPipeline()
+{
+  Q_EMIT this->triggerApply();
 }
 
 //-----------------------------------------------------------------------------

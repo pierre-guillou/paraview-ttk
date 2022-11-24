@@ -19,7 +19,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPResourceFileLocator.h"
 #include "vtkPSystemTools.h"
-#include "vtkPVConfig.h"
+#include "vtkPVDynamicInitializerPluginInterface.h"
 #include "vtkPVLogger.h"
 #include "vtkPVPlugin.h"
 #include "vtkPVPluginLoader.h"
@@ -557,6 +557,13 @@ void vtkPVPluginTracker::RegisterPlugin(vtkPVPlugin* plugin)
 
   // Do some basic processing of the plugin here itself.
 
+  // If this plugin has arbitrary code that needs to run upon load, run it now.
+  auto* diplugin = dynamic_cast<vtkPVDynamicInitializerPluginInterface*>(plugin);
+  if (diplugin)
+  {
+    diplugin->Initialize();
+  }
+
   // If this plugin has functions for initializing the interpreter, we set them
   // up right now.
   vtkPVServerManagerPluginInterface* smplugin =
@@ -662,13 +669,3 @@ void vtkPVPluginTracker::RegisterStaticPluginListFunction(vtkPluginListFunction 
 {
   RegisteredPluginListFunctions.push_back(function);
 }
-
-#ifndef VTK_LEGACY_REMOVE
-//-----------------------------------------------------------------------------
-void vtkPVPluginTracker::SetStaticPluginSearchFunction(vtkPluginSearchFunction function)
-{
-  VTK_LEGACY_BODY(vtkPVPluginTracker::SetStaticPluginSearchFunction, "ParaView 5.7");
-  vtkPVPluginTracker::RegisterStaticPluginSearchFunction(function);
-}
-
-#endif

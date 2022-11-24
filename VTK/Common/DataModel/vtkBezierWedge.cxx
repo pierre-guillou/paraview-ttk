@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkBezierWedge.h"
 
 #include "vtkBezierCurve.h"
@@ -150,18 +147,6 @@ vtkCell* vtkBezierWedge::GetFace(int faceId)
     this->GetQuadrilateralFace(result, faceId, set_number_of_ids_and_points, set_ids_and_points);
     return result;
   }
-}
-
-/**\brief EvaluateLocation Given a point_id. This is required by Bezier because the interior points
- * are non-interpolatory .
- */
-void vtkBezierWedge::EvaluateLocationProjectedNode(
-  int& subId, const vtkIdType point_id, double x[3], double* weights)
-{
-  this->vtkHigherOrderWedge::SetParametricCoords();
-  double pcoords[3];
-  this->PointParametricCoordinates->GetPoint(this->PointIds->FindIdLocation(point_id), pcoords);
-  this->vtkHigherOrderWedge::EvaluateLocation(subId, pcoords, x, weights);
 }
 
 void vtkBezierWedge::InterpolateFunctions(const double pcoords[3], double* weights)

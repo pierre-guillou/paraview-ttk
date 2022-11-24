@@ -35,11 +35,12 @@ set(classes
   vtkCleanArrays
   vtkCompleteArrays
   vtkEnvironmentAnnotationFilter
-  vtkExtractHistogram
   vtkMergeBlocks
   vtkMinMax
   vtkPExtractHistogram
+  vtkPVExtractHistogram2D
   vtkPVBox
+  vtkPVChangeOfBasisHelper
   vtkPVCylinder
   vtkPVMergeTables
   vtkPVMergeTablesMultiBlock
@@ -49,21 +50,8 @@ set(classes
   vtkReductionFilter
   vtkSelectionSerializer)
 
-if (NOT VTK_LEGACY_REMOVE)
-  list(APPEND classes
-    vtkCompositeDataToUnstructuredGridFilter
-    vtkDataObjectTreeToPointSetFilter)
-endif()
-
-set(headers
-  vtkPVChangeOfBasisHelper.h)
-set(sources
-  vtkPVChangeOfBasisHelper.cxx)
-
 vtk_module_add_module(ParaView::VTKExtensionsMisc
-  CLASSES ${classes}
-  HEADERS ${headers}
-  SOURCES ${sources})
+  CLASSES ${classes})
 
 paraview_add_server_manager_xmls(
   XMLS  Resources/misc_filters.xml

@@ -31,9 +31,8 @@
 #include "vtkStdString.h"       // For vtkStdString ivars
 
 class vtkChartParallelCoordinates;
-class vtkTable;
-class vtkStdString;
 class vtkScalarsToColors;
+class vtkTable;
 class vtkUnsignedCharArray;
 
 class VTKCHARTSCORE_EXPORT vtkPlotParallelCoordinates : public vtkPlot
@@ -46,13 +45,6 @@ public:
    * Creates a parallel coordinates chart
    */
   static vtkPlotParallelCoordinates* New();
-
-  /**
-   * Perform any updates to the item that may be necessary before rendering.
-   * The scene should take care of calling this on all items before their
-   * Paint function is invoked.
-   */
-  void Update() override;
 
   /**
    * Paint event for the XY plot, called whenever the chart needs to be drawn
@@ -73,9 +65,16 @@ public:
   void GetBounds(double bounds[4]) override;
 
   /**
-   * Set the selection criteria on the given axis in normalized space (0.0 - 1.0).
+   * Set the selection criteria on the given axis in normalized space (0.0 - 1.0) for a specific
+   * range.
    */
-  bool SetSelectionRange(int Axis, float low, float high);
+  bool SetSelectionRange(int axis, float low, float high);
+
+  /**
+   * Set the selection criteria on the given axis in normalized space [0.0 ; 1.0]
+   * axisSelection should be a list like {minRange1, maxRange1, minRange2, maxRange2, ...}
+   */
+  bool SetSelectionRange(int axis, std::vector<float> axisSelection);
 
   /**
    * Reset the selection criteria for the chart.
@@ -131,14 +130,17 @@ public:
    */
   vtkStdString GetColorArrayName();
 
+  /**
+   * Update the internal cache. Returns true if cache was successfully updated. Default does
+   * nothing.
+   * This method is called by Update() when either the plot's data has changed or
+   * CacheRequiresUpdate() returns true. It is not necessary to call this method explicitly.
+   */
+  bool UpdateCache() override;
+
 protected:
   vtkPlotParallelCoordinates();
   ~vtkPlotParallelCoordinates() override;
-
-  /**
-   * Update the table cache.
-   */
-  bool UpdateTableCache(vtkTable* table);
 
   ///@{
   /**
@@ -147,11 +149,6 @@ protected:
   class Private;
   Private* Storage;
   ///@}
-
-  /**
-   * The point cache is marked dirty until it has been initialized.
-   */
-  vtkTimeStamp BuildTime;
 
   ///@{
   /**

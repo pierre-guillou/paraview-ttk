@@ -15,6 +15,7 @@
 #include <vtkm/CellClassification.h>
 #include <vtkm/Types.h>
 #include <vtkm/VectorAnalysis.h>
+#include <vtkm/cont/ArrayCopy.h>
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/CellLocatorGeneral.h>
 #include <vtkm/cont/CellLocatorRectilinearGrid.h>
@@ -61,9 +62,9 @@ public:
   }
 
   template <typename Point>
-  VTKM_EXEC bool IsWithinSpatialBoundary(const Point point) const
+  VTKM_EXEC bool IsWithinSpatialBoundary(const Point& point) const
   {
-    vtkm::Id cellId;
+    vtkm::Id cellId = -1;
     Point parametric;
 
     this->Locator.FindCell(point, cellId, parametric);
@@ -124,8 +125,17 @@ public:
       vtkm::IdComponent nVerts;
       vtkm::VecVariable<vtkm::Id, 8> ptIndices;
       vtkm::VecVariable<vtkm::Vec3f, 8> fieldValues;
-      this->InterpolationHelper.GetCellInfo(cellId, cellShape, nVerts, ptIndices);
-      this->Field.GetValue(ptIndices, nVerts, parametric, cellShape, out);
+
+      if (this->Field.GetAssociation() == vtkm::cont::Field::Association::Points)
+      {
+        this->InterpolationHelper.GetCellInfo(cellId, cellShape, nVerts, ptIndices);
+        this->Field.GetValue(ptIndices, nVerts, parametric, cellShape, out);
+      }
+      else if (this->Field.GetAssociation() == vtkm::cont::Field::Association::Cells)
+      {
+        this->Field.GetValue(cellId, out);
+      }
+
       status.SetOk();
     }
 
@@ -136,7 +146,7 @@ private:
   VTKM_EXEC bool InGhostCell(const vtkm::Id& cellId) const
   {
     if (this->HaveGhostCells && cellId != -1)
-      return GhostCells.Get(cellId) == vtkm::CellClassification::GHOST;
+      return GhostCells.Get(cellId) == vtkm::CellClassification::Ghost;
 
     return false;
   }
@@ -177,16 +187,13 @@ public:
     if (dataSet.HasCellField("vtkmGhostCells"))
     {
       auto arr = dataSet.GetCellField("vtkmGhostCells").GetData();
-      if (arr.IsType<GhostCellArrayType>())
-        this->GhostCellArray = arr.AsArrayHandle<GhostCellArrayType>();
-      else
-        throw vtkm::cont::ErrorInternal("vtkmGhostCells not of type vtkm::UInt8");
+      vtkm::cont::ArrayCopyShallowIfPossible(arr, this->GhostCellArray);
     }
   }
 
   VTKM_CONT
   GridEvaluator(const vtkm::cont::CoordinateSystem& coordinates,
-                const vtkm::cont::DynamicCellSet& cellset,
+                const vtkm::cont::UnknownCellSet& cellset,
                 const FieldType& field)
     : Bounds(coordinates.GetBounds())
     , Field(field)
@@ -210,7 +217,7 @@ public:
 
 private:
   VTKM_CONT void InitializeLocator(const vtkm::cont::CoordinateSystem& coordinates,
-                                   const vtkm::cont::DynamicCellSet& cellset)
+                                   const vtkm::cont::UnknownCellSet& cellset)
   {
     this->Locator.SetCoordinates(coordinates);
     this->Locator.SetCellSet(cellset);

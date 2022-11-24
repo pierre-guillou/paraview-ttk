@@ -38,9 +38,20 @@ set(Boost_find_package_vars
   Boost_USE_STATIC_LIBS)
 set(MPI_find_package_vars
   MPI_C_COMPILER)
+set(OpenVR_find_package_vars
+  OpenVR_INCLUDE_DIR
+  OpenVR_LIBRARY)
 set(OSMesa_find_package_vars
   OSMESA_INCLUDE_DIR
   OSMESA_LIBRARY)
+set(Python2_find_package_vars
+  Python2_EXECUTABLE
+  Python2_INCLUDE_DIR
+  Python2_LIBRARY)
+set(Python3_find_package_vars
+  Python3_EXECUTABLE
+  Python3_INCLUDE_DIR
+  Python3_LIBRARY)
 
 if ("ospray" IN_LIST _vtk_packages)
   # FIXME: ospray depends on embree, but does not help finders at all.

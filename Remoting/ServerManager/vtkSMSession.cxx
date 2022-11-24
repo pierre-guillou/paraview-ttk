@@ -12,10 +12,15 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
+
 #include "vtkSMSession.h"
 
 #include "vtkCommand.h"
 #include "vtkDebugLeaks.h"
+#include "vtkLegacy.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVCatalystSessionCore.h"
 #include "vtkPVServerInformation.h"
@@ -261,7 +266,7 @@ void vtkSMSession::Disconnect(vtkIdType sid)
 }
 
 //----------------------------------------------------------------------------
-vtkIdType vtkSMSession::ConnectToSelf(int vtkNotUsed(timeout))
+vtkIdType vtkSMSession::ConnectToSelf()
 {
   vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
   vtkSMSession* session = vtkSMSession::New();
@@ -283,19 +288,15 @@ vtkIdType vtkSMSession::ConnectToCatalyst()
 }
 
 //----------------------------------------------------------------------------
-vtkIdType vtkSMSession::ConnectToRemote(const char* hostname, int port, int timeout)
-{
-  return vtkSMSession::ConnectToRemoteInternal(hostname, port, timeout);
-}
-
-//----------------------------------------------------------------------------
-vtkIdType vtkSMSession::ConnectToRemoteInternal(const char* hostname, int port, int timeout)
+vtkIdType vtkSMSession::ConnectToRemote(const char* hostname, int port, int timeout,
+  bool (*callback)(), vtkNetworkAccessManager::ConnectionResult& result)
 {
   std::ostringstream sname;
   sname << "cs://" << hostname << ":" << port;
   vtkSMSessionClient* session = vtkSMSessionClient::New();
+
   vtkIdType sid = 0;
-  if (session->Connect(sname.str().c_str(), timeout))
+  if (session->Connect(sname.str().c_str(), timeout, callback, result))
   {
     vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
     sid = pm->RegisterSession(session);
@@ -305,14 +306,14 @@ vtkIdType vtkSMSession::ConnectToRemoteInternal(const char* hostname, int port, 
 }
 
 //----------------------------------------------------------------------------
-vtkIdType vtkSMSession::ConnectToRemote(
-  const char* dshost, int dsport, const char* rshost, int rsport, int timeout)
+vtkIdType vtkSMSession::ConnectToRemote(const char* dshost, int dsport, const char* rshost,
+  int rsport, int timeout, bool (*callback)(), vtkNetworkAccessManager::ConnectionResult& result)
 {
   std::ostringstream sname;
   sname << "cdsrs://" << dshost << ":" << dsport << "/" << rshost << ":" << rsport;
   vtkSMSessionClient* session = vtkSMSessionClient::New();
   vtkIdType sid = 0;
-  if (session->Connect(sname.str().c_str(), timeout))
+  if (session->Connect(sname.str().c_str(), timeout, callback, result))
   {
     vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
     sid = pm->RegisterSession(session);
@@ -322,44 +323,16 @@ vtkIdType vtkSMSession::ConnectToRemote(
 }
 
 //----------------------------------------------------------------------------
-namespace
+vtkIdType vtkSMSession::ReverseConnectToRemote(
+  int port, int timeout, bool (*callback)(), vtkNetworkAccessManager::ConnectionResult& result)
 {
-class vtkTemp
-{
-public:
-  bool (*Callback)();
-  vtkSMSessionClient* Session;
-  vtkTemp()
-  {
-    this->Callback = nullptr;
-    this->Session = nullptr;
-  }
-  void OnEvent()
-  {
-    if (this->Callback != nullptr)
-    {
-      bool continue_waiting = (*this->Callback)();
-      if (!continue_waiting && this->Session)
-      {
-        this->Session->SetAbortConnect(true);
-      }
-    }
-  }
-};
+  return vtkSMSession::ReverseConnectToRemote(port, -1, timeout, callback, result);
 }
 
 //----------------------------------------------------------------------------
-vtkIdType vtkSMSession::ReverseConnectToRemote(int port, bool (*callback)())
+vtkIdType vtkSMSession::ReverseConnectToRemote(int dsport, int rsport, int timeout,
+  bool (*callback)(), vtkNetworkAccessManager::ConnectionResult& result)
 {
-  return vtkSMSession::ReverseConnectToRemote(port, -1, callback);
-}
-
-//----------------------------------------------------------------------------
-vtkIdType vtkSMSession::ReverseConnectToRemote(int dsport, int rsport, bool (*callback)())
-{
-  vtkTemp temp;
-  temp.Callback = callback;
-
   std::ostringstream sname;
   if (rsport <= -1)
   {
@@ -371,16 +344,12 @@ vtkIdType vtkSMSession::ReverseConnectToRemote(int dsport, int rsport, bool (*ca
   }
 
   vtkSMSessionClient* session = vtkSMSessionClient::New();
-  temp.Session = session;
-  unsigned long id = session->AddObserver(vtkCommand::ProgressEvent, &temp, &vtkTemp::OnEvent);
-
   vtkIdType sid = 0;
-  if (session->Connect(sname.str().c_str()))
+  if (session->Connect(sname.str().c_str(), timeout, callback, result))
   {
     vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
     sid = pm->RegisterSession(session);
   }
-  session->RemoveObserver(id);
   session->Delete();
   return sid;
 }
@@ -434,10 +403,8 @@ void vtkSMSession::ProcessNotification(const vtkSMMessage* message)
 }
 
 //----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 bool vtkSMSession::GetIsAutoMPI() const
 {
   VTK_LEGACY_BODY(vtkMyClass::GetIsAutoMPI, "ParaView 5.10");
   return false;
 }
-#endif

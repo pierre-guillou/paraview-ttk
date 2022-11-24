@@ -24,7 +24,6 @@
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkStdString.h"
 #include "vtkWidgetCallbackMapper.h"
 #include "vtkWidgetEvent.h"
 #include "vtkWidgetEventTranslator.h"
@@ -34,10 +33,13 @@ vtkStandardNewMacro(vtkImplicitPlaneWidget2);
 // The implicit plane widget observes its representation. The representation
 // may invoke an InteractionEvent when the camera moves when LockedNormalToCamera
 // is enabled.
-class vtkInteractionCallback : public vtkCommand
+class vtkImplicitPlaneWidget2InteractionCallback : public vtkCommand
 {
 public:
-  static vtkInteractionCallback* New() { return new vtkInteractionCallback; }
+  static vtkImplicitPlaneWidget2InteractionCallback* New()
+  {
+    return new vtkImplicitPlaneWidget2InteractionCallback;
+  }
   void Execute(vtkObject*, unsigned long eventId, void*) override
   {
     switch (eventId)
@@ -129,7 +131,7 @@ vtkImplicitPlaneWidget2::vtkImplicitPlaneWidget2()
       this, vtkImplicitPlaneWidget2::MoveAction3D);
   }
 
-  this->InteractionCallback = vtkInteractionCallback::New();
+  this->InteractionCallback = vtkImplicitPlaneWidget2InteractionCallback::New();
   this->InteractionCallback->ImplicitPlaneWidget = this;
 }
 
@@ -432,8 +434,8 @@ void vtkImplicitPlaneWidget2::MovePlaneAction(vtkAbstractWidget* w)
 
   // Move the plane
   double factor = (self->Interactor->GetControlKey() ? 0.5 : 1.0);
-  if (vtkStdString(self->Interactor->GetKeySym()) == vtkStdString("Down") ||
-    vtkStdString(self->Interactor->GetKeySym()) == vtkStdString("Left"))
+  if (!strcmp(self->Interactor->GetKeySym(), "Down") ||
+    !strcmp(self->Interactor->GetKeySym(), "Left"))
   {
     self->GetImplicitPlaneRepresentation()->BumpPlane(-1, factor);
   }

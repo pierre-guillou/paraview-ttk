@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqCommandButtonPropertyWidget_h
-#define _pqCommandButtonPropertyWidget_h
+#ifndef pqCommandButtonPropertyWidget_h
+#define pqCommandButtonPropertyWidget_h
 
 #include "pqApplicationComponentsModule.h"
 
@@ -53,7 +53,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqCommandButtonPropertyWidget : public pqPr
 
 public:
   explicit pqCommandButtonPropertyWidget(
-    vtkSMProxy* proxy, vtkSMProperty* property, QWidget* parent = 0);
+    vtkSMProxy* proxy, vtkSMProperty* property, QWidget* parent = nullptr);
   ~pqCommandButtonPropertyWidget() override;
 
 protected Q_SLOTS:
@@ -63,4 +63,4 @@ private:
   vtkSMProperty* Property;
 };
 
-#endif // _pqCommandButtonPropertyWidget_h
+#endif // pqCommandButtonPropertyWidget_h

@@ -66,7 +66,7 @@ x=0
 dx=float(1)/len(mappers)
 
 # Define the property: lighting intensities, color,
-# edge visibility, point visibilty
+# edge visibility, point visibility
 p1=vtk.vtkProperty()
 p1.SetColor(1,0,0)
 p1.LightingOff()
@@ -90,7 +90,7 @@ light.SetPosition(1,1,1)
 
 for m in mappers:
     # Push back the polygons
-    m.SetRelativeCoincidentTopologyPolygonOffsetParameters(10,2)
+    m.SetRelativeCoincidentTopologyPolygonOffsetParameters(0,2)
 
     # Bottom renderer shows cube without lighting
     actors.append(vtk.vtkActor())

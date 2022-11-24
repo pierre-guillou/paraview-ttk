@@ -217,6 +217,12 @@ int vtkXMLTreeReader::RequestData(
 
   // Get the root element node
   xmlNode* rootElement = xmlDocGetRootElement(doc);
+  if (!rootElement)
+  {
+    vtkErrorMacro(<< "Could not get root element of document.");
+    return 0;
+  }
+
   vtkXMLTreeReaderProcessElement(builder, -1, rootElement, this->ReadCharData, this->MaskArrays);
 
   xmlFreeDoc(doc);
@@ -227,7 +233,7 @@ int vtkXMLTreeReader::RequestData(
     vtkStringArray* stringArr = vtkArrayDownCast<vtkStringArray>(data->GetAbstractArray(i));
     if (stringArr && (stringArr->GetNumberOfTuples() < builder->GetNumberOfVertices()))
     {
-      stringArr->InsertValue(builder->GetNumberOfVertices() - 1, vtkStdString(""));
+      stringArr->InsertValue(builder->GetNumberOfVertices() - 1, vtkStdString());
     }
   }
 

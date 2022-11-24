@@ -1149,7 +1149,7 @@ void vtkOpenGLFramebufferObject::DisplayBuffer(int value)
   else
   {
 #ifdef GL_ES_VERSION_3_0
-    vtkErrorMacro("Attempt to use bad display destintation");
+    vtkErrorMacro("Attempt to use bad display destination");
 #else
     if (value >= GL_AUX0)
     {
@@ -1319,11 +1319,7 @@ bool vtkOpenGLFramebufferObject::GetFrameBufferStatus(unsigned int mode, const c
     default:
       desc = "Unknown status";
   }
-  if (!ok)
-  {
-    return false;
-  }
-  return true;
+  return ok;
 }
 
 //------------------------------------------------------------------------------

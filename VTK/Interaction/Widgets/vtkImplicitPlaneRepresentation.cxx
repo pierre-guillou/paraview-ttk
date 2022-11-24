@@ -15,13 +15,11 @@
 #include "vtkImplicitPlaneRepresentation.h"
 
 #include "vtkActor.h"
-#include "vtkAssemblyNode.h"
 #include "vtkAssemblyPath.h"
 #include "vtkBox.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCamera.h"
 #include "vtkCellPicker.h"
-#include "vtkCommand.h"
 #include "vtkConeSource.h"
 #include "vtkCutter.h"
 #include "vtkEventData.h"
@@ -681,16 +679,18 @@ double* vtkImplicitPlaneRepresentation::GetBounds()
 //------------------------------------------------------------------------------
 void vtkImplicitPlaneRepresentation::GetActors(vtkPropCollection* pc)
 {
-  if (this->Visibility)
+  if (!pc)
   {
-    this->OutlineActor->GetActors(pc);
-    this->CutActor->GetActors(pc);
-    this->EdgesActor->GetActors(pc);
-    this->ConeActor->GetActors(pc);
-    this->LineActor->GetActors(pc);
-    this->ConeActor2->GetActors(pc);
-    this->SphereActor->GetActors(pc);
+    return;
   }
+  pc->AddItem(this->OutlineActor);
+  pc->AddItem(this->CutActor);
+  pc->AddItem(this->EdgesActor);
+  pc->AddItem(this->ConeActor);
+  pc->AddItem(this->LineActor);
+  pc->AddItem(this->ConeActor2);
+  pc->AddItem(this->SphereActor);
+  this->Superclass::GetActors(pc);
 }
 
 //------------------------------------------------------------------------------

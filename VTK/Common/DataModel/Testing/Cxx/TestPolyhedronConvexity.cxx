@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include <vector>
 
 #include "vtkCellArray.h"
@@ -365,7 +362,7 @@ bool IsConvex(Shape shape)
   vtkSmartPointer<vtkUnstructuredGrid> ugrid = vtkSmartPointer<vtkUnstructuredGrid>::New();
   ugrid->SetPoints(polyhedronPoints);
   ugrid->InsertNextCell(VTK_POLYHEDRON, polyhedronPoints->GetNumberOfPoints(),
-    &polyhedronPointsIds[0], polyhedronFaces->GetNumberOfCells(), legacyFaces->GetPointer(0));
+    polyhedronPointsIds.data(), polyhedronFaces->GetNumberOfCells(), legacyFaces->GetPointer(0));
 
   vtkPolyhedron* polyhedron = static_cast<vtkPolyhedron*>(ugrid->GetCell(0));
 
@@ -377,43 +374,43 @@ int TestPolyhedronConvexity(int argc, char* argv[])
   (void)argc;
   (void)argv;
 
-  if (IsConvex(dodecahedron) != true)
+  if (!IsConvex(dodecahedron))
   {
     cerr << "convex dodehecahedron incorrectly classified as non-convex" << std::endl;
     return EXIT_FAILURE;
   }
 
-  if (IsConvex(u_shape) != false)
+  if (IsConvex(u_shape))
   {
     cerr << "non-convex u-shape incorrectly classified as convex" << std::endl;
     return EXIT_FAILURE;
   }
 
-  if (IsConvex(cube) != true)
+  if (!IsConvex(cube))
   {
     cerr << "convex cube incorrectly classified as non-convex" << std::endl;
     return EXIT_FAILURE;
   }
 
-  if (IsConvex(colinear_cube) != true)
+  if (!IsConvex(colinear_cube))
   {
     cerr << "convex colinear cube incorrectly classified as non-convex" << std::endl;
     return EXIT_FAILURE;
   }
 
-  if (IsConvex(degenerate_cube) != true)
+  if (!IsConvex(degenerate_cube))
   {
     cerr << "convex degenerate cube incorrectly classified as non-convex" << std::endl;
     return EXIT_FAILURE;
   }
 
-  if (IsConvex(convex_pyramid) != true)
+  if (!IsConvex(convex_pyramid))
   {
     cerr << "convex pyramid incorrectly classified as non-convex" << std::endl;
     return EXIT_FAILURE;
   }
 
-  if (IsConvex(nonconvex_pyramid) != false)
+  if (IsConvex(nonconvex_pyramid))
   {
     cerr << "non-convex pyramid incorrectly classified as convex" << std::endl;
     return EXIT_FAILURE;

@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqProxyPropertyWidget_h
-#define _pqProxyPropertyWidget_h
+#ifndef pqProxyPropertyWidget_h
+#define pqProxyPropertyWidget_h
 
 #include "pqPropertyWidget.h"
 #include <QPointer>
@@ -49,7 +49,7 @@ class PQCOMPONENTS_EXPORT pqProxyPropertyWidget : public pqPropertyWidget
   typedef pqPropertyWidget Superclass;
 
 public:
-  pqProxyPropertyWidget(vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parent = 0);
+  pqProxyPropertyWidget(vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parent = nullptr);
 
   /**
    * Overridden to pass the calls to internal widgets.
@@ -76,4 +76,4 @@ private:
   QPointer<pqProxySelectionWidget> ProxySelectionWidget;
 };
 
-#endif // _pqProxyPropertyWidget_h
+#endif // pqProxyPropertyWidget_h

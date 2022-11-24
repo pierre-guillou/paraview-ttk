@@ -20,7 +20,7 @@
 #include "vtkDataArrayRange.h"
 #include "vtkDataObjectTypes.h"
 #include "vtkDoubleArray.h"
-#include "vtkExtractSelectedIds.h"
+#include "vtkExtractSelection.h"
 #include "vtkFloatArray.h"
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
@@ -48,7 +48,6 @@
 #include <cassert>
 #include <deque>
 #include <numeric>
-#include <type_traits>
 #include <vector>
 
 #include "vtk_libxml2.h"
@@ -104,7 +103,7 @@ vtkDataObject* vtkXdmfHeavyData::ReadData()
     // need to be care:
     // 1. If the data is structured, we respect the update-extent and read
     //    accordingly.
-    // 2. If the data is unstructrued, we read only on the root node. The user
+    // 2. If the data is unstructured, we read only on the root node. The user
     //    can apply D3 or something to repartition the data.
     return this->ReadData(this->Domain->GetGrid(0));
   }
@@ -415,15 +414,28 @@ vtkDataObject* vtkXdmfHeavyData::ReadUniformData(XdmfGrid* xmfGrid, int blockId)
 
     default:
       // un-handled case.
-      return nullptr;
+      dataObject = nullptr;
+      break;
   }
+  // grid's memory needs to be released because otherwise, it will be cached
+  // which can lead to out-of-memory issues for big datasets
+  xmfGrid->Release();
 
-  if (caching)
+  // dataObject can be nullptr if an error occur inside Read*(xmfGrid)
+  // so it needs to be handled carefully
+  if (dataObject)
   {
-    cache[blockId].dataset = vtkDataSet::SafeDownCast(dataObject);
-    dataObject->Register(nullptr);
+    if (caching)
+    {
+      cache[blockId].dataset = vtkDataSet::SafeDownCast(dataObject);
+      dataObject->Register(nullptr);
+    }
+    return dataObject;
   }
-  return dataObject;
+  else
+  {
+    return nullptr;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1498,7 +1510,7 @@ vtkDataSet* vtkXdmfHeavyData::ExtractCells(XdmfSet* xmfSet, vtkDataSet* dataSet)
   XdmfArray* xmfIds = xmfSet->GetIds();
   XdmfInt64 numIds = xmfIds->GetNumberOfElements();
 
-  vtkIdTypeArray* ids = vtkIdTypeArray::New();
+  vtkNew<vtkIdTypeArray> ids;
   ids->SetNumberOfComponents(1);
   ids->SetNumberOfTuples(numIds);
   xmfIds->GetValues(0, (vtkXdmfIdType*)ids->GetPointer(0), numIds);
@@ -1508,26 +1520,21 @@ vtkDataSet* vtkXdmfHeavyData::ExtractCells(XdmfSet* xmfSet, vtkDataSet* dataSet)
 
   // We directly use vtkExtractSelectedIds for extract cells since the logic to
   // extract cells it no trivial (like extracting points).
-  vtkSelectionNode* selNode = vtkSelectionNode::New();
+  vtkNew<vtkSelectionNode> selNode;
   selNode->SetContentType(vtkSelectionNode::INDICES);
   selNode->SetFieldType(vtkSelectionNode::CELL);
   selNode->SetSelectionList(ids);
 
-  vtkSelection* sel = vtkSelection::New();
+  vtkNew<vtkSelection> sel;
   sel->AddNode(selNode);
-  selNode->Delete();
 
-  vtkExtractSelectedIds* extractCells = vtkExtractSelectedIds::New();
+  vtkNew<vtkExtractSelection> extractCells;
   extractCells->SetInputData(0, dataSet);
   extractCells->SetInputData(1, sel);
   extractCells->Update();
 
   vtkDataSet* output = vtkDataSet::SafeDownCast(extractCells->GetOutput()->NewInstance());
   output->CopyStructure(vtkDataSet::SafeDownCast(extractCells->GetOutput()));
-
-  sel->Delete();
-  extractCells->Delete();
-  ids->Delete();
 
   // Read cell-centered attributes that may be defined on this set.
   int numAttributes = xmfSet->GetNumberOfAttributes();

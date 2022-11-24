@@ -107,7 +107,7 @@ static void GetDoubleArrayByName(const hid_t rootIdx, const char* name, std::vec
   int numbPnts = dimValus[0];
 
   array.resize(numbPnts);
-  H5Dread(arrayIdx, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &array[0]);
+  H5Dread(arrayIdx, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.data());
 
   //  H5Dclose( spaceIdx );
   //  H5Dclose( arrayIdx );
@@ -212,14 +212,7 @@ bool vtkAMREnzoParticlesReader::CheckParticleType(const int idx, vtkIntArray* pt
     this->ParticleDataArraySelection->ArrayExists("particle_type"))
   {
     int ptype = ptypes->GetValue(idx);
-    if ((this->ParticleType == 0) || (ptype == this->ParticleType))
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+    return this->ParticleType == 0 || ptype == this->ParticleType;
   }
   else
   {
@@ -354,7 +347,7 @@ vtkPolyData* vtkAMREnzoParticlesReader::GetParticles(const char* file, const int
 //------------------------------------------------------------------------------
 void vtkAMREnzoParticlesReader::SetupParticleDataSelections()
 {
-  assert("pre: Intenal reader is nullptr" && (this->Internal != nullptr));
+  assert("pre: Internal reader is nullptr" && (this->Internal != nullptr));
 
   unsigned int N = static_cast<unsigned int>(this->Internal->ParticleAttributeNames.size());
   for (unsigned int i = 0; i < N; ++i)

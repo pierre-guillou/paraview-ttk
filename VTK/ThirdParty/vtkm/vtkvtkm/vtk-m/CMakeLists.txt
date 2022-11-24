@@ -24,6 +24,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(VTKm_CMAKE_MODULE_PATH ${VTKm_SOURCE_DIR}/CMake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${VTKm_CMAKE_MODULE_PATH})
 
+# While disabled system-wide, VTK-m uses UNITY builds in some modules
+set(CMAKE_UNITY_BUILD OFF)
+
+# By default effectively disable unity builds
+if (NOT DEFINED CMAKE_UNITY_BUILD_BATCH_SIZE)
+  set(CMAKE_UNITY_BUILD_BATCH_SIZE 1)
+endif()
+
 # Determine VTK-m version
 include(Utilities/Git/Git.cmake)
 include(VTKmDetermineVersion)
@@ -89,6 +97,7 @@ vtkm_option(VTKm_ENABLE_BENCHMARKS "Enable VTKm Benchmarking" OFF)
 vtkm_option(VTKm_ENABLE_MPI "Enable MPI support" OFF)
 vtkm_option(VTKm_ENABLE_DOCUMENTATION "Build Doxygen documentation" OFF)
 vtkm_option(VTKm_ENABLE_EXAMPLES "Build examples" OFF)
+vtkm_option(VTKm_ENABLE_TUTORIALS "Build tutorials" OFF)
 if (NOT DEFINED VTKm_ENABLE_TESTING)
     if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
       vtkm_option(VTKm_ENABLE_TESTING "Enable VTKm Testing" ON)
@@ -96,6 +105,12 @@ if (NOT DEFINED VTKm_ENABLE_TESTING)
       vtkm_option(VTKm_ENABLE_TESTING "Enable VTKm Testing" OFF)
     endif()
 endif()
+
+# By default: (VTKm_ENABLE_TESTING OR VTKm_ENABLE_BENCHMARKS) -> VTKm_ENABLE_TESTING_LIBRARY
+include(CMakeDependentOption)
+cmake_dependent_option(VTKm_ENABLE_TESTING_LIBRARY "Enable VTKm Testing Library"
+  OFF "NOT VTKm_ENABLE_TESTING;NOT VTKm_ENABLE_BENCHMARKS" ON)
+mark_as_advanced(VTKm_ENABLE_TESTING_LIBRARY)
 
 vtkm_option(VTKm_USE_DOUBLE_PRECISION "Use double precision for floating point calculations" OFF)
 vtkm_option(VTKm_USE_64BIT_IDS "Use 64-bit indices." ON)
@@ -132,6 +147,9 @@ vtkm_option(VTKm_NO_ASSERT_HIP "Disable assertions for HIP devices." ON)
 # installed.
 vtkm_option(VTKm_INSTALL_ONLY_LIBRARIES "install only vtk-m libraries and no headers" OFF)
 
+# Install examples projects
+cmake_dependent_option(VTKm_INSTALL_EXAMPLES "Install examples" OFF "NOT VTKm_ENABLE_EXAMPLES" ON)
+
 # VTK-m is setup by default not to export symbols unless explicitly stated.
 # We prefer to only export symbols of a small set of user facing classes,
 # rather than exporting all symbols. This flag is added so that consumers
@@ -139,7 +157,7 @@ vtkm_option(VTKm_INSTALL_ONLY_LIBRARIES "install only vtk-m libraries and no hea
 # VTK does.
 vtkm_option(VTKm_HIDE_PRIVATE_SYMBOLS "Hide symbols from libraries." ON)
 
-vtkm_option(BUILD_SHARED_LIBS "Build VTK-m with shared libraries" OFF)
+vtkm_option(BUILD_SHARED_LIBS "Build VTK-m with shared libraries" ON)
 set(VTKm_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 
 # This flag can be used to prevent VTK-m from exporting its warning flags in its
@@ -153,10 +171,13 @@ vtkm_option(VTKm_NO_INSTALL_README_LICENSE "disable the installation of README a
 
 # We are in the process of deprecating the use of virtual methods because they
 # are not well supported on many accelerators. Turn this option on to remove
-# the code entirely. Note that the deprecation of virtual methods is work in
-# progress, so not all use of virtual methods may be done. In VTK-m 2.0
-# virtual methods should be removed entirely and this option will be removed.
-vtkm_option(VTKm_NO_DEPRECATED_VIRTUAL "Do not compile support of deprecated virtual methods" OFF)
+# the code entirely. In VTK-m 2.0 virtual methods should be removed entirely
+# and this option will be removed.
+vtkm_option(VTKm_NO_DEPRECATED_VIRTUAL "Do not compile support of deprecated virtual methods" ON)
+
+# In Python wheels, having SONAME suffixes just ends up duplicating files.
+# Allow VTK to turn off these symlinks for its wheel distribution.
+vtkm_option(VTKm_SKIP_LIBRARY_VERSIONS "Skip versioning VTK-m libraries" OFF)
 
 mark_as_advanced(
   VTKm_ENABLE_LOGGING
@@ -168,6 +189,7 @@ mark_as_advanced(
   VTKm_ENABLE_DEVELOPER_FLAGS
   VTKm_NO_INSTALL_README_LICENSE
   VTKm_NO_DEPRECATED_VIRTUAL
+  VTKm_SKIP_LIBRARY_VERSIONS
   )
 
 #-----------------------------------------------------------------------------
@@ -213,7 +235,7 @@ if (VTKm_ENABLE_TESTING)
   endif()
 
 
-  configure_file(${VTKm_SOURCE_DIR}/CTestCustom.cmake.in
+  configure_file(CTestCustom.cmake.in
     ${VTKm_BINARY_DIR}/CTestCustom.cmake @ONLY)
 
   #-----------------------------------------------------------------------------
@@ -268,6 +290,17 @@ write_basic_package_version_file(
   ${VTKm_BUILD_CMAKE_BASE_DIR}/${VTKm_INSTALL_CONFIG_DIR}/VTKmConfigVersion.cmake
   VERSION ${VTKm_VERSION}
   COMPATIBILITY ExactVersion )
+
+configure_file(${VTKm_SOURCE_DIR}/config/vtkm_config.mk.in
+  ${VTKm_BINARY_DIR}/config/vtkm_config.mk @ONLY)
+install(FILES ${VTKm_BINARY_DIR}/config/vtkm_config.mk
+  DESTINATION ${VTKm_INSTALL_SHARE_DIR}
+  )
+configure_file(${VTKm_SOURCE_DIR}/config/vtkm.pc.in
+  ${VTKm_BINARY_DIR}/config/vtkm.pc @ONLY)
+install(FILES ${VTKm_BINARY_DIR}/config/vtkm.pc
+  DESTINATION ${VTKm_INSTALL_SHARE_DIR}
+  )
 
 include(VTKmInstallCMakePackage)
 
@@ -378,3 +411,14 @@ endif()
 #-----------------------------------------------------------------------------
 # Build examples
 add_subdirectory(examples)
+
+if (VTKm_INSTALL_EXAMPLES)
+  include(GNUInstallDirs)
+  install(DIRECTORY examples DESTINATION ${CMAKE_INSTALL_DOCDIR} REGEX examples/CMakeLists.txt EXCLUDE)
+endif()
+
+#-----------------------------------------------------------------------------
+# Tutorial examples
+if(VTKm_ENABLE_TUTORIALS)
+  add_subdirectory(tutorial)
+endif()

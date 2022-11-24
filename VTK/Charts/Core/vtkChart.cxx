@@ -20,7 +20,6 @@
 #include "vtkTransform2D.h"
 
 #include "vtkAnnotationLink.h"
-#include "vtkContextScene.h"
 #include "vtkObjectFactory.h"
 #include "vtkTextProperty.h"
 
@@ -66,7 +65,7 @@ vtkChart::vtkChart()
   this->RenderEmpty = false;
   this->BackgroundBrush = vtkSmartPointer<vtkBrush>::New();
   this->BackgroundBrush->SetColorF(1, 1, 1, 0);
-  this->SelectionMode = vtkContextScene::SELECTION_NONE;
+  this->SelectionMode = vtkContextScene::SELECTION_DEFAULT;
   this->SelectionMethod = vtkChart::SELECTION_ROWS;
 }
 
@@ -332,28 +331,32 @@ bool vtkChart::CalculateUnscaledPlotTransform(vtkAxis* x, vtkAxis* y, vtkTransfo
 //------------------------------------------------------------------------------
 void vtkChart::SetBottomBorder(int border)
 {
-  this->Point1[1] = border >= 0 ? border : 0;
+  this->Borders[1] = border >= 0 ? border : 0;
+  this->Point1[1] = this->Borders[1];
   this->Point1[1] += static_cast<int>(this->Size.GetY());
 }
 
 //------------------------------------------------------------------------------
 void vtkChart::SetTopBorder(int border)
 {
-  this->Point2[1] = border >= 0 ? this->Geometry[1] - border : this->Geometry[1];
+  this->Borders[2] = border >= 0 ? border : 0;
+  this->Point2[1] = this->Geometry[1] - this->Borders[2];
   this->Point2[1] += static_cast<int>(this->Size.GetY());
 }
 
 //------------------------------------------------------------------------------
 void vtkChart::SetLeftBorder(int border)
 {
-  this->Point1[0] = border >= 0 ? border : 0;
+  this->Borders[0] = border >= 0 ? border : 0;
+  this->Point1[0] = this->Borders[0];
   this->Point1[0] += static_cast<int>(this->Size.GetX());
 }
 
 //------------------------------------------------------------------------------
 void vtkChart::SetRightBorder(int border)
 {
-  this->Point2[0] = border >= 0 ? this->Geometry[0] - border : this->Geometry[0];
+  this->Borders[3] = border >= 0 ? border : 0;
+  this->Point2[0] = this->Geometry[0] - this->Borders[3];
   this->Point2[0] += static_cast<int>(this->Size.GetX());
 }
 
@@ -480,16 +483,4 @@ void vtkChart::AxisRangeForwarderCallback(vtkObject*, unsigned long, void*)
     this->GetAxis(i)->GetRange(&fullAxisRange[i * 2]);
   }
   this->InvokeEvent(vtkChart::UpdateRange, fullAxisRange);
-}
-
-//------------------------------------------------------------------------------
-void vtkChart::SetSelectionMode(int selMode)
-{
-  if (this->SelectionMode == selMode || selMode < vtkContextScene::SELECTION_NONE ||
-    selMode > vtkContextScene::SELECTION_TOGGLE)
-  {
-    return;
-  }
-  this->SelectionMode = selMode;
-  this->Modified();
 }

@@ -148,8 +148,9 @@ public:
 
 protected:
   vtkStructuredImplicitConnectivity();
-  virtual ~vtkStructuredImplicitConnectivity();
+  ~vtkStructuredImplicitConnectivity() override;
 
+  void SetController(vtkMPIController*);
   vtkMPIController* Controller;
 
   vtk::detail::DomainMetaData* DomainInfo;

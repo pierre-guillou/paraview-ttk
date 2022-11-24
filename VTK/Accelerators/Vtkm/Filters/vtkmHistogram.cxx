@@ -28,11 +28,10 @@
 #include "vtkmlib/DataSetConverters.h"
 
 #include "vtkObjectFactory.h"
-#include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 
 #include "vtkmFilterPolicy.h"
-#include <vtkm/filter/Histogram.h>
+#include <vtkm/filter/density_estimate/Histogram.h>
 
 vtkStandardNewMacro(vtkmHistogram);
 
@@ -94,7 +93,7 @@ int vtkmHistogram::RequestData(vtkInformation* vtkNotUsed(request),
     auto field = tovtkm::Convert(fieldArray, association);
     in.AddField(field);
 
-    vtkm::filter::Histogram filter;
+    vtkm::filter::density_estimate::Histogram filter;
 
     filter.SetNumberOfBins(static_cast<vtkm::Id>(this->NumberOfBins));
     filter.SetActiveField(fieldName, field.GetAssociation());

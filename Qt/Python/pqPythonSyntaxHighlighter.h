@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqPythonSyntaxHighlighter_h
-#define _pqPythonSyntaxHighlighter_h
+#ifndef pqPythonSyntaxHighlighter_h
+#define pqPythonSyntaxHighlighter_h
 
 #undef slots
 #include "vtkPython.h"
@@ -73,7 +73,7 @@ public:
    * NOTE: the optional tab key capture is enabled by the constructor
    */
   explicit pqPythonSyntaxHighlighter(QObject* p, QTextEdit& textEdit);
-  ~pqPythonSyntaxHighlighter() override {}
+  ~pqPythonSyntaxHighlighter() override = default;
 
   /**
    * Returns true if the tab key is being intercepted to insert spaces in

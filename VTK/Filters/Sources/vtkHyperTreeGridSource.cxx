@@ -301,22 +301,6 @@ void vtkHyperTreeGridSource::SetLevelZeroMaterialIndex(vtkIdTypeArray* indexArra
 }
 
 //------------------------------------------------------------------------------
-unsigned int vtkHyperTreeGridSource::GetMaximumLevel()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHyperTreeGridSource::GetMaximumLevel, "VTK 9", vtkHyperTreeGridSource::GetMaxDepth);
-  return this->GetMaxDepth();
-}
-
-//------------------------------------------------------------------------------
-void vtkHyperTreeGridSource::SetMaximumLevel(unsigned int levels)
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHyperTreeGridSource::SetMaximumLevel, "VTK 9", vtkHyperTreeGridSource::SetMaxDepth);
-  this->SetMaxDepth(levels);
-}
-
-//------------------------------------------------------------------------------
 unsigned int vtkHyperTreeGridSource::GetMaxDepth()
 {
   assert("post: positive_result" && this->MaxDepth >= 1);
@@ -784,9 +768,9 @@ int vtkHyperTreeGridSource::InitializeFromStringDescriptor()
           // Verify that level descriptor cardinality matches expected value
           if (descriptor.str().size() != nNextLevel)
           {
-            vtkErrorMacro(<< "String level descriptor " << descriptor.str().c_str()
-                          << " has cardinality " << descriptor.str().size()
-                          << " which is not expected value of " << nNextLevel);
+            vtkErrorMacro(<< "String level descriptor " << descriptor.str() << " has cardinality "
+                          << descriptor.str().size() << " which is not expected value of "
+                          << nNextLevel);
 
             return 0;
           }
@@ -845,7 +829,7 @@ int vtkHyperTreeGridSource::InitializeFromStringDescriptor()
   // Verify and append last level string
   if (descriptor.str().size() != nNextLevel)
   {
-    vtkErrorMacro(<< "String level descriptor " << descriptor.str().c_str() << " has cardinality "
+    vtkErrorMacro(<< "String level descriptor " << descriptor.str() << " has cardinality "
                   << descriptor.str().size() << " which is not expected value of " << nNextLevel);
 
     return 0;
@@ -1057,7 +1041,6 @@ int vtkHyperTreeGridSource::InitializeFromBitsDescriptor()
   this->LevelBitsIndex.clear();
   this->LevelBitsIndex.push_back(0);
   vtkIdType nRefined = 0;
-  vtkIdType nLeaves = 0;
   vtkIdType nNextLevel = nTotal;
   vtkIdType nCurrentLevelCount = 0;
   vtkIdType descSize = this->DescriptorBits->GetNumberOfTuples();
@@ -1069,13 +1052,11 @@ int vtkHyperTreeGridSource::InitializeFromBitsDescriptor()
     {
       nNextLevel = nRefined * this->BlockSize;
       nRefined = 0;
-      nLeaves = 0;
       nCurrentLevelCount = 0;
       ++nCurrentLevel;
       this->LevelBitsIndex.push_back(i);
     }
     nRefined += this->DescriptorBits->GetValue(i);
-    nLeaves += this->DescriptorBits->GetValue(i) == 0 ? 1 : 0;
 
     ++nCurrentLevelCount;
   }
@@ -1322,7 +1303,7 @@ void vtkHyperTreeGridSource::SubdivideFromQuadric(vtkHyperTreeGrid* output,
   } // v
 
   // Subdivide iff quadric changes sign within cell
-  bool subdivide = (nPos != nVert && nNeg != nVert) ? true : false;
+  bool subdivide = nPos != nVert && nNeg != nVert;
 
   // Assign cell value
   if (subdivide && level + 1 == this->MaxDepth)
@@ -1457,7 +1438,7 @@ void vtkHyperTreeGridSource::SubdivideFromQuadric(vtkHyperTreeGrid* output,
   {
     if (this->UseMask)
     {
-      cursor->SetMask((nPos > 0) ? true : false);
+      cursor->SetMask(nPos > 0);
     }
 
     // Cell values

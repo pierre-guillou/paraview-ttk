@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef pqPythonTextSave_h
-#define pqPythonTextSave_h
+#ifndef pqPythonFileIO_h
+#define pqPythonFileIO_h
 
 #include "pqPythonModule.h"
 
@@ -104,7 +104,7 @@ public:
    */
   bool isDirty() const;
 
-signals:
+Q_SIGNALS:
   /**
    * @brief Signals that the QTextEdit buffer has been erased
    */
@@ -126,7 +126,7 @@ signals:
    */
   void contentChanged();
 
-public slots:
+public Q_SLOTS:
   /**
    * @brief Change the buffer status to modified
    */
@@ -190,4 +190,4 @@ private:
   QString DefaultSaveDirectory = QDir::homePath();
 };
 
-#endif // pqPythonTextSave_h
+#endif // pqPythonFileIO_h

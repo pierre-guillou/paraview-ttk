@@ -388,14 +388,9 @@ bool vtkDataAssembly::IsNodeNameValid(const char* name)
   }
 
   vtksys::RegularExpression regEx("[^a-zA-Z0-9_.-]");
-  if (regEx.find(name))
-  {
-    // found a non-acceptable character; names can contain letters,
-    // digits, hyphens, underscores, and periods.
-    return false;
-  }
-
-  return true;
+  // search for non-acceptable characters; names can contain letters,
+  // digits, hyphens, underscores, and periods.
+  return !regEx.find(name);
 }
 
 //------------------------------------------------------------------------------
@@ -579,7 +574,7 @@ std::vector<int> vtkDataAssembly::AddNodes(const std::vector<std::string>& names
   {
     if (!vtkDataAssembly::IsNodeNameValid(name.c_str()))
     {
-      vtkErrorMacro("Invalid name specified '" << name.c_str() << "'.");
+      vtkErrorMacro("Invalid name specified '" << name << "'.");
       return std::vector<int>{};
     }
   }

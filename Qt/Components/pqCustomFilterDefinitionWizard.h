@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * \date 6/19/2006
  */
 
-#ifndef _pqCustomFilterDefinitionWizard_h
-#define _pqCustomFilterDefinitionWizard_h
+#ifndef pqCustomFilterDefinitionWizard_h
+#define pqCustomFilterDefinitionWizard_h
 
 #include "pqComponentsModule.h"
 #include <QDialog>
@@ -91,7 +91,7 @@ public:
    *   model should not be null.
    * \param parent The parent widget for the wizard.
    */
-  pqCustomFilterDefinitionWizard(pqCustomFilterDefinitionModel* model, QWidget* parent = 0);
+  pqCustomFilterDefinitionWizard(pqCustomFilterDefinitionModel* model, QWidget* parent = nullptr);
   ~pqCustomFilterDefinitionWizard() override;
 
   /**
@@ -112,7 +112,7 @@ public:
    */
   QString getCustomFilterName() const;
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * \brief
    *   Creates a compound proxy definition.
@@ -161,7 +161,7 @@ private:
    */
   void setupDefaultInputOutput();
 
-private Q_SLOTS:
+private Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * \name Page Navigation
    */
@@ -331,7 +331,7 @@ private Q_SLOTS:
   void updatePropertyButtons(const QModelIndex& current, const QModelIndex& previous);
   //@}
 
-private:
+private:                                    // NOLINT(readability-redundant-access-specifiers)
   int CurrentPage;                          ///< Stores the current page.
   bool OverwriteOK;                         ///< Used with name validation.
   vtkSMCompoundSourceProxy* Filter;         ///< Stores the custom filter.

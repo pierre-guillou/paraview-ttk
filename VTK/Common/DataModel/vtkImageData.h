@@ -92,6 +92,8 @@ public:
   vtkCell* FindAndGetCell(double x[3], vtkCell* cell, vtkIdType cellId, double tol2, int& subId,
     double pcoords[3], double* weights) override;
   int GetCellType(vtkIdType cellId) override;
+  vtkIdType GetCellSize(vtkIdType cellId) override;
+  using vtkDataSet::GetCellPoints;
   void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override
   {
     int dimensions[3];
@@ -284,6 +286,11 @@ public:
    * GetIncrements() calls ComputeIncrements() to ensure the increments are
    * up to date.  The first three methods compute the increments based on the
    * active scalar field while the next three, the scalar field is passed in.
+   *
+   * Note that all methods which do not have the increments passed in are not
+   * thread-safe. When working on a given `vtkImageData` instance on multiple
+   * threads, each thread should use the `inc*` overloads to compute the
+   * increments to avoid racing with other threads.
    */
   virtual vtkIdType* GetIncrements() VTK_SIZEHINT(3);
   virtual void GetIncrements(vtkIdType& incX, vtkIdType& incY, vtkIdType& incZ);
@@ -562,7 +569,7 @@ public:
   void GetArrayIncrements(vtkDataArray* array, vtkIdType increments[3]);
 
   /**
-   * Given how many pixel are required on a side for bounrary conditions (in
+   * Given how many pixel are required on a side for boundary conditions (in
    * bnds), the target extent to traverse, compute the internal extent (the
    * extent for this ImageData that does not suffer from any boundary
    * conditions) and place it in intExt

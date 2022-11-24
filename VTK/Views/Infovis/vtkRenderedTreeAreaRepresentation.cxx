@@ -33,7 +33,6 @@
 #include "vtkEdgeCenters.h"
 #include "vtkExtractEdges.h"
 #include "vtkExtractSelectedGraph.h"
-#include "vtkExtractSelectedPolyDataIds.h"
 #include "vtkGraphHierarchicalBundleEdges.h"
 #include "vtkGraphLayout.h"
 #include "vtkGraphMapper.h"
@@ -334,7 +333,7 @@ void vtkRenderedTreeAreaRepresentation::SetEdgeScalarBarVisibility(bool b)
 
 bool vtkRenderedTreeAreaRepresentation::GetEdgeScalarBarVisibility()
 {
-  return this->EdgeScalarBar->GetScalarBarActor()->GetVisibility() ? true : false;
+  return this->EdgeScalarBar->GetScalarBarActor()->GetVisibility() != 0;
 }
 
 void vtkRenderedTreeAreaRepresentation::SetGraphHoverArrayName(const char* name, int idx)
@@ -849,7 +848,7 @@ vtkSelection* vtkRenderedTreeAreaRepresentation::ConvertSelection(vtkView* view,
             }
 
             // Before adding vertex's edges, make sure its in the same domain as selected vertex
-            vtkStdString domain;
+            std::string domain;
             if (domainArr)
             {
               domain = domainArr->GetValue(id);

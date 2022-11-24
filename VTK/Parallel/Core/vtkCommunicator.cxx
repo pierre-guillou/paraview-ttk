@@ -479,6 +479,7 @@ int vtkCommunicator::Receive(vtkDataArray* data, int remoteHandle, int tag)
     // Receive the name
     this->Receive(str, nameLength, remoteHandle, tag);
     data->SetName(str);
+    delete[] str;
   }
   else
   {
@@ -998,7 +999,7 @@ int vtkCommunicator::Gather(vtkDataObject* sendBuffer,
     }
   }
 
-  if (this->GatherV(sendArray, fullRecvArray, &recvArrays[0], destProcessId))
+  if (this->GatherV(sendArray, fullRecvArray, recvArrays.data(), destProcessId))
   {
     if (this->LocalProcessId == destProcessId)
     {
@@ -1020,7 +1021,7 @@ int vtkCommunicator::Gather(const vtkMultiProcessStream& sendBuffer,
 {
   vtkNew<vtkUnsignedCharArray> sendArray;
   auto rawData = sendBuffer.GetRawData();
-  sendArray->SetArray(&rawData[0], static_cast<vtkIdType>(rawData.size()), /*save*/ 1);
+  sendArray->SetArray(rawData.data(), static_cast<vtkIdType>(rawData.size()), /*save*/ 1);
 
   vtkNew<vtkUnsignedCharArray> fullRecvArray;
   std::vector<vtkSmartPointer<vtkDataArray>> recvArrays(this->NumberOfProcesses);
@@ -1033,7 +1034,7 @@ int vtkCommunicator::Gather(const vtkMultiProcessStream& sendBuffer,
     }
   }
 
-  if (this->GatherV(sendArray, fullRecvArray, &recvArrays[0], destProcessId))
+  if (this->GatherV(sendArray, fullRecvArray, recvArrays.data(), destProcessId))
   {
     if (this->LocalProcessId == destProcessId)
     {
@@ -1055,7 +1056,7 @@ int vtkCommunicator::AllGather(
 {
   vtkNew<vtkUnsignedCharArray> sendArray;
   auto rawData = sendBuffer.GetRawData();
-  sendArray->SetArray(&rawData[0], static_cast<vtkIdType>(rawData.size()), /*save*/ 1);
+  sendArray->SetArray(rawData.data(), static_cast<vtkIdType>(rawData.size()), /*save*/ 1);
 
   vtkNew<vtkUnsignedCharArray> fullRecvArray;
   std::vector<vtkSmartPointer<vtkDataArray>> recvArrays(this->NumberOfProcesses);
@@ -1065,7 +1066,7 @@ int vtkCommunicator::AllGather(
     recvArrays[cc] = vtkSmartPointer<vtkUnsignedCharArray>::New();
   }
 
-  if (this->AllGatherV(sendArray, fullRecvArray, &recvArrays[0]))
+  if (this->AllGatherV(sendArray, fullRecvArray, recvArrays.data()))
   {
     for (int cc = 0; cc < this->NumberOfProcesses; ++cc)
     {
@@ -1099,7 +1100,7 @@ int vtkCommunicator::AllGather(
     recvArrays[cc] = vtkSmartPointer<vtkCharArray>::New();
   }
 
-  if (this->AllGatherV(sendArray, fullRecvArray, &recvArrays[0]))
+  if (this->AllGatherV(sendArray, fullRecvArray, recvArrays.data()))
   {
     for (int cc = 0; cc < this->NumberOfProcesses; ++cc)
     {
@@ -1167,7 +1168,7 @@ int vtkCommunicator::GatherVElementalDataObject(
       recvBuffers[i] = vtkSmartPointer<vtkCharArray>::New();
     }
   }
-  if (this->GatherV(sendBuffer, recvBuffer, &recvBuffers[0], destProcessId))
+  if (this->GatherV(sendBuffer, recvBuffer, recvBuffers.data(), destProcessId))
   {
     if (this->LocalProcessId == destProcessId)
     {
@@ -1528,7 +1529,7 @@ int vtkCommunicator::ReduceVoidArray(const void* sendBuffer, void* recvBuffer, v
 #define OP_CASE(id, opclass)                                                                       \
   case id:                                                                                         \
     opClass = new vtkCommunicator##opclass##Class;                                                 \
-    break;
+    break
 
   vtkCommunicator::Operation* opClass = nullptr;
 
@@ -1711,7 +1712,7 @@ int vtkCommunicator::Broadcast(vtkMultiProcessStream& stream, int srcProcessId)
     }
     if (length > 0)
     {
-      return this->Broadcast(&data[0], length, srcProcessId);
+      return this->Broadcast(data.data(), length, srcProcessId);
     }
     return 1;
   }
@@ -1727,7 +1728,7 @@ int vtkCommunicator::Broadcast(vtkMultiProcessStream& stream, int srcProcessId)
     {
       std::vector<unsigned char> data;
       data.resize(length);
-      if (!this->Broadcast(&data[0], length, srcProcessId))
+      if (!this->Broadcast(data.data(), length, srcProcessId))
       {
         return 0;
       }
@@ -1749,7 +1750,7 @@ int vtkCommunicator::Send(const vtkMultiProcessStream& stream, int remoteId, int
   }
   if (length > 0)
   {
-    return this->Send(&data[0], length, remoteId, tag);
+    return this->Send(data.data(), length, remoteId, tag);
   }
   return 1;
 }
@@ -1769,7 +1770,7 @@ int vtkCommunicator::Receive(vtkMultiProcessStream& stream, int remoteId, int ta
   {
     std::vector<unsigned char> data;
     data.resize(length);
-    if (!this->Receive(&data[0], length, remoteId, tag))
+    if (!this->Receive(data.data(), length, remoteId, tag))
     {
       return 0;
     }

@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqPipelineTimeKeyFrameEditor_h
-#define _pqPipelineTimeKeyFrameEditor_h
+#ifndef pqPipelineTimeKeyFrameEditor_h
+#define pqPipelineTimeKeyFrameEditor_h
 
 #include "pqComponentsModule.h"
 #include <QDialog>
@@ -50,7 +50,7 @@ public:
   pqPipelineTimeKeyFrameEditor(pqAnimationScene* scene, pqAnimationCue* cue, QWidget* p);
   ~pqPipelineTimeKeyFrameEditor() override;
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * read the key frame data and display it
    */

@@ -52,6 +52,7 @@ vtkFeatureEdges::vtkFeatureEdges()
   this->NonManifoldEdges = true;
   this->ManifoldEdges = false;
   this->PassLines = false;
+  this->RemoveGhostInterfaces = true;
   this->Coloring = true;
   this->Locator = nullptr;
   this->OutputPointsPrecision = vtkAlgorithm::DEFAULT_PRECISION;
@@ -66,8 +67,6 @@ vtkFeatureEdges::~vtkFeatureEdges()
     this->Locator = nullptr;
   }
 }
-
-#include "vtkLogger.h"
 
 //------------------------------------------------------------------------------
 // Generate feature edges for mesh
@@ -240,7 +239,7 @@ int vtkFeatureEdges::RequestData(vtkInformation* vtkNotUsed(request),
 
   newPts->Allocate(numPts / 10, numPts);
   newLines = vtkCellArray::New();
-  newLines->AllocateEstimate(numLines + numPts / 20, 2 * (numLines + numPts / 20));
+  newLines->AllocateEstimate(numPts / 20, 2);
   if (this->Coloring)
   {
     newScalars = vtkFloatArray::New();
@@ -404,6 +403,11 @@ int vtkFeatureEdges::RequestData(vtkInformation* vtkNotUsed(request),
             --numNeiWithoutGhosts;
           }
         }
+      }
+      // Ignoring edges that are not visible
+      if (numNeiWithoutGhosts != numNei && this->RemoveGhostInterfaces)
+      {
+        continue;
       }
 
       if (this->BoundaryEdges && numNeiWithoutGhosts < 1)

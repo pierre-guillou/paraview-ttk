@@ -1,22 +1,34 @@
+/*=========================================================================
+
+  Program:   Visualization Toolkit
+  Module:    vtkAMRInterpolatedVelocityField.h
+
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  All rights reserved.
+  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+
+     This software is distributed WITHOUT ANY WARRANTY; without even
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+     PURPOSE.  See the above copyright notice for more information.
+
+=========================================================================*/
 #include "vtkAMRInterpolatedVelocityField.h"
+
+#include "vtkCellData.h"
+#include "vtkDataArray.h"
+#include "vtkFieldData.h"
 #include "vtkObjectFactory.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkPointData.h"
 #include "vtkUniformGrid.h"
-#include <cassert>
+
 //------------------------------------------------------------------------------
 namespace
 {
 bool Inside(double q[3], double gbounds[6])
 {
-  if ((q[0] < gbounds[0]) || (q[0] > gbounds[1]) || (q[1] < gbounds[2]) || (q[1] > gbounds[3]) ||
-    (q[2] < gbounds[4]) || (q[2] > gbounds[5]))
-  {
-    return false;
-  }
-  else
-  {
-    return true;
-  }
+  return gbounds[0] <= q[0] && q[0] <= gbounds[1] && gbounds[2] <= q[1] && q[1] <= gbounds[3] &&
+    gbounds[4] <= q[2] && q[2] <= gbounds[5];
 }
 
 bool FindInLevel(double q[3], vtkOverlappingAMR* amrds, int level, unsigned int& gridId)
@@ -35,8 +47,63 @@ bool FindInLevel(double q[3], vtkOverlappingAMR* amrds, int level, unsigned int&
   return false;
 }
 
-};
+} // namespace
 
+// The class proper begins here
+vtkStandardNewMacro(vtkAMRInterpolatedVelocityField);
+vtkCxxSetObjectMacro(vtkAMRInterpolatedVelocityField, AmrDataSet, vtkOverlappingAMR);
+
+//------------------------------------------------------------------------------
+vtkAMRInterpolatedVelocityField::vtkAMRInterpolatedVelocityField()
+{
+  this->Weights.resize(8);
+  this->AmrDataSet = nullptr;
+  this->LastLevel = this->LastId = -1;
+}
+
+//------------------------------------------------------------------------------
+vtkAMRInterpolatedVelocityField::~vtkAMRInterpolatedVelocityField()
+{
+  this->SetAmrDataSet(nullptr);
+  this->Weights.clear();
+}
+
+//------------------------------------------------------------------------------
+// We are ignoring the input parameters to the method as we are going to
+// specially initialize AMR velocity fields.
+int vtkAMRInterpolatedVelocityField::SelfInitialize()
+{
+  // Initialize directly called on this velocity field.
+  this->InitializationState = vtkAbstractInterpolatedVelocityField::SELF_INITIALIZE;
+
+  // Obtain the vectors
+  vtkDataSet* ds = this->LastDataSet;
+  vtkDataArray* gVectors = nullptr;
+  if (ds != nullptr)
+  {
+    gVectors = ds->GetAttributesAsFieldData(this->VectorsType)->GetArray(this->VectorsSelection);
+  }
+
+  auto datasets = vtkCompositeDataSet::GetDataSets(this->AmrDataSet);
+
+  // Add information into the interpolation function cache. Note that no find cell strategy
+  // is required. If no vectors are specified, use the local dataset vectors.
+  vtkDataArray* vectors;
+  for (auto& dataset : datasets)
+  {
+    vectors = (gVectors
+        ? gVectors
+        : vectors =
+            dataset->GetAttributesAsFieldData(this->VectorsType)->GetArray(this->VectorsSelection));
+
+    this->AddToDataSetsInfo(dataset, nullptr, vectors);
+  }
+
+  // Indicate that the subclass has taken over initialization.
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 bool vtkAMRInterpolatedVelocityField::FindGrid(
   double q[3], vtkOverlappingAMR* amrds, unsigned int& level, unsigned int& gridId)
 {
@@ -72,31 +139,8 @@ bool vtkAMRInterpolatedVelocityField::FindGrid(
   }
   return true;
 }
-vtkStandardNewMacro(vtkAMRInterpolatedVelocityField);
 
-vtkAMRInterpolatedVelocityField::vtkAMRInterpolatedVelocityField()
-{
-  this->Weights = new double[8];
-  this->AmrDataSet = nullptr;
-  this->LastLevel = this->LastId = -1;
-}
-
-vtkAMRInterpolatedVelocityField::~vtkAMRInterpolatedVelocityField()
-{
-  delete[] this->Weights;
-  this->Weights = nullptr;
-}
-
-void vtkAMRInterpolatedVelocityField::PrintSelf(ostream& os, vtkIndent indent)
-{
-  this->Superclass::PrintSelf(os, indent);
-}
-
-void vtkAMRInterpolatedVelocityField::SetAMRData(vtkOverlappingAMR* amrds)
-{
-  this->AmrDataSet = amrds;
-}
-
+//------------------------------------------------------------------------------
 int vtkAMRInterpolatedVelocityField::FunctionValues(double* x, double* f)
 {
   if (this->LastDataSet && this->FunctionValues(this->LastDataSet, x, f))
@@ -108,9 +152,9 @@ int vtkAMRInterpolatedVelocityField::FunctionValues(double* x, double* f)
   // In any case, set LastDataSet to nullptr and try to find a new one
   this->LastDataSet = nullptr;
   this->LastCellId = -1;
-
   this->LastLevel = -1;
   this->LastId = -1;
+
   unsigned int level, gridId;
   if (!FindGrid(x, this->AmrDataSet, level, gridId))
   {
@@ -119,7 +163,7 @@ int vtkAMRInterpolatedVelocityField::FunctionValues(double* x, double* f)
   this->LastLevel = level;
   this->LastId = gridId;
 
-  vtkDataSet* ds = this->AmrDataSet->GetDataSet(level, gridId);
+  auto ds = this->AmrDataSet->GetDataSet(level, gridId);
   if (!ds)
   {
     return 0;
@@ -133,6 +177,7 @@ int vtkAMRInterpolatedVelocityField::FunctionValues(double* x, double* f)
   return 1;
 }
 
+//------------------------------------------------------------------------------
 bool vtkAMRInterpolatedVelocityField::SetLastDataSet(int level, int id)
 {
   this->LastLevel = level;
@@ -141,11 +186,13 @@ bool vtkAMRInterpolatedVelocityField::SetLastDataSet(int level, int id)
   return this->LastDataSet != nullptr;
 }
 
+//------------------------------------------------------------------------------
 void vtkAMRInterpolatedVelocityField::SetLastCellId(vtkIdType, int)
 {
   vtkWarningMacro("Calling SetLastCellId has no effect");
 }
 
+//------------------------------------------------------------------------------
 bool vtkAMRInterpolatedVelocityField::GetLastDataSetLocation(unsigned int& level, unsigned int& id)
 {
   if (this->LastLevel < 0)
@@ -156,4 +203,25 @@ bool vtkAMRInterpolatedVelocityField::GetLastDataSetLocation(unsigned int& level
   level = static_cast<unsigned int>(this->LastLevel);
   id = static_cast<unsigned int>(this->LastId);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Copy the list of datasets to copy from.
+void vtkAMRInterpolatedVelocityField::CopyParameters(vtkAbstractInterpolatedVelocityField* from)
+{
+  this->Superclass::CopyParameters(from);
+
+  vtkAMRInterpolatedVelocityField* obj = vtkAMRInterpolatedVelocityField::SafeDownCast(from);
+  if (!obj)
+  {
+    return;
+  }
+
+  this->SetAmrDataSet(obj->AmrDataSet);
+}
+
+//------------------------------------------------------------------------------
+void vtkAMRInterpolatedVelocityField::PrintSelf(ostream& os, vtkIndent indent)
+{
+  this->Superclass::PrintSelf(os, indent);
 }

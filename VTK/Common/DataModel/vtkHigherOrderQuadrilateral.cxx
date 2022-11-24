@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkHigherOrderQuadrilateral.h"
 
 #include "vtkCellData.h"
@@ -31,13 +28,6 @@
 #include "vtkTriangle.h"
 #include "vtkVector.h"
 #include "vtkVectorOperators.h"
-
-vtkHigherOrderCurve* vtkHigherOrderQuadrilateral::getEdgeCell()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHigherOrderQuadrilateral::getEdgeCell, "VTK 9.1", vtkHigherOrderQuadrilateral::GetEdgeCell);
-  return this->GetEdgeCell();
-}
 
 vtkHigherOrderQuadrilateral::vtkHigherOrderQuadrilateral()
 {
@@ -500,7 +490,7 @@ bool vtkHigherOrderQuadrilateral::SubCellCoordinatesFromId(int& i, int& j, int& 
   i = subId % this->Order[0];
   j = (subId / this->Order[0]) % this->Order[1];
   k = 0;
-  return i + this->Order[0] * j == subId ? true : false;
+  return i + this->Order[0] * j == subId;
 }
 
 /**\brief A convenience function to get a connectivity offset from a control-point tuple.

@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkQuadraticWedge.h"
 
 #include "vtkCellData.h"
@@ -504,7 +501,7 @@ int vtkQuadraticWedge::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkP
 {
   // A quadratic wedge can be divided into 4 wedges.
   // The central one is linear and is divided into 3 tets
-  // Each of the 3 wedges arround the central one are divided into 4 tets since each of these
+  // Each of the 3 wedges around the central one are divided into 4 tets since each of these
   // wedges have a node in the middle of one of their edges.
   // This leads to a total of 15 tets
   pts->SetNumberOfPoints(15 * 4);

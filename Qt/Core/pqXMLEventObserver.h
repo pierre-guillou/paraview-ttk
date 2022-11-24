@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqXMLEventObserver_h
-#define _pqXMLEventObserver_h
+#ifndef pqXMLEventObserver_h
+#define pqXMLEventObserver_h
 
 #include "pqCoreModule.h"
 #include "pqEventObserver.h"
@@ -58,14 +58,12 @@ public:
 
   void setStream(QTextStream* stream) override;
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * Record on event in xml file
    */
   void onRecordEvent(const QString& Widget, const QString& Command, const QString& Arguments,
     const int& eventType) override;
-
-private:
 };
 
-#endif // !_pqXMLEventObserver_h
+#endif // !pqXMLEventObserver_h

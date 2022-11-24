@@ -146,7 +146,7 @@ pqPluginManager::pqPluginManager(QObject* parentObject)
 pqPluginManager::~pqPluginManager()
 {
   // save all settings for each open server session.
-  foreach (pqServer* server, this->Internals->Servers)
+  Q_FOREACH (pqServer* server, this->Internals->Servers)
   {
     this->onServerDisconnected(server);
   }
@@ -306,9 +306,8 @@ bool pqPluginManager::verifyPlugins(pqServer* activeServer)
     return true;
   }
 
-  vtkPVPluginsInformation* local_info = this->loadedExtensions(activeServer, false);
-  vtkPVPluginsInformation* remote_info = this->loadedExtensions(activeServer, true);
-  return vtkPVPluginsInformation::PluginRequirementsSatisfied(local_info, remote_info);
+  vtkSMPluginManager* mgr = vtkSMProxyManager::GetProxyManager()->GetPluginManager();
+  return mgr->FulfillPluginRequirements(activeServer->session());
 }
 
 //-----------------------------------------------------------------------------

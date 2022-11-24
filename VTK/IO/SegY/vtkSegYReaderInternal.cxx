@@ -85,7 +85,7 @@ void vtkSegYReaderInternal::LoadTraces(int* extent)
   // allocate traces vector
   int dims[3] = { extent[1] - extent[0] + 1, extent[3] - extent[2] + 1, extent[5] - extent[4] + 1 };
 
-  bool is3d = (extent[3] - extent[2] > 1) ? true : false;
+  bool is3d = extent[3] - extent[2] > 1;
   this->Traces.resize(dims[0] * dims[1], nullptr);
   size_t traceCount = 0;
   while (traceStartPos + 240 < fileSize)
@@ -302,7 +302,7 @@ void vtkSegYReaderInternal::ExportData(
   imageData->SetOrigin(origin);
   imageData->SetSpacing(
     vtkMath::Norm(spacing[0]), vtkMath::Norm(spacing[1]), vtkMath::Norm(spacing[2]));
-  int* dims = imageData->GetDimensions();
+  const int* dims = imageData->GetDimensions();
 
   vtkNew<vtkFloatArray> scalars;
   scalars->SetNumberOfComponents(1);
@@ -336,7 +336,8 @@ void vtkSegYReaderInternal::ExportData(
     return;
   }
   grid->SetExtent(extent);
-  int* dims = grid->GetDimensions();
+  int dims[3];
+  grid->GetDimensions(dims);
   vtkNew<vtkPoints> points;
 
   vtkNew<vtkFloatArray> scalars;

@@ -99,7 +99,7 @@ vtkm::Matrix<vtkm::Float32, 4, 4> Camera::Camera2DStruct::CreateProjectionMatrix
 
 vtkm::Matrix<vtkm::Float32, 4, 4> Camera::CreateViewMatrix() const
 {
-  if (this->Mode == Camera::MODE_3D)
+  if (this->ModeType == Camera::Mode::ThreeD)
   {
     return this->Camera3D.CreateViewMatrix();
   }
@@ -112,7 +112,7 @@ vtkm::Matrix<vtkm::Float32, 4, 4> Camera::CreateViewMatrix() const
 vtkm::Matrix<vtkm::Float32, 4, 4> Camera::CreateProjectionMatrix(vtkm::Id screenWidth,
                                                                  vtkm::Id screenHeight) const
 {
-  if (this->Mode == Camera::MODE_3D)
+  if (this->ModeType == Camera::Mode::ThreeD)
   {
     return this->Camera3D.CreateProjectionMatrix(
       screenWidth, screenHeight, this->NearPlane, this->FarPlane);
@@ -136,7 +136,7 @@ void Camera::GetRealViewport(vtkm::Id screenWidth,
                              vtkm::Float32& bottom,
                              vtkm::Float32& top) const
 {
-  if (this->Mode == Camera::MODE_3D)
+  if (this->ModeType == Camera::Mode::ThreeD)
   {
     left = this->ViewportLeft;
     right = this->ViewportRight;
@@ -252,25 +252,38 @@ void Camera::TrackballRotate(vtkm::Float32 startX,
   this->Camera3D.ViewUp = vtkm::Transform3DVector(fullTransform, this->Camera3D.ViewUp);
 }
 
+namespace
+{
+
+void PadRange(vtkm::Range& range, vtkm::Float64 padding)
+{
+  if (range.IsNonEmpty())
+  {
+    vtkm::Float64 padAmount = padding * range.Length();
+    range.Min -= padAmount;
+    range.Max += padAmount;
+  }
+  else
+  {
+    range.Include(0);
+  }
+}
+
+} // anonymous namespace
+
 void Camera::ResetToBounds(const vtkm::Bounds& dataBounds,
                            const vtkm::Float64 XDataViewPadding,
                            const vtkm::Float64 YDataViewPadding,
                            const vtkm::Float64 ZDataViewPadding)
 {
   // Save camera mode
-  ModeEnum saveMode = this->GetMode();
+  Mode saveMode = this->GetMode();
 
   // Pad view around data extents
   vtkm::Bounds db = dataBounds;
-  vtkm::Float64 viewPadAmount = XDataViewPadding * (db.X.Max - db.X.Min);
-  db.X.Max += viewPadAmount;
-  db.X.Min -= viewPadAmount;
-  viewPadAmount = YDataViewPadding * (db.Y.Max - db.Y.Min);
-  db.Y.Max += viewPadAmount;
-  db.Y.Min -= viewPadAmount;
-  viewPadAmount = ZDataViewPadding * (db.Z.Max - db.Z.Min);
-  db.Z.Max += viewPadAmount;
-  db.Z.Min -= viewPadAmount;
+  PadRange(db.X, XDataViewPadding);
+  PadRange(db.Y, YDataViewPadding);
+  PadRange(db.Z, ZDataViewPadding);
 
   // Reset for 3D camera
   vtkm::Vec3f_32 directionOfProjection = this->GetPosition() - this->GetLookAt();
@@ -284,6 +297,10 @@ void Camera::ResetToBounds(const vtkm::Bounds& dataBounds,
   totalExtent[1] = vtkm::Float32(db.Y.Length());
   totalExtent[2] = vtkm::Float32(db.Z.Length());
   vtkm::Float32 diagonalLength = vtkm::Magnitude(totalExtent);
+  if (diagonalLength < XDataViewPadding)
+  {
+    diagonalLength = static_cast<vtkm::Float32>(XDataViewPadding);
+  }
   this->SetPosition(center + directionOfProjection * diagonalLength * 1.0f);
   this->SetFieldOfView(60.0f);
   this->SetClippingRange(0.1f * diagonalLength, diagonalLength * 10.0f);
@@ -364,7 +381,7 @@ void Camera::Dolly(vtkm::Float32 value)
 
 void Camera::Print() const
 {
-  if (Mode == MODE_3D)
+  if (this->ModeType == Camera::Mode::ThreeD)
   {
     std::cout << "Camera: 3D" << std::endl;
     std::cout << "  LookAt: " << Camera3D.LookAt << std::endl;
@@ -388,7 +405,7 @@ void Camera::Print() const
     std::cout << vm[2][0] << " " << vm[2][1] << " " << vm[2][2] << " " << vm[2][3] << std::endl;
     std::cout << vm[3][0] << " " << vm[3][1] << " " << vm[3][2] << " " << vm[3][3] << std::endl;
   }
-  else if (Mode == MODE_2D)
+  else if (this->ModeType == Camera::Mode::TwoD)
   {
     std::cout << "Camera: 2D" << std::endl;
     std::cout << "  LRBT: " << Camera2D.Left << " " << Camera2D.Right << " " << Camera2D.Bottom

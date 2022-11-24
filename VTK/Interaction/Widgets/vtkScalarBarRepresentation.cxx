@@ -48,7 +48,7 @@ vtkScalarBarRepresentation::vtkScalarBarRepresentation()
   this->SetScalarBarActor(actor);
   actor->Delete();
 
-  this->SetShowBorder(vtkBorderRepresentation::BORDER_ACTIVE);
+  this->SetShowBorderToActive();
 }
 
 //------------------------------------------------------------------------------
@@ -197,7 +197,7 @@ void vtkScalarBarRepresentation::SwapOrientation()
 }
 
 //------------------------------------------------------------------------------
-vtkTypeBool vtkScalarBarRepresentation::GetVisibility()
+vtkTypeBool vtkScalarBarRepresentation::GetVisibility() VTK_FUTURE_CONST
 {
   return this->ScalarBarActor->GetVisibility();
 }

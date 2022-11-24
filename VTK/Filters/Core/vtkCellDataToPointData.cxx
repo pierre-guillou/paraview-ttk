@@ -30,6 +30,7 @@
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkStaticCellLinks.h"
+#include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStructuredGrid.h"
 #include "vtkUniformGrid.h"
 #include "vtkUnsignedIntArray.h"
@@ -41,25 +42,25 @@
 
 #define VTK_MAX_CELLS_PER_POINT 4096
 
-vtkStandardNewMacro(vtkCellDataToPointData);
+vtkObjectFactoryNewMacro(vtkCellDataToPointData);
 
 namespace
 {
 
 //------------------------------------------------------------------------------
-// Optimized code for vtkUnstructuredGrid. It's waaaay faster than the more
+// Optimized code for vtkUnstructuredGrid/vtkPolyData. It's waaaay faster than the more
 // general path.
-
-struct UGridCD2PD
+template <typename TCellLinks>
+struct UnstructuredDataCD2PD
 {
   vtkIdType NumPts;
   vtkDataSetAttributes* InDA;
   vtkPointData* OutDA;
-  vtkStaticCellLinks* Links;
+  TCellLinks* Links;
   ArrayList* Arrays;
 
-  UGridCD2PD(
-    vtkIdType numPts, vtkDataSetAttributes* inDA, vtkPointData* outDA, vtkStaticCellLinks* links)
+  UnstructuredDataCD2PD(
+    vtkIdType numPts, vtkDataSetAttributes* inDA, vtkPointData* outDA, TCellLinks* links)
     : NumPts(numPts)
     , InDA(inDA)
     , OutDA(outDA)
@@ -68,7 +69,7 @@ struct UGridCD2PD
     this->Arrays = new ArrayList;
     this->Arrays->AddArrays(numPts, inDA, outDA);
   }
-  ~UGridCD2PD() { delete this->Arrays; }
+  ~UnstructuredDataCD2PD() { delete this->Arrays; }
 
   void operator()(vtkIdType ptId, vtkIdType endPtId)
   {
@@ -94,93 +95,20 @@ struct UGridCD2PD
 };
 
 // Take care of dispatching to the functor.
-int FastUGridPath(
+void FastUnstructuredData(
   vtkIdType numPts, vtkAbstractCellLinks* links, vtkDataSetAttributes* cfl, vtkPointData* pd)
 {
-  vtkStaticCellLinks* l = static_cast<vtkStaticCellLinks*>(links);
-
-  if (l != nullptr)
+  assert(links != nullptr);
+  if (auto staticCellLinks = vtkStaticCellLinks::SafeDownCast(links))
   {
-    UGridCD2PD cd2pd(numPts, cfl, pd, l);
+    UnstructuredDataCD2PD<vtkStaticCellLinks> cd2pd(numPts, cfl, pd, staticCellLinks);
     cd2pd.Execute();
-    return 1;
   }
-  else
+  else // vtkCellLinks
   {
-    return 0;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Semi-Optimized code for vtkPolyData. It's waaaay faster than the more
-// general path. It's semi-optimized because at this time it's not possible
-// to directly access the links in vtkPolyData. However, we do take advantage
-// of threading; the more efficient link-building process in vtkPolyData; and
-// the more efficient GetPointCells() method.
-struct PolyDataCD2PD
-{
-  vtkIdType NumPts;
-  vtkPolyData* PolyData;
-  vtkDataSetAttributes* InDA;
-  vtkPointData* OutDA;
-  ArrayList* Arrays;
-
-  PolyDataCD2PD(
-    vtkIdType numPts, vtkPolyData* pData, vtkDataSetAttributes* inDA, vtkPointData* outDA)
-    : NumPts(numPts)
-    , PolyData(pData)
-    , InDA(inDA)
-    , OutDA(outDA)
-  {
-    this->Arrays = new ArrayList;
-    this->Arrays->AddArrays(numPts, inDA, outDA);
-  }
-  ~PolyDataCD2PD() { delete this->Arrays; }
-
-  void operator()(vtkIdType ptId, vtkIdType endPtId)
-  {
-    vtkIdType ncells;
-    vtkIdType* cells;
-
-    for (; ptId < endPtId; ++ptId)
-    {
-      this->PolyData->GetPointCells(ptId, ncells, cells);
-      this->Arrays->Average(ncells, cells, ptId);
-    }
-  }
-
-  void Execute()
-  {
-    if (this->NumPts > 0)
-    {
-      vtkSMPTools::For(0, this->NumPts, *this);
-    }
-  }
-};
-
-// Take care of dispatching to the functor.
-int FastPolyDataPath(
-  vtkIdType numPts, vtkPolyData* pData, vtkDataSetAttributes* cfl, vtkPointData* pd)
-{
-  // The polydata fast path uses a potentially non-thread-safe method
-  // GetPointCells(). It is not thread safe when the underlying data
-  // in the connectivity array is not of vtkIdType. Someday soon when
-  // faster BuildLinks() is implemented in vtkPolyData, then the
-  // fast polydata and unstructured grid methods can be unified as
-  // the methods will operate off of the cell links (which is thread
-  // safe).
-  bool shareable =
-    (pData->GetVerts()->IsStorageShareable() && pData->GetLines()->IsStorageShareable() &&
-      pData->GetPolys()->IsStorageShareable() && pData->GetStrips()->IsStorageShareable());
-  if (!shareable)
-  {
-    return 0;
-  }
-  else
-  {
-    PolyDataCD2PD cd2pd(numPts, pData, cfl, pd);
+    auto cellLinks = vtkCellLinks::SafeDownCast(links);
+    UnstructuredDataCD2PD<vtkCellLinks> cd2pd(numPts, cfl, pd, cellLinks);
     cd2pd.Execute();
-    return 1;
   }
 }
 
@@ -210,16 +138,17 @@ struct Spread
     // accumulate
     if (contributingCellOption != vtkCellDataToPointData::Patch)
     {
+      vtkNew<vtkIdList> pointIds;
       for (vtkIdType cid = 0; cid < ncells; ++cid)
       {
-        vtkCell* cell = src->GetCell(cid);
-        if (cell->GetCellDimension() >= highestCellDimension)
+        int dimension = vtkCellTypes::GetDimension(src->GetCellType(cid));
+        if (dimension >= highestCellDimension)
         {
           const auto srcTuple = srcTuples[cid];
-          vtkIdList* pids = cell->GetPointIds();
-          for (vtkIdType i = 0, I = pids->GetNumberOfIds(); i < I; ++i)
+          src->GetCellPoints(cid, pointIds);
+          for (vtkIdType i = 0, I = pointIds->GetNumberOfIds(); i < I; ++i)
           {
-            const vtkIdType ptId = pids->GetId(i);
+            const vtkIdType ptId = pointIds->GetId(i);
             auto dstTuple = dstTuples[ptId];
             // accumulate cell data to point data <==> point_data += cell_data
             std::transform(srcTuple.cbegin(), srcTuple.cend(), dstTuple.cbegin(), dstTuple.begin(),
@@ -383,6 +312,7 @@ vtkCellDataToPointData::vtkCellDataToPointData()
   this->PassCellData = false;
   this->ContributingCellOption = vtkCellDataToPointData::All;
   this->ProcessAllArrays = true;
+  this->PieceInvariant = true;
   this->Implementation = new Internals();
 }
 
@@ -429,6 +359,22 @@ void vtkCellDataToPointData::ClearCellDataArrays()
 }
 
 //------------------------------------------------------------------------------
+vtkIdType vtkCellDataToPointData::GetNumberOfCellArraysToProcess()
+{
+  return static_cast<vtkIdType>(this->Implementation->CellDataArrays.size());
+}
+
+//------------------------------------------------------------------------------
+void vtkCellDataToPointData::GetCellArraysToProcess(const char* names[])
+{
+  for (const auto& n : this->Implementation->CellDataArrays)
+  {
+    *names = n.c_str();
+    ++names;
+  }
+}
+
+//------------------------------------------------------------------------------
 int vtkCellDataToPointData::RequestData(
   vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
@@ -455,7 +401,6 @@ int vtkCellDataToPointData::RequestData(
   // Pass the point data first. The fields and attributes
   // which also exist in the cell data of the input will
   // be over-written during CopyAllocate
-  output->GetPointData()->CopyGlobalIdsOff();
   output->GetPointData()->PassData(input->GetPointData());
   output->GetPointData()->CopyFieldOff(vtkDataSetAttributes::GhostArrayName());
 
@@ -499,12 +444,49 @@ int vtkCellDataToPointData::RequestData(
 }
 
 //------------------------------------------------------------------------------
+int vtkCellDataToPointData::RequestUpdateExtent(
+  vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+{
+  if (!this->PieceInvariant)
+  {
+    // I believe the default input update extent
+    // is set to the input update extent.
+    return 1;
+  }
+
+  // Technically, this code is only correct for pieces extent types.  However,
+  // since this class is pretty inefficient for data types that use 3D extents,
+  // we'll punt on the ghost levels for them, too.
+
+  // get the info objects
+  vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+  vtkInformation* outInfo = outputVector->GetInformationObject(0);
+
+  int piece = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
+  int numPieces = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
+  int ghostLevels = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
+
+  if (numPieces > 1)
+  {
+    ++ghostLevels;
+  }
+
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER(), piece);
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES(), numPieces);
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), ghostLevels);
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::EXACT_EXTENT(), 1);
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 void vtkCellDataToPointData::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 
   os << indent << "PassCellData: " << (this->PassCellData ? "On\n" : "Off\n");
   os << indent << "ContributingCellOption: " << this->ContributingCellOption << endl;
+  os << indent << "PieceInvariant: " << (this->PieceInvariant ? "On\n" : "Off\n");
 }
 
 //----------------------------------------------------------------------------
@@ -590,24 +572,18 @@ int vtkCellDataToPointData::RequestDataForUnstructuredData(
   // unstructured datasets. A common workflow requiring maximum performance.
   if (this->ContributingCellOption == vtkCellDataToPointData::All)
   {
-    if (src->IsA("vtkUnstructuredGrid"))
+    if (auto uGrid = vtkUnstructuredGrid::SafeDownCast(src))
     {
-      vtkUnstructuredGrid* input = vtkUnstructuredGrid::SafeDownCast(src);
-      input->BuildLinks();
-      vtkAbstractCellLinks* links = input->GetCellLinks();
-      if (FastUGridPath(npoints, links, processedCellData, opd))
-      {
-        return 1;
-      }
+      uGrid->BuildLinks();
+      FastUnstructuredData(npoints, uGrid->GetLinks(), processedCellData, opd);
+      return 1;
     }
     else // polydata
     {
-      vtkPolyData* input = vtkPolyData::SafeDownCast(src);
-      input->BuildLinks();
-      if (FastPolyDataPath(npoints, input, processedCellData, opd))
-      {
-        return 1;
-      }
+      auto polyData = vtkPolyData::SafeDownCast(src);
+      polyData->BuildLinks();
+      FastUnstructuredData(npoints, polyData->GetLinks(), processedCellData, opd);
+      return 1;
     }
   } // fast path
 
@@ -631,7 +607,7 @@ int vtkCellDataToPointData::RequestDataForUnstructuredData(
       int maxDimension = src->IsA("vtkPolyData") == 1 ? 2 : 3;
       for (vtkIdType i = 0; i < src->GetNumberOfCells(); i++)
       {
-        int dim = src->GetCell(i)->GetCellDimension();
+        int dim = vtkCellTypes::GetDimension(src->GetCellType(i));
         if (dim > highestCellDimension)
         {
           highestCellDimension = dim;

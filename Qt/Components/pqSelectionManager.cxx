@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program: ParaView
-  Module:    pqSelectionManager.cxx
+  Module:  pqSelectionManager.cxx
 
   Copyright (c) Kitware, Inc.
   All rights reserved.
@@ -14,37 +14,30 @@
 =========================================================================*/
 #include "pqSelectionManager.h"
 
-#include <QtDebug>
-
 #include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
 #include "pqLinksModel.h"
 #include "pqOutputPort.h"
 #include "pqPipelineSource.h"
-#include "pqRenderView.h"
-#include "pqSMAdaptor.h"
-#include "pqServer.h"
 #include "pqServerManagerModel.h"
 #include "pqTimeKeeper.h"
+
 #include "vtkAlgorithm.h"
 #include "vtkCollection.h"
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
 #include "vtkPVDataInformation.h"
-#include "vtkProcessModule.h"
 #include "vtkSMInputProperty.h"
 #include "vtkSMPropertyHelper.h"
-#include "vtkSMProxyManager.h"
 #include "vtkSMRenderViewProxy.h"
-#include "vtkSMSelectionHelper.h"
 #include "vtkSMSelectionLink.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStringVectorProperty.h"
 #include "vtkSMTrace.h"
-#include "vtkSelection.h"
-#include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
+
+#include <QtDebug>
 
 //-----------------------------------------------------------------------------
 class pqSelectionManagerImplementation
@@ -130,7 +123,7 @@ void pqSelectionManager::onItemRemoved(pqServerManagerModelItem* item)
   }
 
   // Search for the source output ports in the SelectedPorts set
-  foreach (pqOutputPort* port, this->Implementation->SelectedPorts)
+  Q_FOREACH (pqOutputPort* port, this->Implementation->SelectedPorts)
   {
     if (port->getSource() == item)
     {
@@ -142,15 +135,24 @@ void pqSelectionManager::onItemRemoved(pqServerManagerModelItem* item)
 }
 
 //-----------------------------------------------------------------------------
-void pqSelectionManager::expandSelection(int layers)
+void pqSelectionManager::expandSelection(int layers, bool removeSeed, bool removeIntermediateLayers)
 {
   for (auto port : this->Implementation->SelectedPorts)
   {
-    if (auto selsource = port->getSelectionInput())
+    if (auto appendSelections = port->getSelectionInput())
     {
-      vtkSMPropertyHelper helper(selsource, "NumberOfLayers");
-      helper.Set(helper.GetAsInt() + layers);
-      selsource->UpdateVTKObjects();
+      unsigned int numInputs = vtkSMPropertyHelper(appendSelections, "Input").GetNumberOfElements();
+      for (unsigned int i = 0; i < numInputs; ++i)
+      {
+        auto selectionSource =
+          vtkSMPropertyHelper(appendSelections->GetProperty("Input")).GetAsProxy(i);
+        vtkSMPropertyHelper numberOfLayersHelper(selectionSource, "NumberOfLayers");
+        numberOfLayersHelper.Set(numberOfLayersHelper.GetAsInt() + layers);
+        vtkSMPropertyHelper(selectionSource, "RemoveSeed").Set(removeSeed);
+        vtkSMPropertyHelper(selectionSource, "RemoveIntermediateLayers")
+          .Set(removeIntermediateLayers);
+        selectionSource->UpdateVTKObjects();
+      }
     }
     port->renderAllViews();
     Q_EMIT this->selectionChanged(port);
@@ -169,7 +171,7 @@ void pqSelectionManager::clearSelection(pqOutputPort* outputPort)
       src->CleanSelectionInputs((*this->Implementation->SelectedPorts.begin())->getPortNumber());
 
       // Render all cleaned output ports
-      foreach (pqOutputPort* opport, this->Implementation->SelectedPorts)
+      Q_FOREACH (pqOutputPort* opport, this->Implementation->SelectedPorts)
       {
         if (opport)
         {
@@ -253,7 +255,7 @@ void pqSelectionManager::select(pqOutputPort* selectedPort)
   // hence some selection cleared without our knowing
   else
   {
-    foreach (pqOutputPort* port, this->Implementation->SelectedPorts)
+    Q_FOREACH (pqOutputPort* port, this->Implementation->SelectedPorts)
     {
       port->renderAllViews(false);
     }
@@ -264,7 +266,6 @@ void pqSelectionManager::select(pqOutputPort* selectedPort)
 
   if (selectedPort != nullptr)
   {
-
     // Insert the selected port and render it
     this->Implementation->SelectedPorts.insert(selectedPort);
     selectedPort->renderAllViews(false);
@@ -366,7 +367,7 @@ void pqSelectionManager::onLinkRemoved()
 {
   // When removing a link, the set of selected port became invalid
   // We have to look for a potential selection in the set of selected port
-  foreach (pqOutputPort* port, this->Implementation->SelectedPorts)
+  Q_FOREACH (pqOutputPort* port, this->Implementation->SelectedPorts)
   {
     vtkSMSourceProxy* proxy = port->getSourceProxy();
     for (unsigned int i = 0; i < proxy->GetNumberOfOutputPorts(); i++)
@@ -391,7 +392,7 @@ void pqSelectionManager::onLinkRemoved()
 vtkBoundingBox pqSelectionManager::selectedDataBounds() const
 {
   vtkBoundingBox bbox;
-  foreach (pqOutputPort* port, this->Implementation->SelectedPorts)
+  Q_FOREACH (pqOutputPort* port, this->Implementation->SelectedPorts)
   {
     double bds[6] = { 0, -1, 0, -1, 0, -1 };
     port->getSelectedDataInformation()->GetBounds(bds);

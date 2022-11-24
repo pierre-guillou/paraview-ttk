@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkMaskPoints.h"
 
 #include "vtkBoundingBox.h"
@@ -61,7 +58,7 @@ inline void SwapPoint(
 
   // temp -> b
   points->SetPoint(b, ta);
-  data->CopyData(temp, 0, b);
+  data->CopyData(temp, vtkIdType(0), b);
 }
 
 //------------------------------------------------------------------------------

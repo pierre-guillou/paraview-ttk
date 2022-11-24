@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqListWidgetItemObject_h
-#define _pqListWidgetItemObject_h
+#ifndef pqListWidgetItemObject_h
+#define pqListWidgetItemObject_h
 
 #include "pqWidgetsModule.h"
 #include <QListWidgetItem>
@@ -56,7 +56,7 @@ public:
    */
   void setData(int role, const QVariant& v) override;
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * get the check true/false
    */

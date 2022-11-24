@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef pq_ComboBoxDomain_h
-#define pq_ComboBoxDomain_h
+#ifndef pqComboBoxDomain_h
+#define pqComboBoxDomain_h
 
 #include "pqComponentsModule.h"
 #include <QObject>
@@ -83,12 +83,12 @@ public:
    */
   static QIcon getIcon(int fieldAssociation);
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   void domainChanged();
 protected Q_SLOTS:
   virtual void internalDomainChanged();
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   void markForUpdate(bool mark);
 
   class pqInternal;

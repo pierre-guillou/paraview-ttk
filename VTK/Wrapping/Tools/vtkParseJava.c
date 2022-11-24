@@ -16,6 +16,7 @@
 #include "vtkParse.h"
 #include "vtkParseHierarchy.h"
 #include "vtkParseMain.h"
+#include "vtkParseSystem.h"
 #include "vtkWrap.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -483,7 +484,7 @@ static int isClassWrapped(const char* classname)
 
 int checkFunctionSignature(ClassInfo* data)
 {
-  static unsigned int supported_types[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
+  static const unsigned int supported_types[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
     VTK_PARSE_DOUBLE, VTK_PARSE_CHAR, VTK_PARSE_UNSIGNED_CHAR, VTK_PARSE_SIGNED_CHAR, VTK_PARSE_INT,
     VTK_PARSE_UNSIGNED_INT, VTK_PARSE_SHORT, VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_LONG,
     VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_LONG_LONG, VTK_PARSE_UNSIGNED_LONG_LONG, VTK_PARSE___INT64,
@@ -967,7 +968,7 @@ void WriteDummyClass(FILE* fp, ClassInfo* data, const char* filename)
 }
 
 /* print the parsed structures */
-int main(int argc, char* argv[])
+int VTK_PARSE_MAIN(int argc, char* argv[])
 {
   OptionInfo* options;
   FileInfo* file_info;
@@ -995,7 +996,7 @@ int main(int argc, char* argv[])
   }
 
   /* get the output file */
-  fp = fopen(options->OutputFileName, "w");
+  fp = vtkParse_FileOpen(options->OutputFileName, "w");
 
   if (!fp)
   {
@@ -1169,8 +1170,9 @@ int main(int argc, char* argv[])
     /*const */ char javaDone[] = "VTKJavaWrapped";
     FILE* tfp;
     fname = options->OutputFileName;
-    dir = (char*)malloc(strlen(fname) + strlen(javaDone) + 2);
-    sprintf(dir, "%s", fname);
+    size_t dirlen = strlen(fname) + strlen(javaDone) + 2;
+    dir = (char*)malloc(dirlen);
+    snprintf(dir, dirlen, "%s", fname);
     len = strlen(dir);
     for (cc = len - 1; cc > 0; cc--)
     {
@@ -1181,7 +1183,7 @@ int main(int argc, char* argv[])
       }
     }
     strcat(dir, javaDone);
-    tfp = fopen(dir, "w");
+    tfp = vtkParse_FileOpen(dir, "w");
     if (tfp)
     {
       fprintf(tfp, "File: %s\n", fname);

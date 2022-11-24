@@ -350,8 +350,7 @@ void vtkValuePass::PrintSelf(ostream& os, vtkIndent indent)
 void vtkValuePass::SetInputArrayToProcess(int fieldAssociation, const char* name)
 {
   if (this->PassState->ArrayAccessMode != VTK_GET_ARRAY_BY_NAME ||
-    this->PassState->ArrayMode != fieldAssociation ||
-    this->PassState->ArrayName.compare(name) != false)
+    this->PassState->ArrayMode != fieldAssociation || this->PassState->ArrayName != name)
   {
     this->PassState->ArrayMode = fieldAssociation;
     this->PassState->ArrayName = std::string(name);
@@ -379,19 +378,6 @@ void vtkValuePass::SetInputComponentToProcess(int component)
   if (this->PassState->ArrayComponent != component)
   {
     this->PassState->ArrayComponent = component;
-    this->Modified();
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkValuePass::SetScalarRange(double min, double max)
-{
-  VTK_LEGACY_BODY(vtkValuePass::SetScalarRange, "VTK 9.0");
-  if ((this->PassState->ScalarRange[0] != min || this->PassState->ScalarRange[1] != max) &&
-    min <= max)
-  {
-    this->PassState->ScalarRange[0] = min;
-    this->PassState->ScalarRange[1] = max;
     this->Modified();
   }
 }
@@ -673,7 +659,7 @@ void vtkValuePass::ReleaseFBO(vtkWindow* win)
 
   win->MakeCurrent();
 
-  // Cleanup FBO (grahpics resources cleaned internally)
+  // Cleanup FBO (graphics resources cleaned internally)
   this->ImplFloat->ValueFBO->Delete();
   this->ImplFloat->ValueFBO = nullptr;
 
@@ -684,17 +670,6 @@ void vtkValuePass::ReleaseFBO(vtkWindow* win)
   this->ImplFloat->DepthRBO = nullptr;
 
   this->ImplFloat->FBOAllocated = false;
-}
-
-//------------------------------------------------------------------------------
-bool vtkValuePass::IsFloatingPointModeSupported()
-{
-  VTK_LEGACY_BODY(vtkValuePass::IsFloatihngPointModeSupported, "VTK 9.0");
-#ifdef GL_ES_VERSION_3_0
-  return true;
-#else
-  return true;
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1085,12 +1060,4 @@ vtkAbstractArray* vtkValuePass::GetArrayFromCompositeData(vtkMapper* mapper, Par
   }
 
   return abstractArray;
-}
-
-//-------------------------------------------------------------------
-void vtkValuePass::ColorToValue(
-  unsigned char const* color, double const min, double const scale, double& value)
-{
-  VTK_LEGACY_BODY(vtkValuePass::ColorToValue, "VTK 9.0");
-  this->ImplInv->ColorToValue(color, min, scale, value);
 }

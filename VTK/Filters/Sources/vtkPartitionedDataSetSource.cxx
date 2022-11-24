@@ -47,7 +47,7 @@ enum NUM_PARTITIONS : signed int
  *
  * - Some ranks might not accept any partitions
  * - Some ranks might accept a finite amount of partitions.
- * - Some ranks might accept a any multiplicty of partitions.
+ * - Some ranks might accept a any multiplicity of partitions.
  *
  */
 std::vector<int> GenerateAllocations(const std::vector<int>& allocs, const int numPartitions)
@@ -76,7 +76,7 @@ std::vector<int> GenerateAllocations(const std::vector<int>& allocs, const int n
     for (size_t i = 0; i < static_cast<size_t>(partsToAlloc); ++i)
     {
       ++(*ranksToAllocIters[i % ranksToAllocSize]);
-    };
+    }
   }
 
   if (std::accumulate(partsPerRank.begin(), partsPerRank.end(), 0) != numPartitions)

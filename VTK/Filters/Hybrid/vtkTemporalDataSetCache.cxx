@@ -237,7 +237,7 @@ int vtkTemporalDataSetCache::RequestInformation(
   info->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), tRange, 2);
 
   // tell the caller what the specific values are
-  info->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->TimeStepValues[0],
+  info->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->TimeStepValues.data(),
     static_cast<int>(this->TimeStepValues.size()));
 
   // if we are caching structured data, we need to provide topological extents
@@ -344,7 +344,7 @@ int vtkTemporalDataSetCache ::RequestUpdateExtent(vtkInformation* vtkNotUsed(req
       // Get list of input time step values
       std::vector<double> InputTimeValues;
       InputTimeValues.resize(NumberOfInputTimeSteps);
-      inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &InputTimeValues[0]);
+      inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), InputTimeValues.data());
 
       // this should be the same, just checking for debug purposes
       reqTimeSteps.push_back(InputTimeValues[0]);
@@ -419,25 +419,24 @@ int vtkTemporalDataSetCache::RequestData(vtkInformation* vtkNotUsed(request),
   // otherwise it better be in the input
   else
   {
-    if (input->GetInformation()->Has(vtkDataObject::DATA_TIME_STEP()))
+    bool hasDataTimeStep = input->GetInformation()->Has(vtkDataObject::DATA_TIME_STEP());
+    auto eject = this->GetEjected();
+    if (hasDataTimeStep && inTime != upTime && eject)
     {
-      if (inTime == upTime)
-      {
-        vtkTDSCMemkindRAII(this);
-        output.TakeReference(input->NewInstance());
-        output->ShallowCopy(input);
-      }
-      else
-      {
-        output = this->GetEjected()->NewInstance();
-        output->ShallowCopy(this->GetEjected());
-      }
+      output.TakeReference(eject->NewInstance());
+      output->ShallowCopy(eject);
     }
     else
     {
+      vtkTDSCMemkindRAII* mkhold = nullptr;
+      if (hasDataTimeStep && inTime == upTime)
+      {
+        mkhold = new vtkTDSCMemkindRAII(this);
+      }
       // just shallow copy input to output
       output.TakeReference(input->NewInstance());
       output->ShallowCopy(input);
+      delete mkhold;
     }
   }
   // set the data times

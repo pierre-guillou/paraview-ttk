@@ -16,6 +16,7 @@ if ("TBB" IN_LIST vtk_smp_backends)
 endif ()
 
 set(VTKm_ENABLE_CUDA "${VTK_USE_CUDA}")
+set(VTKm_ENABLE_KOKKOS "${VTK_USE_HIP}")
 
 set(VTKm_INSTALL_LIB_DIR "${_vtk_build_LIBRARY_DESTINATION}")
 set(VTKm_INSTALL_INCLUDE_DIR "${_vtk_build_HEADERS_DESTINATION}/vtkvtkm/vtk-m")
@@ -42,6 +43,7 @@ set(VTKm_USE_DEFAULT_TYPES_FOR_VTK ON)
 set(VTKm_USE_DEFAULT_SYMBOL_VISIBILITY OFF)
 set(VTKm_ENABLE_RENDERING OFF)
 set(VTKm_ENABLE_TESTING OFF)
+set(VTKm_ENABLE_TESTING_LIBRARY ON)
 set(VTKm_ENABLE_BENCHMARKS OFF)
 set(VTKm_ENABLE_DOCUMENTATION OFF)
 set(VTKm_ENABLE_EXAMPLES OFF)
@@ -56,10 +58,10 @@ set(VTKm_SKIP_LIBRARY_VERSIONS "${VTK_WHEEL_BUILD}")
 # is enabled.
 # Disable VTK-m warning flags and just rely on VTK's warning flags.
 set(VTKm_ENABLE_DEVELOPER_FLAGS OFF)
+set(VTKm_NO_DEPRECATED_VIRTUAL ON)
 
-if(VTKm_ENABLE_CUDA)
-  set(BUILD_SHARED_LIBS OFF)
-endif()
+# Ignore existing CMake variable in vtk-m
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 add_subdirectory(vtk-m)
 vtkm_setup_job_pool()
@@ -67,3 +69,7 @@ vtkm_setup_job_pool()
 vtk_module_add_module(VTK::vtkm
   HEADER_ONLY)
 vtk_module_link(VTK::vtkm INTERFACE vtkm_cont vtkm_filter)
+
+if (VTK_USE_HIP AND NOT TARGET vtkm::kokkos_hip)
+  message(FATAL_ERROR "VTK_USE_HIP=ON but Kokkos HIP backend not found, exiting.")
+endif()

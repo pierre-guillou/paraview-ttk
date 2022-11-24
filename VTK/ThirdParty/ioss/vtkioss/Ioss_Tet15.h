@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "ioss_export.h"
+
 #include "vtk_ioss_mangle.h"
 
 #include <Ioss_CodeTypes.h>       // for IntVector
@@ -14,7 +16,7 @@
 // STL Includes
 
 namespace Ioss {
-  class Tet15 : public Ioss::ElementTopology
+  class IOSS_EXPORT Tet15 : public Ioss::ElementTopology
   {
 
   public:
@@ -27,6 +29,7 @@ namespace Ioss {
     int          spatial_dimension() const override;
     int          parametric_dimension() const override;
     bool         is_element() const override { return true; }
+    bool         is_shell() const override { return false; }
     int          order() const override;
 
     int number_corner_nodes() const override;
@@ -51,8 +54,6 @@ namespace Ioss {
     Tet15();
 
   private:
-    static Tet15 instance_;
-
     Tet15(const Tet15 &) = delete;
   };
 } // namespace Ioss

@@ -34,11 +34,12 @@ psActor = vtk.vtkActor()
 psActor.SetMapper(psMapper)
 psActor.GetProperty().SetRepresentationToWireframe()
 
-# Use the vtkModifiedBSPTree
+# Use the vtkCellTreeLocator
 rk4 = vtk.vtkRungeKutta4()
-bspLoc = vtk.vtkModifiedBSPTree()
-ivp = vtk.vtkCellLocatorInterpolatedVelocityField()
-ivp.SetCellLocatorPrototype(bspLoc)
+treeLoc = vtk.vtkCellTreeLocator()
+ivp = vtk.vtkCompositeInterpolatedVelocityField()
+ivp.SetFindCellStrategy(vtk.vtkCellLocatorStrategy())
+ivp.GetFindCellStrategy().SetCellLocator(treeLoc)
 streamer = vtk.vtkStreamTracer()
 streamer.SetInputData(output)
 streamer.SetSourceData(ps.GetOutput())
@@ -70,8 +71,9 @@ outlineActor.SetMapper(outlineMapper)
 
 # Use a vtkStaticCellLocator
 staticLoc = vtk.vtkStaticCellLocator()
-ivp2 = vtk.vtkCellLocatorInterpolatedVelocityField()
-ivp2.SetCellLocatorPrototype(staticLoc)
+ivp2 = vtk.vtkCompositeInterpolatedVelocityField()
+ivp2.SetFindCellStrategy(vtk.vtkCellLocatorStrategy())
+ivp2.GetFindCellStrategy().SetCellLocator(staticLoc)
 streamer2 = vtk.vtkStreamTracer()
 streamer2.SetInputData(output)
 streamer2.SetSourceData(ps.GetOutput())

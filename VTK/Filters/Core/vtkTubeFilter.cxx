@@ -200,7 +200,7 @@ int vtkTubeFilter::RequestData(vtkInformation* vtkNotUsed(request),
   //
   if (inScalars)
   {
-    inScalars->GetRange(range, 0);
+    pd->GetRange(inScalars->GetName(), range, 0);
     if ((range[1] - range[0]) == 0.0)
     {
       if (this->VaryRadius == VTK_VARY_RADIUS_BY_SCALAR)
@@ -243,7 +243,7 @@ int vtkTubeFilter::RequestData(vtkInformation* vtkNotUsed(request),
     this->UpdateProgress((double)inCellId / numLines);
     abort = this->GetAbortExecute();
 
-    // Make a copy of point indices to avoid modfiying input polydata cells
+    // Make a copy of point indices to avoid modifying input polydata cells
     // while removing degenerate lines.
     if (npts < 2)
     {

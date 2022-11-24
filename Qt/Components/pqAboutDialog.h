@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqAboutDialog_h
-#define _pqAboutDialog_h
+#ifndef pqAboutDialog_h
+#define pqAboutDialog_h
 
 #include "pqComponentsModule.h"
 #include <QDialog>
@@ -60,7 +60,7 @@ public:
    */
   QString formatToText();
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
 
   /**
    * Saves about dialog formatted output to a file.
@@ -83,4 +83,4 @@ private:
   Ui::pqAboutDialog* const Ui;
 };
 
-#endif // !_pqAboutDialog_h
+#endif // !pqAboutDialog_h

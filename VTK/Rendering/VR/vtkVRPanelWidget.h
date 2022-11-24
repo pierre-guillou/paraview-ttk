@@ -26,11 +26,10 @@ PURPOSE.  See the above copyright notice for more information.
 #define vtkVRPanelWidget_h
 
 #include "vtkAbstractWidget.h"
+#include "vtkDeprecation.h"       // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkRenderingVRModule.h" // For export macro
 
 class vtkVRPanelRepresentation;
-class vtkPropMap;
-class vtkProp;
 
 class VTKRENDERINGVR_EXPORT vtkVRPanelWidget : public vtkAbstractWidget
 {
@@ -40,13 +39,13 @@ public:
    */
   static vtkVRPanelWidget* New();
 
-  //@{
+  ///@{
   /**
    * Standard vtkObject methods
    */
   vtkTypeMacro(vtkVRPanelWidget, vtkAbstractWidget);
   void PrintSelf(ostream& os, vtkIndent indent) override;
-  //@}
+  ///@}
 
   /**
    * Specify an instance of vtkWidgetRepresentation used to represent this
@@ -66,11 +65,15 @@ protected:
 
   // Manage the state of the widget
   int WidgetState;
-  enum _WidgetState
+  enum WidgetStateType
   {
     Start = 0,
     Active
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef WidgetStateType _WidgetState;
+#endif
 
   /**
    * callback

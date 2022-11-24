@@ -220,7 +220,7 @@ void vtkWrapPython_GetSingleArgument(
   if (static_call)
   {
     prefix = "vtkPythonArgs::";
-    sprintf(argname, "arg%d, ", i);
+    snprintf(argname, sizeof(argname), "arg%d, ", i);
   }
 
   if (vtkWrap_IsEnumMember(data, arg))
@@ -251,18 +251,26 @@ void vtkWrapPython_GetSingleArgument(
   {
     fprintf(fp, "%s%sGetPythonObject(temp%d)", prefix, argname, i);
   }
-  else if (vtkWrap_IsVTKObject(arg))
+  else if (vtkWrap_IsVTKObject(arg) || vtkWrap_IsVTKSmartPointer(arg))
   {
-    vtkWrapText_PythonName(arg->Class, pythonname);
-    if (strcmp(arg->Class, pythonname) != 0)
+    char* templateArg = NULL;
+    const char* classname = arg->Class;
+    if (vtkWrap_IsVTKSmartPointer(arg))
+    {
+      templateArg = vtkWrap_TemplateArg(arg->Class);
+      classname = templateArg;
+    }
+    vtkWrapText_PythonName(classname, pythonname);
+    if (strcmp(classname, pythonname) != 0)
     {
       /* use typeid() for templated names */
-      fprintf(fp, "%sGetVTKObject(%stemp%d, typeid(%s).name())", prefix, argname, i, arg->Class);
+      fprintf(fp, "%sGetVTKObject(%stemp%d, typeid(%s).name())", prefix, argname, i, classname);
     }
     else
     {
       fprintf(fp, "%sGetVTKObject(%stemp%d, \"%s\")", prefix, argname, i, pythonname);
     }
+    free(templateArg);
   }
   else if (vtkWrap_IsSpecialObject(arg) && !vtkWrap_IsNonConstRef(arg))
   {
@@ -284,8 +292,7 @@ void vtkWrapPython_GetSingleArgument(
   }
   else if (vtkWrap_IsString(arg) || (vtkWrap_IsCharPointer(arg) && vtkWrap_IsConst(arg)))
   {
-    if ((arg->Attributes & VTK_PARSE_FILEPATH) != 0 &&
-      (arg->Type & VTK_PARSE_BASE_TYPE) != VTK_PARSE_UNICODE_STRING)
+    if ((arg->Attributes & VTK_PARSE_FILEPATH) != 0)
     {
       fprintf(fp, "%sGetFilePath(%stemp%d)", prefix, argname, i);
     }
@@ -313,7 +320,19 @@ void vtkWrapPython_GetSingleArgument(
   }
   else if (vtkWrap_IsStdVector(arg))
   {
-    fprintf(fp, "%sGetArray(%stemp%d.data(), temp%d.size())", prefix, argname, i, i);
+    char* valuetype = vtkWrap_TemplateArg(arg->Class);
+    if (strncmp(valuetype, "vtkSmartPointer<", 16) == 0)
+    {
+      char* classname = vtkWrap_TemplateArg(valuetype);
+      fprintf(
+        fp, "%sGetArray(%stemp%d.data(), temp%d.size(), \"%s\")", prefix, argname, i, i, classname);
+      free(classname);
+    }
+    else
+    {
+      fprintf(fp, "%sGetArray(%stemp%d.data(), temp%d.size())", prefix, argname, i, i);
+    }
+    free(valuetype);
   }
 }
 
@@ -616,6 +635,10 @@ void vtkWrapPython_ReturnValue(FILE* fp, ClassInfo* data, ValueInfo* val, int st
         "      }\n");
     }
   }
+  else if (vtkWrap_IsVTKSmartPointer(val))
+  {
+    fprintf(fp, "      result = %sBuildVTKObject(tempr);\n", prefix);
+  }
   else if (vtkWrap_IsSpecialObject(val) && vtkWrap_IsRef(val))
   {
     vtkWrapText_PythonName(val->Class, pythonname);
@@ -661,6 +684,17 @@ void vtkWrapPython_ReturnValue(FILE* fp, ClassInfo* data, ValueInfo* val, int st
   }
 
   fprintf(fp, "    }\n");
+
+  if (vtkWrap_IsVTKObject(val) && vtkWrap_IsNewInstance(val))
+  {
+    /* called if PyErr_Occurred() (or, equivalently, if ap.ErrorOccurred()) */
+    fprintf(fp,
+      "    else if (tempr != nullptr)\n"
+      "    {\n"
+      "      %sDeleteVTKObject(tempr);\n"
+      "    }\n",
+      prefix);
+  }
 }
 
 /* -------------------------------------------------------------------- */
@@ -812,22 +846,22 @@ static void vtkWrapPython_GenerateMethodCall(
     if (k == 1)
     {
       /* unbound method call */
-      sprintf(methodname, "op->%s::%s", data->Name, currentFunction->Name);
+      snprintf(methodname, sizeof(methodname), "op->%s::%s", data->Name, currentFunction->Name);
     }
     else if (currentFunction->IsStatic)
     {
       /* static method call */
-      sprintf(methodname, "%s::%s", data->Name, currentFunction->Name);
+      snprintf(methodname, sizeof(methodname), "%s::%s", data->Name, currentFunction->Name);
     }
     else if (is_constructor)
     {
       /* constructor call */
-      sprintf(methodname, "new %s", currentFunction->Name);
+      snprintf(methodname, sizeof(methodname), "new %s", currentFunction->Name);
     }
     else
     {
       /* standard bound method call */
-      sprintf(methodname, "op->%s", currentFunction->Name);
+      snprintf(methodname, sizeof(methodname), "op->%s", currentFunction->Name);
     }
 
     if (is_constructor)
@@ -966,7 +1000,9 @@ static void vtkWrapPython_WriteBackToArgs(FILE* fp, ClassInfo* data, FunctionInf
       n = 1;
     }
 
-    if (vtkWrap_IsNonConstRef(arg) && !vtkWrap_IsStdVector(arg) && !vtkWrap_IsObject(arg))
+    /* the "arg->Count == 0" keeps this "if" from capturing "T (&a)[N]" */
+    if (vtkWrap_IsNonConstRef(arg) && !vtkWrap_IsStdVector(arg) && !vtkWrap_IsObject(arg) &&
+      arg->Count == 0)
     {
       fprintf(fp,
         "    if (!ap.ErrorOccurred())\n"
@@ -1124,7 +1160,7 @@ void vtkWrapPython_GenerateOneMethod(FILE* fp, const char* classname, ClassInfo*
       occSuffix[0] = '\0';
       if (numberOfOccurrences > 1)
       {
-        sprintf(occSuffix, "_s%d", occCounter);
+        snprintf(occSuffix, sizeof(occSuffix), "_s%d", occCounter);
       }
 
       /* declare the method */

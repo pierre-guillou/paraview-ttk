@@ -34,7 +34,7 @@ set(headers
   Hash.h
   ImplicitFunction.h
   List.h
-  ListTag.h
+  ListTag.h # Deprecated, replaced by List.h
   LowerBound.h
   Math.h
   Matrix.h
@@ -51,7 +51,7 @@ set(headers
   Transform3D.h
   Tuple.h
   TypeList.h
-  TypeListTag.h
+  TypeListTag.h # Deprecated, replaced by TypeList.h
   Types.h
   TypeTraits.h
   VecAxisAlignedPointCoordinates.h
@@ -89,7 +89,9 @@ endif()
 add_subdirectory(thirdparty/optionparser)
 add_subdirectory(thirdparty/lcl)
 
-add_subdirectory(testing)
+if(VTKm_ENABLE_TESTING_LIBRARY)
+  add_subdirectory(testing)
+endif()
 add_subdirectory(internal)
 
 #-----------------------------------------------------------------------------

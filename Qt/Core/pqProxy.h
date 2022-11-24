@@ -36,8 +36,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * \date 11/16/2005
  */
 
-#ifndef _pqPipelineObject_h
-#define _pqPipelineObject_h
+#ifndef pqProxy_h
+#define pqProxy_h
 
 #include "pqServerManagerModelItem.h"
 #include <QPointer>
@@ -221,7 +221,7 @@ protected:
   virtual void addInternalHelperProxy(const QString& key, vtkSMProxy*) const;
   virtual void removeInternalHelperProxy(const QString& key, vtkSMProxy*) const;
 
-protected Q_SLOTS:
+protected Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   // Used to monitor helper proxy registration when created on other clients
   void onProxyRegistered(const QString&, const QString&, vtkSMProxy*);
   void onProxyUnRegistered(const QString&, const QString&, vtkSMProxy*);

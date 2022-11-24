@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkExtractSubsetWithSeed.h"
 
 #include "vtkBoundingBox.h"
@@ -476,7 +473,7 @@ int vtkExtractSubsetWithSeed::RequestData(
       {
         const auto dest = rp.out_link().target(i);
         rp.enqueue(dest, bds, 6);
-      };
+      }
     }
     else
     {
@@ -590,7 +587,7 @@ int vtkExtractSubsetWithSeed::RequestData(
         for (const auto& neighbor : cp.link()->neighbors())
         {
           vtkLogF(
-            TRACE, "r=%d: enqueing %d --> (%d, %d)", round, cp.gid(), neighbor.gid, neighbor.proc);
+            TRACE, "r=%d: enqueuing %d --> (%d, %d)", round, cp.gid(), neighbor.gid, neighbor.proc);
           cp.enqueue(neighbor, next_seeds);
         }
       }

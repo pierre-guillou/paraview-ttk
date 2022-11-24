@@ -13,7 +13,6 @@ set(classes
   vtkBoxClipDataSet
   vtkBrownianPoints
   vtkCellDerivatives
-  vtkCellTreeLocator
   vtkCellValidator
   vtkClipClosedSurface
   vtkClipConvexPolyData
@@ -45,6 +44,7 @@ set(classes
   vtkExtractGhostCells
   vtkExtractSelectedFrustum
   vtkExtractSelectionBase
+  vtkFiniteElementFieldDistributor
   vtkGradientFilter
   vtkGraphLayoutFilter
   vtkGraphToPoints
@@ -60,6 +60,7 @@ set(classes
   vtkInterpolateDataSetAttributes
   vtkInterpolatingSubdivisionFilter
   vtkIntersectionPolyDataFilter
+  vtkJoinTables
   vtkLevelIdScalars
   vtkLinkEdgels
   vtkLoopBooleanPolyDataFilter
@@ -70,7 +71,6 @@ set(classes
   vtkMergeTimeFilter
   vtkMergeVectorComponents
   vtkMultiBlockDataGroupFilter
-  vtkMultiBlockFromTimeSeriesFilter
   vtkMultiBlockMergeFilter
   vtkMultiThreshold
   vtkNormalizeMatrixVectors
@@ -128,5 +128,9 @@ set(classes
   vtkWarpVector
   vtkYoungsMaterialInterface)
 
+set(templates
+  vtkJoinTables.txx)
+
 vtk_module_add_module(VTK::FiltersGeneral
-  CLASSES ${classes})
+  CLASSES ${classes}
+  TEMPLATES ${templates})

@@ -126,13 +126,11 @@ using IsWritableArrayHandle =
 ///
 template <typename T>
 struct ArrayHandleCheck
+  : std::is_base_of<vtkm::cont::internal::ArrayHandleBase, std::decay_t<T>>::type
 {
-  using U = typename std::remove_pointer<T>::type;
-  using type = typename std::is_base_of<::vtkm::cont::internal::ArrayHandleBase, U>::type;
 };
 
-#define VTKM_IS_ARRAY_HANDLE(T) \
-  VTKM_STATIC_ASSERT(::vtkm::cont::internal::ArrayHandleCheck<T>::type::value)
+#define VTKM_IS_ARRAY_HANDLE(T) VTKM_STATIC_ASSERT(::vtkm::cont::internal::ArrayHandleCheck<T>{})
 
 } // namespace internal
 
@@ -515,15 +513,59 @@ public:
   ///
   VTKM_CONT void Allocate(vtkm::Id numberOfValues,
                           vtkm::CopyFlag preserve,
-                          vtkm::cont::Token& token)
+                          vtkm::cont::Token& token) const
   {
     StorageType::ResizeBuffers(numberOfValues, this->GetBuffers(), preserve, token);
   }
 
-  VTKM_CONT void Allocate(vtkm::Id numberOfValues, vtkm::CopyFlag preserve = vtkm::CopyFlag::Off)
+  VTKM_CONT void Allocate(vtkm::Id numberOfValues,
+                          vtkm::CopyFlag preserve = vtkm::CopyFlag::Off) const
   {
     vtkm::cont::Token token;
     this->Allocate(numberOfValues, preserve, token);
+  }
+  ///@}
+
+  ///@{
+  /// \brief Allocates an array and fills it with an initial value.
+  ///
+  /// `AllocateAndFill` behaves similar to `Allocate` except that after allocation it fills
+  /// the array with a given `fillValue`. This method is convenient when you wish to initialize
+  /// the array.
+  ///
+  /// If the `preserve` flag is `vtkm::CopyFlag::On`, then any data that existed before the
+  /// call to `AllocateAndFill` will remain after the call (assuming the new array size is
+  /// large enough). If the array size is expanded, then the new values at the end will be
+  /// filled.
+  ///
+  /// If the `preserve` flag is `vtkm::CopyFlag::Off` (the default), the entire array is
+  /// filled with the given `fillValue`.
+  ///
+  VTKM_CONT void AllocateAndFill(vtkm::Id numberOfValues,
+                                 const ValueType& fillValue,
+                                 vtkm::CopyFlag preserve,
+                                 vtkm::cont::Token& token) const
+  {
+    // Note that there is a slight potential for a race condition here. It is possible for someone
+    // else to resize the array in between getting the startIndex and locking the array in the
+    // Allocate call. If there really are 2 threads trying to allocate this array at the same time,
+    // you probably have bigger problems than filling at the wrong index.
+    vtkm::Id startIndex = (preserve == vtkm::CopyFlag::On) ? this->GetNumberOfValues() : 0;
+
+    this->Allocate(numberOfValues, preserve, token);
+
+    if (startIndex < numberOfValues)
+    {
+      this->Fill(fillValue, startIndex, numberOfValues, token);
+    }
+  }
+
+  VTKM_CONT void AllocateAndFill(vtkm::Id numberOfValues,
+                                 const ValueType& fillValue,
+                                 vtkm::CopyFlag preserve = vtkm::CopyFlag::Off) const
+  {
+    vtkm::cont::Token token;
+    this->AllocateAndFill(numberOfValues, fillValue, preserve, token);
   }
   ///@}
 
@@ -532,6 +574,32 @@ public:
   {
     this->Allocate(numberOfValues, vtkm::CopyFlag::On);
   }
+
+  /// @{
+  /// \brief Fills the array with a given value.
+  ///
+  /// After calling this method, every entry in the array from `startIndex` to `endIndex`.
+  /// of the array is set to `fillValue`. If `startIndex` or `endIndex` is not specified,
+  /// then the fill happens from the begining or end, respectively.
+  ///
+  VTKM_CONT void Fill(const ValueType& fillValue,
+                      vtkm::Id startIndex,
+                      vtkm::Id endIndex,
+                      vtkm::cont::Token& token) const
+  {
+    StorageType::Fill(this->GetBuffers(), fillValue, startIndex, endIndex, token);
+  }
+  VTKM_CONT void Fill(const ValueType& fillValue, vtkm::Id startIndex, vtkm::Id endIndex) const
+  {
+    vtkm::cont::Token token;
+    this->Fill(fillValue, startIndex, endIndex, token);
+  }
+  VTKM_CONT void Fill(const ValueType& fillValue, vtkm::Id startIndex = 0) const
+  {
+    vtkm::cont::Token token;
+    this->Fill(fillValue, startIndex, this->GetNumberOfValues(), token);
+  }
+  /// @}
 
   /// Releases any resources being used in the execution environment (that are
   /// not being shared by the control environment).
@@ -543,7 +611,7 @@ public:
 
   /// Releases all resources in both the control and execution environments.
   ///
-  VTKM_CONT void ReleaseResources() { this->Allocate(0); }
+  VTKM_CONT void ReleaseResources() const { this->Allocate(0); }
 
   /// Prepares this array to be used as an input to an operation in the
   /// execution environment. If necessary, copies data to the execution
@@ -599,7 +667,7 @@ public:
   ///
   VTKM_CONT WritePortalType PrepareForOutput(vtkm::Id numberOfValues,
                                              vtkm::cont::DeviceAdapterId device,
-                                             vtkm::cont::Token& token)
+                                             vtkm::cont::Token& token) const
   {
     this->Allocate(numberOfValues, vtkm::CopyFlag::Off, token);
     return StorageType::CreateWritePortal(this->GetBuffers(), device, token);
@@ -647,10 +715,8 @@ public:
   /// Note that in a multithreaded environment the validity of this result can
   /// change.
   ///
-  /// TODO: Deprecate this method in favor of IsOnDevice since the data can be on multiple
-  /// devices at once.
   VTKM_CONT
-  DeviceAdapterId GetDeviceAdapterId() const
+  VTKM_DEPRECATED(1.7, "Use ArrayHandle::IsOnDevice.") DeviceAdapterId GetDeviceAdapterId() const
   {
     return detail::ArrayHandleGetDeviceAdapterId(this->Buffers);
   }

@@ -1,5 +1,5 @@
-#ifndef PQEXAMPLEVISUALIZATIONSDIALOG_H
-#define PQEXAMPLEVISUALIZATIONSDIALOG_H
+#ifndef pqExampleVisualizationsDialog_h
+#define pqExampleVisualizationsDialog_h
 
 #include <QDialog>
 
@@ -22,7 +22,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqExampleVisualizationsDialog : public QDia
   typedef QDialog Superclass;
 
 public:
-  explicit pqExampleVisualizationsDialog(QWidget* parent = 0);
+  explicit pqExampleVisualizationsDialog(QWidget* parent = nullptr);
   ~pqExampleVisualizationsDialog() override;
 
 protected Q_SLOTS:
@@ -32,4 +32,4 @@ private:
   Ui::pqExampleVisualizationsDialog* ui;
 };
 
-#endif // PQEXAMPLEVISUALIZATIONSDIALOG_H
+#endif // pqExampleVisualizationsDialog_h

@@ -56,17 +56,13 @@ bool GetMetrics(
   vtkNew<vtkTextProperty> tpropTmp;
   tpropTmp->ShallowCopy(tprop);
   tpropTmp->SetOrientation(0.);
-  if (!tren->GetMetrics(tpropTmp, str, m, dpi))
-  {
-    return false;
-  }
-  return true;
+  return tren->GetMetrics(tpropTmp, str, m, dpi);
 }
 
 // replace \n with space as PS treats it as a space but PDF just removes them.
 // we also need this so that we get the correct bounding box for PDFs
 // considering that we do not address multi-line strings yet.
-void GetSpaceStr(const char* str, vtkStdString* spaceStr)
+void GetSpaceStr(const char* str, std::string* spaceStr)
 {
   *spaceStr = str;
   std::string::size_type eolPos = 0;
@@ -385,7 +381,7 @@ void vtkOpenGLGL2PSHelperImpl::DrawString(const std::string& str, vtkTextPropert
     // draw text by passing the bottom left corner as PDF does not support
     // alignment.
     double blpos[3];
-    vtkStdString spaceStr;
+    std::string spaceStr;
     // compute the bounding box and the string without \n
     vtkTextRenderer::Metrics m;
     ::GetSpaceStr(str.c_str(), &spaceStr);

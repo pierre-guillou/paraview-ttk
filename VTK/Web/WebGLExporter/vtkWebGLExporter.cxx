@@ -148,7 +148,7 @@ void vtkWebGLExporter::parseRenderer(
     vtkWidgetRepresentation* trt = vtkWidgetRepresentation::SafeDownCast(prop);
     if (trt != nullptr)
       this->hasWidget = true;
-    if ((onlyWidget == false || trt != nullptr) && prop->GetVisibility())
+    if ((!onlyWidget || trt != nullptr) && prop->GetVisibility())
     {
       vtkPropCollection* allactors = vtkPropCollection::New();
       prop->GetActors(allactors);
@@ -162,7 +162,7 @@ void vtkWebGLExporter::parseRenderer(
       }
       allactors->Delete();
     }
-    if (onlyWidget == false && prop->GetVisibility())
+    if (!onlyWidget && prop->GetVisibility())
     {
       vtkPropCollection* all2dactors = vtkPropCollection::New();
       prop->GetActors2D(all2dactors);
@@ -581,7 +581,7 @@ const char* vtkWebGLExporter::GenerateMetadata()
   max = std::max(max, this->SceneSize[2]);
   std::stringstream ss;
 
-  ss << "{\"id\":" << this->SceneId.c_str() << ",";
+  ss << "{\"id\":" << this->SceneId << ",";
   ss << "\"MaxSize\":" << max << ",";
   ss << "\"Center\":[";
   for (int i = 0; i < 2; i++)

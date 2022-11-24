@@ -91,32 +91,18 @@ public:
   vtkTypeBool HasTranslucentPolygonalGeometry() override;
   ///@}
 
-  enum
-  {
-    AnyLocation = 0,
-    LowerLeftCorner,
-    LowerRightCorner,
-    LowerCenter,
-    UpperLeftCorner,
-    UpperRightCorner,
-    UpperCenter
-  };
-
-  ///@{
   /**
    * Set the text position, by enumeration (
-   * AnyLocation = 0,
-   * LowerLeftCorner,
-   * LowerRightCorner,
-   * LowerCenter,
-   * UpperLeftCorner,
-   * UpperRightCorner,
-   * UpperCenter)
+   * vtkBorderRepresentation::AnyLocation = 0,
+   * vtkBorderRepresentation::LowerLeftCorner,
+   * vtkBorderRepresentation::LowerRightCorner,
+   * vtkBorderRepresentation::LowerCenter,
+   * vtkBorderRepresentation::UpperLeftCorner,
+   * vtkBorderRepresentation::UpperRightCorner,
+   * vtkBorderRepresentation::UpperCenter)
    * related to the render window
    */
-  virtual void SetWindowLocation(int enumLocation);
-  vtkGetMacro(WindowLocation, int);
-  ///@}
+  void SetWindowLocation(int enumLocation) override;
 
   ///@{
   /**
@@ -197,10 +183,6 @@ protected:
   // the text to manage
   vtkTextActor* TextActor;
   vtkTextProperty* TextProperty;
-
-  // Window location by enumeration
-  int WindowLocation;
-  virtual void UpdateWindowLocation();
 
   // observer to observe internal TextActor and TextProperty
   vtkTextRepresentationObserver* Observer;

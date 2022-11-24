@@ -2903,6 +2903,8 @@ def __determineGroup(proxy):
     xmlname = proxy.GetXMLName()
     if xmlgroup == "sources":
         if xmlname in ["BlockSelectionSource",
+                       "BlockSelectorsSelectionSource",
+                       "SelectionQuerySource",
                        "FrustumSelectionSource",
                        "GlobalIDSelectionSource",
                        "PedigreeIDSelectionSource",
@@ -2914,6 +2916,8 @@ def __determineGroup(proxy):
             return "selection_sources"
         return "sources"
     elif xmlgroup == "filters":
+        if xmlname == "AppendSelections":
+            return "selection_sources"
         return "sources"
     elif xmlgroup == "representations":
         if xmlname == "ScalarBarWidgetRepresentation":
@@ -3255,7 +3259,7 @@ if not vtkProcessModule.GetProcessModule():
     if not vtkInitializationHelper.Initialize(slist, ptype):
         raise RuntimeError("Failed to initialize ParaView engine!")
 
-    # In case of non-symetric mode, if we are a satelite,
+    # In case of non-symmetric mode, if we are a satellite,
     # we should lock right away and wait for the requests
     # from master
     pm = vtkProcessModule.GetProcessModule()

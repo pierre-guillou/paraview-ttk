@@ -1,4 +1,5 @@
 paraview_add_plugin(GMVReader
+  REQUIRED_ON_CLIENT
   REQUIRED_ON_SERVER
   VERSION "1.0"
   MODULES GMVReader::vtkGMVReader
@@ -8,6 +9,7 @@ paraview_add_plugin(GMVReader
 target_link_libraries(GMVReader
   PRIVATE
     ParaView::RemotingServerManager)
+target_compile_definitions(GMVReader PRIVATE QT_NO_KEYWORDS)
 
 if (BUILD_TESTING)
   add_subdirectory(Testing)

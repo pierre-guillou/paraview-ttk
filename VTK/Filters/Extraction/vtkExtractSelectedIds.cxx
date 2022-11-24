@@ -12,6 +12,9 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkExtractSelectedIds.h"
 
 #include "vtkArrayDispatch.h"
@@ -33,7 +36,6 @@
 #include "vtkSignedCharArray.h"
 #include "vtkSmartPointer.h"
 #include "vtkSortDataArray.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -264,7 +266,7 @@ struct vtkESIDeepCopyImpl
   }
 
   void operator()(
-    vtkStdString* out, vtkStdString* in, int compno, int num_comps, vtkIdType numTuples) const
+    std::string* out, std::string* in, int compno, int num_comps, vtkIdType numTuples) const
   {
     if (compno < 0)
     {

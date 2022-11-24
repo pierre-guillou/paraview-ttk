@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqIntVectorPropertyWidget_h
-#define _pqIntVectorPropertyWidget_h
+#ifndef pqIntVectorPropertyWidget_h
+#define pqIntVectorPropertyWidget_h
 
 #include "pqPropertyWidget.h"
 
@@ -42,7 +42,7 @@ class PQCOMPONENTS_EXPORT pqIntVectorPropertyWidget : public pqPropertyWidget
   Q_OBJECT
 
 public:
-  pqIntVectorPropertyWidget(vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parent = 0);
+  pqIntVectorPropertyWidget(vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parent = nullptr);
   ~pqIntVectorPropertyWidget() override;
 
   /**
@@ -55,4 +55,4 @@ private:
   Q_DISABLE_COPY(pqIntVectorPropertyWidget);
 };
 
-#endif // _pqIntVectorPropertyWidget_h
+#endif // pqIntVectorPropertyWidget_h

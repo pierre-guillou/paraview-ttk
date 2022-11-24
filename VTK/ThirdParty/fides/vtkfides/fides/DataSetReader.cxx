@@ -27,7 +27,7 @@
 
 #include <vtkm/cont/CoordinateSystem.h>
 #include <vtkm/cont/DataSet.h>
-#include <vtkm/cont/DynamicCellSet.h>
+#include <vtkm/cont/UnknownCellSet.h>
 
 #include <fides/CellSet.h>
 #include <fides/CoordinateSystem.h>
@@ -125,6 +125,17 @@ public:
   }
 
   void SetDataSourceIO(const std::string source, void* io)
+  {
+    auto it = this->DataSources.find(source);
+    if (it == this->DataSources.end())
+    {
+      throw std::runtime_error("Source name was not found in DataSources.");
+    }
+    auto& ds = *(it->second);
+    ds.SetDataSourceIO(io);
+  }
+
+  void SetDataSourceIO(const std::string source, const std::string& io)
   {
     auto it = this->DataSources.find(source);
     if (it == this->DataSources.end())
@@ -254,6 +265,10 @@ public:
       throw std::runtime_error("step_information needs a data_source.");
     }
     this->StepSource = sInf["data_source"].GetString();
+    if (sInf.HasMember("variable"))
+    {
+      this->TimeVariable = sInf["variable"].GetString();
+    }
   }
 
   template <typename ValueType>
@@ -362,7 +377,7 @@ public:
     return this->CoordinateSystem->Read(paths, this->DataSources, selections);
   }
 
-  std::vector<vtkm::cont::DynamicCellSet> ReadCellSet(
+  std::vector<vtkm::cont::UnknownCellSet> ReadCellSet(
     const std::unordered_map<std::string, std::string>& paths,
     const fides::metadata::MetaData& selections)
   {
@@ -435,6 +450,15 @@ public:
     }
   }
 
+  struct GetTimeValueFunctor
+  {
+    template <typename T, typename S>
+    VTKM_CONT void operator()(const vtkm::cont::ArrayHandle<T, S>& array, double& time) const
+    {
+      time = static_cast<double>(array.ReadPortal().Get(0));
+    }
+  };
+
   fides::metadata::MetaData ReadMetaData(const std::unordered_map<std::string, std::string>& paths)
   {
     if (!this->CoordinateSystem)
@@ -466,6 +490,62 @@ public:
       fides::metadata::Size nStepsM(nSteps);
       metaData.Set(fides::keys::NUMBER_OF_STEPS(), nStepsM);
     }
+
+    auto it = this->DataSources.find(this->StepSource);
+    if (it != this->DataSources.end())
+    {
+      auto ds = it->second;
+      auto itr = paths.find(this->StepSource);
+      if (itr == paths.end())
+      {
+        throw std::runtime_error("Could not find data_source with name " + this->StepSource +
+                                 " among the input paths.");
+      }
+      std::string path = itr->second + ds->FileName;
+      ds->OpenSource(path);
+
+      // StreamingMode only gets set on the first PrepareNextStep, but
+      // for streaming PrepareNextStep has to be called before ReadMetaData anyway
+      if (this->StreamingMode)
+      {
+        auto timeVec = ds->GetScalarVariable(this->TimeVariable, metadata::MetaData());
+        if (!timeVec.empty())
+        {
+          auto& timeAH = timeVec[0];
+          if (timeAH.GetNumberOfValues() == 1)
+          {
+            double timeVal;
+            timeAH.CastAndCallForTypes<vtkm::TypeListScalarAll,
+                                       vtkm::List<vtkm::cont::StorageTagBasic>>(
+              GetTimeValueFunctor(), timeVal);
+            fides::metadata::Time time(timeVal);
+            metaData.Set(fides::keys::TIME_VALUE(), time);
+          }
+        }
+      }
+      else
+      {
+        auto timeVec = ds->GetTimeArray(this->TimeVariable, metadata::MetaData());
+        if (!timeVec.empty())
+        {
+          auto& timeAH = timeVec[0];
+          if (!timeAH.CanConvert<vtkm::cont::ArrayHandle<vtkm::Float64>>())
+          {
+            std::runtime_error("can't convert time array to double");
+          }
+          vtkm::cont::ArrayHandle<vtkm::Float64> timeCasted =
+            timeAH.AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Float64>>();
+
+          auto timePortal = timeCasted.ReadPortal();
+          fides::metadata::Vector<double> time;
+          time.Data.resize(timePortal.GetNumberOfValues());
+          vtkm::cont::ArrayPortalToIterators<decltype(timePortal)> iterators(timePortal);
+          std::copy(iterators.GetBegin(), iterators.GetEnd(), time.Data.begin());
+          metaData.Set(fides::keys::TIME_ARRAY(), time);
+        }
+      }
+    }
+
     return metaData;
   }
 
@@ -541,6 +621,8 @@ public:
   using FieldsKeyType = std::pair<std::string, vtkm::cont::Field::Association>;
   std::map<FieldsKeyType, std::shared_ptr<fides::datamodel::Field>> Fields;
   std::string StepSource;
+  std::string TimeVariable;
+  bool StreamingMode = false;
 };
 
 bool DataSetReader::CheckForDataModelAttribute(const std::string& filename,
@@ -550,7 +632,12 @@ bool DataSetReader::CheckForDataModelAttribute(const std::string& filename,
   auto source = std::make_shared<DataSourceType>();
   source->Mode = fides::io::FileNameMode::Relative;
   source->FileName = filename;
-  source->OpenSource(filename);
+
+  // Here we want to make sure when creating a data source that we don't start ADIOS in
+  // MPI mode. vtkFidesReader::CanReadFile uses this function to see if it can read
+  // a given ADIOS file. When running in parallel, only rank 0 will execute this, so we need
+  // to make sure that we don't do collective calls.
+  source->OpenSource(filename, false);
   if (source->GetAttributeType(attrName) == "string")
   {
     std::vector<std::string> result = source->ReadAttribute<std::string>(attrName);
@@ -631,7 +718,14 @@ vtkm::cont::PartitionedDataSet DataSetReader::ReadDataSet(
   const fides::metadata::MetaData& selections)
 {
   auto ds = this->ReadDataSetInternal(paths, selections);
-  this->Impl->DoAllReads();
+  if (this->Impl->StreamingMode)
+  {
+    this->Impl->EndStep();
+  }
+  else
+  {
+    this->Impl->DoAllReads();
+  }
   this->Impl->PostRead(ds, selections);
 
   // for(size_t i=0; i<ds.GetNumberOfPartitions(); i++)
@@ -646,6 +740,7 @@ vtkm::cont::PartitionedDataSet DataSetReader::ReadDataSet(
 
 StepStatus DataSetReader::PrepareNextStep(const std::unordered_map<std::string, std::string>& paths)
 {
+  this->Impl->StreamingMode = true;
   return this->Impl->BeginStep(paths);
 }
 
@@ -653,11 +748,7 @@ vtkm::cont::PartitionedDataSet DataSetReader::ReadStep(
   const std::unordered_map<std::string, std::string>& paths,
   const fides::metadata::MetaData& selections)
 {
-  auto ds = this->ReadDataSetInternal(paths, selections);
-  this->Impl->EndStep();
-  this->Impl->PostRead(ds, selections);
-
-  return vtkm::cont::PartitionedDataSet(ds);
+  return this->ReadDataSet(paths, selections);
 }
 
 // Returning vector of DataSets instead of PartitionedDataSet because
@@ -669,7 +760,7 @@ std::vector<vtkm::cont::DataSet> DataSetReader::ReadDataSetInternal(
 {
   std::vector<vtkm::cont::CoordinateSystem> coordSystems =
     this->Impl->ReadCoordinateSystem(paths, selections);
-  std::vector<vtkm::cont::DynamicCellSet> cellSets = this->Impl->ReadCellSet(paths, selections);
+  std::vector<vtkm::cont::UnknownCellSet> cellSets = this->Impl->ReadCellSet(paths, selections);
   size_t nPartitions = cellSets.size();
   std::vector<vtkm::cont::DataSet> dataSets(nPartitions);
   for (size_t i = 0; i < nPartitions; i++)
@@ -731,6 +822,11 @@ void DataSetReader::SetDataSourceParameters(const std::string source,
 }
 
 void DataSetReader::SetDataSourceIO(const std::string source, void* io)
+{
+  this->Impl->SetDataSourceIO(source, io);
+}
+
+void DataSetReader::SetDataSourceIO(const std::string source, const std::string& io)
 {
   this->Impl->SetDataSourceIO(source, io);
 }

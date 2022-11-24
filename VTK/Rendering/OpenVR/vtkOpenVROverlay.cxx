@@ -13,18 +13,13 @@
 =========================================================================*/
 #include "vtkOpenVROverlay.h"
 
-#include "vtkCallbackCommand.h"
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
-#include "vtkInteractorStyle3D.h"
 #include "vtkJPEGReader.h"
-#include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkOpenVRCamera.h"
+#include "vtkOpenVROverlayInternal.h"
 #include "vtkOpenVRRenderWindow.h"
-#include "vtkOpenVRRenderWindowInteractor.h"
 #include "vtkPointData.h"
-#include "vtkRenderer.h"
 #include "vtkRendererCollection.h"
 #include "vtkTextureObject.h"
 #include "vtkXMLDataElement.h"
@@ -32,11 +27,7 @@
 #include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
-#include "vtkOpenVROverlayInternal.h"
-
 #include "OpenVRDashboard.h"
-
-#include <cmath>
 
 vtkStandardNewMacro(vtkOpenVROverlay);
 
@@ -148,9 +139,9 @@ void vtkOpenVROverlay::ReadCameraPoses(vtkXMLDataElement* topel)
   if (topel)
   {
     int numPoses = topel->GetNumberOfNestedElements();
-    for (size_t i = 0; i < numPoses; i++)
+    for (int i = 0; i < numPoses; i++)
     {
-      vtkXMLDataElement* el = topel->GetNestedElement(static_cast<int>(i));
+      vtkXMLDataElement* el = topel->GetNestedElement(i);
       int poseNum = 0;
       el->GetScalarAttribute("PoseNumber", poseNum);
       el->GetVectorAttribute("Position", 3, this->SavedCameraPoses[poseNum].Position);

@@ -212,7 +212,7 @@ struct TemplateCastRayWorker
       // seen the case where we reach here with farZ == nearZ.  This is very
       // bad as we need ensure we always move forward so that we do not get
       // into loops.  I think there is something with GCC 3.2.3 that makes
-      // the optimizer be too ambitous and turn the > into >=.
+      // the optimizer be too ambitious and turn the > into >=.
       if ((minIdx == -1) || (farZ <= nearZ))
       {
         // The ray never exited the cell?  Perhaps numerical inaccuracies
@@ -730,7 +730,9 @@ void vtkUnstructuredGridBunykRayCastFunction::TransformPoints()
   perspectiveTransform->Concatenate(
     cam->GetProjectionTransformMatrix(aspect[0] / aspect[1], 0.0, 1.0));
   perspectiveTransform->Concatenate(cam->GetViewTransformMatrix());
-  perspectiveTransform->Concatenate(vol->GetMatrix());
+  vtkNew<vtkMatrix4x4> modelToWorld;
+  vol->GetModelToWorldMatrix(modelToWorld);
+  perspectiveTransform->Concatenate(modelToWorld);
   perspectiveMatrix->DeepCopy(perspectiveTransform->GetMatrix());
 
   // Invert this project matrix and store for later use

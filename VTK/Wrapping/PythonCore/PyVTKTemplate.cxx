@@ -470,11 +470,6 @@ PyObject* PyVTKTemplate_NameFromKey(PyObject* self, PyObject* key)
               tname = "vtkStdString";
               n = 12;
             }
-            else if (n == 7 && strcmp(tname, "unicode") == 0)
-            {
-              tname = "vtkUnicodeString";
-              n = 16;
-            }
           }
           break;
         }
@@ -715,19 +710,45 @@ PyObject* PyVTKTemplate_KeyFromName(PyObject* self, PyObject* arg)
             return nullptr;
           }
         }
-        if (j == 16 && strncmp(cp, "vtkUnicodeString", 16) == 0)
-        {
-          ptype = "unicode";
-          j = 7;
-        }
-        else if (j == 12 && strncmp(cp, "vtkStdString", 12) == 0)
+        if (j == 12 && strncmp(cp, "vtkStdString", 12) == 0)
         {
           ptype = "str";
           j = 3;
         }
         else
         {
-          ptype = cp;
+          // use the type name as-is
+          if (*dp == 'I')
+          {
+            // the type name is templated
+            dp++;
+            if (*dp >= '0' && *dp <= '9')
+            {
+              size_t l = strtol(dp, &dp, 10);
+              for (size_t k = 0; k < l; k++)
+              {
+                if (*dp++ == '\0')
+                {
+                  break;
+                }
+              }
+            }
+            else if (*dp != '\0')
+            {
+              dp++;
+            }
+            if (*dp == 'E')
+            {
+              // end of template args
+              dp++;
+              ptype = cp;
+            }
+          }
+          else
+          {
+            // type name is not templated
+            ptype = cp;
+          }
         }
         cp = dp;
       }

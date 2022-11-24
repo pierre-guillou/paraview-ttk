@@ -738,8 +738,15 @@ void DICOMAppHelper::PixelSpacingCallback(DICOMParser* parser, doublebyte group,
   }
   else if (group == 0x0018 && element == 0x0050)
   {
-    this->PixelSpacing[2] =
-      DICOMFile::ReturnAsFloat(val, parser->GetDICOMFile()->GetPlatformIsBigEndian());
+    if (!val)
+    {
+      this->PixelSpacing[2] = 0.0;
+    }
+    else
+    {
+      this->PixelSpacing[2] =
+        DICOMFile::ReturnAsFloat(val, parser->GetDICOMFile()->GetPlatformIsBigEndian());
+    }
   }
 }
 
@@ -995,14 +1002,7 @@ bool DICOMAppHelper::RescaledImageDataIsFloat()
   double d1 = fabs(sf - this->RescaleSlope);
   double d2 = fabs(of - this->RescaleOffset);
 
-  if (d1 > 0.0 || d2 > 0.0)
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return d1 > 0.0 || d2 > 0.0;
 }
 
 void DICOMAppHelper::GetImageData(void*& data, DICOMParser::VRTypes& dataType, unsigned long& len)

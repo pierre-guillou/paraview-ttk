@@ -75,7 +75,9 @@ public:
 
   ///@{
   /**
-
+   * Sets if plane cutter is used instead of the specialized AMR cutter.
+   *
+   * Default is true.
    */
   vtkSetMacro(UseNativeCutter, bool);
   vtkGetMacro(UseNativeCutter, bool);
@@ -87,8 +89,8 @@ public:
    * Set/Get a multiprocess controller for parallel processing.
    * By default this parameter is set to nullptr by the constructor.
    */
-  vtkSetMacro(Controller, vtkMultiProcessController*);
-  vtkGetMacro(Controller, vtkMultiProcessController*);
+  virtual void SetController(vtkMultiProcessController*);
+  vtkGetObjectMacro(Controller, vtkMultiProcessController);
   ///@}
 
   // Standard pipeline routines
@@ -108,6 +110,11 @@ public:
    * Performs upstream requests to the reader
    */
   int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+
+  /**
+   * Set if it's the initial request.
+   */
+  vtkSetMacro(InitialRequest, bool);
 
 protected:
   vtkAMRCutPlane();
@@ -178,7 +185,7 @@ protected:
   int LevelOfResolution;
   double Center[3];
   double Normal[3];
-  bool initialRequest;
+  bool InitialRequest;
   bool UseNativeCutter;
   vtkMultiProcessController* Controller;
 

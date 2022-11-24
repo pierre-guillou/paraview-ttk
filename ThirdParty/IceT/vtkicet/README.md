@@ -28,9 +28,10 @@ more information is retrieved, futher options are revealed.
 After CMake generates build files, compile the applications as applicable
 for your system.
 
-IceT is released under the [New BSD License](bsd).  Any contributions to IceT will
-also be considered to fall under this license, and it is the responsibility
-of the authors to secure the necessary permissions before contributing.
+IceT is released under the [New BSD License](bsd), see Copyright.txt.
+Any contributions to IceT will also be considered to fall under this license,
+and it is the responsibility of the authors to secure the necessary
+permissions before contributing.
 
 [bsd]: http://opensource.org/licenses/BSD-3-Clause
 [cmake]: http://www.cmake.org/

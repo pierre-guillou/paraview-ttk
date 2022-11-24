@@ -57,8 +57,6 @@
 #ifndef vtkPolyDataInternals_h
 #define vtkPolyDataInternals_h
 
-#ifndef __VTK_WRAP__ // Don't wrap this class.
-
 #include "vtkCommonDataModelModule.h" // For export macro
 
 #include "vtkCellType.h"
@@ -236,11 +234,31 @@ public:
 
   void SetCapacity(vtkIdType numCells) { this->Map.reserve(static_cast<std::size_t>(numCells)); }
 
+  void SetNumberOfCells(vtkIdType numCells)
+  {
+    this->Map.resize(static_cast<std::size_t>(numCells));
+  }
+
   TaggedCellId& GetTag(vtkIdType cellId) { return this->Map[static_cast<std::size_t>(cellId)]; }
 
   const TaggedCellId& GetTag(vtkIdType cellId) const
   {
     return this->Map[static_cast<std::size_t>(cellId)];
+  }
+
+  // Caller must ValidateCellType first.
+  void InsertCell(vtkIdType globalCellId, vtkIdType cellId, VTKCellType cellType)
+  {
+    this->Map[globalCellId] = TaggedCellId(cellId, cellType);
+  }
+
+  // Caller must ValidateCellType and ValidateCellId first.
+  // useful for reusing the target lookup from cellType and then calling
+  // TaggedCellId::SetCellId later.
+  TaggedCellId& InsertCell(vtkIdType globalCellId, VTKCellType cellType)
+  {
+    this->Map[globalCellId] = TaggedCellId(vtkIdType(0), cellType);
+    return this->Map[globalCellId];
   }
 
   // Caller must ValidateCellType first.
@@ -286,7 +304,6 @@ private:
 
 } // end namespace vtkPolyData_detail
 
-#endif // __VTK_WRAP__
 #endif // vtkPolyDataInternals.h
 
 // VTK-HeaderTest-Exclude: vtkPolyDataInternals.h

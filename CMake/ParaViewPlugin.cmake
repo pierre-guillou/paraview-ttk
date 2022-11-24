@@ -295,7 +295,8 @@ paraview_plugin_build(
   [LIBRARY_SUBDIRECTORY <subdirectory>]
   [ADD_INSTALL_RPATHS <ON|OFF>]
 
-  [PLUGINS_FILE_NAME <filename>])
+  [PLUGINS_FILE_NAME <filename>]
+  [DISABLE_XML_DOCUMENTATION <ON|OFF>])
 ```
 
   * `PLUGINS`: (Required) The list of plugins to build. May be empty.
@@ -331,11 +332,13 @@ paraview_plugin_build(
     built plugins. This file will be placed under
     `<LIBRARY_DESTINATION>/<LIBRARY_SUBDIRECTORY>`. It will be installed with
     the `plugin` component.
+  * `DISABLE_XML_DOCUMENTATION`: (Defaults to `OFF`) Whether to forcefully
+    disable XML documentation or not.
 #]==]
 function (paraview_plugin_build)
   cmake_parse_arguments(_paraview_build
     ""
-    "HEADERS_DESTINATION;RUNTIME_DESTINATION;LIBRARY_DESTINATION;LIBRARY_SUBDIRECTORY;TARGET;PLUGINS_FILE_NAME;INSTALL_EXPORT;CMAKE_DESTINATION;PLUGINS_COMPONENT;TARGET_COMPONENT;ADD_INSTALL_RPATHS;INSTALL_HEADERS"
+    "HEADERS_DESTINATION;RUNTIME_DESTINATION;LIBRARY_DESTINATION;LIBRARY_SUBDIRECTORY;TARGET;PLUGINS_FILE_NAME;INSTALL_EXPORT;CMAKE_DESTINATION;PLUGINS_COMPONENT;TARGET_COMPONENT;ADD_INSTALL_RPATHS;INSTALL_HEADERS;DISABLE_XML_DOCUMENTATION"
     "PLUGINS;AUTOLOAD"
     ${ARGN})
 
@@ -362,6 +365,10 @@ function (paraview_plugin_build)
 
   if (NOT DEFINED _paraview_build_LIBRARY_SUBDIRECTORY)
     set(_paraview_build_LIBRARY_SUBDIRECTORY "")
+  endif ()
+
+  if (NOT _paraview_build_DISABLE_XML_DOCUMENTATION)
+    set(_paraview_build_DISABLE_XML_DOCUMENTATION OFF)
   endif ()
 
   if (NOT DEFINED _paraview_build_INSTALL_HEADERS)
@@ -904,6 +911,10 @@ paraview_add_plugin(<name>
 
   [PYTHON_MODULES <module>...]
 
+  [INITIALIZERS <initializerFunction>...]
+
+  [EXTRA_INCLUDES <file>...]
+
   [REQUIRED_PLUGINS <plugin>...]
 
   [EULA <eula>]
@@ -935,6 +946,12 @@ paraview_add_plugin(<name>
   * `UI_RESOURCES`: Qt resource files to include with the plugin.
   * `UI_FILES`: Qt `.ui` files to include with the plugin.
   * `PYTHON_MODULES`: Python modules to embed into the plugin.
+  * `INITIALIZERS`: An ordered list of free functions (declared in `EXTRA_INCLUDES`
+    if needed) to be invoked when the plugin is loaded. Each function must be
+    callable with no arguments.
+  * `EXTRA_INCLUDES`: Headers needed by the generated plugin code (such as `INITIALIZERS`).
+    Filename paths passed without quotes will be double-quoted (e.g., `#include "foo.h"`),
+    while paths that start with angle- or double-quotes will not be.
   * `REQUIRED_PLUGINS`: Plugins which must be loaded for this plugin to
     function. These plugins do not need to be available at build time and are
     therefore their existence is not checked here.
@@ -965,7 +982,7 @@ function (paraview_add_plugin name)
   cmake_parse_arguments(_paraview_add_plugin
     "REQUIRED_ON_SERVER;REQUIRED_ON_CLIENT"
     "VERSION;EULA;EXPORT;MODULE_INSTALL_EXPORT;XML_DOCUMENTATION;DOCUMENTATION_DIR;FORCE_STATIC;DOCUMENTATION_TOC"
-    "REQUIRED_PLUGINS;SERVER_MANAGER_XML;SOURCES;MODULES;UI_INTERFACES;UI_RESOURCES;UI_FILES;PYTHON_MODULES;MODULE_FILES;MODULE_ARGS;DOCUMENTATION_ADD_PATTERNS;DOCUMENTATION_DEPENDENCIES"
+    "REQUIRED_PLUGINS;SERVER_MANAGER_XML;SOURCES;MODULES;UI_INTERFACES;UI_RESOURCES;UI_FILES;PYTHON_MODULES;MODULE_FILES;MODULE_ARGS;DOCUMENTATION_ADD_PATTERNS;DOCUMENTATION_DEPENDENCIES;INITIALIZERS;EXTRA_INCLUDES"
     ${ARGN})
 
   if (_paraview_add_plugin_UNPARSED_ARGUMENTS)
@@ -982,16 +999,18 @@ function (paraview_add_plugin name)
   if (NOT DEFINED _paraview_add_plugin_XML_DOCUMENTATION)
     set(_paraview_add_plugin_XML_DOCUMENTATION ON)
   endif ()
-
-  if (NOT DEFINED _paraview_add_plugin_FORCE_STATIC)
-    set(_paraview_add_plugin_FORCE_STATIC OFF)
-  endif ()
-
   if (DEFINED _paraview_add_plugin_DOCUMENTATION_DIR AND
       NOT _paraview_add_plugin_XML_DOCUMENTATION)
     message(FATAL_ERROR
       "Specifying `DOCUMENTATION_DIR` and turning off `XML_DOCUMENTATION` "
       "makes no sense.")
+  endif ()
+  if (_paraview_build_DISABLE_XML_DOCUMENTATION)
+    set(_paraview_add_plugin_XML_DOCUMENTATION OFF)
+  endif ()
+
+  if (NOT DEFINED _paraview_add_plugin_FORCE_STATIC)
+    set(_paraview_add_plugin_FORCE_STATIC OFF)
   endif ()
 
   if (DEFINED _paraview_add_plugin_EXPORT)
@@ -1127,6 +1146,16 @@ function (paraview_add_plugin name)
 
   set(_paraview_add_plugin_includes)
   set(_paraview_add_plugin_required_libraries)
+
+  if (_paraview_add_plugin_EXTRA_INCLUDES)
+    foreach (_include IN LISTS _paraview_add_plugin_EXTRA_INCLUDES)
+      if ((${_include} MATCHES "^\".*\"$") OR (${_include} MATCHES "^<.*>$"))
+        string(APPEND _paraview_add_plugin_includes "#include ${_include}\n")
+      else ()
+        string(APPEND _paraview_add_plugin_includes "#include \"${_include}\"\n")
+      endif ()
+    endforeach ()
+  endif ()
 
   set(_paraview_add_plugin_module_xmls)
   set(_paraview_add_plugin_with_xml 0)
@@ -1266,6 +1295,17 @@ function (paraview_add_plugin name)
     endforeach ()
     list(APPEND _paraview_add_plugin_required_libraries
       ParaView::pqComponents)
+  endif ()
+
+  set(_paraview_add_plugin_with_initializers 0)
+  if (_paraview_add_plugin_INITIALIZERS)
+    set(_paraview_add_plugin_with_initializers 1)
+    set(_paraview_add_plugin_invoke_initializers)
+
+    foreach (_paraview_add_plugin_initializer IN LISTS _paraview_add_plugin_INITIALIZERS)
+      string(APPEND _paraview_add_plugin_invoke_initializers
+        "  ${_paraview_add_plugin_initializer}();\n")
+    endforeach ()
   endif ()
 
   set(_paraview_add_plugin_with_resources 0)

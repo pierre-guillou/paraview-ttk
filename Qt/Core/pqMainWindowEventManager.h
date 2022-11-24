@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqMainWindowEventManager_h
-#define _pqMainWindowEventManager_h
+#ifndef pqMainWindowEventManager_h
+#define pqMainWindowEventManager_h
 
 #include "pqCoreModule.h"
 #include <QObject>
@@ -60,7 +60,7 @@ class PQCORE_EXPORT pqMainWindowEventManager : public QObject
   typedef QObject Superclass;
 
 public:
-  pqMainWindowEventManager(QObject* p = 0);
+  pqMainWindowEventManager(QObject* p = nullptr);
   ~pqMainWindowEventManager() override;
 
   /**

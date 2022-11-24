@@ -32,6 +32,7 @@
 #endif
 
 class vtkPythonClassMap;
+class vtkPythonClassNameMap;
 class vtkPythonCommand;
 class vtkPythonCommandList;
 class vtkPythonGhostMap;
@@ -40,8 +41,6 @@ class vtkPythonSpecialTypeMap;
 class vtkPythonNamespaceMap;
 class vtkPythonEnumMap;
 class vtkPythonModuleList;
-class vtkStdString;
-class vtkUnicodeString;
 class vtkVariant;
 
 extern "C" void vtkPythonUtilDelete();
@@ -50,10 +49,27 @@ class VTKWRAPPINGPYTHONCORE_EXPORT vtkPythonUtil
 {
 public:
   /**
+   * Initialize the Python wrappers.  This can be called multiple times,
+   * only the first call will have any effect.
+   */
+  static void Initialize();
+
+  /**
+   * Check whether the Python wrappers have been initialized.
+   */
+  static bool IsInitialized();
+
+  /**
    * If the name is templated or mangled, converts it into
    * a python-printable name.
    */
   static const char* PythonicClassName(const char* classname);
+
+  /**
+   * Given the pythonic name of a class, get the vtkObjectBase ClassName.
+   * These will only differ for templated vtkObjectBase subclasses.
+   */
+  static const char* VTKClassName(const char* pyname);
 
   /**
    * Given a qualified python name "module.name", remove "module.".
@@ -178,6 +194,15 @@ public:
   static PyTypeObject* FindEnum(const char* name);
 
   /**
+   * Find the PyTypeObject for a wrapped VTK class, excluding overrides.
+   * When the extension modules for the wrappers are loading, this ensures
+   * that the extension types are properly linked to their base classes,
+   * regardless of what pure python overrides have been applied to those
+   * classes.
+   */
+  static PyTypeObject* FindBaseTypeObject(const char* name);
+
+  /**
    * Find the PyTypeObject for a wrapped VTK class.
    */
   static PyTypeObject* FindClassTypeObject(const char* name);
@@ -245,6 +270,7 @@ private:
   vtkPythonObjectMap* ObjectMap;
   vtkPythonGhostMap* GhostMap;
   vtkPythonClassMap* ClassMap;
+  vtkPythonClassNameMap* ClassNameMap;
   vtkPythonSpecialTypeMap* SpecialTypeMap;
   vtkPythonNamespaceMap* NamespaceMap;
   vtkPythonEnumMap* EnumMap;

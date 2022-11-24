@@ -1,5 +1,28 @@
 # Building VTK
 
+## Table of Contents
+
+1. [Linux Getting Started](#linux-getting-started)
+2. [Obtaining the source](#obtaining-the-source)
+3. [Building](#building)
+    1. [Prerequisites](#prerequisites)
+        1. [Installing CMake](#installing-cmake)
+        2. [Installing Qt](#installing-qt)
+    2. [Optional Additions](#optional-additions)
+        1. [Download And Install ffmpeg movie libraries](#download-and-install-ffmpeg-movie-libraries)
+        2. [MPI](#mpi)
+        3. [Python](#python)
+        4. [OSMesa](#osmesa)
+4. [Creating the Build Environment](#creating-the-build-environment)
+    1. [Linux (Ubuntu/Debian)](#linux-(ubuntu/debian))
+    2. [Windows](#windows)
+5. [Building](#building)
+    1. [Missing dependencies](#missing-dependencies)
+    2. [Build Settings](#build-settings)
+        1. [Mobile devices](#mobile-devices)
+        2. [Python wheels](#python-wheels)
+6. [Building documentation](#building-documentation)
+
 This page describes how to build and install VTK. It covers building for
 development, on both Unix-type systems (Linux, HP-UX, Solaris, macOS), and
 Windows. Note that Unix-like environments such as Cygwin and MinGW are not
@@ -11,6 +34,14 @@ A full-featured build of VTK depends on several open source tools and libraries
 such as Python, Qt, CGNS, HDF5, etc. Some of these are included in the VTK
 source itself (e.g., HDF5), while others are expected to be present on the
 machine on which VTK is being built (e.g., Python, Qt).
+
+## Linux Getting Started
+
+For new users of VTK or those wanting a quick setup on linux, these instructions will be useful:
+
+* [Getting Started Using Linux](<./getting_started_linux.md>). This will will lead you step by step through the process of setting up VTK in your home folder.
+
+Once you get everything working, don't forget to come back and read the rest of this document.
 
 ## Obtaining the source
 
@@ -42,7 +73,7 @@ Required:
   * Supported compiler
     - GCC 4.8 or newer
     - Clang 3.3 or newer
-    - Apple Clang 5.0 (from Xcode 5.0) or newer
+    - Apple Clang 7.0 (from Xcode 7.2.1) or newer
     - Microsoft Visual Studio 2015 or newer
     - Intel 14.0 or newer
 
@@ -71,7 +102,7 @@ compiler version used to build Qt.
 
 ### Optional Additions
 
-#### Download And Install ffmpeg (`.avi`) movie libraries
+#### Download And Install ffmpeg movie libraries
 
 When the ability to write `.avi` files is desired, and writing these files is
 not supported by the OS, VTK can use the ffmpeg library. This is generally
@@ -182,6 +213,8 @@ Less common, but variables which may be of interest to some:
     will be implemented by default. Must be either `Sequential`, `STDThread`,
     `OpenMP` or `TBB`. The backend can be changed at runtime if the desired
     backend has his option `VTK_SMP_ENABLE_<backend_name>` set to `ON`.
+  * `VTK_ENABLE_CATALYST` (default `OFF`): Enable the CatlystConduit module
+  and build the VTK Catalyst implementation. Depends on an external Catalyst.
 
 More advanced options:
 
@@ -192,6 +225,11 @@ More advanced options:
   * `VTK_ENABLE_REMOTE_MODULES` (default `ON`): If set, VTK will try to build
     remote modules (the `Remote` directory). If unset, no remote modules will
     build.
+  * `VTK_ENABLE_EXTRA_BUILD_WARNINGS` (default `OFF`; requires CMake >= 3.19):
+    If set, VTK will enable additional build warnings.
+  * `VTK_ENABLE_EXTRA_BUILD_WARNINGS_EVERYTHING` (default `OFF`; requires
+    `VTK_ENABLE_EXTRA_BUILD_WARNINGS` and `-Weverything` support): If set, VTK
+    will enable all build warnings (with some explicitly turned off).
   * `VTK_USE_EXTERNAL` (default `OFF`): Whether to prefer external third
     party libraries or the versions VTK's source contains.
   * `VTK_TARGET_SPECIFIC_COMPONENTS` (default `OFF`): Whether to install
@@ -225,10 +263,16 @@ More advanced options:
   * `VTK_USE_LARGE_DATA` (default `OFF`; requires `VTK_BUILD_TESTING`):
     Whether to enable tests which use "large" data or not (usually used to
     reduce the amount of data downloading required for the test suite).
+  * `VTK_USE_HIP` (default `OFF`; requires CMAKE >= 3.21 and NOT `VTK_USE_CUDA`)
+    Whether [HIP][hip] support will be available or not.
   * `VTK_LEGACY_REMOVE` (default `OFF`): If set, VTK will disable legacy,
     deprecated APIs.
   * `VTK_LEGACY_SILENT` (default `OFF`; requires `VTK_LEGACY_REMOVE` to be
     `OFF`): If set, usage of legacy, deprecated APIs will not cause warnings.
+  * `VTK_USE_FUTURE_CONST` (default `OFF`): If set, the `VTK_FUTURE_CONST`
+    macro expands to `const`; otherwise it expands to nothing. This is used to
+    incrementally add more const correctness to the codebase while making it
+    opt-in for backwards compatibility.
   * `VTK_USE_TK` (default `OFF`; requires `VTK_WRAP_PYTHON`): If set, VTK will
     enable Tkinter support for VTK widgets.
   * `VTK_BUILD_COMPILE_TOOLS_ONLY` (default `OFF`): If set, VTK will compile
@@ -238,9 +282,16 @@ More advanced options:
     "${MPIEXEC_EXECUTABLE}" "${MPIEXEC_NUMPROC_FLAG}" "1" ${MPIEXEC_PREFLAGS}
   * `VTK_WINDOWS_PYTHON_DEBUGGABLE` (default `OFF`): Set to `ON` if using a
     debug build of Python.
-  * `VTK_DLL_PATHS` (default `""`): If set, these paths will be added via
-    Python 3.8's `os.add_dll_directory` mechanism in order to find dependent
-    DLLs when loading VTK's Python modules.
+  * `VTK_WINDOWS_PYTHON_DEBUGGABLE_REPLACE_SUFFIX` (default `OFF`): Set to `ON`
+    to use just a `_d` suffix for Python modules.
+  * `VTK_BUILD_PYI_FILES` (default `OFF`): Set to `ON` to build `.pyi` type
+    hint files for VTK's Python interfaces.
+  * `VTK_DLL_PATHS` (default `""` or `VTK_DLL_PATHS` from the environment): If
+    set, these paths will be added via Python 3.8's `os.add_dll_directory`
+    mechanism in order to find dependent DLLs when loading VTK's Python
+    modules. Note that when using the variable, paths are in CMake form (using
+    `/`) and in the environment are a path list in the platform's preferred
+    format.
   * `VTK_ENABLE_VR_COLLABORATION` (default `OFF`): If `ON`, includes support
     for multi client VR collaboration. Requires libzmq and cppzmq external libraries.
   * `VTK_SMP_ENABLE_<backend_name>` (default `OFF` if needs an external library otherwise `ON`):
@@ -252,6 +303,26 @@ More advanced options:
     Enable the `vtkWin32VideoSource` class in the `VTK::IOVideo` module.
   * `VTK_USE_MICROSOFT_MEDIA_FOUNDATION` (default `OFF`; requires Windows):
     Enable the `vtkMP4Writer` class in the `VTK::IOMovie` module.
+  * `VTK_USE_64BIT_TIMESTAMPS` (default `OFF`; forced on for 64-bit builds):
+    Build with 64-bit `vtkMTimeType`.
+  * `VTK_USE_64BIT_IDS` (default `OFF` for 32-bit builds; `ON` for 64-bit
+    builds): Whether `vtkIdType` should be 32-bit or 64-bit.
+  * `VTK_DEBUG_LEAKS` (default `OFF`): Whether VTK will report leaked
+    `vtkObject` instances at process destruction or not.
+  * `VTK_DEBUG_RANGE_ITERATORS` (default `OFF`; requires a `Debug` build):
+    Detect errors with `for-range` iterators in VTK (note that this is very
+    slow).
+  * `VTK_ALWAYS_OPTIMIZE_ARRAY_ITERATORS` (default `OFF`; requires `NOT
+    VTK_DEBUG_RANGE_ITERATORS`): Optimize `for-range` array iterators even in
+    `Debug` builds.
+  * `VTK_ALL_NEW_OBJECT_FACTORY` (default `OFF`): If `ON`, classes using
+    `vtkStandardNewMacro` will use `vtkObjectFactoryNewMacro` allowing
+    overrides to be available even when not explicitly requested through
+    `vtkObjectFactoryNewMacro` or `vtkAbstractObjectFactoryNewMacro`.
+  * `VTK_ENABLE_VTKM_OVERRIDES` (default `OFF`): If `ON`, enables factory override
+     of certain VTK filters by their VTK-m counterparts. There is also a runtime
+     switch that can be used to enable/disable the overrides at run-time (on by default).
+     It can be accessed using the static function `vtkmFilterOverrides::SetEnabled(bool)`.
 
 The VTK module system provides a number of variables to control modules which
 are not otherwise controlled by the other options provided.
@@ -323,7 +394,8 @@ Python3 (Python2 wheels are no longer supported). This is supported by setting
 the `VTK_WHEEL_BUILD` flag. This changes the build directory structure around
 to match that expected by wheels. Once configured, the build tree may be built
 as it would be normally and then the generated `setup.py` file used to create
-the wheel.
+the wheel. Note that the `bdist_wheel` command requires that the `wheel`
+package is available (`pip install wheel`).
 
 ```sh
 cmake -GNinja -DVTK_WHEEL_BUILD=ON -DVTK_WRAP_PYTHON=ON path/to/vtk/source
@@ -351,6 +423,7 @@ The following targets are used to build documentation for VTK:
 [cmake-find_package-search]: https://cmake.org/cmake/help/latest/command/find_package.html#search-procedure
 [cmake-modules-find]: https://cmake.org/cmake/help/latest/manual/cmake-modules.7.html#find-modules
 [cuda]: https://developer.nvidia.com/cuda-zone
+[hip]: https://en.wikipedia.org/wiki/ROCm
 [ffmpeg]: https://ffmpeg.org
 [git]: https://git-scm.org
 [mesa]: https://www.mesa3d.org

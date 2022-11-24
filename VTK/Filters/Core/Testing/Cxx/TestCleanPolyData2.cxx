@@ -54,7 +54,7 @@ vtkSmartPointer<vtkPolyData> ConstructLines()
   // Construct a degenerate polyline
   ptIds[0] = 0;
   ptIds[1] = 1;
-  ptIds[3] = 1;
+  ptIds[2] = 1;
   degeneratedLines->InsertNextCell(3, ptIds);
 
   // Construct a polyline that is degenerate to a vertex ONLY if point merging is ON

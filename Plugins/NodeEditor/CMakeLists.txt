@@ -19,6 +19,8 @@ list(APPEND sources
   pqNodeEditorView.h
   pqNodeEditorScene.cxx
   pqNodeEditorScene.h
+  pqNodeEditorLabel.cxx
+  pqNodeEditorLabel.h
 )
 
 paraview_plugin_add_dock_window(
@@ -32,6 +34,7 @@ list(APPEND sources
   ${dock_sources})
 
 paraview_add_plugin(NodeEditor
+  REQUIRED_ON_CLIENT
   VERSION "1.0"
   UI_INTERFACES ${interfaces}
   SOURCES ${sources})
@@ -52,6 +55,7 @@ target_link_libraries(NodeEditor
     ParaView::RemotingViews
     ParaView::pqApplicationComponents
 )
+target_compile_definitions(NodeEditor PRIVATE QT_NO_KEYWORDS)
 
 if (BUILD_TESTING)
   add_subdirectory(Testing)

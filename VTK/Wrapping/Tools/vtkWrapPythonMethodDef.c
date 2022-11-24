@@ -59,7 +59,7 @@ static int vtkWrapPython_IsValueWrappable(
 
 /* weed out methods that will never be called */
 static void vtkWrapPython_RemovePrecededMethods(
-  FunctionInfo* wrappedFunctions[], int numberOfWrappedFunctions, int fnum);
+  FunctionInfo* const wrappedFunctions[], int numberOfWrappedFunctions, int fnum);
 
 /* -------------------------------------------------------------------- */
 /* Check for type precedence. Some method signatures will just never
@@ -71,9 +71,9 @@ static void vtkWrapPython_RemovePrecededMethods(
  */
 
 static void vtkWrapPython_RemovePrecededMethods(
-  FunctionInfo* wrappedFunctions[], int numberOfWrappedFunctions, int fnum)
+  FunctionInfo* const wrappedFunctions[], int numberOfWrappedFunctions, int fnum)
 {
-  FunctionInfo* theFunc = wrappedFunctions[fnum];
+  const FunctionInfo* theFunc = wrappedFunctions[fnum];
   const char* name = theFunc->Name;
   FunctionInfo* sig1;
   FunctionInfo* sig2;
@@ -394,21 +394,27 @@ static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, ClassI
   {
     fprintf(fp,
       "  {\"AddObserver\",  Py%s_AddObserver, 1,\n"
-      "   \"V.AddObserver(int, function) -> int\\nC++: unsigned long AddObserver(const char "
-      "*event,\\n    vtkCommand *command, float priority=0.0f)\\n\\nAdd an event callback "
-      "function(vtkObject, int) for an event type.\\nReturns a handle that can be used with "
-      "RemoveEvent(int).\"},\n",
+      "   \"AddObserver(self, event:int, command:Callback, priority:float=0.0) -> int\\n"
+      "C++: unsigned long AddObserver(const char* event,\\n"
+      "    vtkCommand* command, float priority=0.0f)\\n\\n"
+      "Add an event callback command(o:vtkObject, event:int) for an event type.\\n"
+      "Returns a handle that can be used with RemoveEvent(event:int).\"},\n",
       classname);
 
     /* vtkObject needs a special entry for InvokeEvent */
     fprintf(fp,
       "{\"InvokeEvent\", PyvtkObject_InvokeEvent, METH_VARARGS,\n"
-      "   \"V.InvokeEvent(int, void) -> int\\nC++: int InvokeEvent(unsigned long event, void "
-      "*callData)\\nV.InvokeEvent(string, void) -> int\\nC++: int InvokeEvent(const char *event, "
-      "void *callData)\\nV.InvokeEvent(int) -> int\\nC++: int InvokeEvent(unsigned long "
-      "event)\\nV.InvokeEvent(string) -> int\\nC++: int InvokeEvent(const char *event)\\n\\nThis "
-      "method invokes an event and return whether the event was\\naborted or not. If the event was "
-      "aborted, the return value is 1,\\notherwise it is 0.\"\n},\n");
+      "   \"InvokeEvent(self, event:int, callData:Any) -> int\\n"
+      "C++: int InvokeEvent(unsigned long event, void* callData)\\n"
+      "InvokeEvent(self, event:str, callData:Any) -> int\\n"
+      "C++: int InvokeEvent(const char* event, void* callData)\\n"
+      "InvokeEvent(self, event:int) -> int\\n"
+      "C++: int InvokeEvent(unsigned long event)\\n"
+      "InvokeEvent(self, event:str) -> int\\n"
+      "C++: int InvokeEvent(const char* event)\\n\\n"
+      "This method invokes an event and returns whether the event was\\n"
+      "aborted or not. If the event was aborted, the return value is 1,\\n"
+      "otherwise it is 0.\"\n},\n");
   }
 
   /* vtkObjectBase needs GetAddressAsString, UnRegister */
@@ -416,18 +422,21 @@ static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, ClassI
   {
     fprintf(fp,
       "  {\"GetAddressAsString\",  Py%s_GetAddressAsString, 1,\n"
-      "   \"V.GetAddressAsString(string) -> string\\nC++: const char "
-      "*GetAddressAsString()\\n\\nGet address of C++ object in format 'Addr=%%p' after casting "
-      "to\\nthe specified type.  You can get the same information from o.__this__.\"},\n",
+      "   \"GetAddressAsString(self, classname:str) -> str\\n\\n"
+      "Get address of C++ object in format 'Addr=%%p' after casting to\\n"
+      "the specified type.  This method is obsolete, you can get the\\n"
+      "same information from o.__this__.\"},\n",
       classname);
     fprintf(fp,
       "  {\"Register\", Py%s_Register, 1,\n"
-      "   \"V.Register(vtkObjectBase)\\nC++: virtual void Register(vtkObjectBase *o)\\n\\nIncrease "
-      "the reference count by 1.\\n\"},\n"
+      "   \"Register(self, o:vtkObjectBase)\\nC++: virtual void Register(vtkObjectBase "
+      "*o)\\n\\nIncrease the reference count by 1.\\n\"},\n"
       "  {\"UnRegister\", Py%s_UnRegister, 1,\n"
-      "   \"V.UnRegister(vtkObjectBase)\\nC++: virtual void UnRegister(vtkObjectBase "
-      "*o)\\n\\nDecrease the reference count (release by another object). This\\nhas the same "
-      "effect as invoking Delete() (i.e., it reduces the\\nreference count by 1).\\n\"},\n",
+      "   \"UnRegister(self, o:vtkObjectBase)\\n"
+      "C++: virtual void UnRegister(vtkObjectBase* o)\\n\\n"
+      "Decrease the reference count (release by another object). This\\n"
+      "has the same effect as invoking Delete() (i.e., it reduces the\\n"
+      "reference count by 1).\\n\"},\n",
       classname, classname);
   }
 
@@ -444,16 +453,12 @@ static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, ClassI
 static int vtkWrapPython_IsValueWrappable(
   ClassInfo* data, ValueInfo* val, HierarchyInfo* hinfo, int flags)
 {
-  static unsigned int wrappableTypes[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
+  static const unsigned int wrappableTypes[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
     VTK_PARSE_DOUBLE, VTK_PARSE_CHAR, VTK_PARSE_UNSIGNED_CHAR, VTK_PARSE_SIGNED_CHAR, VTK_PARSE_INT,
     VTK_PARSE_UNSIGNED_INT, VTK_PARSE_SHORT, VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_LONG,
     VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_SSIZE_T, VTK_PARSE_SIZE_T, VTK_PARSE_UNKNOWN,
     VTK_PARSE_LONG_LONG, VTK_PARSE_UNSIGNED_LONG_LONG, VTK_PARSE_OBJECT, VTK_PARSE_QOBJECT,
-    VTK_PARSE_STRING,
-#ifndef VTK_PYTHON_NO_UNICODE
-    VTK_PARSE_UNICODE_STRING,
-#endif
-    0 };
+    VTK_PARSE_STRING, 0 };
 
   const char* aClass;
   unsigned int baseType;
@@ -475,15 +480,13 @@ static int vtkWrapPython_IsValueWrappable(
   /* wrap std::vector<T> (IsScalar means "not pointer or array") */
   if (vtkWrap_IsStdVector(val) && vtkWrap_IsScalar(val))
   {
-    size_t l, n;
-    const char* tname;
-    const char** args;
-    const char* defaults[2] = { NULL, "" };
     int wrappable = 0;
-    vtkParse_DecomposeTemplatedType(val->Class, &tname, 2, &args, defaults);
-    l = vtkParse_BasicTypeFromString(args[0], &baseType, &aClass, &n);
-    /* check that type has no following '*', '[]', or '<>' decorators */
-    if (args[0][l] == '\0')
+    char* arg = vtkWrap_TemplateArg(val->Class);
+    size_t n;
+    size_t l = vtkParse_BasicTypeFromString(arg, &baseType, &aClass, &n);
+
+    /* check that type has no following '*' or '[]' decorators */
+    if (arg[l] == '\0')
     {
       if (baseType != VTK_PARSE_UNKNOWN && baseType != VTK_PARSE_OBJECT &&
         baseType != VTK_PARSE_QOBJECT && baseType != VTK_PARSE_CHAR)
@@ -497,8 +500,16 @@ static int vtkWrapPython_IsValueWrappable(
           }
         }
       }
+      else if (strncmp(arg, "vtkSmartPointer<", 16) == 0)
+      {
+        if (arg[strlen(arg) - 1] == '>')
+        {
+          wrappable = 1;
+        }
+      }
     }
-    vtkParse_FreeTemplateDecomposition(tname, 2, args);
+
+    free(arg);
     return wrappable;
   }
 
@@ -535,7 +546,11 @@ static int vtkWrapPython_IsValueWrappable(
     {
       return 1;
     }
-    if (vtkWrap_IsObject(val) && vtkWrap_IsClassWrapped(hinfo, aClass))
+    if (vtkWrap_IsVTKSmartPointer(val))
+    {
+      return 1;
+    }
+    else if (vtkWrap_IsObject(val) && vtkWrap_IsClassWrapped(hinfo, aClass))
     {
       return 1;
     }
@@ -925,7 +940,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "  if (op && ap.CheckArgCount(1) &&\n"
       "      ap.GetValue(temp0))\n"
       "  {\n"
-      "    sprintf(tempr, \"Addr=%%p\", static_cast<void*>(op));\n"
+      "    snprintf(tempr, sizeof(tempr), \"Addr=%%p\", static_cast<void*>(op));\n"
       "\n"
       "    result = ap.BuildValue(tempr);\n"
       "  }\n"

@@ -51,12 +51,13 @@ inline bool vtkReebGraphVertexSoS(
 
 // INTERNAL MACROS ---------------------------------------------------------
 #define vtkReebGraphSwapVars(type, var1, var2)                                                     \
+  do                                                                                               \
   {                                                                                                \
     type tmp;                                                                                      \
     tmp = (var1);                                                                                  \
     (var1) = (var2);                                                                               \
     (var2) = tmp;                                                                                  \
-  }
+  } while (false)
 
 #define vtkReebGraphInitialStreamSize 1000
 
@@ -78,6 +79,7 @@ inline bool vtkReebGraphVertexSoS(
       !this->GetArc((n)->ArcUpId)->ArcDwId0))
 
 #define vtkReebGraphAddUpArc(rg, N, A)                                                             \
+  do                                                                                               \
   {                                                                                                \
     vtkReebNode* n = this->GetNode(N);                                                             \
     vtkReebArc* a = this->GetArc(A);                                                               \
@@ -86,9 +88,10 @@ inline bool vtkReebGraphVertexSoS(
     if (n->ArcUpId)                                                                                \
       this->GetArc(n->ArcUpId)->ArcUpId0 = (A);                                                    \
     n->ArcUpId = (A);                                                                              \
-  }
+  } while (false)
 
 #define vtkReebGraphAddDownArc(rg, N, A)                                                           \
+  do                                                                                               \
   {                                                                                                \
     vtkReebNode* n = this->GetNode(N);                                                             \
     vtkReebArc* a = this->GetArc(A);                                                               \
@@ -97,9 +100,10 @@ inline bool vtkReebGraphVertexSoS(
     if (n->ArcDownId)                                                                              \
       this->GetArc(n->ArcDownId)->ArcUpId1 = (A);                                                  \
     n->ArcDownId = (A);                                                                            \
-  }
+  } while (false)
 
 #define vtkReebGraphRemoveUpArc(rg, N, A)                                                          \
+  do                                                                                               \
   {                                                                                                \
     vtkReebNode* n = this->GetNode(N);                                                             \
     vtkReebArc* a = this->GetArc(A);                                                               \
@@ -109,9 +113,10 @@ inline bool vtkReebGraphVertexSoS(
       n->ArcUpId = a->ArcDwId0;                                                                    \
     if (a->ArcDwId0)                                                                               \
       this->GetArc(a->ArcDwId0)->ArcUpId0 = a->ArcUpId0;                                           \
-  }
+  } while (false)
 
 #define vtkReebGraphRemoveDownArc(rg, N, A)                                                        \
+  do                                                                                               \
   {                                                                                                \
     vtkReebNode* n = this->GetNode(N);                                                             \
     vtkReebArc* a = this->GetArc(A);                                                               \
@@ -121,13 +126,14 @@ inline bool vtkReebGraphVertexSoS(
       n->ArcDownId = a->ArcDwId1;                                                                  \
     if (a->ArcDwId1)                                                                               \
       this->GetArc(a->ArcDwId1)->ArcUpId1 = a->ArcUpId1;                                           \
-  }
+  } while (false)
 
 #ifndef vtkReebGraphMax
 #define vtkReebGraphMax(a, b) (((a) >= (b)) ? (a) : (b))
 #endif
 
 #define vtkReebGraphStackPush(N)                                                                   \
+  do                                                                                               \
   {                                                                                                \
     if (nstack == mstack)                                                                          \
     {                                                                                              \
@@ -141,7 +147,7 @@ inline bool vtkReebGraphVertexSoS(
       }                                                                                            \
     }                                                                                              \
     stack[nstack++] = (N);                                                                         \
-  }
+  } while (false)
 
 #define vtkReebGraphStackSize() (nstack)
 
@@ -597,27 +603,27 @@ void vtkReebGraph::Implementation::CollapseVertex(vtkIdType N, vtkReebNode* n)
   int Lb, Lnext, La;
   vtkReebLabel* lb;
 
-  int _A0 = n->ArcDownId;
-  int _A1 = n->ArcUpId;
+  vtkIdType A0 = n->ArcDownId;
+  vtkIdType A1 = n->ArcUpId;
 
-  vtkReebArc* _a0 = this->GetArc(_A0);
-  vtkReebArc* _a1 = this->GetArc(_A1);
+  vtkReebArc* a0 = this->GetArc(A0);
+  vtkReebArc* a1 = this->GetArc(A1);
 
-  _a0->NodeId1 = _a1->NodeId1;
-  _a0->ArcUpId1 = _a1->ArcUpId1;
+  a0->NodeId1 = a1->NodeId1;
+  a0->ArcUpId1 = a1->ArcUpId1;
 
-  if (_a1->ArcUpId1)
-    this->GetArc(_a1->ArcUpId1)->ArcDwId1 = _A0;
+  if (a1->ArcUpId1)
+    this->GetArc(a1->ArcUpId1)->ArcDwId1 = A0;
 
-  _a0->ArcDwId1 = _a1->ArcDwId1;
+  a0->ArcDwId1 = a1->ArcDwId1;
 
-  if (_a1->ArcDwId1)
-    this->GetArc(_a1->ArcDwId1)->ArcUpId1 = _A0;
+  if (a1->ArcDwId1)
+    this->GetArc(a1->ArcDwId1)->ArcUpId1 = A0;
 
-  if (this->GetNode(_a1->NodeId1)->ArcDownId == _A1)
-    this->GetNode(_a1->NodeId1)->ArcDownId = _A0;
+  if (this->GetNode(a1->NodeId1)->ArcDownId == A1)
+    this->GetNode(a1->NodeId1)->ArcDownId = A0;
 
-  for (Lb = _a1->LabelId0; Lb; Lb = Lnext)
+  for (Lb = a1->LabelId0; Lb; Lb = Lnext)
   {
     lb = this->GetLabel(Lb);
     Lnext = lb->HNext;
@@ -639,9 +645,9 @@ void vtkReebGraph::Implementation::CollapseVertex(vtkIdType N, vtkReebNode* n)
   }
 
   // delete the arc from the graph...
-  this->GetArc(_A1)->LabelId1 = ((int)-2);
-  this->GetArc(_A1)->LabelId0 = this->MainArcTable.FreeZone;
-  this->MainArcTable.FreeZone = (_A1);
+  this->GetArc(A1)->LabelId1 = ((int)-2);
+  this->GetArc(A1)->LabelId0 = this->MainArcTable.FreeZone;
+  this->MainArcTable.FreeZone = (A1);
   --(this->MainArcTable.Number);
 
   // delete the node from the graph...
@@ -919,7 +925,7 @@ vtkIdType vtkReebGraph::Implementation::FindJoinNode(
   vtkIdType arcId, vtkReebLabelTag label, bool onePathOnly)
 {
   vtkIdType N = this->GetArc(arcId)->NodeId1;
-  vtkIdType Ret, C;
+  vtkIdType Ret;
 
   if (this->GetArc(arcId)->LabelId0 || !this->GetNode(N)->IsFinalized)
     // other labels or not final node
@@ -936,7 +942,7 @@ vtkIdType vtkReebGraph::Implementation::FindJoinNode(
     return N;
   }
 
-  for (C = this->GetNode(N)->ArcUpId; C; C = this->GetArc(C)->ArcDwId0)
+  for (vtkIdType C = this->GetNode(N)->ArcUpId; C; C = this->GetArc(C)->ArcDwId0)
   {
     Ret = FindJoinNode(C, label, onePathOnly);
 
@@ -956,7 +962,7 @@ vtkIdType vtkReebGraph::Implementation::FindSplitNode(
   vtkIdType arcId, vtkReebLabelTag label, bool onePathOnly)
 {
   vtkIdType N = this->GetArc(arcId)->NodeId0;
-  vtkIdType Ret, C;
+  vtkIdType Ret;
 
   if (this->GetArc(arcId)->LabelId0 || !this->GetNode(N)->IsFinalized)
     // other labels or not final node
@@ -974,7 +980,7 @@ vtkIdType vtkReebGraph::Implementation::FindSplitNode(
   }
 
   // iterative case
-  for (C = this->GetNode(N)->ArcDownId; C; C = this->GetArc(C)->ArcDwId1)
+  for (vtkIdType C = this->GetNode(N)->ArcDownId; C; C = this->GetArc(C)->ArcDwId1)
   {
     Ret = FindSplitNode(C, label, onePathOnly);
 
@@ -1055,7 +1061,7 @@ vtkReebGraph::Implementation::vtkReebPath vtkReebGraph::Implementation::FindPath
 
     for (int dir = 0; dir <= 1; dir++)
     {
-      for (int A = (!dir) ? this->GetNode(N)->ArcDownId : this->GetNode(N)->ArcUpId; A;
+      for (vtkIdType A = (!dir) ? this->GetNode(N)->ArcDownId : this->GetNode(N)->ArcUpId; A;
            A = (!dir) ? this->GetArc(A)->ArcDwId1 : this->GetArc(A)->ArcDwId0)
       {
         int M = (!dir) ? (this->GetArc(A)->NodeId0) : (this->GetArc(A)->NodeId1);
@@ -1205,8 +1211,8 @@ int vtkReebGraph::Implementation::SimplifyLoops(
       {
         vtkReebNode* n = this->GetNode(N);
 
-        int A0 = n->ArcDownId;
-        int A1 = n->ArcUpId;
+        vtkIdType A0 = n->ArcDownId;
+        vtkIdType A1 = n->ArcUpId;
 
         vtkReebArc* a0 = this->GetArc(A0);
         vtkReebArc* a1 = this->GetArc(A1);
@@ -1314,21 +1320,21 @@ REDO:
     else if (!n->ArcDownId)
     {
       // insert into stack branches to simplify
-      for (int _A_ = n->ArcUpId; _A_; _A_ = this->GetArc(_A_)->ArcDwId0)
+      for (int A_ = n->ArcUpId; A_; A_ = this->GetArc(A_)->ArcDwId0)
       {
-        vtkReebArc* _a_ = this->GetArc(_A_);
+        vtkReebArc* a_ = this->GetArc(A_);
         if ((!inputMesh) || (!simplificationMetric))
         {
-          if (vtkReebGraphGetArcPersistence(this, _a_) < simplificationThreshold)
+          if (vtkReebGraphGetArcPersistence(this, a_) < simplificationThreshold)
           {
-            vtkReebGraphStackPush(_A_);
+            vtkReebGraphStackPush(A_);
           }
         }
         else
         {
-          if (this->ComputeCustomMetric(simplificationMetric, _a_) < simplificationThreshold)
+          if (this->ComputeCustomMetric(simplificationMetric, a_) < simplificationThreshold)
           {
-            vtkReebGraphStackPush(_A_);
+            vtkReebGraphStackPush(A_);
           }
         }
       }
@@ -1336,12 +1342,12 @@ REDO:
     else if (!n->ArcUpId)
     {
       // insert into stack branches to simplify
-      for (int _A_ = n->ArcDownId; _A_; _A_ = this->GetArc(_A_)->ArcDwId1)
+      for (vtkIdType A_ = n->ArcDownId; A_; A_ = this->GetArc(A_)->ArcDwId1)
       {
-        vtkReebArc* _a_ = this->GetArc(_A_);
-        if (vtkReebGraphGetArcPersistence(this, _a_) < simplificationThreshold)
+        vtkReebArc* a_ = this->GetArc(A_);
+        if (vtkReebGraphGetArcPersistence(this, a_) < simplificationThreshold)
         {
-          vtkReebGraphStackPush(_A_);
+          vtkReebGraphStackPush(A_);
         }
       }
     }
@@ -1376,22 +1382,22 @@ REDO:
     if (persistence >= simplificationThreshold)
       continue;
 
-    int _A, Mdown = 0, Nup = 0, Ndown = 0, Mup = 0;
+    int Mdown = 0, Nup = 0, Ndown = 0, Mup = 0;
 
     // get the 'down' degree for M
-    for (_A = this->GetNode(M)->ArcDownId; _A; _A = this->GetArc(_A)->ArcDwId1)
+    for (vtkIdType A_ = this->GetNode(M)->ArcDownId; A_; A_ = this->GetArc(A_)->ArcDwId1)
       ++Mdown;
 
     // Get the 'up' degree for N
-    for (_A = this->GetNode(N)->ArcUpId; _A; _A = this->GetArc(_A)->ArcDwId0)
+    for (vtkIdType A_ = this->GetNode(N)->ArcUpId; A_; A_ = this->GetArc(A_)->ArcDwId0)
       ++Nup;
 
     // get the 'down' degree for N
-    for (_A = this->GetNode(N)->ArcDownId; _A; _A = this->GetArc(_A)->ArcDwId1)
+    for (vtkIdType A_ = this->GetNode(N)->ArcDownId; A_; A_ = this->GetArc(A_)->ArcDwId1)
       ++Ndown;
 
     // get the 'up' degree for M
-    for (_A = this->GetNode(M)->ArcUpId; _A; _A = this->GetArc(_A)->ArcDwId0)
+    for (vtkIdType A_ = this->GetNode(M)->ArcUpId; A_; A_ = this->GetArc(A_)->ArcDwId0)
       ++Mup;
 
     // isolated arc
@@ -1471,21 +1477,21 @@ REDO:
 
         if (!this->GetNode(Down)->ArcDownId) // minimum
         {
-          for (vtkIdType _A_ = this->GetNode(Down)->ArcUpId; _A_; _A_ = this->GetArc(_A_)->ArcDwId0)
+          for (vtkIdType A_ = this->GetNode(Down)->ArcUpId; A_; A_ = this->GetArc(A_)->ArcDwId0)
           {
-            vtkReebArc* _a_ = this->GetArc(_A_);
+            vtkReebArc* a_ = this->GetArc(A_);
             if ((!inputMesh) || (!simplificationMetric))
             {
-              if (vtkReebGraphGetArcPersistence(this, _a_) < simplificationThreshold)
+              if (vtkReebGraphGetArcPersistence(this, a_) < simplificationThreshold)
               {
-                vtkReebGraphStackPush(_A_);
+                vtkReebGraphStackPush(A_);
               }
             }
             else
             {
-              if (this->ComputeCustomMetric(simplificationMetric, _a_) < simplificationThreshold)
+              if (this->ComputeCustomMetric(simplificationMetric, a_) < simplificationThreshold)
               {
-                vtkReebGraphStackPush(_A_);
+                vtkReebGraphStackPush(A_);
               }
             }
           }
@@ -1498,21 +1504,21 @@ REDO:
 
         if (!this->GetNode(Up)->ArcUpId)
         {
-          for (int _A_ = this->GetNode(Up)->ArcDownId; _A_; _A_ = this->GetArc(_A_)->ArcDwId1)
+          for (vtkIdType A_ = this->GetNode(Up)->ArcDownId; A_; A_ = this->GetArc(A_)->ArcDwId1)
           {
-            vtkReebArc* _a_ = this->GetArc(_A_);
+            vtkReebArc* a_ = this->GetArc(A_);
             if ((!inputMesh) || (!simplificationMetric))
             {
-              if (vtkReebGraphGetArcPersistence(this, _a_) < simplificationThreshold)
+              if (vtkReebGraphGetArcPersistence(this, a_) < simplificationThreshold)
               {
-                vtkReebGraphStackPush(_A_);
+                vtkReebGraphStackPush(A_);
               }
             }
             else
             {
-              if (this->ComputeCustomMetric(simplificationMetric, _a_) < simplificationThreshold)
+              if (this->ComputeCustomMetric(simplificationMetric, a_) < simplificationThreshold)
               {
-                vtkReebGraphStackPush(_A_);
+                vtkReebGraphStackPush(A_);
               }
             }
           }
@@ -2214,8 +2220,8 @@ void vtkReebGraph::Implementation::FindLoops()
 
         for (int dir = 0; dir <= 1; dir++)
         {
-          for (int A = (!dir) ? (this->GetNode(N)->ArcDownId) : (this->GetNode(N)->ArcUpId); A;
-               A = (!dir) ? (this->GetArc(A)->ArcDwId1) : (this->GetArc(A)->ArcDwId0))
+          for (vtkIdType A = (!dir) ? (this->GetNode(N)->ArcDownId) : (this->GetNode(N)->ArcUpId);
+               A; A = (!dir) ? (this->GetArc(A)->ArcDwId1) : (this->GetArc(A)->ArcDwId0))
           {
             int M = (!dir) ? (this->GetArc(A)->NodeId0) : (this->GetArc(A)->NodeId1);
 
@@ -2639,7 +2645,7 @@ void vtkReebGraph::Implementation::Collapse(vtkIdType startingNode, vtkIdType en
 void vtkReebGraph::Implementation::SimplifyLabels(
   const vtkIdType nodeId, vtkReebLabelTag onlyLabel, bool goDown, bool goUp)
 {
-  int A, L, Lnext;
+  int L, Lnext;
   vtkReebLabel* l;
   vtkReebNode* n = this->GetNode(nodeId);
 
@@ -2647,7 +2653,7 @@ void vtkReebGraph::Implementation::SimplifyLabels(
   if (goDown)
   {
     int Anext;
-    for (A = n->ArcDownId; A; A = Anext)
+    for (vtkIdType A = n->ArcDownId; A; A = Anext)
     {
       Anext = this->GetArc(A)->ArcDwId1;
       for (L = this->GetArc(A)->LabelId0; L; L = Lnext)
@@ -2690,7 +2696,7 @@ void vtkReebGraph::Implementation::SimplifyLabels(
   if (goUp && !(this->GetNode(nodeId)->ArcUpId == ((int)-2)))
   {
     int Anext;
-    for (A = n->ArcUpId; A; A = Anext)
+    for (vtkIdType A = n->ArcUpId; A; A = Anext)
     {
       Anext = this->GetArc(A)->ArcDwId0;
       for (L = this->GetArc(A)->LabelId0; L; L = Lnext)

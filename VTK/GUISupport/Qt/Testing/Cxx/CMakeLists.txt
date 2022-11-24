@@ -3,6 +3,7 @@ vtk_add_test_cxx(vtkGUISupportQtCxxTests tests
   TestQtDebugLeaksView.cxx
   TestQtTableModelAdapter.cxx
   TestQtTreeModelAdapter.cxx
+  TestQVTKTableModelAdapter.cxx
   )
 
 vtk_add_test_cxx(vtkGUISupportQtCxxTests tests
@@ -61,13 +62,19 @@ vtk_add_test_cxx(vtkGUISupportQtCxxTests tests
 
 find_package("Qt${vtk_qt_major_version}" COMPONENTS Widgets REQUIRED)
 
+set(CMAKE_AUTOMOC 1)
+
 vtk_test_cxx_executable(vtkGUISupportQtCxxTests tests
   QTestApp.cxx
-  TestQtCommon.cxx)
+  QVTKTableModelAdapterTestClass.cxx
+  TestQtCommon.cxx
+  )
 
 target_link_libraries(vtkGUISupportQtCxxTests
   PRIVATE
     "Qt${vtk_qt_major_version}::Widgets")
+
+target_compile_definitions(vtkGUISupportQtCxxTests PRIVATE QT_NO_KEYWORDS)
 
 set_tests_properties(VTK::GUISupportQtCxx-TestQVTKOpenGLStereoWidgetPicking
  PROPERTIES RUN_SERIAL ON)

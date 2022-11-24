@@ -41,7 +41,7 @@
 #ifndef vtkRenderWindow_h
 #define vtkRenderWindow_h
 
-#include "vtkDeprecation.h"         // for VTK_DEPRECATED_IN_9_0_0
+#include "vtkEventData.h"           // for enums
 #include "vtkNew.h"                 // For vtkNew
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkSmartPointer.h"        // For vtkSmartPointer
@@ -50,6 +50,7 @@
 class vtkFloatArray;
 class vtkProp;
 class vtkCollection;
+class vtkMatrix4x4;
 class vtkRenderTimerLog;
 class vtkRenderWindowInteractor;
 class vtkRenderer;
@@ -539,20 +540,6 @@ public:
   virtual int CheckAbortStatus();
   ///@}
 
-  ///@{
-  /**
-   * @deprecated in VTK 9.0
-   */
-  VTK_DEPRECATED_IN_9_0_0("Removed in 9.0")
-  vtkTypeBool GetIsPicking();
-  VTK_DEPRECATED_IN_9_0_0("Removed in 9.0")
-  void SetIsPicking(vtkTypeBool);
-  VTK_DEPRECATED_IN_9_0_0("Removed in 9.0")
-  void IsPickingOn();
-  VTK_DEPRECATED_IN_9_0_0("Removed in 9.0")
-  void IsPickingOff();
-  ///@}
-
   /**
    * Check to see if a mouse button has been pressed.  All other events
    * are ignored by this method.  Ideally, you want to abort the render
@@ -657,16 +644,6 @@ public:
   virtual bool IsCurrent() { return false; }
 
   /**
-   * Test if the window has a valid drawable. This is
-   * currently only an issue on Mac OS X Cocoa where rendering
-   * to an invalid drawable results in all OpenGL calls to fail
-   * with "invalid framebuffer operation".
-   */
-  VTK_DEPRECATED_IN_9_1_0(
-    "Deprecated in 9.1 because no one knows what it's for and nothing uses it")
-  virtual bool IsDrawable();
-
-  /**
    * If called, allow MakeCurrent() to skip cache-check when called.
    * MakeCurrent() reverts to original behavior of cache-checking
    * on the next render.
@@ -743,6 +720,22 @@ public:
   vtkSetMacro(UseSRGBColorSpace, bool);
   vtkBooleanMacro(UseSRGBColorSpace, bool);
   ///@}
+
+  /**
+   * Get physical to world transform matrix. Some subclasses may define a
+   * Physical coordinate system such as in VR. This method provides access
+   * to the matrix mapping that space to world coordinates.
+   */
+  virtual void GetPhysicalToWorldMatrix(vtkMatrix4x4* matrix);
+
+  /**
+   * Store in \p deviceToWorldMatrix the matrix that goes from device coordinates
+   * to world coordinates. e.g. if you push 0,0,0,1 through this matrix you will get
+   * the location of the device in world coordinates.
+   * Return true if the query is valid, else false.
+   */
+  virtual bool GetDeviceToWorldMatrixForDevice(
+    vtkEventDataDevice device, vtkMatrix4x4* deviceToWorldMatrix);
 
 protected:
   vtkRenderWindow();

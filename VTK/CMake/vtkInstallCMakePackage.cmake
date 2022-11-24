@@ -6,6 +6,15 @@ if (NOT (DEFINED vtk_cmake_dir AND
     "vtkInstallCMakePackage is missing input variables.")
 endif ()
 
+set(vtk_has_catalyst 0)
+set(vtk_catalyst_directory "")
+if (TARGET VTK::catalyst-vtk)
+  set(vtk_has_catalyst 1)
+  get_property(vtk_catalyst_directory GLOBAL
+    PROPERTY vtk_catalyst_directory)
+endif ()
+
+
 set(vtk_all_components)
 foreach (vtk_module IN LISTS vtk_modules)
   string(REPLACE "VTK::" "" vtk_component "${vtk_module}")
@@ -86,6 +95,7 @@ set(vtk_cmake_module_files
   FindLibXml2.cmake
   FindLZ4.cmake
   FindLZMA.cmake
+  FindMEMKIND.cmake
   Findmpi4py.cmake
   FindMySQL.cmake
   FindNetCDF.cmake
@@ -93,6 +103,7 @@ set(vtk_cmake_module_files
   FindOGG.cmake
   FindOpenSlide.cmake
   FindOpenVR.cmake
+  FindOpenXR.cmake
   FindOSMesa.cmake
   FindPEGTL.cmake
   FindSDL2.cmake
@@ -123,9 +134,6 @@ set(vtk_cmake_module_files
 set(vtk_cmake_patch_files
   patches/3.13/FindZLIB.cmake
   patches/3.16/FindPostgreSQL.cmake
-  patches/3.18/FindPython/Support.cmake
-  patches/3.18/FindPython2.cmake
-  patches/3.18/FindPython3.cmake
   patches/3.19/FindJPEG.cmake
   patches/3.19/FindLibArchive.cmake
   patches/3.19/FindSQLite3.cmake
@@ -138,6 +146,9 @@ set(vtk_cmake_patch_files
   patches/3.22/FindMPI/test_mpi.c
   patches/3.22/FindMPI/test_mpi.f90.in
   patches/3.22/FindMPI.cmake
+  patches/3.23/FindPython/Support.cmake
+  patches/3.23/FindPython2.cmake
+  patches/3.23/FindPython3.cmake
   patches/99/FindHDF5.cmake
   patches/99/FindOpenGL.cmake)
 

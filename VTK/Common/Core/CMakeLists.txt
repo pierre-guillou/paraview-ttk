@@ -1,20 +1,23 @@
-# Core configuration options.
-if(CMAKE_SIZEOF_VOID_P GREATER 4)
- set(VTK_USE_64BIT_IDS_DEFAULT ON)
-else()
- set(VTK_USE_64BIT_IDS_DEFAULT OFF)
- set(VTK_USE_64BIT_TIMESTAMPS_DEFAULT OFF)
- option(VTK_USE_64BIT_TIMESTAMPS "Build VTK with 64 bit timestamps"
-  ${VTK_USE_64BIT_TIMESTAMPS_DEFAULT})
-endif()
+include(CMakeDependentOption)
+cmake_dependent_option(VTK_USE_64BIT_TIMESTAMPS "Build VTK with 64 bit timestamps" OFF
+  "NOT CMAKE_SIZEOF_VOID_P GREATER 4" ON)
+mark_as_advanced(VTK_USE_64BIT_TIMESTAMPS)
 
-option(VTK_USE_64BIT_IDS "Build VTK with 64 bit ids"
-  ${VTK_USE_64BIT_IDS_DEFAULT})
+if (CMAKE_SIZEOF_VOID_P GREATER 4)
+ set(vtk_use_64bit_ids_default ON)
+else ()
+ set(vtk_use_64bit_ids_default OFF)
+endif ()
+
+option(VTK_USE_64BIT_IDS "Build VTK with 64 bit ids" "${vtk_use_64bit_ids_default}")
 mark_as_advanced(VTK_USE_64BIT_IDS)
+
+option(VTK_USE_FUTURE_CONST "Adds more const to APIs. Opt-in because it may break compatibility" OFF)
+mark_as_advanced(VTK_USE_FUTURE_CONST)
 
 option(VTK_DEBUG_LEAKS "Build leak checking support into VTK." OFF)
 mark_as_advanced(VTK_DEBUG_LEAKS)
-include(CMakeDependentOption)
+
 # See vtkDataArrayRange.h docs for more info on these:
 cmake_dependent_option(VTK_DEBUG_RANGE_ITERATORS
   "Detect usage errors with the for-range iterators (SLOW)." OFF
@@ -47,6 +50,8 @@ set(vtk_smp_enable_openmp 0)
 set(VTK_SMP_IMPLEMENTATION_TYPE)
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkSMPSelection.cmake")
 
+set(vtk_object_base_defines)
+
 # An optional dependency on memkind
 set(vtk_memkind_libraries)
 if (VTK_USE_MEMKIND)
@@ -54,9 +59,15 @@ if (VTK_USE_MEMKIND)
     PACKAGE MEMKIND)
   list(APPEND vtk_memkind_libraries
     MEMKIND::MEMKIND)
-  get_target_property(MEMKIND_VERSION_MINOR MEMKIND::MEMKIND MEMKIND_VERSION_MINOR)
-  list(APPEND VTK_OBJECT_BASE_DEFINES "MEMKIND_VERSION_MINOR=${MEMKIND_VERSION_MINOR}")
-endif()
+  # XXX(memkind-1.10): Once 1.10 is required, this is always true.
+  file(READ "${MEMKIND_INCLUDE_DIR}/memkind.h" memkind_h_contents)
+  set(memkind_has_dax_kmem 0)
+  # Look for the symbol in the header.
+  if (memkind_h_contents MATCHES " MEMKIND_DAX_KMEM[ ;\n]")
+    set(memkind_has_dax_kmem 1)
+  endif ()
+  list(APPEND vtk_object_base_defines "VTK_MEMKIND_HAS_DAX_KMEM=$<BOOL:${memkind_has_dax_kmem}>")
+endif ()
 
 # Generate the vtkTypeList_Create macros:
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkCreateTypeListMacros.cmake")
@@ -133,6 +144,7 @@ set(classes
   vtkArrayRange
   vtkArraySort
   vtkArrayWeights
+  vtkAtomicMutex
   vtkBitArray
   vtkBitArrayIterator
   vtkBoxMuellerRandomSequence
@@ -222,8 +234,6 @@ set(classes
   vtkStringOutputWindow
   vtkTimePointUtility
   vtkTimeStamp
-  vtkUnicodeString
-  vtkUnicodeStringArray
   vtkUnsignedCharArray
   vtkUnsignedIntArray
   vtkUnsignedLongArray
@@ -239,10 +249,7 @@ set(classes
   vtkXMLFileOutputWindow
 
   # These classes are deprecated.
-  vtkConditionVariable
-  vtkCriticalSection
-  vtkSimpleCriticalSection
-  vtkMutexLock)
+  vtkCriticalSection)
 
 set(template_classes
   vtkAOSDataArrayTemplate
@@ -256,7 +263,9 @@ set(template_classes
   vtkSOADataArrayTemplate
   vtkSparseArray
   vtkTypedArray
-  vtkTypedDataArray
+  vtkTypedDataArray)
+
+set(nowrap_template_classes
   vtkTypeList)
 
 set(sources
@@ -279,16 +288,10 @@ set(headers
   vtkAssume.h
   vtkAutoInit.h
   vtkBuffer.h
-  vtkCollectionRange.h
   vtkCompiler.h
-  vtkDataArrayAccessor.h
   vtkDataArrayIteratorMacro.h
   vtkDataArrayMeta.h
   vtkDataArrayRange.h
-  vtkDataArrayTupleRange_AOS.h
-  vtkDataArrayTupleRange_Generic.h
-  vtkDataArrayValueRange_AOS.h
-  vtkDataArrayValueRange_Generic.h
   vtkDeprecation.h
   vtkEventData.h
   vtkGenericDataArrayLookupHelper.h
@@ -419,6 +422,12 @@ foreach (smp_backend IN LISTS smp_backends)
 endforeach ()
 
 set(nowrap_headers
+  vtkCollectionRange.h
+  vtkDataArrayAccessor.h
+  vtkDataArrayTupleRange_AOS.h
+  vtkDataArrayTupleRange_Generic.h
+  vtkDataArrayValueRange_AOS.h
+  vtkDataArrayValueRange_Generic.h
   vtkMathPrivate.hxx
   ${vtk_smp_nowrap_headers})
 set(generated_headers
@@ -434,10 +443,6 @@ set(generated_headers
   vtkThreads.h
   vtkVersionFull.h
   vtkVersionMacros.h)
-if (NOT VTK_LEGACY_REMOVE)
-  list(APPEND generated_headers
-    vtkConfigureDeprecated.h)
-endif ()
 foreach (generated_header IN LISTS generated_headers)
   configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/${generated_header}.in"
@@ -446,25 +451,6 @@ foreach (generated_header IN LISTS generated_headers)
   list(APPEND headers
     "${CMAKE_CURRENT_BINARY_DIR}/${generated_header}")
 endforeach ()
-
-if (NOT VTK_LEGACY_REMOVE)
-  list(APPEND nowrap_headers
-    vtkConfigure.h
-    vtkToolkits.h)
-endif ()
-
-add_custom_command(
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/CaseFolding.txt"
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vtkUnicodeString.cmake"
-  COMMAND "${CMAKE_COMMAND}"
-          "-Dsource_dir=${CMAKE_CURRENT_SOURCE_DIR}"
-          "-Dbinary_dir=${CMAKE_CURRENT_BINARY_DIR}"
-          -P "${CMAKE_CURRENT_SOURCE_DIR}/vtkUnicodeString.cmake"
-  OUTPUT  "${CMAKE_CURRENT_BINARY_DIR}/vtkUnicodeCaseFoldData.h")
-
-set_source_files_properties(vtkUnicodeString.cxx
-  PROPERTIES
-    OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/vtkUnicodeCaseFoldData.h")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkTypeArrays.cmake")
 
@@ -525,14 +511,9 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtkFloatingPointExceptionsConfigure.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkFloatingPointExceptionsConfigure.h")
 
-# Allow work arounds for lack of thread_local on odd compilers
-if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0) )
-  list(APPEND VTK_OBJECT_BASE_DEFINES "VTK_HAS_THREADLOCAL")
-endif ()
-
 set_property(SOURCE vtkObjectBase.cxx
   PROPERTY
-     COMPILE_DEFINITIONS ${VTK_OBJECT_BASE_DEFINES})
+     COMPILE_DEFINITIONS ${vtk_object_base_defines})
 
 if(MSVC)
   set_source_files_properties(
@@ -545,6 +526,7 @@ vtk_module_add_module(VTK::CommonCore
   HEADER_DIRECTORIES
   CLASSES           ${classes}
   TEMPLATE_CLASSES  ${template_classes}
+  NOWRAP_TEMPLATE_CLASSES ${nowrap_template_classes}
   SOURCES           ${sources}
   TEMPLATES         ${templates}
   HEADERS           ${headers}
@@ -554,7 +536,7 @@ vtk_module_add_module(VTK::CommonCore
 if (vtk_include_dirs)
   vtk_module_include(VTK::CommonCore
     PRIVATE
-    ${vtk_include_dirs})
+      ${vtk_include_dirs})
 endif ()
 
 vtk_module_link(VTK::CommonCore

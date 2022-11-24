@@ -29,7 +29,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
 #include "vtkSparseArray.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 
@@ -38,8 +37,8 @@
 class vtkTableToSparseArray::implementation
 {
 public:
-  std::vector<vtkStdString> Coordinates;
-  vtkStdString Values;
+  std::vector<std::string> Coordinates;
+  std::string Values;
   vtkArrayExtents OutputExtents;
   bool ExplicitOutputExtents;
 };
@@ -154,8 +153,7 @@ int vtkTableToSparseArray::RequestData(
     coordinates[i] = table->GetColumnByName(this->Implementation->Coordinates[i].c_str());
     if (!coordinates[i])
     {
-      vtkErrorMacro(<< "missing coordinate array: "
-                    << this->Implementation->Coordinates[i].c_str());
+      vtkErrorMacro(<< "missing coordinate array: " << this->Implementation->Coordinates[i]);
     }
   }
   // See http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
@@ -175,7 +173,7 @@ int vtkTableToSparseArray::RequestData(
   vtkAbstractArray* const values = table->GetColumnByName(this->Implementation->Values.c_str());
   if (!values)
   {
-    vtkErrorMacro(<< "missing value array: " << this->Implementation->Values.c_str());
+    vtkErrorMacro(<< "missing value array: " << this->Implementation->Values);
     return 0;
   }
 

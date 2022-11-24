@@ -243,7 +243,7 @@ struct Converter
 template <int cellLength>
 struct Converter<8, 4, cellLength>
 {
-  // specilization of 64bit machine and 32bit file
+  // specialization of 64bit machine and 32bit file
   // so we have to copy each item individually
   vtkIdType* convert(int* buff, const vtkIdType& size)
   {
@@ -259,7 +259,7 @@ struct Converter<8, 4, cellLength>
 template <int cellLength>
 struct Converter<4, 8, cellLength>
 {
-  // specilization for reading 64 bit files on a 32 bit machine
+  // specialization for reading 64 bit files on a 32 bit machine
   // which means reading the bottom half of the long long
   vtkIdType* convert(int* buff, const vtkIdType& size)
   {
@@ -727,7 +727,7 @@ void vtkLSDynaReader::SetDatabaseDirectory(const char* f)
     }
     return;
   }
-  if (strcmp(this->P->Fam.GetDatabaseDirectory().c_str(), f) != 0)
+  if (this->P->Fam.GetDatabaseDirectory() != f)
   {
     this->P->Reset();
     this->SetInputDeck(nullptr);
@@ -737,19 +737,10 @@ void vtkLSDynaReader::SetDatabaseDirectory(const char* f)
   }
 }
 
-#if defined(VTK_LEGACY_REMOVE)
 std::string vtkLSDynaReader::GetDatabaseDirectory()
 {
   return this->P->Fam.GetDatabaseDirectory();
 }
-#else
-const char* vtkLSDynaReader::GetDatabaseDirectory()
-{
-  static thread_local std::string surrogate;
-  surrogate = this->P->Fam.GetDatabaseDirectory();
-  return surrogate.c_str();
-}
-#endif
 
 int vtkLSDynaReader::IsDatabaseValid()
 {
@@ -801,20 +792,11 @@ void vtkLSDynaReader::SetFileName(const char* f)
   }
 }
 
-#if defined(VTK_LEGACY_REMOVE)
 std::string vtkLSDynaReader::GetFileName()
 {
   std::string filename = this->P->Fam.GetDatabaseDirectory() + "/d3plot";
   return filename;
 }
-#else
-const char* vtkLSDynaReader::GetFileName()
-{
-  static thread_local std::string surrogate;
-  surrogate = this->P->Fam.GetDatabaseDirectory() + "/d3plot";
-  return surrogate.c_str();
-}
-#endif
 
 char* vtkLSDynaReader::GetTitle()
 {
@@ -2487,8 +2469,8 @@ int vtkLSDynaReader::RequestInformation(vtkInformation* vtkNotUsed(request),
 
   // Every output object has all the time steps.
   vtkInformation* outInfo = oinfo->GetInformationObject(0);
-  outInfo->Set(
-    vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &p->TimeValues[0], (int)p->TimeValues.size());
+  outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), p->TimeValues.data(),
+    (int)p->TimeValues.size());
   double timeRange[2];
   timeRange[0] = p->TimeValues[0];
   timeRange[1] = p->TimeValues[p->TimeValues.size() - 1];
@@ -2941,12 +2923,15 @@ int vtkLSDynaReader::ReadSPHState(vtkIdType vtkNotUsed(step))
   p->Fam.SkipWords(p->SPHStateOffset);
 
 #define VTK_LS_SPHARRAY(cond, celltype, arrayname, numComps)                                       \
-  if ((cond) && this->GetCellArrayStatus(celltype, arrayname))                                     \
+  do                                                                                               \
   {                                                                                                \
-    this->Parts->AddProperty(celltype, arrayname, startPos, numComps);                             \
-  }                                                                                                \
-  if (cond)                                                                                        \
-    startPos += (numComps);
+    if ((cond) && this->GetCellArrayStatus(celltype, arrayname))                                   \
+    {                                                                                              \
+      this->Parts->AddProperty(celltype, arrayname, startPos, numComps);                           \
+    }                                                                                              \
+    if (cond)                                                                                      \
+      startPos += (numComps);                                                                      \
+  } while (false)
 
   // Smooth Particle ========================================================
 
@@ -3125,31 +3110,34 @@ void vtkLSDynaReader::ResetPartInfo()
   int arbitraryMaterials = p->Dict["NSORT"] < 0 ? 1 : 0;
 
 #define VTK_LSDYNA_PARTLABEL(dict, fmt)                                                            \
-  N = p->Dict[dict];                                                                               \
-  for (i = 0; i < N; ++i, ++mat)                                                                   \
+  do                                                                                               \
   {                                                                                                \
-    if (arbitraryMaterials)                                                                        \
+    N = p->Dict[dict];                                                                             \
+    for (i = 0; i < N; ++i, ++mat)                                                                 \
     {                                                                                              \
-      if (mat < static_cast<int>(p->MaterialsOrdered.size()))                                      \
+      if (arbitraryMaterials)                                                                      \
       {                                                                                            \
-        realMat = p->MaterialsOrdered[mat - 1];                                                    \
+        if (mat < static_cast<int>(p->MaterialsOrdered.size()))                                    \
+        {                                                                                          \
+          realMat = p->MaterialsOrdered[mat - 1];                                                  \
+        }                                                                                          \
+        else                                                                                       \
+        {                                                                                          \
+          realMat = mat;                                                                           \
+        }                                                                                          \
+        snprintf(partLabel, sizeof(partLabel), fmt " (Matl%d)", mat, realMat);                     \
       }                                                                                            \
       else                                                                                         \
       {                                                                                            \
         realMat = mat;                                                                             \
+        snprintf(partLabel, sizeof(partLabel), fmt, mat);                                          \
       }                                                                                            \
-      snprintf(partLabel, sizeof(partLabel), fmt " (Matl%d)", mat, realMat);                       \
+      p->PartNames.emplace_back(partLabel);                                                        \
+      p->PartIds.emplace_back(realMat);                                                            \
+      p->PartMaterials.emplace_back(mat);                                                          \
+      p->PartStatus.emplace_back(1);                                                               \
     }                                                                                              \
-    else                                                                                           \
-    {                                                                                              \
-      realMat = mat;                                                                               \
-      snprintf(partLabel, sizeof(partLabel), fmt, mat);                                            \
-    }                                                                                              \
-    p->PartNames.emplace_back(partLabel);                                                          \
-    p->PartIds.emplace_back(realMat);                                                              \
-    p->PartMaterials.emplace_back(mat);                                                            \
-    p->PartStatus.emplace_back(1);                                                                 \
-  }
+  } while (false)
 
   VTK_LSDYNA_PARTLABEL("NUMMAT8", "Part%d"); // was "PartSolid%d
   VTK_LSDYNA_PARTLABEL("NUMMATT", "Part%d"); // was "PartThickShell%d
@@ -3395,8 +3383,7 @@ int vtkLSDynaReader::WriteInputDeckSummary(const char* fname)
 #endif // _WIN32
     {
       // OK, we have an absolute path, so it should be safe to write it out.
-      xmlSummary << "  <database path=\"" << dbDir.c_str() << "\" name=\"" << dbName.c_str()
-                 << "\"/>" << endl;
+      xmlSummary << "  <database path=\"" << dbDir << "\" name=\"" << dbName << "\"/>" << endl;
     }
   }
 
@@ -3404,7 +3391,7 @@ int vtkLSDynaReader::WriteInputDeckSummary(const char* fname)
   {
     xmlSummary << "  <part id=\"" << this->P->PartIds[p] << "\" material_id=\""
                << this->P->PartMaterials[p] << "\" status=\"" << this->P->PartStatus[p]
-               << "\"><name>" << this->P->PartNames[p].c_str() << "</name></part>" << endl;
+               << "\"><name>" << this->P->PartNames[p] << "</name></part>" << endl;
   }
 
   xmlSummary << "</lsdyna>" << endl;

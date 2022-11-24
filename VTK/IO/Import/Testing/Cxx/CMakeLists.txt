@@ -58,6 +58,10 @@ vtk_add_test_cxx(vtkIOImportCxxTests tests
     DATA{../Data/Input/TestOBJImporter-VtNoIndices.png}
 )
 
+vtk_add_test_cxx(vtkIOImportCxxTests tests
+  TestOBJImporter-ScalarsDuplication,TestOBJImporter.cxx
+    DATA{../Data/Input/TestOBJImporter-ScalarsDuplication.obj}
+)
 
 vtk_add_test_cxx(vtkIOImportCxxTests tests
   TestVRMLImporter.cxx,NO_VALID
@@ -125,4 +129,5 @@ set_tests_properties(VTK::IOImportCxx-TestImportGLFT
 )
 
 vtk_test_cxx_executable(vtkIOImportCxxTests tests
+  DISABLE_FLOATING_POINT_EXCEPTIONS
   RENDERING_FACTORY)

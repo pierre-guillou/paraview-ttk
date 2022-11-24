@@ -31,6 +31,7 @@
 set(classes
   pqAnimationCue
   pqAnimationScene
+  pqAnnotationsModel
   pqApplicationCore
   pqAutoStartInterface
   pqBoxChartView
@@ -62,12 +63,14 @@ set(classes
   pqImageUtil
   pqInteractiveViewLink
   pqInterfaceTracker
+  pqKeySequences
   pqLinkedObjectInterface
   pqLinkedObjectQTextEdit
   pqLinkViewWidget
   pqLinksModel
   pqLogViewerWidget
   pqMainWindowEventManager
+  pqModalShortcut
   pqMultiSliceAxisWidget
   pqMultiSliceView
   pqNonEditableStyledItemDelegate
@@ -129,10 +132,15 @@ set(classes
   pqXYHistogramChartView
   vtkPVGUIPluginInterface)
 
-if (NOT VTK_LEGACY_REMOVE)
-  list(APPEND classes
-    pqDebug)
-endif()
+set(headers
+    pqQVTKWidgetBase.h)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/pqQtConfig.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/pqQtConfig.h"
+  @ONLY)
+list(APPEND headers
+  "${CMAKE_CURRENT_BINARY_DIR}/pqQtConfig.h")
 
 set_property(SOURCE pqCoreInit.cxx APPEND
   PROPERTY
@@ -183,7 +191,8 @@ source_group("Resources" FILES
 vtk_module_add_module(ParaView::pqCore
   CLASSES ${classes}
   SOURCES ${ui_files}
-          ${resource_files})
+          ${resource_files}
+  HEADERS ${headers})
 vtk_module_link(ParaView::pqCore
   PRIVATE
     Qt5::Widgets)
@@ -192,6 +201,7 @@ if (PARAVIEW_USE_QTHELP)
     PRIVATE
       Qt5::Help)
 endif ()
+vtk_module_definitions(ParaView::pqCore PRIVATE QT_NO_KEYWORDS)
 
 vtk_module_definitions(ParaView::pqCore
   PRIVATE "PARAVIEW_PQCORE_ENABLE_PYTHON=$<BOOL:${PARAVIEW_USE_PYTHON}>")

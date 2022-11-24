@@ -604,7 +604,7 @@ pqViewFrame* pqMultiViewWidget::newFrame(vtkSMProxy* view)
   // Search for view frame actions plugins and allow them to decide
   // whether to add their actions to this view type's frame or not.
   pqInterfaceTracker* tracker = pqApplicationCore::instance()->interfaceTracker();
-  foreach (pqViewFrameActionsInterface* vfai, tracker->interfaces<pqViewFrameActionsInterface*>())
+  Q_FOREACH (pqViewFrameActionsInterface* vfai, tracker->interfaces<pqViewFrameActionsInterface*>())
   {
     vfai->frameConnected(frame, pqview);
   }
@@ -813,7 +813,7 @@ void pqMultiViewWidget::destroyAllViews()
   BEGIN_UNDO_SET("Destroy all views");
   pqObjectBuilder* builder = pqApplicationCore::instance()->getObjectBuilder();
   QList<vtkSMViewProxy*> views = this->viewProxies();
-  foreach (vtkSMViewProxy* view, views)
+  Q_FOREACH (vtkSMViewProxy* view, views)
   {
     if (view)
     {
@@ -824,32 +824,12 @@ void pqMultiViewWidget::destroyAllViews()
 }
 
 //-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
-void pqMultiViewWidget::setDecorationsVisible(bool val)
-{
-  VTK_LEGACY_REPLACED_BODY(pqMultiViewWidget::setDecorationsVisible, "ParaView 5.7",
-    pqMultiViewWidget::setDecorationsVisibility);
-  this->setDecorationsVisibility(val);
-}
-#endif
-
-//-----------------------------------------------------------------------------
 void pqMultiViewWidget::setDecorationsVisibility(bool val)
 {
   auto& internals = (*this->Internals);
   internals.setDecorationsVisibility(val);
   Q_EMIT this->decorationsVisibilityChanged(val);
 }
-
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
-bool pqMultiViewWidget::isDecorationsVisible() const
-{
-  VTK_LEGACY_REPLACED_BODY(pqMultiViewWidget::isDecorationsVisible, "ParaView 5.7",
-    pqMultiViewWidget::decorationsVisibility);
-  return this->decorationsVisibility();
-}
-#endif
 
 //-----------------------------------------------------------------------------
 bool pqMultiViewWidget::decorationsVisibility() const

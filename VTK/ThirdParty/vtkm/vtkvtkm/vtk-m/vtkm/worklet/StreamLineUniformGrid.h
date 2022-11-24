@@ -16,6 +16,7 @@
 #include <vtkm/cont/ArrayHandleCounting.h>
 #include <vtkm/cont/CellSetExplicit.h>
 #include <vtkm/cont/CellSetStructured.h>
+#include <vtkm/cont/ConvertNumComponentsToOffsets.h>
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/cont/DeviceAdapter.h>
 #include <vtkm/cont/Field.h>
@@ -327,7 +328,7 @@ public:
 
     // Get information from input dataset
     vtkm::cont::CellSetStructured<3> inCellSet;
-    InDataSet.GetCellSet().CopyTo(inCellSet);
+    InDataSet.GetCellSet().AsCellSet(inCellSet);
     vtkm::Id3 vdims = inCellSet.GetSchedulingRange(vtkm::TopologyElementTagPoint());
 
     vtkm::cont::ArrayHandle<vtkm::Vec<FieldType, 3>> fieldArray;
@@ -382,7 +383,7 @@ public:
 
     // Size of connectivity based on size of returned streamlines
     vtkm::Id connectivityLen;
-    auto offsets = vtkm::cont::ConvertNumIndicesToOffsets(numIndices, connectivityLen);
+    auto offsets = vtkm::cont::ConvertNumComponentsToOffsets(numIndices, connectivityLen);
 
     // Connectivity is sequential
     vtkm::cont::ArrayHandleCounting<vtkm::Id> connCount(0, 1, connectivityLen);

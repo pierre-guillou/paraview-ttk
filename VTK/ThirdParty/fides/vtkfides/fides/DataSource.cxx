@@ -20,7 +20,7 @@
 #include <iostream>
 
 #ifdef FIDES_USE_MPI
-#include <mpi.h>
+#include <vtk_mpi.h>
 #endif
 
 template <typename T>
@@ -56,6 +56,14 @@ void DataSource::SetDataSourceIO(void* io)
   this->OpenSource(this->ReaderID);
 }
 
+void DataSource::SetDataSourceIO(const std::string& ioAddress)
+{
+  long long hexAddress = std::stoll(ioAddress, nullptr, 16);
+  this->AdiosIO = *(reinterpret_cast<adios2::IO*>(hexAddress));
+  this->SetupEngine();
+  this->OpenSource(this->ReaderID);
+}
+
 void DataSource::SetupEngine()
 {
   auto it = this->SourceParams.find("engine_type");
@@ -84,15 +92,6 @@ void DataSource::SetupEngine()
                                "a valid pointer to an adios2::IO object.");
     }
     this->AdiosIO.SetEngine("Inline");
-
-    it = this->SourceParams.find("writer_id");
-    if (it == this->SourceParams.end())
-    {
-      throw std::runtime_error("Inline engine requires a valid writer_id.");
-    }
-    this->AdiosIO.SetParameter("writerID", it->second);
-
-    this->AdiosIO.SetParameter("readerID", this->ReaderID);
   }
   else
   {
@@ -106,7 +105,7 @@ void DataSource::SetupEngine()
   }
 }
 
-void DataSource::OpenSource(const std::string& fname)
+void DataSource::OpenSource(const std::string& fname, bool useMPI /* = true */)
 {
   //if the reader (ADIOS engine) is already been set, do nothing
   if (this->Reader)
@@ -121,7 +120,14 @@ void DataSource::OpenSource(const std::string& fname)
       //if the factory pointer and the specific IO is empty
       //reset the implementation
 #ifdef FIDES_USE_MPI
-      this->Adios.reset(new adios2::ADIOS(MPI_COMM_WORLD));
+      if (useMPI)
+      {
+        this->Adios.reset(new adios2::ADIOS(MPI_COMM_WORLD));
+      }
+      else
+      {
+        this->Adios.reset(new adios2::ADIOS);
+      }
 #else
       // The ADIOS2 docs say "do not use () for the empty constructor"
       // See here: https://adios2.readthedocs.io/en/latest/components/components.html#components-overview
@@ -519,7 +525,33 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetScalarVariableInternal(
   arrayHandle.Allocate(1);
   VariableType* buffer = arrayHandle.GetWritePointer();
   valueAH = arrayHandle;
-  reader.Get(varADIOS2, buffer);
+  // because we're getting a single value, we can use sync mode here
+  // I think for most engines, it doesn't actually matter to specify this for
+  // a single value (it will still be performed in sync),
+  // but for Inline engine, you'll get an error if you don't specify sync mode
+  reader.Get(varADIOS2, buffer, adios2::Mode::Sync);
+  retVal.push_back(valueAH);
+
+  return retVal;
+}
+
+template <typename VariableType>
+std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArrayInternal(
+  adios2::IO& adiosIO,
+  adios2::Engine& reader,
+  const std::string& varName,
+  const fides::metadata::MetaData& fidesNotUsed(selections))
+{
+  auto varADIOS2 = adiosIO.InquireVariable<VariableType>(varName);
+  auto numSteps = varADIOS2.Steps();
+  varADIOS2.SetStepSelection({ varADIOS2.StepsStart(), numSteps });
+  std::vector<vtkm::cont::UnknownArrayHandle> retVal;
+  vtkm::cont::UnknownArrayHandle valueAH;
+  vtkm::cont::ArrayHandleBasic<VariableType> arrayHandle;
+  arrayHandle.Allocate(numSteps);
+  VariableType* buffer = arrayHandle.GetWritePointer();
+  valueAH = arrayHandle;
+  reader.Get(varADIOS2, buffer, adios2::Mode::Sync);
   retVal.push_back(valueAH);
 
   return retVal;
@@ -697,6 +729,40 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetScalarVariable(
   throw std::runtime_error("Unsupported variable type " + type);
 }
 
+std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetTimeArray(
+  const std::string& varName,
+  const fides::metadata::MetaData& selections)
+{
+  if (!this->Reader)
+  {
+    throw std::runtime_error("Cannot read variable without setting the adios engine.");
+  }
+
+  if (this->AdiosEngineType != EngineType::BPFile)
+  {
+    throw std::runtime_error("A full time array can only be read when using BP files");
+  }
+
+  auto itr = this->AvailVars.find(varName);
+  if (itr == this->AvailVars.end())
+  {
+    // previously we were throwing an error if the variable could not be found,
+    // but it's possible that a variable may just not be available on a certain timestep.
+    return std::vector<vtkm::cont::UnknownArrayHandle>();
+  }
+
+  const std::string& type = itr->second["Type"];
+  if (type.empty())
+  {
+    throw std::runtime_error("Variable type unavailable.");
+  }
+
+  fidesTemplateMacro(
+    GetTimeArrayInternal<fides_TT>(this->AdiosIO, this->Reader, varName, selections));
+
+  throw std::runtime_error("Unsupported variable type " + type);
+}
+
 std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadVariable(
   const std::string& varName,
   const fides::metadata::MetaData& selections,
@@ -807,21 +873,29 @@ StepStatus DataSource::BeginStep()
     throw std::runtime_error("Cannot read variables without setting the adios engine.");
   }
 
-  auto retVal = this->Reader.BeginStep();
-  switch (retVal)
+  if (this->MostRecentStepStatus != StepStatus::EndOfStream)
   {
-    case adios2::StepStatus::OK:
-      this->Refresh();
-      return StepStatus::OK;
-    case adios2::StepStatus::NotReady:
-      return StepStatus::NotReady;
-    case adios2::StepStatus::EndOfStream:
-      return StepStatus::EndOfStream;
-    case adios2::StepStatus::OtherError:
-      return StepStatus::NotReady;
-    default:
-      throw std::runtime_error("DataSource::BeginStep received unknown StepStatus from ADIOS");
+    auto retVal = this->Reader.BeginStep();
+    switch (retVal)
+    {
+      case adios2::StepStatus::OK:
+        this->Refresh();
+        this->MostRecentStepStatus = StepStatus::OK;
+        break;
+      case adios2::StepStatus::NotReady:
+        this->MostRecentStepStatus = StepStatus::NotReady;
+        break;
+      case adios2::StepStatus::EndOfStream:
+        this->MostRecentStepStatus = StepStatus::EndOfStream;
+        break;
+      case adios2::StepStatus::OtherError:
+        this->MostRecentStepStatus = StepStatus::NotReady;
+        break;
+      default:
+        throw std::runtime_error("DataSource::BeginStep received unknown StepStatus from ADIOS");
+    }
   }
+  return this->MostRecentStepStatus;
 }
 
 size_t DataSource::CurrentStep()
@@ -841,7 +915,10 @@ void DataSource::EndStep()
     throw std::runtime_error("Cannot read variables without setting the adios engine.");
   }
 
-  this->Reader.EndStep();
+  if (this->MostRecentStepStatus == StepStatus::OK)
+  {
+    this->Reader.EndStep();
+  }
 }
 
 std::vector<size_t> DataSource::GetVariableShape(std::string& varName)

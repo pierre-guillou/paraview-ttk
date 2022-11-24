@@ -5,7 +5,7 @@ find_package(ParaView REQUIRED)
 
 if (NOT PARAVIEW_USE_QT)
   message(STATUS
-    "Skipping example: ${CMAKE_PROJECT_NAME} example requires PARAVIEW_USE_QT "
+    "Skipping example: ${PROJECT_NAME} example requires PARAVIEW_USE_QT "
     "to be enabled. Please rebuild ParaView (or point to a different build of "
     "ParaView) with PARAVIEW_USE_QT set to TRUE")
   return ()
@@ -26,7 +26,6 @@ set(ui_files
   myMainWindow.ui)
 set(xml_files
   ParaViewFilters.xml
-  #ParaViewReaders.xml
   ParaViewSources.xml)
 
 paraview_client_add(
@@ -34,8 +33,6 @@ paraview_client_add(
   VERSION "1.1.1"
   SOURCES ${sources} ${ui_files}
   APPLICATION_XMLS ${xml_files}
-
   MAIN_WINDOW_CLASS myMainWindow
-
   ORGANIZATION "Kitware, Inc."
   TITLE "ParaView (ReVisEd)")

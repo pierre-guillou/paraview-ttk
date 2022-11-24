@@ -111,7 +111,7 @@ void vtkDelimitedTextWriterGetDataString(
   {
     if ((index + cc) < iter->GetNumberOfValues())
     {
-      if (*first == false)
+      if (!*first)
       {
         (*stream) << writer->GetFieldDelimiter();
       }
@@ -120,7 +120,7 @@ void vtkDelimitedTextWriterGetDataString(
     }
     else
     {
-      if (*first == false)
+      if (!*first)
       {
         (*stream) << writer->GetFieldDelimiter();
       }
@@ -140,7 +140,7 @@ void vtkDelimitedTextWriterGetDataString(vtkArrayIteratorTemplate<vtkStdString>*
   {
     if ((index + cc) < iter->GetNumberOfValues())
     {
-      if (*first == false)
+      if (!*first)
       {
         (*stream) << writer->GetFieldDelimiter();
       }
@@ -149,7 +149,7 @@ void vtkDelimitedTextWriterGetDataString(vtkArrayIteratorTemplate<vtkStdString>*
     }
     else
     {
-      if (*first == false)
+      if (!*first)
       {
         (*stream) << writer->GetFieldDelimiter();
       }
@@ -163,7 +163,7 @@ vtkStdString vtkDelimitedTextWriter::GetString(vtkStdString string)
 {
   if (this->UseStringDelimiter && this->StringDelimiter)
   {
-    vtkStdString temp = this->StringDelimiter;
+    std::string temp = this->StringDelimiter;
     temp += string + this->StringDelimiter;
     return temp;
   }

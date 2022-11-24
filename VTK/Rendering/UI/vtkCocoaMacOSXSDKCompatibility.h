@@ -21,7 +21,6 @@ PURPOSE.  See the above copyright notice for more information.
  * SDKs by adding workarounds to still support the minimum SDK.
  * It is safe to include this header multiple times.
  */
-#ifndef __VTK_WRAP__
 
 #include <AvailabilityMacros.h>
 
@@ -31,6 +30,13 @@ PURPOSE.  See the above copyright notice for more information.
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
 #error VTK requires a deployment target of Mac OS X 10.7 or later
+#endif
+
+// Stop AssertMacros.h from defining its macros without underscore prefixes,
+// which pollute the global namespace and cause us build issues.
+// This is default as of the macOS 10.13 SDK, but needed for older SDKs.
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 101300
+#define __ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES 0
 #endif
 
 #if (MAC_OS_X_VERSION_MAX_ALLOWED < 101200) && !defined(VTK_DONT_MAP_10_12_ENUMS)
@@ -76,5 +82,4 @@ PURPOSE.  See the above copyright notice for more information.
 #error VTK does not yet support ARC memory management
 #endif
 
-#endif
 // VTK-HeaderTest-Exclude: vtkCocoaMacOSXSDKCompatibility.h

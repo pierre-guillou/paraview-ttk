@@ -94,7 +94,8 @@ void vtkMultiBlockVolumeMapper::Render(vtkRenderer* ren, vtkVolume* vol)
     this->BlockLoadingTime = dataObj->GetMTime();
   }
 
-  this->SortMappers(ren, vol->GetMatrix());
+  vol->GetModelToWorldMatrix(this->TempMatrix4x4);
+  this->SortMappers(ren, this->TempMatrix4x4);
 
   MapperVec::iterator end = this->Mappers.end();
   for (MapperVec::iterator it = this->Mappers.begin(); it != end; ++it)
@@ -334,6 +335,9 @@ vtkSmartVolumeMapper* vtkMultiBlockVolumeMapper::CreateMapper()
   mapper->SetCroppingRegionFlags(this->GetCroppingRegionFlags());
   mapper->SetCroppingRegionPlanes(this->GetCroppingRegionPlanes());
   mapper->SetTransfer2DYAxisArray(this->Transfer2DYAxisArray);
+  mapper->SetGlobalIlluminationReach(this->GlobalIlluminationReach);
+  mapper->SetVolumetricScatteringBlending(this->VolumetricScatteringBlending);
+  mapper->SetComputeNormalFromOpacity(this->ComputeNormalFromOpacity);
 
   vtkOpenGLGPUVolumeRayCastMapper* glMapper =
     vtkOpenGLGPUVolumeRayCastMapper::SafeDownCast(mapper->GetGPUMapper());
@@ -341,6 +345,9 @@ vtkSmartVolumeMapper* vtkMultiBlockVolumeMapper::CreateMapper()
   if (glMapper != nullptr)
   {
     glMapper->UseJitteringOn();
+    glMapper->SetComputeNormalFromOpacity(this->ComputeNormalFromOpacity);
+    glMapper->SetGlobalIlluminationReach(this->GlobalIlluminationReach);
+    glMapper->SetVolumetricScatteringBlending(this->VolumetricScatteringBlending);
   }
   return mapper;
 }
@@ -538,6 +545,49 @@ void vtkMultiBlockVolumeMapper::SetRequestedRenderMode(int mode)
       mapper->SetRequestedRenderMode(mode);
     }
     this->RequestedRenderMode = mode;
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkMultiBlockVolumeMapper::SetComputeNormalFromOpacity(bool val)
+{
+  if (this->ComputeNormalFromOpacity != val)
+  {
+    for (auto& mapper : this->Mappers)
+    {
+      mapper->SetComputeNormalFromOpacity(val);
+    }
+    this->ComputeNormalFromOpacity = val;
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkMultiBlockVolumeMapper::SetGlobalIlluminationReach(float val)
+{
+  if (this->GlobalIlluminationReach != val)
+  {
+    for (auto& mapper : this->Mappers)
+    {
+      mapper->SetGlobalIlluminationReach(val);
+    }
+    this->GlobalIlluminationReach = val;
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkMultiBlockVolumeMapper::SetVolumetricScatteringBlending(float val)
+{
+  float clampedVal = vtkMath::ClampValue(val, 0.0f, 2.0f);
+  if (this->VolumetricScatteringBlending != clampedVal)
+  {
+    for (auto& mapper : this->Mappers)
+    {
+      mapper->SetVolumetricScatteringBlending(clampedVal);
+    }
+    this->VolumetricScatteringBlending = clampedVal;
     this->Modified();
   }
 }

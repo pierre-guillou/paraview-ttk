@@ -136,7 +136,7 @@ public:
    * object
    */
   template <typename T>
-  void linkTo(T* obj)
+  void linkTo(T* /*obj*/)
   {
     static_assert(sizeof(T) == 0, "Only specializations of linkTo(T* t) can be used");
   }
@@ -163,7 +163,7 @@ public:
    */
   QString getLinkedName() const { return this->TextLinker.getSecondObjectName(); }
 
-signals:
+Q_SIGNALS:
   /**
    * @brief Triggered when the current text
    * buffer is erased

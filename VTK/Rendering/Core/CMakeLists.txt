@@ -18,7 +18,6 @@ set(classes
   vtkAvatar
   vtkBackgroundColorMonitor
   vtkBillboardTextActor3D
-  vtkCIEDE2000
   vtkCamera
   vtkCameraActor
   vtkCameraInterpolator
@@ -45,6 +44,7 @@ set(classes
   vtkGraphMapper
   vtkGraphToGlyphs
   vtkGraphicsFactory
+  vtkHardwarePicker
   vtkHardwareSelector
   vtkHardwareWindow
   vtkHierarchicalPolyDataMapper
@@ -159,6 +159,9 @@ set(classes
   vtkAbstractRenderDevice
   vtkRenderWidget)
 
+set(nowrap_classes
+  vtkCIEDE2000)
+
 # needed as we do not have vtkRenderingOpenGLConfigure.h here
 set_source_files_properties(
   vtkRenderWindow.cxx  # dummy out painterdevice adapter
@@ -168,7 +171,6 @@ set_source_files_properties(
 
 set(headers
   vtkGPUInfoListArray.h
-  vtkNoise200x200.h
   vtkPythagoreanQuadruples.h
   vtkRayCastStructures.h
   vtkRenderingCoreEnums.h
@@ -176,9 +178,14 @@ set(headers
   "${CMAKE_CURRENT_BINARY_DIR}/vtkTDxConfigure.h"
   vtkTDxMotionEventInfo.h)
 
+set(nowrap_headers
+  vtkNoise200x200.h)
+
 vtk_module_add_module(VTK::RenderingCore
   CLASSES ${classes}
+  NOWRAP_CLASSES ${nowrap_classes}
   HEADERS ${headers}
+  NOWRAP_HEADERS ${nowrap_headers}
   )
 
 if (VTK_DEFAULT_RENDER_WINDOW_OFFSCREEN)

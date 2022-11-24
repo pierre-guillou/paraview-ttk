@@ -15,13 +15,16 @@
 
 #include "vtkDIYExplicitAssigner.h"
 #include "vtkDIYUtilities.h"
+#include "vtkDoubleArray.h"
 #include "vtkFieldData.h"
 #include "vtkIntArray.h"
 #include "vtkLogger.h"
 #include "vtkMPIController.h"
 #include "vtkNew.h"
+#include "vtkSOADataArrayTemplate.h"
 #include "vtkSmartPointer.h"
 #include "vtkStringArray.h"
+#include "vtkTypeFloat64Array.h"
 
 // clang-format off
 #include "vtk_diy2.h"
@@ -40,13 +43,15 @@ struct FieldDataBlock
 };
 
 //------------------------------------------------------------------------------
-bool TestFieldDataExchange(vtkMultiProcessController* controller)
+bool TestFieldDataExchange(vtkMultiProcessController* controller, int nComponents)
 {
   const int rank = controller->GetLocalProcessId();
 
   if (rank == 0)
   {
-    vtkLog(INFO, "Testing exchanging an integer array and a string array inside a field data");
+    vtkLog(INFO,
+      "Testing exchanging an integer array, a "
+        << nComponents << "-component double array and a string array inside a field data");
   }
 
   int startIota = rank == 0 ? 0 : 10;
@@ -59,6 +64,32 @@ bool TestFieldDataExchange(vtkMultiProcessController* controller)
   int* intPtr = intArray->GetPointer(0);
   std::iota(intPtr, intPtr + intArray->GetNumberOfValues(), startIota);
   fd->AddArray(intArray);
+
+  vtkNew<vtkDoubleArray> dblArray;
+  dblArray->SetName("dbl");
+  dblArray->SetNumberOfComponents(nComponents);
+  dblArray->SetNumberOfTuples(30);
+  for (int i = 0; i < 30; ++i)
+  {
+    double x[3];
+    for (int j = 0; j < nComponents; ++j)
+      x[j] = (double)nComponents * i + j;
+    dblArray->SetTuple(i, x);
+  }
+  fd->AddArray(dblArray);
+
+  double* soaData = new double[20 * nComponents];
+  std::iota(soaData, soaData + 20 * nComponents, static_cast<double>(startIota));
+
+  vtkNew<vtkSOADataArrayTemplate<double>> soaArray;
+  soaArray->SetName("soa");
+  soaArray->SetNumberOfComponents(nComponents);
+  for (int i = 0; i < nComponents; ++i)
+  {
+    soaArray->SetArray(0, soaData + i * 20, 20, true, true);
+  }
+
+  fd->AddArray(soaArray);
 
   vtkNew<vtkStringArray> stringArray;
   stringArray->SetName("string");
@@ -87,35 +118,34 @@ bool TestFieldDataExchange(vtkMultiProcessController* controller)
     /*dim*/ 1, diy::interval(0, assigner.nblocks() - 1), assigner.nblocks());
   decomposer.decompose(comm.rank(), assigner, master);
 
-  diy::all_to_all(
-    master, assigner, [&master, &fd](FieldDataBlock* block, const diy::ReduceProxy& srp) {
-      int myBlockId = srp.gid();
-      if (srp.round() == 0)
+  diy::all_to_all(master, assigner, [&fd](FieldDataBlock* block, const diy::ReduceProxy& srp) {
+    int myBlockId = srp.gid();
+    if (srp.round() == 0)
+    {
+      for (int i = 0; i < srp.out_link().size(); ++i)
       {
-        for (int i = 0; i < srp.out_link().size(); ++i)
+        const diy::BlockID& blockId = srp.out_link().target(i);
+        if (blockId.gid != myBlockId)
         {
-          const diy::BlockID& blockId = srp.out_link().target(i);
-          if (blockId.gid != myBlockId)
-          {
-            srp.enqueue<vtkFieldData*>(blockId, fd);
-          }
+          srp.enqueue<vtkFieldData*>(blockId, fd);
         }
       }
-      else
+    }
+    else
+    {
+      for (int i = 0; i < static_cast<int>(srp.in_link().size()); ++i)
       {
-        for (int i = 0; i < static_cast<int>(srp.in_link().size()); ++i)
+        const diy::BlockID& blockId = srp.in_link().target(i);
+        if (blockId.gid != myBlockId)
         {
-          const diy::BlockID& blockId = srp.in_link().target(i);
-          if (blockId.gid != myBlockId)
-          {
-            vtkFieldData* tmp = nullptr;
-            srp.dequeue(blockId, tmp);
-            block->FieldData.insert({ blockId.gid, tmp });
-            tmp->FastDelete();
-          }
+          vtkFieldData* tmp = nullptr;
+          srp.dequeue(blockId, tmp);
+          block->FieldData.insert({ blockId.gid, tmp });
+          tmp->FastDelete();
         }
       }
-    });
+    }
+  });
 
   if (rank > 1)
   {
@@ -141,6 +171,33 @@ bool TestFieldDataExchange(vtkMultiProcessController* controller)
       return false;
     }
   }
+  vtkLog(INFO, "Int array received OK by rank " << rank);
+
+  vtkDoubleArray* receivedDblArray =
+    vtkArrayDownCast<vtkDoubleArray>(receivedFD->GetAbstractArray("dbl"));
+  if (receivedDblArray->GetNumberOfComponents() != nComponents ||
+    receivedDblArray->GetNumberOfTuples() != 30)
+  {
+    vtkLog(ERROR, "Wrong number of received doubles in rank " << rank);
+  }
+  vtkLog(INFO, "Dbl array received OK by rank " << rank);
+
+  vtkTypeFloat64Array* receivedSOAArray =
+    vtkArrayDownCast<vtkTypeFloat64Array>(receivedFD->GetAbstractArray("soa"));
+  if (receivedSOAArray->GetNumberOfComponents() != nComponents ||
+    receivedSOAArray->GetNumberOfTuples() != 20)
+  {
+    vtkLog(ERROR, "Wrong number of received soa-doubles in rank " << rank);
+  }
+
+  for (vtkIdType id = 0; id < receivedSOAArray->GetNumberOfValues(); ++id)
+  {
+    if (receivedSOAArray->GetValue(id) != (rank == 0 ? 10.0 : 0.0) + id)
+    {
+      vtkLog(ERROR, "Wrong double received in rank " << rank);
+    }
+  }
+  vtkLog(INFO, "SOA array received OK by rank " << rank);
 
   vtkStringArray* receivedStringArray =
     vtkArrayDownCast<vtkStringArray>(receivedFD->GetAbstractArray("string"));
@@ -167,7 +224,9 @@ bool TestFieldDataExchange(vtkMultiProcessController* controller)
       vtkLog(ERROR, "Wrong string received in rank " << rank);
     }
   }
+  vtkLog(INFO, "Str array received OK by rank " << rank);
 
+  delete[] soaData;
   return true;
 }
 
@@ -181,8 +240,10 @@ int TestDIYUtilities(int argc, char* argv[])
     vtkLogF(ERROR, "This test expects at least 2 ranks.");
     return EXIT_FAILURE;
   }
+  vtkMultiProcessController::SetGlobalController(controller);
 
-  TestFieldDataExchange(controller);
+  TestFieldDataExchange(controller, 1); // works
+  // TestFieldDataExchange(controller, 3); // crash
 
   controller->Finalize();
   return EXIT_SUCCESS;

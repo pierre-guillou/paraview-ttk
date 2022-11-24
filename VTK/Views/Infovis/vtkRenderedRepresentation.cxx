@@ -101,12 +101,6 @@ std::string vtkRenderedRepresentation::GetHoverString(vtkView* view, vtkProp* pr
   return text;
 }
 
-vtkUnicodeString vtkRenderedRepresentation::GetHoverText(
-  vtkView* view, vtkProp* prop, vtkIdType cell)
-{
-  return vtkUnicodeString::from_utf8(GetHoverString(view, prop, cell));
-}
-
 void vtkRenderedRepresentation::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);

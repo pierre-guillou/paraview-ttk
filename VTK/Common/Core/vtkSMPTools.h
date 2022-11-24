@@ -37,11 +37,9 @@
 #include "vtkSMPThreadLocal.h" // For Initialized
 
 #include <functional>  // For std::function
-#include <iterator>    // For std::iterator
 #include <type_traits> // For std:::enable_if
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
-#ifndef __VTK_WRAP__
 namespace vtk
 {
 namespace detail
@@ -103,7 +101,7 @@ struct vtkSMPTools_FunctorInternal<Functor, false>
   }
   vtkSMPTools_FunctorInternal<Functor, false>& operator=(
     const vtkSMPTools_FunctorInternal<Functor, false>&);
-  vtkSMPTools_FunctorInternal<Functor, false>(const vtkSMPTools_FunctorInternal<Functor, false>&);
+  vtkSMPTools_FunctorInternal(const vtkSMPTools_FunctorInternal<Functor, false>&);
 };
 
 template <typename Functor>
@@ -134,7 +132,7 @@ struct vtkSMPTools_FunctorInternal<Functor, true>
   }
   vtkSMPTools_FunctorInternal<Functor, true>& operator=(
     const vtkSMPTools_FunctorInternal<Functor, true>&);
-  vtkSMPTools_FunctorInternal<Functor, true>(const vtkSMPTools_FunctorInternal<Functor, true>&);
+  vtkSMPTools_FunctorInternal(const vtkSMPTools_FunctorInternal<Functor, true>&);
 };
 
 template <typename Functor>
@@ -223,7 +221,6 @@ using resolvedNotInt = typename std::enable_if<!std::is_integral<T>::value, void
 } // namespace smp
 } // namespace detail
 } // namespace vtk
-#endif // __VTK_WRAP__
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
 class VTKCOMMONCORE_EXPORT vtkSMPTools
@@ -400,7 +397,7 @@ public:
   /**
    * /!\ This method is not thread safe.
    * Initialize the underlying libraries for execution. This is
-   * not required as it is automatically defined by the libaries.
+   * not required as it is automatically defined by the libraries.
    * However, it can be used to control the maximum number of thread used.
    * Make sure to call it before the parallel operation.
    *
@@ -426,17 +423,18 @@ public:
    * /!\ This method is not thread safe.
    * If true enable nested parallelism for underlying backends.
    * When enabled the comportement is different for each backend:
-   *    - TBB support nested parallelism by default.
-   *    - For OpenMP, we set `omp_set_nested` to true so that it is supported.
-   *    - STDThread support nested parallelism by creating new threads pools.
+   *    - TBB support nested parallelism using a single thread pool
+   *    - For OpenMP, set `omp_set_nested` to the value of `isNested`.
+   *    - For STDThread nested parallelism implies creating new threads pools.
    *    - For Sequential nothing changes.
    *
-   * Default to true
+   * Default to false except for TBB.
    */
   static void SetNestedParallelism(bool isNested);
 
   /**
    * Get true if the nested parallelism is enabled.
+   * By default, nested parallelism is enabled only for TBB.
    */
   static bool GetNestedParallelism();
 
@@ -456,9 +454,9 @@ public:
   {
     int MaxNumberOfThreads = 0;
     std::string Backend = vtk::detail::smp::vtkSMPToolsAPI::GetInstance().GetBackend();
-    bool NestedParallelism = true;
+    bool NestedParallelism = false;
 
-    Config() {}
+    Config() = default;
     Config(int maxNumberOfThreads)
       : MaxNumberOfThreads(maxNumberOfThreads)
     {

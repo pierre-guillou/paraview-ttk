@@ -22,7 +22,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
 #include "vtkSparseArray.h"
-#include "vtkUnicodeString.h"
 #include "vtksys/FStream.hxx"
 
 #include <cmath>
@@ -47,17 +46,7 @@ inline void WriteValue(std::ostream& stream, const double& value)
     stream << value;
 }
 
-inline void WriteValue(std::ostream& stream, const vtkStdString& value)
-{
-  stream << value;
-}
-
-inline void WriteValue(std::ostream& stream, const vtkUnicodeString& value)
-{
-  stream << value.utf8_str();
-}
-
-void WriteHeader(const vtkStdString& array_type, const vtkStdString& type_name, vtkArray* array,
+void WriteHeader(const std::string& array_type, const std::string& type_name, vtkArray* array,
   ostream& stream, bool WriteBinary)
 {
   // Serialize the array type ...
@@ -93,7 +82,7 @@ void WriteEndianOrderMark(ostream& stream)
 }
 
 template <typename ValueT>
-bool WriteSparseArrayBinary(const vtkStdString& type_name, vtkArray* array, ostream& stream)
+bool WriteSparseArrayBinary(const std::string& type_name, vtkArray* array, ostream& stream)
 {
   vtkSparseArray<ValueT>* const concrete_array = vtkSparseArray<ValueT>::SafeDownCast(array);
   if (!concrete_array)
@@ -122,7 +111,7 @@ bool WriteSparseArrayBinary(const vtkStdString& type_name, vtkArray* array, ostr
 
 template <>
 bool WriteSparseArrayBinary<vtkStdString>(
-  const vtkStdString& type_name, vtkArray* array, ostream& stream)
+  const std::string& type_name, vtkArray* array, ostream& stream)
 {
   vtkSparseArray<vtkStdString>* const concrete_array =
     vtkSparseArray<vtkStdString>::SafeDownCast(array);
@@ -147,7 +136,7 @@ bool WriteSparseArrayBinary<vtkStdString>(
   const vtkIdType value_count = array->GetNonNullSize();
   for (vtkIdType n = 0; n != value_count; ++n)
   {
-    const vtkStdString& value = concrete_array->GetValueN(n);
+    const std::string& value = concrete_array->GetValueN(n);
 
     stream.write(value.c_str(), value.size() + 1);
   }
@@ -155,44 +144,8 @@ bool WriteSparseArrayBinary<vtkStdString>(
   return true;
 }
 
-template <>
-bool WriteSparseArrayBinary<vtkUnicodeString>(
-  const vtkStdString& type_name, vtkArray* array, ostream& stream)
-{
-  vtkSparseArray<vtkUnicodeString>* const concrete_array =
-    vtkSparseArray<vtkUnicodeString>::SafeDownCast(array);
-  if (!concrete_array)
-    return false;
-
-  // Write the array header ...
-  WriteHeader("vtk-sparse-array", type_name, array, stream, true);
-  WriteEndianOrderMark(stream);
-
-  // Serialize the array nullptr value ...
-  stream.write(concrete_array->GetNullValue().utf8_str(),
-    strlen(concrete_array->GetNullValue().utf8_str()) + 1);
-
-  // Serialize the array coordinates ...
-  for (vtkIdType i = 0; i != array->GetDimensions(); ++i)
-  {
-    stream.write(reinterpret_cast<char*>(concrete_array->GetCoordinateStorage(i)),
-      concrete_array->GetNonNullSize() * sizeof(vtkIdType));
-  }
-
-  // Serialize the array values as a set of packed, nullptr-terminated strings ...
-  const vtkIdType value_count = array->GetNonNullSize();
-  for (vtkIdType n = 0; n != value_count; ++n)
-  {
-    const vtkUnicodeString& value = concrete_array->GetValueN(n);
-
-    stream.write(value.utf8_str(), strlen(value.utf8_str()) + 1);
-  }
-
-  return true;
-}
-
 template <typename ValueT>
-bool WriteDenseArrayBinary(const vtkStdString& type_name, vtkArray* array, ostream& stream)
+bool WriteDenseArrayBinary(const std::string& type_name, vtkArray* array, ostream& stream)
 {
   vtkDenseArray<ValueT>* const concrete_array = vtkDenseArray<ValueT>::SafeDownCast(array);
   if (!concrete_array)
@@ -211,7 +164,7 @@ bool WriteDenseArrayBinary(const vtkStdString& type_name, vtkArray* array, ostre
 
 template <>
 bool WriteDenseArrayBinary<vtkStdString>(
-  const vtkStdString& type_name, vtkArray* array, ostream& stream)
+  const std::string& type_name, vtkArray* array, ostream& stream)
 {
   vtkDenseArray<vtkStdString>* const concrete_array =
     vtkDenseArray<vtkStdString>::SafeDownCast(array);
@@ -226,7 +179,7 @@ bool WriteDenseArrayBinary<vtkStdString>(
   const vtkIdType value_count = array->GetNonNullSize();
   for (vtkIdType n = 0; n != value_count; ++n)
   {
-    const vtkStdString& value = concrete_array->GetValueN(n);
+    const std::string& value = concrete_array->GetValueN(n);
 
     stream.write(value.c_str(), value.size() + 1);
   }
@@ -234,33 +187,8 @@ bool WriteDenseArrayBinary<vtkStdString>(
   return true;
 }
 
-template <>
-bool WriteDenseArrayBinary<vtkUnicodeString>(
-  const vtkStdString& type_name, vtkArray* array, ostream& stream)
-{
-  vtkDenseArray<vtkUnicodeString>* const concrete_array =
-    vtkDenseArray<vtkUnicodeString>::SafeDownCast(array);
-  if (!concrete_array)
-    return false;
-
-  // Write the array header ...
-  WriteHeader("vtk-dense-array", type_name, array, stream, true);
-  WriteEndianOrderMark(stream);
-
-  // Serialize the array values as a set of packed, nullptr-terminated strings ...
-  const vtkIdType value_count = array->GetNonNullSize();
-  for (vtkIdType n = 0; n != value_count; ++n)
-  {
-    const vtkUnicodeString& value = concrete_array->GetValueN(n);
-
-    stream.write(value.utf8_str(), strlen(value.utf8_str()) + 1);
-  }
-
-  return true;
-}
-
 template <typename ValueT>
-bool WriteSparseArrayAscii(const vtkStdString& type_name, vtkArray* array, ostream& stream)
+bool WriteSparseArrayAscii(const std::string& type_name, vtkArray* array, ostream& stream)
 {
   vtkSparseArray<ValueT>* const concrete_array = vtkSparseArray<ValueT>::SafeDownCast(array);
   if (!concrete_array)
@@ -295,7 +223,7 @@ bool WriteSparseArrayAscii(const vtkStdString& type_name, vtkArray* array, ostre
 }
 
 template <typename ValueT>
-bool WriteDenseArrayAscii(const vtkStdString& type_name, vtkArray* array, ostream& stream)
+bool WriteDenseArrayAscii(const std::string& type_name, vtkArray* array, ostream& stream)
 {
   vtkDenseArray<ValueT>* const concrete_array = vtkDenseArray<ValueT>::SafeDownCast(array);
   if (!concrete_array)
@@ -357,11 +285,11 @@ void vtkArrayWriter::WriteData()
 {
   if (this->WriteToOutputString)
   {
-    this->OutputString = this->Write(this->Binary > 0 ? true : false);
+    this->OutputString = this->Write(this->Binary > 0);
   }
   else
   {
-    this->Write(this->FileName ? this->FileName : "", this->Binary > 0 ? true : false);
+    this->Write(this->FileName ? this->FileName : "", this->Binary > 0);
   }
 }
 
@@ -425,16 +353,12 @@ bool vtkArrayWriter::Write(vtkArray* array, ostream& stream, bool WriteBinary)
         return true;
       if (WriteSparseArrayBinary<vtkStdString>("string", array, stream))
         return true;
-      if (WriteSparseArrayBinary<vtkUnicodeString>("unicode-string", array, stream))
-        return true;
 
       if (WriteDenseArrayBinary<vtkIdType>("integer", array, stream))
         return true;
       if (WriteDenseArrayBinary<double>("double", array, stream))
         return true;
       if (WriteDenseArrayBinary<vtkStdString>("string", array, stream))
-        return true;
-      if (WriteDenseArrayBinary<vtkUnicodeString>("unicode-string", array, stream))
         return true;
     }
     else
@@ -445,16 +369,12 @@ bool vtkArrayWriter::Write(vtkArray* array, ostream& stream, bool WriteBinary)
         return true;
       if (WriteSparseArrayAscii<vtkStdString>("string", array, stream))
         return true;
-      if (WriteSparseArrayAscii<vtkUnicodeString>("unicode-string", array, stream))
-        return true;
 
       if (WriteDenseArrayAscii<vtkIdType>("integer", array, stream))
         return true;
       if (WriteDenseArrayAscii<double>("double", array, stream))
         return true;
       if (WriteDenseArrayAscii<vtkStdString>("string", array, stream))
-        return true;
-      if (WriteDenseArrayAscii<vtkUnicodeString>("unicode-string", array, stream))
         return true;
     }
 

@@ -1,12 +1,9 @@
 #ifndef vtkExodusIIReaderPrivate_h
 #define vtkExodusIIReaderPrivate_h
-#ifndef __VTK_WRAP__
-#ifndef VTK_WRAPPING_CXX
 
 // Do not include this file directly. It is only for use
 // from inside the ExodusII reader and its descendants.
 
-#include "vtkDeprecation.h"    // for deprecation macros
 #include "vtkExodusIICache.h"  // for vtkExodusIICacheKey
 #include "vtkExodusIIReader.h" // for vtkExodusIIReader
 #include "vtkObject.h"
@@ -33,8 +30,6 @@ class VTKIOEXODUS_EXPORT vtkExodusIIReaderPrivate : public vtkObject
 {
 public:
   static vtkExodusIIReaderPrivate* New();
-  VTK_DEPRECATED_IN_9_1_0("Renamed to PrintSelf")
-  void PrintData(ostream& os, vtkIndent indent) { this->PrintSelf(os, indent); }
   void PrintSelf(ostream& os, vtkIndent indent) override;
   vtkTypeMacro(vtkExodusIIReaderPrivate, vtkObject);
   // virtual void Modified();
@@ -132,6 +127,7 @@ public:
    * member function.
    */
   const char* GetObjectName(int otype, int i);
+  using Superclass::GetObjectName;
 
   /** For a given object type, return the user-assigned ID of the i-th object.
    * You must have called RequestInformation before invoking this
@@ -866,6 +862,4 @@ private:
   void operator=(const vtkExodusIIReaderPrivate&) = delete;
 };
 
-#endif
-#endif
 #endif // vtkExodusIIReaderPrivate_h

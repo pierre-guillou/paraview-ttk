@@ -298,7 +298,7 @@ vtkLSDynaPart::vtkLSDynaPart()
   this->GlobalPointsUsed = nullptr;
 
   this->Type = LSDynaMetaData::NUM_CELL_TYPES;
-  this->Name = vtkStdString();
+  this->Name = std::string();
   this->UserMaterialId = -1;
   this->PartId = -1;
 
@@ -497,7 +497,7 @@ vtkUnstructuredGrid* vtkLSDynaPart::GenerateGrid()
   }
   else
   {
-    // we threshold the datset on the ghost cells and return
+    // we threshold the dataset on the ghost cells and return
     // the new dataset
     return this->RemoveDeletedCells();
   }
@@ -862,7 +862,7 @@ void vtkLSDynaPart::BuildCells()
 
   // copy the contents from the part into a cell array.
   vtkIdTypeArray* cellArray = vtkIdTypeArray::New();
-  cellArray->SetVoidArray(&this->Cells->data[0], cellDataSize, 1);
+  cellArray->SetVoidArray(this->Cells->data.data(), cellDataSize, 1);
 
   // set the idtype array as the cellarray
   vtkCellArray* cells = vtkCellArray::New();
@@ -871,7 +871,7 @@ void vtkLSDynaPart::BuildCells()
 
   // now copy the cell types from the vector to
   vtkUnsignedCharArray* cellTypes = vtkUnsignedCharArray::New();
-  cellTypes->SetVoidArray(&this->Cells->types[0], this->NumberOfCells, 1);
+  cellTypes->SetVoidArray(this->Cells->types.data(), this->NumberOfCells, 1);
 
   // actually set up the grid
   this->Grid->SetCells(cellTypes, cells, nullptr, nullptr);

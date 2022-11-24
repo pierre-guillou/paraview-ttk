@@ -348,7 +348,7 @@ public:
 
   /**
    * Perform a blit but handle some driver bugs safely. Use this instead of directly calling
-   * glBlitFrambuffer.
+   * glBlitFramebuffer.
    */
   void vtkglBlitFramebuffer(int, int, int, int, int, int, int, int, unsigned int, unsigned int);
 
@@ -407,7 +407,7 @@ protected:
   void Scissor(std::array<int, 4> val);
   void Viewport(std::array<int, 4> val);
 
-  int TextureInternalFormats[VTK_UNICODE_STRING][3][5];
+  int TextureInternalFormats[VTK_OBJECT + 1][3][5];
   void InitializeTextureInternalFormats();
 
   vtkTextureUnitManager* TextureUnitManager;

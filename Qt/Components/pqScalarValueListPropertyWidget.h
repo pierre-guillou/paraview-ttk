@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqScalarValueListPropertyWidget_h
-#define _pqScalarValueListPropertyWidget_h
+#ifndef pqScalarValueListPropertyWidget_h
+#define pqScalarValueListPropertyWidget_h
 
 #include "pqPropertyWidget.h"
 
@@ -52,7 +52,8 @@ class PQCOMPONENTS_EXPORT pqScalarValueListPropertyWidget : public pqPropertyWid
   typedef pqPropertyWidget Superclass;
 
 public:
-  pqScalarValueListPropertyWidget(vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parent = 0);
+  pqScalarValueListPropertyWidget(
+    vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parent = nullptr);
   ~pqScalarValueListPropertyWidget() override;
 
   void setScalars(const QVariantList& scalars);
@@ -82,7 +83,7 @@ private Q_SLOTS:
   void removeAll();
   void editPastLastRow();
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   Q_DISABLE_COPY(pqScalarValueListPropertyWidget)
 
   bool getRange(double& range_min, double& range_max);
@@ -92,4 +93,4 @@ private:
   pqInternals* Internals;
 };
 
-#endif // _pqScalarValueListPropertyWidget_h
+#endif // pqScalarValueListPropertyWidget_h

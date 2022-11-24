@@ -399,7 +399,7 @@ void vtkCurveRepresentation::Translate(double* p1, double* p2)
   {
     // this->TranslationAxis in [0,2]
     assert(this->TranslationAxis > -1 && this->TranslationAxis < 3 &&
-      "this->TranslationAxis shoud be in [0,2]");
+      "this->TranslationAxis should be in [0,2]");
     v[this->TranslationAxis] = p2[this->TranslationAxis] - p1[this->TranslationAxis];
   }
 
@@ -963,6 +963,21 @@ void vtkCurveRepresentation::SetLineColor(double r, double g, double b)
 }
 
 //------------------------------------------------------------------------------
+void vtkCurveRepresentation::GetActors(vtkPropCollection* pc)
+{
+  if (!pc)
+  {
+    return;
+  }
+  pc->AddItem(this->LineActor);
+  for (int i = 0; i < this->GetNumberOfHandles(); ++i)
+  {
+    pc->AddItem(this->GetHandleActor(i));
+  }
+  this->Superclass::GetActors(pc);
+}
+
+//------------------------------------------------------------------------------
 void vtkCurveRepresentation::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -1007,33 +1022,3 @@ void vtkCurveRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Closed: " << (this->Closed ? "On" : "Off") << "\n";
   os << indent << "InteractionState: " << this->InteractionState << endl;
 }
-
-//=============================================================================
-void vtkCurveRepresentation::SetDirectionalLine(bool val)
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkCurveRepresentation::SetDirectionalLine, "VTK 9.1", vtkCurveRepresentation::SetDirectional);
-  this->SetDirectional(val);
-}
-
-bool vtkCurveRepresentation::GetDirectionalLine()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkCurveRepresentation::GetDirectionalLine, "VTK 9.1", vtkCurveRepresentation::GetDirectional);
-  return this->GetDirectional();
-}
-
-void vtkCurveRepresentation::DirectionalLineOn()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkCurveRepresentation::DirectionalLineOn, "VTK 9.1", vtkCurveRepresentation::DirectionalOn);
-  this->DirectionalOn();
-}
-
-void vtkCurveRepresentation::DirectionalLineOff()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkCurveRepresentation::DirectionalLineOff, "VTK 9.1", vtkCurveRepresentation::DirectionalOff);
-  this->DirectionalOff();
-}
-//=============================================================================

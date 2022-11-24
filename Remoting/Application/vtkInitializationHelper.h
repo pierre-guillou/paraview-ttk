@@ -25,8 +25,8 @@
 #ifndef vtkInitializationHelper_h
 #define vtkInitializationHelper_h
 
-#include "vtkLegacy.h" // for VTK_LEGACY
 #include "vtkObject.h"
+#include "vtkParaViewDeprecation.h"       // for PARAVIEW_DEPRECATED_IN_5_10_0
 #include "vtkRemotingApplicationModule.h" // needed for exports
 #include <string>                         // needed for std::string
 
@@ -49,6 +49,8 @@ public:
    * If vtkCLIOptions is nullptr, then this method internally creates and uses
    * an internal vtkCLIOptions instance. In that case, extra / unknown arguments
    * are simply ignored.
+   *
+   * Internally calls InitializeOptions and InitializeMiscellaneous.
    */
   static bool Initialize(int argc, char** argv, int processType, vtkCLIOptions* options = nullptr,
     bool enableStandardArgs = true);
@@ -62,6 +64,35 @@ public:
    * An overload that does not take argc/argv for convenience.
    */
   static bool Initialize(const char* executable, int type);
+
+  /**
+   * Initialize only the options of ParaView engine.
+   *
+   * Returns `true` on success, `false` otherwise.
+   * When `false`, use `GetExitCode` to obtain the exit code. Note, for requests
+   * like `--help`, `--version` etc, this method returns `false` with exit-code
+   * set to 0.
+   *
+   * If vtkCLIOptions is nullptr, then this method internally creates and uses
+   * an internal vtkCLIOptions instance. In that case, extra / unknown arguments
+   * are simply ignored.
+   *
+   * This method is used by Initialize but can be used when separating options initialization
+   * from the rest of the initialization.
+   */
+  static bool InitializeOptions(int argc, char** argv, int processType,
+    vtkCLIOptions* options = nullptr, bool enableStandardArgs = true);
+
+  /**
+   * Initialize everything that needs to be initialized in the paraview engine after the options.
+   * Returns `true` on success, `false` otherwise.
+   *
+   * Make sure to call InitializeOptions before calling this method.
+   *
+   * This method is used by Initialize but can be used when separating options initialization
+   * from the rest of the initialization.
+   */
+  static bool InitializeMiscellaneous(int type);
 
   /**
    * Finalizes the server manager. Do not use the server manager
@@ -128,12 +159,14 @@ public:
    * @deprecated in ParaView 5.10. `vtkPVOptions` is deprecated in ParaView 5.10
    * and hence these functions are also deprecated.
    */
-  VTK_LEGACY(static void Initialize(const char* executable, int type, vtkPVOptions* options));
-  VTK_LEGACY(static void Initialize(int argc, char** argv, int type, vtkPVOptions* options));
+  PARAVIEW_DEPRECATED_IN_5_10_0("Use the `vtkCLIOptions` overload")
+  static void Initialize(const char* executable, int type, vtkPVOptions* options);
+  PARAVIEW_DEPRECATED_IN_5_10_0("Use the `vtkCLIOptions` overload")
+  static void Initialize(int argc, char** argv, int type, vtkPVOptions* options);
 
 protected:
-  vtkInitializationHelper(){};
-  ~vtkInitializationHelper() override{};
+  vtkInitializationHelper() = default;
+  ~vtkInitializationHelper() override = default;
 
   /**
    * Load user and site settings

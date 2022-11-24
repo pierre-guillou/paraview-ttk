@@ -81,7 +81,8 @@ vtkGarbageCollector::vtkGarbageCollector() = default;
 //------------------------------------------------------------------------------
 vtkGarbageCollector::~vtkGarbageCollector()
 {
-  this->SetReferenceCount(0);
+  // Avoid warnings from `vtkObject` destructor about a non-zero reference count.
+  this->ClearReferenceCounts();
 }
 
 //------------------------------------------------------------------------------
@@ -617,7 +618,7 @@ void vtkGarbageCollectorImpl::Report(vtkObjectBase* obj, void* ptr, const char* 
       std::ostringstream msg;
       msg << "Report: " << current->GetClassName() << "(" << current << ") " << (desc ? desc : "")
           << " -> " << obj->GetClassName() << "(" << obj << ")";
-      vtkDebugMacro(<< msg.str().c_str());
+      vtkDebugMacro(<< msg.str());
     }
 
     // Forward call to the internal implementation.
@@ -717,7 +718,7 @@ void vtkGarbageCollectorImpl::PrintComponent(ComponentType* c)
       msg << "\n  " << obj->GetClassName() << "(" << obj << ")"
           << " with " << count << " external " << ((count == 1) ? "reference" : "references");
     }
-    vtkDebugMacro(<< msg.str().c_str());
+    vtkDebugMacro(<< msg.str());
   }
 }
 #else

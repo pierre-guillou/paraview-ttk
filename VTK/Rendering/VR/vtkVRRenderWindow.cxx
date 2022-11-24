@@ -11,28 +11,16 @@ This software is distributed WITHOUT ANY WARRANTY; without even
 the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE.  See the above copyright notice for more information.
 
-Parts Copyright Valve Coproration from hellovr_opengl_main.cpp
-under their BSD license found here:
-https://github.com/ValveSoftware/openvr/blob/master/LICENSE
-
 =========================================================================*/
 #include "vtkVRRenderWindow.h"
 
-#include "vtkMatrix4x4.h"
-#include "vtkObjectFactory.h"
-#include "vtkOpenGLError.h"
-#include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenGLState.h"
 #include "vtkRenderWindowInteractor.h"
-#include "vtkRenderer.h"
 #include "vtkRendererCollection.h"
 #include "vtkTransform.h"
 #include "vtkVRCamera.h"
 #include "vtkVRModel.h"
 #include "vtkVRRenderer.h"
-
-#include <cstring>
-#include <memory>
 
 // include what we need for the helper window
 #ifdef WIN32
@@ -52,11 +40,6 @@ https://github.com/ValveSoftware/openvr/blob/master/LICENSE
 //------------------------------------------------------------------------------
 vtkVRRenderWindow::vtkVRRenderWindow()
 {
-  this->SetPhysicalViewDirection(0.0, 0.0, -1.0);
-  this->SetPhysicalViewUp(0.0, 1.0, 0.0);
-  this->SetPhysicalTranslation(0.0, 0.0, 0.0);
-  this->PhysicalScale = 1.0;
-
   this->StereoCapableWindow = 1;
   this->StereoRender = 1;
   this->UseOffScreenBuffers = true;
@@ -64,17 +47,12 @@ vtkVRRenderWindow::vtkVRRenderWindow()
   this->Size[1] = 720;
   this->Position[0] = 100;
   this->Position[1] = 100;
-  this->HMDTransform = vtkTransform::New();
+  this->HelperWindow = vtkOpenGLRenderWindow::SafeDownCast(vtkRenderWindow::New());
 
-#ifdef WIN32
-  this->HelperWindow = vtkWin32OpenGLRenderWindow::New();
-#endif
-#ifdef VTK_USE_X
-  this->HelperWindow = vtkXOpenGLRenderWindow::New();
-#endif
-#ifdef VTK_USE_COCOA
-  this->HelperWindow = vtkCocoaRenderWindow::New();
-#endif
+  if (!this->HelperWindow)
+  {
+    vtkErrorMacro(<< "Failed to create render window");
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -93,7 +71,6 @@ vtkVRRenderWindow::~vtkVRRenderWindow()
   if (this->HelperWindow)
   {
     this->HelperWindow->Delete();
-    this->HelperWindow = nullptr;
   }
 }
 
@@ -106,14 +83,11 @@ void vtkVRRenderWindow::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Window Id: " << this->HelperWindow->GetGenericWindowId() << "\n";
   os << indent << "Initialized: " << this->Initialized << "\n";
   os << indent << "PhysicalViewDirection: (" << this->PhysicalViewDirection[0] << ", "
-     << this->PhysicalViewDirection[1] << ", " << this->PhysicalViewDirection[2] << ")"
-     << "\n";
+     << this->PhysicalViewDirection[1] << ", " << this->PhysicalViewDirection[2] << ")\n";
   os << indent << "PhysicalViewUp: (" << this->PhysicalViewUp[0] << ", " << this->PhysicalViewUp[1]
-     << ", " << this->PhysicalViewUp[2] << ")"
-     << "\n";
+     << ", " << this->PhysicalViewUp[2] << ")\n";
   os << indent << "PhysicalTranslation: (" << this->PhysicalTranslation[0] << ", "
-     << this->PhysicalTranslation[1] << ", " << this->PhysicalTranslation[2] << ")"
-     << "\n";
+     << this->PhysicalTranslation[1] << ", " << this->PhysicalTranslation[2] << ")\n";
   os << indent << "PhysicalScale: " << this->PhysicalScale << "\n";
 }
 
@@ -126,11 +100,12 @@ void vtkVRRenderWindow::ReleaseGraphicsResources(vtkWindow* renWin)
   {
     glDeleteFramebuffers(1, &fbo.ResolveFramebufferId);
   }
-
-  for (std::vector<vtkVRModel*>::iterator i = this->VTKRenderModels.begin();
-       i != this->VTKRenderModels.end(); ++i)
+  for (auto& model : this->DeviceHandleToDeviceDataMap)
   {
-    (*i)->ReleaseGraphicsResources(renWin);
+    if (model.second.Model)
+    {
+      model.second.Model->ReleaseGraphicsResources(renWin);
+    }
   }
 }
 
@@ -146,7 +121,6 @@ void vtkVRRenderWindow::SetHelperWindow(vtkOpenGLRenderWindow* win)
   {
     this->ReleaseGraphicsResources(this);
     this->HelperWindow->Delete();
-    this->HelperWindow = nullptr;
   }
 
   this->HelperWindow = win;
@@ -158,17 +132,116 @@ void vtkVRRenderWindow::SetHelperWindow(vtkOpenGLRenderWindow* win)
   this->Modified();
 }
 
+void vtkVRRenderWindow::AddDeviceHandle(uint32_t handle)
+{
+  auto found = this->DeviceHandleToDeviceDataMap.find(handle);
+  if (found == this->DeviceHandleToDeviceDataMap.end())
+  {
+    this->DeviceHandleToDeviceDataMap[handle] = {};
+  }
+}
+
+void vtkVRRenderWindow::AddDeviceHandle(uint32_t handle, vtkEventDataDevice device)
+{
+  auto found = this->DeviceHandleToDeviceDataMap.find(handle);
+  if (found == this->DeviceHandleToDeviceDataMap.end())
+  {
+    this->DeviceHandleToDeviceDataMap[handle] = {};
+    found = this->DeviceHandleToDeviceDataMap.find(handle);
+  }
+  found->second.Device = device;
+}
+
+void vtkVRRenderWindow::SetModelForDeviceHandle(uint32_t handle, vtkVRModel* model)
+{
+  auto found = this->DeviceHandleToDeviceDataMap.find(handle);
+  if (found == this->DeviceHandleToDeviceDataMap.end())
+  {
+    this->DeviceHandleToDeviceDataMap[handle] = {};
+    found = this->DeviceHandleToDeviceDataMap.find(handle);
+  }
+  found->second.Model = model;
+}
+
+vtkVRModel* vtkVRRenderWindow::GetModelForDevice(vtkEventDataDevice idx)
+{
+  auto handle = this->GetDeviceHandleForDevice(idx);
+  return this->GetModelForDeviceHandle(handle);
+}
+
+vtkVRModel* vtkVRRenderWindow::GetModelForDeviceHandle(uint32_t handle)
+{
+  auto found = this->DeviceHandleToDeviceDataMap.find(handle);
+  if (found == this->DeviceHandleToDeviceDataMap.end())
+  {
+    return nullptr;
+  }
+  return found->second.Model;
+}
+
+vtkMatrix4x4* vtkVRRenderWindow::GetDeviceToPhysicalMatrixForDevice(vtkEventDataDevice idx)
+{
+  auto handle = this->GetDeviceHandleForDevice(idx);
+  return this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
+}
+
+vtkMatrix4x4* vtkVRRenderWindow::GetDeviceToPhysicalMatrixForDeviceHandle(uint32_t handle)
+{
+  auto found = this->DeviceHandleToDeviceDataMap.find(handle);
+  if (found == this->DeviceHandleToDeviceDataMap.end())
+  {
+    return nullptr;
+  }
+  return found->second.DeviceToPhysicalMatrix;
+}
+
+uint32_t vtkVRRenderWindow::GetDeviceHandleForDevice(vtkEventDataDevice idx, uint32_t index)
+{
+  for (auto& deviceData : this->DeviceHandleToDeviceDataMap)
+  {
+    if (deviceData.second.Device == idx && deviceData.second.Index == index)
+    {
+      return deviceData.first;
+    }
+  }
+  return InvalidDeviceIndex;
+}
+
+uint32_t vtkVRRenderWindow::GetNumberOfDeviceHandlesForDevice(vtkEventDataDevice dev)
+{
+  uint32_t count = 0;
+  for (auto& deviceData : this->DeviceHandleToDeviceDataMap)
+  {
+    if (deviceData.second.Device == dev)
+    {
+      count++;
+    }
+  }
+  return count;
+}
+
+// default implementation just uses the vtkEventDataDevice
+vtkEventDataDevice vtkVRRenderWindow::GetDeviceForDeviceHandle(uint32_t handle)
+{
+  auto found = this->DeviceHandleToDeviceDataMap.find(handle);
+  if (found == this->DeviceHandleToDeviceDataMap.end())
+  {
+    return vtkEventDataDevice::Unknown;
+  }
+  return found->second.Device;
+}
+
 //------------------------------------------------------------------------------
 void vtkVRRenderWindow::InitializeViewFromCamera(vtkCamera* srccam)
 {
-  vtkRenderer* ren = static_cast<vtkRenderer*>(this->GetRenderers()->GetItemAsObject(0));
+  vtkRenderer* ren = vtkRenderer::SafeDownCast(this->GetRenderers()->GetItemAsObject(0));
   if (!ren)
   {
     vtkErrorMacro("The renderer must be set prior to calling InitializeViewFromCamera");
     return;
   }
 
-  vtkVRCamera* cam = static_cast<vtkVRCamera*>(ren->GetActiveCamera());
+  vtkVRCamera* cam = vtkVRCamera::SafeDownCast(ren->GetActiveCamera());
   if (!cam)
   {
     vtkErrorMacro(
@@ -239,15 +312,12 @@ vtkOpenGLState* vtkVRRenderWindow::GetState()
 }
 
 //------------------------------------------------------------------------------
-// Description:
-// Tells if this window is the current OpenGL context for the calling thread.
 bool vtkVRRenderWindow::IsCurrent()
 {
   return this->HelperWindow ? this->HelperWindow->IsCurrent() : false;
 }
 
 //------------------------------------------------------------------------------
-// Add a renderer to the list of renderers.
 void vtkVRRenderWindow::AddRenderer(vtkRenderer* ren)
 {
   if (ren && !vtkVRRenderer::SafeDownCast(ren))
@@ -260,7 +330,6 @@ void vtkVRRenderWindow::AddRenderer(vtkRenderer* ren)
 }
 
 //------------------------------------------------------------------------------
-// Begin the rendering process.
 void vtkVRRenderWindow::Start()
 {
   // if the renderer has not been initialized, do so now
@@ -273,14 +342,12 @@ void vtkVRRenderWindow::Start()
 }
 
 //------------------------------------------------------------------------------
-// Initialize the rendering window.
 void vtkVRRenderWindow::Initialize()
 {
   if (this->Initialized)
   {
     return;
   }
-  this->Initialized = false;
 
   this->GetSizeFromAPI();
 
@@ -297,9 +364,6 @@ void vtkVRRenderWindow::Initialize()
 
   glDepthRange(0., 1.);
 
-  // TODO: make sure vsync is off
-  // this->HelperWindow->SetSwapControl(0);
-
   this->SetWindowName(this->GetWindowTitleFromAPI().c_str());
 
   this->CreateFramebuffers();
@@ -312,13 +376,7 @@ void vtkVRRenderWindow::Initialize()
 void vtkVRRenderWindow::Finalize()
 {
   this->ReleaseGraphicsResources(this);
-
-  for (std::vector<vtkVRModel*>::iterator i = this->VTKRenderModels.begin();
-       i != this->VTKRenderModels.end(); ++i)
-  {
-    (*i)->Delete();
-  }
-  this->VTKRenderModels.clear();
+  this->DeviceHandleToDeviceDataMap.clear();
 
   if (this->HelperWindow && this->HelperWindow->GetGenericContext())
   {
@@ -350,6 +408,43 @@ void vtkVRRenderWindow::RenderFramebuffer(FramebufferDesc& framebufferDesc)
   }
 
   this->GetState()->PopDrawFramebufferBinding();
+}
+
+//------------------------------------------------------------------------------
+bool vtkVRRenderWindow::GetDeviceToWorldMatrixForDevice(
+  vtkEventDataDevice device, vtkMatrix4x4* deviceToWorldMatrix)
+{
+  vtkMatrix4x4* deviceToPhysicalMatrix = this->GetDeviceToPhysicalMatrixForDevice(device);
+
+  if (deviceToPhysicalMatrix)
+  {
+    // we use deviceToWorldMatrix here to temporarily store physicalToWorld
+    // to avoid having to use a temp matrix. We use a new pointer just to
+    // keep the code easier to read.
+    vtkMatrix4x4* physicalToWorldMatrix = deviceToWorldMatrix;
+    this->GetPhysicalToWorldMatrix(physicalToWorldMatrix);
+    vtkMatrix4x4::Multiply4x4(physicalToWorldMatrix, deviceToPhysicalMatrix, deviceToWorldMatrix);
+    return true;
+  }
+  return false;
+}
+
+bool vtkVRRenderWindow::GetDeviceToWorldMatrixForDeviceHandle(
+  uint32_t handle, vtkMatrix4x4* deviceToWorldMatrix)
+{
+  vtkMatrix4x4* deviceToPhysicalMatrix = this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
+
+  if (deviceToPhysicalMatrix)
+  {
+    // we use deviceToWorldMatrix here to temporarily store physicalToWorld
+    // to avoid having to use a temp matrix. We use a new pointer just to
+    // keep the code easier to read.
+    vtkMatrix4x4* physicalToWorldMatrix = deviceToWorldMatrix;
+    this->GetPhysicalToWorldMatrix(physicalToWorldMatrix);
+    vtkMatrix4x4::Multiply4x4(physicalToWorldMatrix, deviceToPhysicalMatrix, deviceToWorldMatrix);
+    return true;
+  }
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -501,7 +596,6 @@ void vtkVRRenderWindow::GetPhysicalToWorldMatrix(vtkMatrix4x4* physicalToWorldMa
 }
 
 //------------------------------------------------------------------------------
-// Get the size of the whole screen.
 int* vtkVRRenderWindow::GetScreenSize()
 {
   if (this->GetSizeFromAPI())

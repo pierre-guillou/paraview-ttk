@@ -160,7 +160,10 @@ elseif (APPLE)
     OPENGL_glu_LIBRARY
     )
 else()
-  if (CMAKE_SYSTEM_NAME MATCHES "HP-UX")
+  if (ANDROID)
+    set(_OPENGL_INCLUDE_PATH ${CMAKE_ANDROID_NDK}/sysroot/usr/include)
+    set(_OPENGL_LIB_PATH ${CMAKE_ANDROID_NDK}/platforms/android-${CMAKE_SYSTEM_VERSION}/arch-${CMAKE_ANDROID_ARCH}/usr/lib)
+  elseif (CMAKE_SYSTEM_NAME MATCHES "HP-UX")
     # Handle HP-UX cases where we only want to find OpenGL in either hpux64
     # or hpux32 depending on if we're doing a 64 bit build.
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -183,6 +186,17 @@ else()
       # `nvidia-<version>` subdirectory.
       "/usr/lib/nvidia-*"
       "/usr/lib32/nvidia-*")
+  elseif (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    # This is the path where <GL/gl.h> is found in emsdk
+    set(_OPENGL_INCLUDE_PATH
+      "${EMSCRIPTEN_ROOT_PATH}/system/include")
+
+    # These two inevitably include ${EMSCRIPTEN_SYSROOT} in the search path for
+    # OpenGL leading to all kinds of redefinition errors.
+    set(_FindOpenGL_OLD_FIND_ROOT_PATH_MODE_INCLUDE ${CMAKE_FIND_ROOT_PATH_MODE_INCLUDE})
+    set(_FindOpenGL_OLD_FIND_USE_CMAKE_PATH ${CMAKE_FIND_USE_CMAKE_PATH})
+    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE NEVER)
+    set(CMAKE_FIND_USE_CMAKE_PATH FALSE)
   endif()
 
   # The first line below is to make sure that the proper headers
@@ -207,6 +221,15 @@ else()
     /usr/openwin/share/include
     /opt/graphics/OpenGL/include
   )
+
+  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    # Restore the properties we changed above.
+    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ${_FindOpenGL_OLD_FIND_ROOT_PATH_MODE_INCLUDE})
+    unset(_FindOpenGL_OLD_FIND_ROOT_PATH_MODE_INCLUDE)
+    set(CMAKE_FIND_USE_CMAKE_PATH ${_FindOpenGL_OLD_FIND_USE_CMAKE_PATH})
+    unset(_FindOpenGL_OLD_FIND_USE_CMAKE_PATH)
+  endif()
+
   list(APPEND _OpenGL_CACHE_VARS
     OPENGL_INCLUDE_DIR
     OPENGL_GLX_INCLUDE_DIR
@@ -401,7 +424,11 @@ else()
   endif()
 
   # We always need the 'gl.h' include dir.
-  list(APPEND _OpenGL_REQUIRED_VARS OPENGL_INCLUDE_DIR)
+  if(OPENGL_USE_EGL)
+    list(APPEND _OpenGL_REQUIRED_VARS OPENGL_EGL_INCLUDE_DIR)
+  else()
+    list(APPEND _OpenGL_REQUIRED_VARS OPENGL_INCLUDE_DIR)
+  endif()
 
   unset(_OPENGL_INCLUDE_PATH)
   unset(_OPENGL_LIB_PATH)

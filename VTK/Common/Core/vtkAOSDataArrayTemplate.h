@@ -264,6 +264,11 @@ public:
   {
     this->Superclass::InsertTuples(dstIds, srcIds, source);
   }
+  void InsertTuplesStartingAt(
+    vtkIdType dstStart, vtkIdList* srcIds, vtkAbstractArray* source) override
+  {
+    this->Superclass::InsertTuplesStartingAt(dstStart, srcIds, source);
+  }
 
 protected:
   vtkAOSDataArrayTemplate();

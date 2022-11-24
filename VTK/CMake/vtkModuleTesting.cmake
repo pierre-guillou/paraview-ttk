@@ -81,6 +81,12 @@ function (vtk_module_test_executable name)
       "VTK_MODULE_ENABLE_${safe_test_optional_depend}=$<TARGET_EXISTS:${test_optional_depend}>")
   endforeach ()
 
+  if (_vtk_build_UTILITY_TARGET)
+    target_link_libraries("${name}"
+      PRIVATE
+        "${_vtk_build_UTILITY_TARGET}")
+  endif ()
+
   target_link_libraries("${name}"
     PRIVATE
       "${_vtk_build_test}"
@@ -484,11 +490,18 @@ variable named in the `VARNAME` argument. The `EXENAME` must match the
 If `RENDERING_FACTORY` is provided, VTK's rendering factories are initialized
 during the test.
 
+By default, VTK's rendering tests enable FP exceptions to find floating point
+errors in debug builds. If `DISABLE_FLOATING_POINT_EXCEPTIONS` is provided,
+FP exceptions are not enabled for the test. This is useful when testing against
+external libraries to ignore exceptions in third-party code.
+
 Any additional arguments are added as additional sources for the executable.
 #]==]
 function (vtk_test_cxx_executable exename _tests)
   set(exe_options
-    RENDERING_FACTORY)
+    RENDERING_FACTORY
+    DISABLE_FLOATING_POINT_EXCEPTIONS
+    )
   _vtk_test_parse_args("${exe_options}" "" ${ARGN})
   _vtk_test_set_options("${exe_options}" "" ${options})
 

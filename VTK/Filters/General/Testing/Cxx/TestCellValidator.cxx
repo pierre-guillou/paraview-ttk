@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 // This tests vtkCellValidator
 
 #include <vtkCellValidator.h>
@@ -210,13 +207,16 @@ int TestCellValidator(int, char*[])
   vtkCellValidator::State state;
 
 #define CheckCell(cellPtr)                                                                         \
-  state = vtkCellValidator::Check(cellPtr, FLT_EPSILON);                                           \
-  if (state != vtkCellValidator::State::Valid)                                                     \
+  do                                                                                               \
   {                                                                                                \
-    cellPtr->Print(std::cout);                                                                     \
-    vtkCellValidator::PrintState(state, std::cout, vtkIndent(0));                                  \
-    return EXIT_FAILURE;                                                                           \
-  }
+    state = vtkCellValidator::Check(cellPtr, FLT_EPSILON);                                         \
+    if (state != vtkCellValidator::State::Valid)                                                   \
+    {                                                                                              \
+      cellPtr->Print(std::cout);                                                                   \
+      vtkCellValidator::PrintState(state, std::cout, vtkIndent(0));                                \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
   CheckCell(emptyCell);
   CheckCell(vertex);

@@ -21,6 +21,8 @@ if (PARAVIEW_USE_QT)
 endif ()
 
 paraview_add_plugin(zSpace
+  REQUIRED_ON_CLIENT
+  REQUIRED_ON_SERVER
   VERSION "1.0"
   UI_INTERFACES ${interfaces}
   SOURCES ${sources}
@@ -32,4 +34,5 @@ if (PARAVIEW_USE_QT)
   target_link_libraries(zSpace
     PRIVATE
       ParaView::RemotingViews)
+  target_compile_definitions(zSpace PRIVATE QT_NO_KEYWORDS)
 endif ()

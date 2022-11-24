@@ -33,7 +33,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define pqObjectBuilder_h
 
 #include "pqCoreModule.h"
-#include "vtkSetGet.h" // for VTK_LEGACY
+#include "vtkNetworkAccessManager.h" // needed for vtkNetworkAccessManager::ConnectionResult.
+
 #include <QMap>
 #include <QObject>
 #include <QVariant>
@@ -60,7 +61,7 @@ class vtkSMProxy;
  * destroying these objects. The application layer accesses the
  * ObjectBuilder through the pqApplicationCore singleton.
  * NOTE: pqObjectBuilder replaces the previously supported
- * pqPipelineBuilder. Unlink, pqPipelineBuilder, this class
+ * pqPipelineBuilder. Unlike pqPipelineBuilder, this class
  * no longer deals with undo/redo stack. The application layer
  * components that use the ObjectBuilder are supposed to bother
  * about the undo stack i.e. call begin/end on the undo stack
@@ -72,9 +73,10 @@ class PQCORE_EXPORT pqObjectBuilder : public QObject
   typedef QObject Superclass;
 
 public:
-  pqObjectBuilder(QObject* parent = 0);
+  pqObjectBuilder(QObject* parent = nullptr);
   ~pqObjectBuilder() override;
 
+  //@{
   /**
    * Create a server connection give a server resource.
    * By default, this method does not create a new connection if one already
@@ -87,8 +89,17 @@ public:
    * 0 means no retry, -1 means infinite retries.
    * Calling this method while waiting for a previous server connection to be
    * established raises errors.
+   * The result arg provide information about the failure or sucess of the connection,
+   * see vtkNetworkAccessManager::ConnectionResult for possible values.
    */
-  pqServer* createServer(const pqServerResource& resource, int connectionTimeout = 60);
+  pqServer* createServer(const pqServerResource& resource, int connectionTimeout = 60)
+  {
+    vtkNetworkAccessManager::ConnectionResult result;
+    return this->createServer(resource, connectionTimeout, result);
+  }
+  pqServer* createServer(const pqServerResource& resource, int connectionTimeout,
+    vtkNetworkAccessManager::ConnectionResult& result);
+  //@}
 
   /**
    * Destroy a server connection
@@ -136,12 +147,6 @@ public:
    * Creates a new view module of the given type on the given server.
    */
   virtual pqView* createView(const QString& type, pqServer* server);
-
-  /**
-   * Deprecated in ParaView 5.7. `detachedFromLayout` argument is not longer
-   * applicable. All views are now created *detached* by default.
-   */
-  VTK_LEGACY(pqView* createView(const QString& type, pqServer* server, bool detachedFromLayout));
 
   /**
    * Destroys the view module. This destroys the view module as well as all the
@@ -202,18 +207,18 @@ public:
   /**
    * Destroy all sources/filters on a server.
    */
-  virtual void destroySources(pqServer* server = 0);
+  virtual void destroySources(pqServer* server = nullptr);
 
   /**
    * Destroy all lookup tables and scalar bars associated with them.
    */
-  virtual void destroyLookupTables(pqServer* server = 0);
+  virtual void destroyLookupTables(pqServer* server = nullptr);
 
   /**
    * Destroys all proxies that are involved in pipelines i.e. simply calls
    * destroySources(), destroyLookupTables().
    */
-  virtual void destroyPipelineProxies(pqServer* server = 0);
+  virtual void destroyPipelineProxies(pqServer* server = nullptr);
 
   /**
    * This method unregisters all proxies on the given server.
@@ -248,7 +253,7 @@ public:
    */
   bool forceWaitingForConnection(bool force);
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * Closes any open connections for reverse-connection.
    */

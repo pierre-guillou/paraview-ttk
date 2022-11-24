@@ -40,7 +40,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkDataObject.h"
 #include "vtkDataSetMapper.h"
 #include "vtkDoubleArray.h"
-#include "vtkExtractSelectedPolyDataIds.h"
 #include "vtkFieldData.h"
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
@@ -69,7 +68,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
 #include "vtkSortDataArray.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkTextMapper.h"
@@ -291,19 +289,7 @@ vtkParallelCoordinatesRepresentation::~vtkParallelCoordinatesRepresentation()
 std::string vtkParallelCoordinatesRepresentation::GetHoverString(vtkView* view, int x, int y)
 {
   std::string result;
-  const char* text = GetHoverText(view, x, y);
-  if (text != nullptr)
-  {
-    result = text;
-  }
 
-  return result;
-}
-
-//------------------------------------------------------------------------------
-// I should fill this out.
-const char* vtkParallelCoordinatesRepresentation::GetHoverText(vtkView* view, int x, int y)
-{
   vtkRenderView* rv = vtkRenderView::SafeDownCast(view);
   if (rv && this->NumberOfAxes > 0)
   {
@@ -325,17 +311,22 @@ const char* vtkParallelCoordinatesRepresentation::GetHoverText(vtkView* view, in
       double v = pct * (r[1] - r[0]) + r[0];
       vtkVariant var(v);
 
-      this->SetInternalHoverText(vtkVariant(v).ToString());
-      return this->GetInternalHoverText();
+      this->SetInternalHoverText(vtkVariant(v).ToString().c_str());
     }
     else if (p[0] > this->Xs[0] && p[1] < this->Xs[this->NumberOfAxes - 1] && p[1] <= this->YMax &&
       p[1] >= this->YMin)
     {
       this->UpdateHoverHighlight(view, x, y);
-      return this->GetInternalHoverText();
+    }
+
+    char* text = this->GetInternalHoverText();
+    if (text != nullptr)
+    {
+      result = text;
     }
   }
-  return nullptr;
+
+  return result;
 }
 
 //------------------------------------------------------------------------------
@@ -801,7 +792,7 @@ int vtkParallelCoordinatesRepresentation::UpdatePlotProperties(vtkStringArray* i
   // set everything on the axes
   for (int i = 0; i < this->NumberOfAxes; i++)
   {
-    this->Axes[i]->SetTitle(this->AxisTitles->GetValue(i));
+    this->Axes[i]->SetTitle(this->AxisTitles->GetValue(i).c_str());
     this->Axes[i]->SetRange(
       this->Mins[i] + this->MinOffsets[i], this->Maxs[i] + this->MaxOffsets[i]);
     this->Axes[i]->GetProperty()->SetColor(this->AxisColor);
@@ -1342,7 +1333,7 @@ int vtkParallelCoordinatesRepresentation::SwapAxisPositions(int position1, int p
   this->Axes[position1] = this->Axes[position2];
   this->Axes[position2] = axtmp;
 
-  vtkStdString tmpStr = this->AxisTitles->GetValue(position1);
+  std::string tmpStr = this->AxisTitles->GetValue(position1);
   this->AxisTitles->SetValue(position1, this->AxisTitles->GetValue(position2));
   this->AxisTitles->SetValue(position2, tmpStr);
 

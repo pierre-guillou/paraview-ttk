@@ -134,6 +134,7 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
 
   // initialize some structures to store the file contents in
   vtkPoints* points = vtkPoints::New();
+  points->SetDataTypeToDouble();
   std::unordered_map<std::string, vtkFloatArray*> tcoords_map;
   std::vector<std::pair<float, float>> verticesTextureList;
   vtkFloatArray* normals = vtkFloatArray::New();
@@ -183,7 +184,7 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
     const int MAX_LINE = 1024 * 256;
     char rawLine[MAX_LINE];
     char tcoordsName[100];
-    float xyz[3];
+    double xyz[3];
     int numPoints = 0;
     int numTCoords = 0;
     int numNormals = 0;
@@ -807,7 +808,7 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
 
   if (everything_ok) // (otherwise just release allocated memory and return)
   {
-    // -- now turn this lot into a useable vtkPolyData --
+    // -- now turn this lot into a usable vtkPolyData --
 
     // if there are no tcoords or normals or they match exactly
     // then we can just copy the data into the output (easy!)

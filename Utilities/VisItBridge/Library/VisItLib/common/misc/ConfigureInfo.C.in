@@ -45,7 +45,7 @@ VersionControlVersionString()
 std::string
 SlashString()
 {
-#ifdef WIN32
+#ifdef _WIN32
     return "\\";
 #else
     return "/";
@@ -55,7 +55,7 @@ SlashString()
 char 
 SlashChar()
 {
-#ifdef WIN32
+#ifdef _WIN32
     return '\\';
 #else
     return '/';
@@ -65,7 +65,7 @@ SlashChar()
 std::string
 PluginExtension()
 {
-#ifdef WIN32
+#ifdef _WIN32
      return ".dll";
 #elif defined(__APPLE__)
      return ".dylib";

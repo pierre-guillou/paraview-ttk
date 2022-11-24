@@ -55,9 +55,7 @@ set(headers
   ArrayPortalHelpers.h
   ArrayPortalUniformPointCoordinates.h
   ArrayPortalValueReference.h
-  ArrayPortalVirtual.h
   Assume.h
-  brigand.hpp
   ConfigureFor32.h
   ConfigureFor64.h
   ConnectivityStructuredInternals.h
@@ -68,13 +66,21 @@ set(headers
   FunctionInterfaceDetailPre.h
   IndexTag.h
   IndicesExtrude.h
+  Instantiations.h
   Invocation.h
+  Meta.h
   Unreachable.h
   VariantImpl.h
   VariantImplDetail.h
   VecOperators.h
   Windows.h
   )
+
+if (NOT VTKm_NO_DEPRECATED_VIRTUAL)
+  set(headers ${headers}
+    ArrayPortalVirtual.h
+    )
+endif()
 
 vtkm_declare_headers(${headers})
 
@@ -83,4 +89,6 @@ vtkm_pyexpander_generated_file(FunctionInterfaceDetailPost.h)
 vtkm_pyexpander_generated_file(VariantImplDetail.h)
 vtkm_pyexpander_generated_file(VecOperators.h)
 
-add_subdirectory(testing)
+if (VTKm_ENABLE_TESTING)
+  add_subdirectory(testing)
+endif ()

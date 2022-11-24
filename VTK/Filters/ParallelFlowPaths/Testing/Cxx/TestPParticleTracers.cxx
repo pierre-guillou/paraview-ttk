@@ -32,13 +32,16 @@
 #include <vector>
 
 #define EXPECT(expected, actual, msg, so)                                                          \
-  if (!(expected == actual))                                                                       \
+  do                                                                                               \
   {                                                                                                \
-    vtkGenericWarningMacro(<< msg << " Expecting a value of " << expected                          \
-                           << " but getting a value of " << actual << " for static option of "     \
-                           << so);                                                                 \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (!(expected == actual))                                                                     \
+    {                                                                                              \
+      vtkGenericWarningMacro(<< msg << " Expecting a value of " << expected                        \
+                             << " but getting a value of " << actual << " for static option of "   \
+                             << so);                                                               \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 class TestTimeSource : public vtkAlgorithm
 {
@@ -166,7 +169,7 @@ protected:
     double range[2] = { 0, 9 };
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), range, 2);
 
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->TimeSteps[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->TimeSteps.data(),
       static_cast<int>(this->TimeSteps.size()));
 
     outInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), this->Extent, 6);
@@ -268,7 +271,6 @@ private:
   std::vector<double> TimeSteps;
   int Extent[6];
   double BoundingBox[6];
-  int Spacing;
 };
 
 vtkStandardNewMacro(TestTimeSource);
@@ -288,7 +290,7 @@ int TestPParticleTracer(vtkMPIController* c, int staticOption)
   ps->SetPoints(points);
 
   vtkNew<vtkPParticleTracer> filter;
-  filter->SetStaticMesh(staticOption);
+  filter->SetMeshOverTime(staticOption);
   filter->SetStaticSeeds(staticOption);
   filter->SetInputConnection(0, imageSource->GetOutputPort());
   filter->SetInputData(1, ps);
@@ -349,7 +351,7 @@ int TestPParticlePathFilter(vtkMPIController* c, int staticOption)
   ps->SetPoints(points);
 
   vtkNew<vtkParticlePathFilter> filter;
-  filter->SetStaticMesh(staticOption);
+  filter->SetMeshOverTime(staticOption);
   filter->SetStaticSeeds(staticOption);
   filter->SetInputConnection(0, imageSource->GetOutputPort());
   filter->SetInputData(1, ps);
@@ -417,7 +419,7 @@ int TestPStreaklineFilter(vtkMPIController* c, int staticOption)
   ps->SetPoints(points);
 
   vtkNew<vtkPStreaklineFilter> filter;
-  filter->SetStaticMesh(staticOption);
+  filter->SetMeshOverTime(staticOption);
   filter->SetStaticSeeds(staticOption);
   filter->SetInputConnection(0, imageSource->GetOutputPort());
   filter->SetInputData(1, ps);

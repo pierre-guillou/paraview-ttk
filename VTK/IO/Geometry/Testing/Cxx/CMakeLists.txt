@@ -3,6 +3,7 @@ vtk_add_test_cxx(vtkIOGeometryCxxTests tests
   UnstructuredGridCellGradients.cxx
   UnstructuredGridFastGradients.cxx
   UnstructuredGridGradients.cxx
+  TestOBJReaderDouble.cxx
   TestOBJPolyDataWriter.cxx
   TestOBJReaderComments.cxx,NO_VALID
   TestOBJReaderGroups.cxx,NO_VALID
@@ -58,6 +59,7 @@ LIST(APPEND tecplotFiles
     tecplot_fepolygon.dat
     tecplot_fepolyhedron.dat
     tiny.dat
+    1dgeom.dat
 )
 foreach(item IN LISTS tecplotFiles)
     get_filename_component(name "${item}" NAME_WE)

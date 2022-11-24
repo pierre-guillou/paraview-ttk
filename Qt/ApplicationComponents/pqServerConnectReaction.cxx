@@ -56,10 +56,12 @@ pqServerConnectReaction::pqServerConnectReaction(QAction* parentObject)
   : Superclass(parentObject)
 {
   // needed to disable server connection while an animation is playing
-  QObject::connect(pqPVApplicationCore::instance()->animationManager(), SIGNAL(beginPlay()), this,
-    SLOT(updateEnableState()));
-  QObject::connect(pqPVApplicationCore::instance()->animationManager(), SIGNAL(endPlay()), this,
-    SLOT(updateEnableState()));
+  QObject::connect(pqPVApplicationCore::instance()->animationManager(),
+    QOverload<vtkObject*, unsigned long, void*, void*>::of(&pqAnimationManager::beginPlay), this,
+    &pqServerConnectReaction::updateEnableState);
+  QObject::connect(pqPVApplicationCore::instance()->animationManager(),
+    QOverload<vtkObject*, unsigned long, void*, void*>::of(&pqAnimationManager::endPlay), this,
+    &pqServerConnectReaction::updateEnableState);
 }
 
 //-----------------------------------------------------------------------------
@@ -100,30 +102,38 @@ void pqServerConnectReaction::connectToServer()
 }
 
 //-----------------------------------------------------------------------------
-bool pqServerConnectReaction::connectToServerUsingConfigurationName(const char* config_name)
+bool pqServerConnectReaction::connectToServerUsingConfigurationName(
+  const char* config_name, bool showConnectionDialog)
 {
   const pqServerConfiguration* config =
     pqApplicationCore::instance()->serverConfigurations().configuration(config_name);
   if (config)
   {
-    return pqServerConnectReaction::connectToServerUsingConfiguration(*config);
+    return pqServerConnectReaction::connectToServerUsingConfiguration(
+      *config, showConnectionDialog);
   }
   return false;
 }
 
 //-----------------------------------------------------------------------------
-bool pqServerConnectReaction::connectToServer(const pqServerResource& resource)
+bool pqServerConnectReaction::connectToServer(
+  const pqServerResource& resource, bool showConnectionDialog)
 {
   pqServerConfiguration config;
   config.setResource(resource);
-  return pqServerConnectReaction::connectToServerUsingConfiguration(config);
+  if (!resource.serverName().isEmpty())
+  {
+    config.setName(resource.serverName());
+  }
+  return pqServerConnectReaction::connectToServerUsingConfiguration(config, showConnectionDialog);
 }
 
 //-----------------------------------------------------------------------------
-bool pqServerConnectReaction::connectToServerUsingConfiguration(const pqServerConfiguration& config)
+bool pqServerConnectReaction::connectToServerUsingConfiguration(
+  const pqServerConfiguration& config, bool showConnectionDialog)
 {
   QScopedPointer<pqServerLauncher> launcher(pqServerLauncher::newInstance(config));
-  return launcher->connectToServer();
+  return launcher->connectToServer(showConnectionDialog);
 }
 
 //-----------------------------------------------------------------------------

@@ -1,11 +1,11 @@
 /*=========================================================================
 
-  Program:   ParaView
+  Program:   Visualization Toolkit
   Module:    vtkSelectionNode.cxx
 
-  Copyright (c) Kitware, Inc.
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
+  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -38,7 +38,6 @@ vtkStandardNewMacro(vtkSelectionNode);
 vtkCxxSetObjectMacro(vtkSelectionNode, SelectionData, vtkDataSetAttributes);
 
 const char vtkSelectionNode ::ContentTypeNames[vtkSelectionNode::NUM_CONTENT_TYPES][16] = {
-  "SELECTIONS", // deprecated
   "GLOBALIDS",
   "PEDIGREEIDS",
   "VALUES",
@@ -75,9 +74,10 @@ vtkInformationKeyMacro(vtkSelectionNode, EPSILON, Double);
 vtkInformationKeyMacro(vtkSelectionNode, ZBUFFER_VALUE, Double);
 vtkInformationKeyMacro(vtkSelectionNode, CONTAINING_CELLS, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, CONNECTED_LAYERS, Integer);
+vtkInformationKeyMacro(vtkSelectionNode, CONNECTED_LAYERS_REMOVE_SEED, Integer);
+vtkInformationKeyMacro(vtkSelectionNode, CONNECTED_LAYERS_REMOVE_INTERMEDIATE_LAYERS, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, PIXEL_COUNT, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, INVERSE, Integer);
-vtkInformationKeyMacro(vtkSelectionNode, INDEXED_VERTICES, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, COMPONENT_NUMBER, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, ASSEMBLY_NAME, String);
 vtkInformationKeyMacro(vtkSelectionNode, SELECTORS, StringVector);
@@ -484,7 +484,7 @@ void vtkSelectionNode::SubtractSelectionList(vtkSelectionNode* other)
     {
       vtkErrorMacro(<< "Do not know how to subtract the given content type " << type << ".");
     }
-  };
+  }
 }
 
 //------------------------------------------------------------------------------

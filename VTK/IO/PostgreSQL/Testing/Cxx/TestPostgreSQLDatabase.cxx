@@ -27,7 +27,6 @@
 #include "vtkRowQueryToTable.h"
 #include "vtkSQLDatabaseSchema.h"
 #include "vtkSQLQuery.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkVariant.h"
@@ -44,7 +43,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
   // support non-standard configurations where this is not true).
   vtkPostgreSQLDatabase* db =
     vtkPostgreSQLDatabase::SafeDownCast(vtkSQLDatabase::CreateFromURL(VTK_PSQL_TEST_URL));
-  vtkStdString realDatabase = db->GetDatabaseName();
+  std::string realDatabase = db->GetDatabaseName();
   db->SetDatabaseName("template1"); // This is guaranteed to exist
   bool status = db->Open();
   if (!status)
@@ -70,7 +69,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
 
   // Force a database connection close
   // This also forces us to connect to the database named in the test URL.
-  vtkStdString fauxDatabase = realDatabase + "blarney";
+  std::string fauxDatabase = realDatabase + "blarney";
   db->SetDatabaseName(fauxDatabase.c_str());
   db->SetDatabaseName(realDatabase.c_str());
 
@@ -80,7 +79,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
   }
 
   // Test that bad queries fail without segfaulting...
-  vtkStdString dropQuery("DROP TABLE people");
+  std::string dropQuery("DROP TABLE people");
   cout << dropQuery << endl;
   query->SetQuery(dropQuery.c_str());
   if (!query->Execute())
@@ -95,7 +94,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
   }
 
   // Test table creation, insertion, queries
-  vtkStdString createQuery("CREATE TABLE people (name TEXT, age INTEGER, weight FLOAT)");
+  std::string createQuery("CREATE TABLE people (name TEXT, age INTEGER, weight FLOAT)");
   cout << createQuery << endl;
   query->SetQuery(createQuery.c_str());
   if (!query->Execute())
@@ -152,7 +151,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
       {
         cerr << ", ";
       }
-      cerr << query->DataValue(field).ToString().c_str();
+      cerr << query->DataValue(field).ToString();
     }
     cerr << endl;
   }
@@ -183,7 +182,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
       {
         cerr << ", ";
       }
-      cerr << va->GetValue(field).ToString().c_str();
+      cerr << va->GetValue(field).ToString();
     }
     cerr << endl;
   }
@@ -264,7 +263,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
     return 1;
   }
 
-  std::vector<vtkStdString> tables;
+  std::vector<std::string> tables;
   while (query->NextRow())
   {
     tables.push_back(query->DataValue(0).ToString());
@@ -287,10 +286,10 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
   cerr << "@@ Inspecting these tables..."
        << "\n";
   int tblHandle = schema.GetTableBHandle();
-  vtkStdString queryStr;
+  std::string queryStr;
   for (tblHandle = 0; tblHandle < numTbl; ++tblHandle)
   {
-    vtkStdString tblName(schema->GetTableNameFromHandle(tblHandle));
+    std::string tblName(schema->GetTableNameFromHandle(tblHandle));
     cerr << "   Table: " << tblName << "\n";
 
     if (tblName != tables[tblHandle])
@@ -327,7 +326,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
         }
         else // if ( field )
         {
-          vtkStdString colName(schema->GetColumnNameFromHandle(tblHandle, colHandle));
+          std::string colName(schema->GetColumnNameFromHandle(tblHandle, colHandle));
           if (colName != query->DataValue(field).ToString())
           {
             cerr << "Found an incorrect column name: " << query->DataValue(field).ToString()
@@ -338,7 +337,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
           }
           cerr << "     Column: ";
         }
-        cerr << query->DataValue(field).ToString().c_str();
+        cerr << query->DataValue(field).ToString();
       }
       cerr << endl;
     }
@@ -431,7 +430,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
   cerr << "@@ Escaping a naughty string...";
 
   queryStr = "INSERT INTO atable (somename,somenmbr) VALUES ( " +
-    query->EscapeString(vtkStdString("Str\"ang'eS\ntring"), true) + ", 2 )";
+    query->EscapeString(std::string("Str\"ang'eS\ntring"), true) + ", 2 )";
   query->SetQuery(queryStr);
   if (!query->Execute())
   {
@@ -464,13 +463,13 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
     return 1;
   }
 
-  cerr << query->DataValue(0).ToString().c_str() << "> ";
+  cerr << query->DataValue(0).ToString() << "> ";
   cerr << " done." << endl;
 
   // 9. Drop tables
   cerr << "@@ Dropping these tables...";
 
-  for (std::vector<vtkStdString>::iterator it = tables.begin(); it != tables.end(); ++it)
+  for (std::vector<std::string>::iterator it = tables.begin(); it != tables.end(); ++it)
   {
     queryStr = "DROP TABLE ";
     queryStr += *it;
@@ -492,7 +491,7 @@ int TestPostgreSQLDatabase(int /*argc*/, char* /*argv*/[])
 
   if (!db->DropDatabase(realDatabase.c_str()))
   {
-    cout << "Drop of \"" << realDatabase.c_str() << "\" failed.\n";
+    cout << "Drop of \"" << realDatabase << "\" failed.\n";
     cerr << "\"" << db->GetLastErrorText() << "\"" << endl;
   }
 

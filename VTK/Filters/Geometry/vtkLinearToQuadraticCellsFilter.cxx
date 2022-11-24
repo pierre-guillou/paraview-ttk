@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkLinearToQuadraticCellsFilter.h"
 
 #include "vtkAlgorithm.h"
@@ -104,7 +101,6 @@ void DegreeElevate(vtkCell* lowerOrderCell, vtkIncrementalPointLocator* pointLoc
       //     must use local indexing here (i.e. <lp> instead of
       //     <lowerOrderCell->GetPointIds()->GetId(lp)>).
       lowerOrderCell->GetPoints()->GetPoint(lp, lowerOrderPoint);
-      ;
       for (int i = 0; i < 3; i++)
       {
         higherOrderPoint[i] += lowerOrderPoint[i] * lowerOrderCoeffs[lp];

@@ -13,6 +13,9 @@
 
 =========================================================================*/
 
+// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkPUnstructuredGridGhostCellsGenerator.h"
 
 #include "vtkAppendFilter.h"
@@ -150,7 +153,7 @@ const int UGGCG_DATA_EXCHANGE_TAG = 9001;
 //------------------------------------------------------------------------------
 
 vtkStandardNewMacro(vtkPUnstructuredGridGhostCellsGenerator);
-vtkSetObjectImplementationMacro(
+vtkCxxSetObjectMacro(
   vtkPUnstructuredGridGhostCellsGenerator, Controller, vtkMultiProcessController);
 
 //------------------------------------------------------------------------------
@@ -200,7 +203,7 @@ int vtkPUnstructuredGridGhostCellsGenerator::RequestData(vtkInformation* vtkNotU
 
   if (!this->Controller)
   {
-    this->Controller = vtkMultiProcessController::GetGlobalController();
+    this->SetController(vtkMultiProcessController::GetGlobalController());
   }
 
   int reqGhostLevel =
@@ -1171,7 +1174,7 @@ void vtkPUnstructuredGridGhostCellsGenerator::FindGhostCells()
       this->Internals->CurrentGrid->GetCellPoints(*cellIdIter, pointIdsList);
       for (int j = 0; j < pointIdsList->GetNumberOfIds(); j++)
       {
-        if (visitedPointIds.insert(pointIdsList->GetId(j)).second == true)
+        if (visitedPointIds.insert(pointIdsList->GetId(j)).second)
         {
           pointId->SetId(0, pointIdsList->GetId(j));
           this->Internals->CurrentGrid->GetCellNeighbors(*cellIdIter, pointId, cellIdsList);

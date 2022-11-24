@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "ioss_export.h"
+
 #include "vtk_ioss_mangle.h"
 
 #include <Ioss_CodeTypes.h>       // for IntVector
@@ -14,7 +16,7 @@
 // STL Includes
 
 namespace Ioss {
-  class ShellLine2D3 : public Ioss::ElementTopology
+  class IOSS_EXPORT ShellLine2D3 : public Ioss::ElementTopology
   {
 
   public:
@@ -27,6 +29,7 @@ namespace Ioss {
     int          spatial_dimension() const override;
     int          parametric_dimension() const override;
     bool         is_element() const override { return true; }
+    bool         is_shell() const override { return true; }
     int          order() const override;
 
     int number_corner_nodes() const override;
@@ -49,8 +52,6 @@ namespace Ioss {
     ShellLine2D3();
 
   private:
-    static ShellLine2D3 instance_;
-
     ShellLine2D3(const ShellLine2D3 &) = delete;
   };
 } // namespace Ioss

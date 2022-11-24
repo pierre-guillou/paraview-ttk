@@ -37,6 +37,7 @@
 #define vtkResliceCursorWidget_h
 
 #include "vtkAbstractWidget.h"
+#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
 class vtkResliceCursorRepresentation;
@@ -119,6 +120,7 @@ protected:
   // These are the callbacks for this widget
   static void SelectAction(vtkAbstractWidget*);
   static void RotateAction(vtkAbstractWidget*);
+  static void TranslateAction(vtkAbstractWidget*);
   static void EndSelectAction(vtkAbstractWidget*);
   static void ResizeThicknessAction(vtkAbstractWidget*);
   static void EndResizeThicknessAction(vtkAbstractWidget*);
@@ -136,11 +138,15 @@ protected:
 
   // Manage the state of the widget
   int WidgetState;
-  enum _WidgetState
+  enum WidgetStateType
   {
     Start = 0,
     Active
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef WidgetStateType _WidgetState;
+#endif
 
   // Keep track whether key modifier key is pressed
   int ModifierActive;

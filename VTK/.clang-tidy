@@ -5,6 +5,7 @@ bugprone-*,\
 -bugprone-argument-comment,\
 -bugprone-branch-clone,\
 -bugprone-fold-init-type,\
+-bugprone-implicit-widening-of-multiplication-result,\
 -bugprone-incorrect-roundings,\
 -bugprone-infinite-loop,\
 -bugprone-integer-division,\
@@ -67,6 +68,7 @@ mpi-*,\
 openmp-*,\
 performance-*,\
 -performance-inefficient-string-concatenation,\
+-performance-no-int-to-ptr,\
 -performance-type-promotion-in-math-fn,\
 -performance-unnecessary-value-param,\
 portability-*,\
@@ -74,6 +76,7 @@ readability-*,\
 -readability-braces-around-statements,\
 -readability-convert-member-functions-to-static,\
 -readability-else-after-return,\
+-readability-function-cognitive-complexity,\
 -readability-function-size,\
 -readability-implicit-bool-conversion,\
 -readability-inconsistent-declaration-parameter-name,\
@@ -86,6 +89,7 @@ readability-*,\
 -readability-redundant-declaration,\
 -readability-redundant-preprocessor,\
 -readability-simplify-boolean-expr,\
+-readability-static-accessed-through-instance,\
 -readability-uppercase-literal-suffix,\
 -readability-use-anyofallof,\
 "

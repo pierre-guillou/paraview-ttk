@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef pqCustomViewpointDialog_h
-#define pqCustomViewpointDialog_h
+#ifndef pqCustomViewpointButtonDialog_h
+#define pqCustomViewpointButtonDialog_h
 
 #include "pqComponentsModule.h"
 
@@ -129,8 +129,8 @@ private Q_SLOTS:
   void assignCurrentViewpoint();
   void deleteRow();
 
-private:
-  pqCustomViewpointButtonDialog() {}
+private: // NOLINT(readability-redundant-access-specifiers)
+  pqCustomViewpointButtonDialog() = default;
   QStringList Configurations;
   QString CurrentConfiguration;
   pqCustomViewpointButtonDialogUI* ui;

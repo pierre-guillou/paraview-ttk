@@ -30,8 +30,6 @@
 
 #include "vtkSmartPointer.h"
 
-#define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
-
 vtkStandardNewMacro(vtkPointSet);
 vtkStandardExtendedNewMacro(vtkPointSet);
 
@@ -176,7 +174,6 @@ void vtkPointSet::BuildPointLocator()
   }
   else if (this->Points->GetMTime() > this->PointLocator->GetMTime())
   {
-    cout << "Building supplied point locator\n";
     this->PointLocator->SetDataSet(this);
   }
 
@@ -202,8 +199,6 @@ void vtkPointSet::BuildCellLocator()
     {
       this->CellLocator = vtkStaticCellLocator::New();
     }
-    this->CellLocator->Register(this);
-    this->CellLocator->Delete();
     this->CellLocator->SetDataSet(this);
   }
   else if (this->Points->GetMTime() > this->CellLocator->GetMTime())
@@ -246,7 +241,7 @@ vtkIdType vtkPointSet::FindPoint(double x[3])
 vtkIdType vtkPointSet::FindCell(double x[3], vtkCell* cell, vtkGenericCell* gencell,
   vtkIdType cellId, double tol2, int& subId, double pcoords[3], double* weights)
 {
-  VTK_CREATE(vtkClosestPointStrategy, strategy);
+  vtkNew<vtkClosestPointStrategy> strategy;
   strategy->Initialize(this);
   return strategy->FindCell(x, cell, gencell, cellId, tol2, subId, pcoords, weights);
 }
@@ -360,16 +355,4 @@ void vtkPointSet::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Point Coordinates: " << this->Points << "\n";
   os << indent << "PointLocator: " << this->PointLocator << "\n";
   os << indent << "CellLocator: " << this->CellLocator << "\n";
-}
-
-//------------------------------------------------------------------------------
-void vtkPointSet::Register(vtkObjectBase* o)
-{
-  this->RegisterInternal(o, 1);
-}
-
-//------------------------------------------------------------------------------
-void vtkPointSet::UnRegister(vtkObjectBase* o)
-{
-  this->UnRegisterInternal(o, 1);
 }

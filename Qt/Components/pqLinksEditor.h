@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqLinksEditor_h
-#define _pqLinksEditor_h
+#ifndef pqLinksEditor_h
+#define pqLinksEditor_h
 
 #include <QDialog>
 #include <QListWidgetItem>
@@ -61,7 +61,7 @@ public:
    * Create a link editor to create/edit a link.
    * Initial values are retrieved from the provided vtkSMLink.
    */
-  pqLinksEditor(vtkSMLink* link, QWidget* p = 0);
+  pqLinksEditor(vtkSMLink* link, QWidget* p = nullptr);
 
   /**
    * Destroy this dialog
@@ -118,7 +118,7 @@ private Q_SLOTS:
   void updateSelectedProxies();
   void updateEnabledState();
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   class pqLinksEditorProxyModel;
   void updatePropertyList(QListWidget* tw, vtkSMProxy* proxy);
 

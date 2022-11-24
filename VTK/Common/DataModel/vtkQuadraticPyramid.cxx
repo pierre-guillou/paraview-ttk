@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkQuadraticPyramid.h"
 
 #include "vtkCellData.h"
@@ -519,7 +516,7 @@ int vtkQuadraticPyramid::IntersectWithLine(
     else
     {
       // No need to set the PointIds. They are set in the Face constructor
-      // Points need to be set to correspond with the contructor's PointIds.
+      // Points need to be set to correspond with the constructor's PointIds.
       for (int i = 0; i < 8; i++)
       {
         this->Face->Points->SetPoint(i, this->Points->GetPoint(PyramidFaces[faceNum][i]));
@@ -850,7 +847,7 @@ void vtkQuadraticPyramid::InterpolationDerivs(const double pcoords[3], double de
   derivs[37] = -0.5 * (1 + r) * (1 + s) * t;
   derivs[38] = -0.5 * (1 - r) * (1 + s) * t;
 
-  // we compute derivatives in in [-1; 1] but we need them in [ 0; 1]
+  // we compute derivatives in [-1; 1] but we need them in [ 0; 1]
   for (int i = 0; i < 39; i++)
     derivs[i] *= 2;
 }

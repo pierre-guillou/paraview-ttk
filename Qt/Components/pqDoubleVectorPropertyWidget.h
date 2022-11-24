@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqDoubleVectorPropertyWidget_h
-#define _pqDoubleVectorPropertyWidget_h
+#ifndef pqDoubleVectorPropertyWidget_h
+#define pqDoubleVectorPropertyWidget_h
 
 #include "pqPropertyWidget.h"
 
@@ -41,7 +41,8 @@ class PQCOMPONENTS_EXPORT pqDoubleVectorPropertyWidget : public pqPropertyWidget
   typedef pqPropertyWidget Superclass;
 
 public:
-  pqDoubleVectorPropertyWidget(vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parent = 0);
+  pqDoubleVectorPropertyWidget(
+    vtkSMProperty* property, vtkSMProxy* proxy, QWidget* parent = nullptr);
 
   ~pqDoubleVectorPropertyWidget() override;
 
@@ -80,4 +81,4 @@ private:
   Q_DISABLE_COPY(pqDoubleVectorPropertyWidget)
 };
 
-#endif // _pqDoubleVectorPropertyWidget_h
+#endif // pqDoubleVectorPropertyWidget_h

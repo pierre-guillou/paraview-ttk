@@ -109,7 +109,7 @@ int vtkEnSightMasterServerReader::DetermineFileName(int piece)
       sfilename += "/";
     }
     sfilename += this->CaseFileName;
-    vtkDebugMacro("full path to case file: " << sfilename.c_str());
+    vtkDebugMacro("full path to case file: " << sfilename);
   }
   else
   {
@@ -119,7 +119,7 @@ int vtkEnSightMasterServerReader::DetermineFileName(int piece)
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -206,5 +206,5 @@ void vtkEnSightMasterServerReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent
      << "Piece Case File name: " << (this->PieceCaseFileName ? this->PieceCaseFileName : "<none>")
      << endl;
-  os << indent << "Maximum numbe of pieces: " << this->MaxNumberOfPieces << endl;
+  os << indent << "Maximum number of pieces: " << this->MaxNumberOfPieces << endl;
 }

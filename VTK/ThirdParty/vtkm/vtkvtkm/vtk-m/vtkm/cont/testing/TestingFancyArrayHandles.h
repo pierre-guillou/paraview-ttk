@@ -30,7 +30,17 @@
 #include <vtkm/cont/ArrayHandleTransform.h>
 #include <vtkm/cont/ArrayHandleView.h>
 #include <vtkm/cont/ArrayHandleZip.h>
+#include <vtkm/cont/ConvertNumComponentsToOffsets.h>
+
+// MSVC is giving deprecation warnings in stupid places, so just disable the deprecated tests
+// for that compiler
+#if !defined(VTKM_NO_DEPRECATED_VIRTUAL) && defined(VTKM_MSVC)
+#define VTKM_NO_DEPRECATED_VIRTUAL
+#endif
+
+#ifndef VTKM_NO_DEPRECATED_VIRTUAL
 #include <vtkm/cont/VirtualObjectHandle.h>
+#endif //VTKM_NO_DEPRECATED_VIRTUAL
 
 #include <vtkm/worklet/DispatcherMapField.h>
 #include <vtkm/worklet/WorkletMapField.h>
@@ -129,6 +139,9 @@ private:
   vtkm::Float64 InverseFactor;
 };
 
+#ifndef VTKM_NO_DEPRECATED_VIRTUAL
+VTKM_DEPRECATED_SUPPRESS_BEGIN
+
 template <typename ValueType>
 struct VirtualTransformFunctorBase : public vtkm::VirtualObjectBase
 {
@@ -201,6 +214,10 @@ struct TransformExecObject : public vtkm::cont::ExecutionAndControlObjectBase
     return FunctorWrapper(this->VirtualFunctor.Get());
   }
 };
+
+VTKM_DEPRECATED_SUPPRESS_END
+#endif //VTKM_NO_DEPRECATED_VIRTUAL
+
 }
 
 namespace vtkm
@@ -409,7 +426,7 @@ private:
       SetPortal(basicArray.WritePortal());
 
       vtkm::cont::ArrayHandleSOA<ValueType> soaArray;
-      vtkm::cont::ArrayCopy(basicArray, soaArray);
+      vtkm::cont::Invoker{}(PassThrough{}, basicArray, soaArray);
 
       VTKM_TEST_ASSERT(soaArray.GetNumberOfValues() == ARRAY_SIZE);
       for (vtkm::IdComponent componentIndex = 0; componentIndex < NUM_COMPONENTS; ++componentIndex)
@@ -770,6 +787,9 @@ private:
     }
   };
 
+#ifndef VTKM_NO_DEPRECATED_VIRTUAL
+  VTKM_DEPRECATED_SUPPRESS_BEGIN
+
   struct TestTransformVirtualAsInput
   {
     template <typename ValueType>
@@ -806,6 +826,9 @@ private:
       }
     }
   };
+
+  VTKM_DEPRECATED_SUPPRESS_END
+#endif //VTKM_NO_DEPRECATED_VIRTUAL
 
   struct TestCountingTransformAsInput
   {
@@ -1062,13 +1085,13 @@ private:
     VTKM_EXEC void operator()(const InputType& input, vtkm::Id workIndex, vtkm::Id& dummyOut) const
     {
       using ComponentType = typename InputType::ComponentType;
-      vtkm::IdComponent expectedSize = static_cast<vtkm::IdComponent>(workIndex + 1);
+      vtkm::IdComponent expectedSize = static_cast<vtkm::IdComponent>(workIndex);
       if (expectedSize != input.GetNumberOfComponents())
       {
         this->RaiseError("Got unexpected number of components.");
       }
 
-      vtkm::Id valueIndex = workIndex * (workIndex + 1) / 2;
+      vtkm::Id valueIndex = workIndex * (workIndex - 1) / 2;
       dummyOut = valueIndex;
       for (vtkm::IdComponent componentIndex = 0; componentIndex < expectedSize; componentIndex++)
       {
@@ -1089,7 +1112,8 @@ private:
     {
       vtkm::Id sourceArraySize;
 
-      vtkm::cont::ArrayHandleCounting<vtkm::IdComponent> numComponentsArray(1, 1, ARRAY_SIZE);
+      vtkm::cont::ArrayHandle<vtkm::Id> numComponentsArray;
+      vtkm::cont::ArrayCopy(vtkm::cont::ArrayHandleIndex(ARRAY_SIZE), numComponentsArray);
       vtkm::cont::ArrayHandle<vtkm::Id> offsetsArray =
         vtkm::cont::ConvertNumComponentsToOffsets(numComponentsArray, sourceArraySize);
 
@@ -1122,13 +1146,13 @@ private:
     VTKM_EXEC void operator()(OutputType& output, vtkm::Id workIndex) const
     {
       using ComponentType = typename OutputType::ComponentType;
-      vtkm::IdComponent expectedSize = static_cast<vtkm::IdComponent>(workIndex + 1);
+      vtkm::IdComponent expectedSize = static_cast<vtkm::IdComponent>(workIndex);
       if (expectedSize != output.GetNumberOfComponents())
       {
         this->RaiseError("Got unexpected number of components.");
       }
 
-      vtkm::Id valueIndex = workIndex * (workIndex + 1) / 2;
+      vtkm::Id valueIndex = workIndex * (workIndex - 1) / 2;
       for (vtkm::IdComponent componentIndex = 0; componentIndex < expectedSize; componentIndex++)
       {
         output[componentIndex] = TestValue(valueIndex, ComponentType());
@@ -1144,7 +1168,8 @@ private:
     {
       vtkm::Id sourceArraySize;
 
-      vtkm::cont::ArrayHandleCounting<vtkm::IdComponent> numComponentsArray(1, 1, ARRAY_SIZE);
+      vtkm::cont::ArrayHandle<vtkm::Id> numComponentsArray;
+      vtkm::cont::ArrayCopy(vtkm::cont::ArrayHandleIndex(ARRAY_SIZE), numComponentsArray);
       vtkm::cont::ArrayHandle<vtkm::Id> offsetsArray = vtkm::cont::ConvertNumComponentsToOffsets(
         numComponentsArray, sourceArraySize, DeviceAdapterTag());
 
@@ -1337,6 +1362,15 @@ private:
 
       //verify that the control portal works
       CheckPortal(view.ReadPortal());
+
+      //verify that filling works
+      const ValueType expected = TestValue(20, ValueType{});
+      view.Fill(expected);
+      auto valuesPortal = values.ReadPortal();
+      for (vtkm::Id index = length; index < 2 * length; ++index)
+      {
+        VTKM_TEST_ASSERT(valuesPortal.Get(index) == expected);
+      }
     }
   };
 
@@ -1377,6 +1411,9 @@ private:
       }
     }
   };
+
+#ifndef VTKM_NO_DEPRECATED_VIRTUAL
+  VTKM_DEPRECATED_SUPPRESS_BEGIN
 
   struct TestTransformVirtualAsOutput
   {
@@ -1421,6 +1458,9 @@ private:
     }
   };
 
+  VTKM_DEPRECATED_SUPPRESS_END
+#endif //VTKM_NO_DEPRECATED_VIRTUAL
+
   struct TestZipAsOutput
   {
     template <typename KeyType, typename ValueType>
@@ -1461,6 +1501,28 @@ private:
           "ArrayHandleZip Failed as input for key");
         VTKM_TEST_ASSERT(test_equal(result_value, ValueType(static_cast<ValueComponentType>(i))),
                          "ArrayHandleZip Failed as input for value");
+      }
+
+      // Test filling the zipped array.
+      vtkm::cont::printSummary_ArrayHandle(result_zip, std::cout, true);
+      PairType fillValue{ TestValue(1, KeyType{}), TestValue(2, ValueType{}) };
+      result_zip.Fill(fillValue, 1);
+      vtkm::cont::printSummary_ArrayHandle(result_zip, std::cout, true);
+      keysPortal = result_keys.ReadPortal();
+      valsPortal = result_values.ReadPortal();
+      // First entry should be the same.
+      VTKM_TEST_ASSERT(
+        test_equal(keysPortal.Get(0), KeyType(static_cast<KeyComponentType>(ARRAY_SIZE))));
+      VTKM_TEST_ASSERT(
+        test_equal(valsPortal.Get(0), ValueType(static_cast<ValueComponentType>(0))));
+      // The rest should be fillValue
+      for (vtkm::Id index = 1; index < ARRAY_SIZE; ++index)
+      {
+        const KeyType result_key = keysPortal.Get(index);
+        const ValueType result_value = valsPortal.Get(index);
+
+        VTKM_TEST_ASSERT(test_equal(result_key, fillValue.first));
+        VTKM_TEST_ASSERT(test_equal(result_value, fillValue.second));
       }
     }
   };
@@ -1553,11 +1615,13 @@ private:
       vtkm::testing::Testing::TryTypes(
         TestingFancyArrayHandles<DeviceAdapterTag>::TestTransformAsInput(), HandleTypesToTest());
 
+#ifndef VTKM_NO_DEPRECATED_VIRTUAL
       std::cout << "-------------------------------------------" << std::endl;
       std::cout << "Testing ArrayHandleTransform with virtual as Input" << std::endl;
       vtkm::testing::Testing::TryTypes(
         TestingFancyArrayHandles<DeviceAdapterTag>::TestTransformVirtualAsInput(),
         HandleTypesToTest());
+#endif //VTKM_NO_DEPRECATED_VIRTUAL
 
       std::cout << "-------------------------------------------" << std::endl;
       std::cout << "Testing ArrayHandleTransform with Counting as Input" << std::endl;
@@ -1648,11 +1712,13 @@ private:
       vtkm::testing::Testing::TryTypes(
         TestingFancyArrayHandles<DeviceAdapterTag>::TestTransformAsOutput(), HandleTypesToTest());
 
+#ifndef VTKM_NO_DEPRECATED_VIRTUAL
       std::cout << "-------------------------------------------" << std::endl;
       std::cout << "Testing ArrayHandleTransform with virtual as Output" << std::endl;
       vtkm::testing::Testing::TryTypes(
         TestingFancyArrayHandles<DeviceAdapterTag>::TestTransformVirtualAsOutput(),
         HandleTypesToTest());
+#endif //VTKM_NO_DEPRECATED_VIRTUAL
 
       std::cout << "-------------------------------------------" << std::endl;
       std::cout << "Testing ArrayHandleDiscard as Output" << std::endl;

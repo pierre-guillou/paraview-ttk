@@ -52,18 +52,18 @@ public:
 
   using vtkRenderer::ResetCameraClippingRange;
 
-  //@{
+  ///@{
   /**
    * Reset the camera clipping range based on a bounding box.
    */
   void ResetCameraClippingRange() override;
   void ResetCameraClippingRange(const double bounds[6]) override;
-  //@}
+  ///@}
 
   /**
    * Abstract function that creates a new Camera suitable for use with this type of Renderer.
    */
-  vtkCamera* MakeCamera() override = 0;
+  VTK_NEWINSTANCE vtkCamera* MakeCamera() override = 0;
 
   /**
    * Store in \p transform the floor transform.
@@ -75,19 +75,20 @@ public:
    */
   void DeviceRender() override;
 
+  ///@{
   /**
    * Show the floor of the VR world
    */
   virtual void SetShowFloor(bool);
   virtual bool GetShowFloor() { return this->ShowFloor; }
-  //@}
+  ///@}
 
 protected:
   vtkVRRenderer();
   ~vtkVRRenderer() override = default;
 
   vtkNew<vtkActor> FloorActor;
-  bool ShowFloor;
+  bool ShowFloor = false;
 
 private:
   vtkVRRenderer(const vtkVRRenderer&) = delete;

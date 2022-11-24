@@ -115,20 +115,18 @@ void vtkHighestDensityRegionsStatistics::Learn(
     // Each request contains only one pair of columns of interest
     // (if there are others, they are ignored).
     std::set<vtkStdString>::const_iterator colIt = reqIt->begin();
-    const vtkStdString& colY = *colIt;
+    const std::string& colY = *colIt;
     if (!inData->GetColumnByName(colY.c_str()))
     {
-      vtkWarningMacro(
-        "InData table does not have a column " << colY.c_str() << ". Ignoring this pair.");
+      vtkWarningMacro("InData table does not have a column " << colY << ". Ignoring this pair.");
       continue;
     }
 
     ++colIt;
-    const vtkStdString& colX = *colIt;
+    const std::string& colX = *colIt;
     if (!inData->GetColumnByName(colX.c_str()))
     {
-      vtkWarningMacro(
-        "InData table does not have a column " << colX.c_str() << ". Ignoring this pair.");
+      vtkWarningMacro("InData table does not have a column " << colX << ". Ignoring this pair.");
       continue;
     }
 

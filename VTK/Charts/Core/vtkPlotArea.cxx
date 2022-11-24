@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPlotArea.h"
 
 #include "vtkArrayDispatch.h"
@@ -60,14 +57,7 @@ class vtkPlotArea::vtkTableCache
     vtkVector2f pos;
     static bool compVector3fX(const vtkIndexedVector2f& v1, const vtkIndexedVector2f& v2)
     {
-      if (v1.pos.GetX() < v2.pos.GetX())
-      {
-        return true;
-      }
-      else
-      {
-        return false;
-      }
+      return v1.pos.GetX() < v2.pos.GetX();
     }
     // See if the point is within tolerance.
     static bool inRange(
@@ -502,46 +492,41 @@ vtkPlotArea::~vtkPlotArea()
 }
 
 //------------------------------------------------------------------------------
-void vtkPlotArea::Update()
+bool vtkPlotArea::UpdateCache()
 {
-  if (!this->Visible)
+  if (!this->Superclass::UpdateCache())
   {
-    return;
+    return false;
   }
 
-  vtkTable* table = this->GetInput();
-  if (!table)
-  {
-    vtkDebugMacro("Update event called with no input table set.");
-    this->TableCache->Reset();
-    return;
-  }
-
-  if (this->Data->GetMTime() > this->UpdateTime || table->GetMTime() > this->UpdateTime ||
-    this->GetMTime() > this->UpdateTime)
-  {
-    vtkTableCache& cache = (*this->TableCache);
-
-    cache.Reset();
-    cache.ValidPointMask = (this->ValidPointMaskName.empty() == false)
-      ? vtkArrayDownCast<vtkCharArray>(table->GetColumnByName(this->ValidPointMaskName))
-      : nullptr;
-    cache.SetPoints(
-      this->UseIndexForXSeries ? nullptr : this->Data->GetInputArrayToProcess(0, table),
-      this->Data->GetInputArrayToProcess(1, table), this->Data->GetInputArrayToProcess(2, table));
-    this->UpdateTime.Modified();
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkPlotArea::UpdateCache()
-{
+  vtkTable* table = this->Data->GetInput();
   vtkTableCache& cache = (*this->TableCache);
-  if (!this->Visible || !cache.IsInputDataValid())
+  cache.Reset();
+
+  if (!this->ValidPointMaskName.empty())
   {
-    return;
+    cache.ValidPointMask =
+      vtkArrayDownCast<vtkCharArray>(table->GetColumnByName(this->ValidPointMaskName.c_str()));
   }
+  else
+  {
+    cache.ValidPointMask = nullptr;
+  }
+
+  if (this->UseIndexForXSeries)
+  {
+    cache.SetPoints(nullptr, this->Data->GetInputArrayToProcess(1, table),
+      this->Data->GetInputArrayToProcess(2, table));
+  }
+  else
+  {
+    cache.SetPoints(this->Data->GetInputArrayToProcess(0, table),
+      this->Data->GetInputArrayToProcess(1, table), this->Data->GetInputArrayToProcess(2, table));
+  }
+
+  this->UpdateTime.Modified();
   cache.UpdateCache(this);
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -600,22 +585,6 @@ bool vtkPlotArea::PaintLegend(
 vtkIdType vtkPlotArea::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
   vtkVector2f* location, vtkIdType* vtkNotUsed(segmentId))
 {
-  if (!this->LegacyRecursionFlag)
-  {
-    this->LegacyRecursionFlag = true;
-    vtkIdType ret = this->GetNearestPoint(point, tolerance, location);
-    this->LegacyRecursionFlag = false;
-    if (ret != -1)
-    {
-      VTK_LEGACY_REPLACED_BODY(vtkPlotArea::GetNearestPoint(const vtkVector2f& point,
-                                 const vtkVector2f& tolerance, vtkVector2f* location),
-        "VTK 9.0",
-        vtkPlotArea::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
-          vtkVector2f* location, vtkIdType* segmentId));
-      return ret;
-    }
-  }
-
   vtkTableCache& cache = (*this->TableCache);
   if (!this->Visible || !cache.IsInputDataValid() || cache.Points->GetNumberOfPoints() == 0)
   {
@@ -628,8 +597,8 @@ vtkIdType vtkPlotArea::GetNearestPoint(const vtkVector2f& point, const vtkVector
 vtkStdString vtkPlotArea::GetTooltipLabel(
   const vtkVector2d& plotPos, vtkIdType seriesIndex, vtkIdType segmentIndex)
 {
-  vtkStdString tooltipLabel;
-  vtkStdString format = this->Superclass::GetTooltipLabel(plotPos, seriesIndex, segmentIndex);
+  std::string tooltipLabel;
+  std::string format = this->Superclass::GetTooltipLabel(plotPos, seriesIndex, segmentIndex);
 
   vtkIdType idx = (seriesIndex / 2) * 2;
 
@@ -680,10 +649,17 @@ void vtkPlotArea::SetColor(unsigned char r, unsigned char g, unsigned char b, un
 }
 
 //------------------------------------------------------------------------------
-void vtkPlotArea::SetColor(double r, double g, double b)
+void vtkPlotArea::SetColorF(double r, double g, double b, double a)
+{
+  this->Brush->SetColorF(r, g, b, a);
+  this->Superclass::SetColorF(r, g, b);
+}
+
+//------------------------------------------------------------------------------
+void vtkPlotArea::SetColorF(double r, double g, double b)
 {
   this->Brush->SetColorF(r, g, b);
-  this->Superclass::SetColor(r, g, b);
+  this->Superclass::SetColorF(r, g, b);
 }
 
 //------------------------------------------------------------------------------

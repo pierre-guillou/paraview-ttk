@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPlotPie.h"
 
 #include "vtkBrush.h"
@@ -106,33 +103,19 @@ vtkPlotPie::~vtkPlotPie()
 //------------------------------------------------------------------------------
 bool vtkPlotPie::Paint(vtkContext2D* painter)
 {
-  if (!this->Visible)
-  {
-    return false;
-  }
-
-  // First check if we have an input
-  vtkTable* table = this->Data->GetInput();
-  if (!table)
-  {
-    vtkDebugMacro(<< "Paint event called with no input table set.");
-    return false;
-  }
-  else if (this->Data->GetMTime() > this->BuildTime || table->GetMTime() > this->BuildTime ||
-    this->MTime > this->BuildTime)
-  {
-    vtkDebugMacro(<< "Paint event called with outdated table cache. Updating.");
-    this->UpdateTableCache(table);
-  }
-
   float* data = static_cast<float*>(this->Points->GetVoidPointer(0));
+  vtkNew<vtkBrush> brush;
+  painter->ApplyBrush(brush);
 
   for (int i = 0; i < this->Points->GetNumberOfPoints(); ++i)
   {
     painter->GetBrush()->SetColor(this->ColorSeries->GetColorRepeating(i).GetData());
 
-    painter->DrawEllipseWedge(this->Private->CenterX, this->Private->CenterY, this->Private->Radius,
-      this->Private->Radius, 0.0, 0.0, data[2 * i], data[2 * i + 1]);
+    if (data[2 * i + 1] != data[2 * i])
+    {
+      painter->DrawEllipseWedge(this->Private->CenterX, this->Private->CenterY,
+        this->Private->Radius, this->Private->Radius, 0.0, 0.0, data[2 * i], data[2 * i + 1]);
+    }
   }
 
   this->PaintChildren(painter);
@@ -195,25 +178,9 @@ vtkColorSeries* vtkPlotPie::GetColorSeries()
 }
 
 //------------------------------------------------------------------------------
-vtkIdType vtkPlotPie::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
-  vtkVector2f* value, vtkIdType* vtkNotUsed(segmentId))
+vtkIdType vtkPlotPie::GetNearestPoint(const vtkVector2f& point,
+  const vtkVector2f& vtkNotUsed(tolerance), vtkVector2f* value, vtkIdType* vtkNotUsed(segmentId))
 {
-  if (!this->LegacyRecursionFlag)
-  {
-    this->LegacyRecursionFlag = true;
-    vtkIdType retLegacy = this->GetNearestPoint(point, tolerance, value);
-    this->LegacyRecursionFlag = false;
-    if (retLegacy != -1)
-    {
-      VTK_LEGACY_REPLACED_BODY(vtkPlotPie::GetNearestPoint(const vtkVector2f& point,
-                                 const vtkVector2f& tolerance, vtkVector2f* value),
-        "VTK 9.0",
-        vtkPlotPie::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tolerance,
-          vtkVector2f* value, vtkIdType* segmentId));
-      return retLegacy;
-    }
-  }
-
   float x = point.GetX() - this->Private->CenterX;
   float y = point.GetY() - this->Private->CenterY;
 
@@ -249,8 +216,15 @@ void vtkPlotPie::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-bool vtkPlotPie::UpdateTableCache(vtkTable* table)
+bool vtkPlotPie::UpdateCache()
 {
+  if (!this->Superclass::UpdateCache())
+  {
+    return false;
+  }
+
+  vtkTable* table = this->Data->GetInput();
+
   // Get the x and y arrays (index 0 and 1 respectively)
   vtkDataArray* data = this->Data->GetInputArrayToProcess(0, table);
 

@@ -18,7 +18,6 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPDirectory.h"
-#include "vtkPVConfig.h"
 #include "vtkPVLogger.h"
 #include "vtkPVPlugin.h"
 #include "vtkPVPluginTracker.h"
@@ -516,13 +515,18 @@ bool vtkPVPluginLoader::LoadPluginInternal(const char* file, bool no_errors)
                               "cannot load dynamic plugins  in static builds.");
   return false;
 #else // ifndef BUILD_SHARED_LIBS
+
   int flags = 0;
 #ifdef _WIN32
   // Windows doesn't have rpath or other mechanisms for specifying where
   // dependent libraries live. Assume those not provided by ParaView live next
   // to the plugin.
   flags |= vtksys::DynamicLoader::SearchBesideLibrary;
+#else
+  // MacOS and Linux should use RTLD_GLOBAL to load plugin symbols gloablly
+  flags |= vtksys::DynamicLoader::RTLDGlobal;
 #endif
+
   vtkLibHandle lib = vtkDynamicLoader::OpenLibrary(file, flags);
   if (!lib)
   {

@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkVoxel.h"
 
 #include "vtkBox.h"
@@ -24,7 +21,6 @@
 #include "vtkDataArrayRange.h"
 #include "vtkIncrementalPointLocator.h"
 #include "vtkLine.h"
-#include "vtkMarchingCubesTriangleCases.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPixel.h"
@@ -458,7 +454,7 @@ void vtkVoxel::Contour(double value, vtkDataArray* cellScalars, vtkIncrementalPo
 {
   static const int CASE_MASK[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
   vtkMarchingCubesTriangleCases* triCase;
-  EDGE_LIST* edge;
+  int* edge;
   int i, j, index;
   const vtkIdType* vert;
   static const int vertMap[8] = { 0, 1, 3, 2, 4, 5, 7, 6 };
@@ -584,8 +580,8 @@ vtkCell* vtkVoxel::GetFace(int faceId)
 //
 // Intersect voxel with line using "bounding box" intersection.
 //
-int vtkVoxel::IntersectWithLine(const double p1[3], const double p2[3], double vtkNotUsed(tol),
-  double& t, double x[3], double pcoords[3], int& subId)
+int vtkVoxel::IntersectWithLine(const double p1[3], const double p2[3], double tol, double& t,
+  double x[3], double pcoords[3], int& subId)
 {
   double minPt[3], maxPt[3];
   double bounds[6];
@@ -604,7 +600,7 @@ int vtkVoxel::IntersectWithLine(const double p1[3], const double p2[3], double v
     bounds[2 * i + 1] = maxPt[i];
   }
 
-  if (!vtkBox::IntersectBox(bounds, p1, p21, x, t))
+  if (!vtkBox::IntersectBox(bounds, p1, p21, x, t, tol))
   {
     return 0;
   }
@@ -812,24 +808,6 @@ void vtkVoxel::GetEdgeToAdjacentFaces(vtkIdType edgeId, const vtkIdType*& pts)
 {
   assert(edgeId < vtkVoxel::NumberOfEdges && "edgeId too large");
   pts = edgeToAdjacentFaces[edgeId];
-}
-
-//------------------------------------------------------------------------------
-void vtkVoxel::GetEdgePoints(int edgeId, int*& pts)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkVoxel::GetEdgePoints(int, int*&), "VTK 9.0",
-    vtkVoxel::GetEdgePoints(vtkIdType, const vtkIdType*&));
-  static std::vector<int> tmp(std::begin(faces[edgeId]), std::end(faces[edgeId]));
-  pts = tmp.data();
-}
-
-//------------------------------------------------------------------------------
-void vtkVoxel::GetFacePoints(int faceId, int*& pts)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkVoxel::GetFacePoints(int, int*&), "VTK 9.0",
-    vtkVoxel::GetFacePoints(vtkIdType, const vtkIdType*&));
-  static std::vector<int> tmp(std::begin(faces[faceId]), std::end(faces[faceId]));
-  pts = tmp.data();
 }
 
 //------------------------------------------------------------------------------

@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPlotFunctionalBag.h"
 
 #include "vtkAbstractArray.h"
@@ -68,41 +65,23 @@ bool vtkPlotFunctionalBag::GetVisible()
   return this->Superclass::GetVisible() || this->GetSelection() != nullptr;
 }
 
-//------------------------------------------------------------------------------
-void vtkPlotFunctionalBag::Update()
+bool vtkPlotFunctionalBag::CacheRequiresUpdate()
 {
-  if (!this->GetVisible())
-  {
-    return;
-  }
-  // Check if we have an input
-  vtkTable* table = this->Data->GetInput();
-
-  if (!table)
-  {
-    vtkDebugMacro(<< "Update event called with no input table set.");
-    return;
-  }
-  else if (this->Data->GetMTime() > this->BuildTime || table->GetMTime() > this->BuildTime ||
-    (this->LookupTable && this->LookupTable->GetMTime() > this->BuildTime) ||
-    this->MTime > this->BuildTime)
-  {
-    vtkDebugMacro(<< "Updating cached values.");
-    this->UpdateTableCache(table);
-  }
-  else if ((this->XAxis->GetMTime() > this->BuildTime) ||
-    (this->YAxis->GetMTime() > this->BuildTime))
-  {
-    if ((this->LogX != this->XAxis->GetLogScale()) || (this->LogY != this->YAxis->GetLogScale()))
-    {
-      this->UpdateTableCache(table);
-    }
-  }
+  return this->Superclass::CacheRequiresUpdate() ||
+    (this->XAxis && this->LogX != this->XAxis->GetLogScaleActive()) ||
+    (this->YAxis && this->LogY != this->YAxis->GetLogScaleActive()) ||
+    (this->LookupTable && this->LookupTable->GetMTime() > this->BuildTime);
 }
 
 //------------------------------------------------------------------------------
-bool vtkPlotFunctionalBag::UpdateTableCache(vtkTable* table)
+bool vtkPlotFunctionalBag::UpdateCache()
 {
+  if (!this->Superclass::UpdateCache())
+  {
+    return false;
+  }
+
+  vtkTable* table = this->Data->GetInput();
   if (!this->LookupTable)
   {
     this->CreateDefaultLookupTable();
@@ -262,22 +241,6 @@ bool vtkPlotFunctionalBag::PaintLegend(vtkContext2D* painter, const vtkRectf& re
 vtkIdType vtkPlotFunctionalBag::GetNearestPoint(
   const vtkVector2f& point, const vtkVector2f& tol, vtkVector2f* location, vtkIdType* segmentId)
 {
-  if (!this->LegacyRecursionFlag)
-  {
-    this->LegacyRecursionFlag = true;
-    vtkIdType ret = this->GetNearestPoint(point, tol, location);
-    this->LegacyRecursionFlag = false;
-    if (ret != -1)
-    {
-      VTK_LEGACY_REPLACED_BODY(vtkPlotFunctionalBag::GetNearestPoint(const vtkVector2f& point,
-                                 const vtkVector2f& tol, vtkVector2f* location),
-        "VTK 9.0",
-        vtkPlotFunctionalBag::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
-          vtkVector2f* location, vtkIdType* segmentId));
-      return ret;
-    }
-  }
-
   if (this->BagPoints->GetNumberOfPoints() == 0)
   {
     return this->Line->GetNearestPoint(point, tol, location, segmentId);

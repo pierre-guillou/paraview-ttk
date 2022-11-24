@@ -12,7 +12,6 @@
 
 #ifndef vtkOBJImporterInternals_h
 #define vtkOBJImporterInternals_h
-#ifndef __VTK_WRAP__
 
 #include "vtkIOImportModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
@@ -62,7 +61,7 @@ public:
     {
       return;
     }
-    if (!strcmp(this->FileName.c_str(), arg))
+    if (this->FileName == arg)
     {
       return;
     }
@@ -74,7 +73,7 @@ public:
     {
       return;
     }
-    if (!strcmp(this->MTLFileName.c_str(), arg))
+    if (this->MTLFileName == arg)
     {
       return;
     }
@@ -156,5 +155,4 @@ VTKIOIMPORT_EXPORT
 void bindTexturedPolydataToRenderWindow(
   vtkRenderWindow* renderWindow, vtkRenderer* renderer, vtkOBJPolyDataProcessor* reader);
 
-#endif
 #endif

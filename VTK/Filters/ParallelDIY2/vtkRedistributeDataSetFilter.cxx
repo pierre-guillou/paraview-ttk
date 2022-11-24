@@ -13,13 +13,11 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkRedistributeDataSetFilter.h"
 
 #include "vtkAppendFilter.h"
 #include "vtkCellData.h"
+#include "vtkCompositeDataSet.h"
 #include "vtkDIYKdTreeUtilities.h"
 #include "vtkDIYUtilities.h"
 #include "vtkDataAssembly.h"
@@ -159,7 +157,7 @@ std::vector<std::vector<int>> GenerateCellRegions(
           dataset->GetCell(cellId, gcell);
           double pcenter[3], center[3];
           int subId = gcell->GetParametricCenter(pcenter);
-          gcell->EvaluateLocation(subId, pcenter, center, &weights[0]);
+          gcell->EvaluateLocation(subId, pcenter, center, weights.data());
           for (int cutId = 0; cutId < static_cast<int>(cuts.size()); ++cutId)
           {
             const auto& bbox = cuts[cutId];
@@ -215,6 +213,7 @@ void SetPartitionCount(vtkPartitionedDataSet* pdc, unsigned int target)
   // we need to merge `count` partitions into `target`. This is done in
   // a contiguous fashion.
   vtkNew<vtkAppendFilter> appender;
+  appender->MergePointsOn();
   const diy::ContiguousAssigner assigner(static_cast<int>(target), static_cast<int>(count));
   for (unsigned int cc = 0; cc < target; ++cc)
   {
@@ -411,7 +410,7 @@ int vtkRedistributeDataSetFilter::RequestData(
     }
 
     // if this->PreservePartitionsInOutput, we need to preserve input hierarchy.
-    preserve_input_hierarchy = (this->PreservePartitionsInOutput == false);
+    preserve_input_hierarchy = !this->PreservePartitionsInOutput;
   }
   else if (auto inputPTD = vtkPartitionedDataSet::SafeDownCast(inputDO))
   {
@@ -480,10 +479,18 @@ int vtkRedistributeDataSetFilter::RequestData(
 
     const auto inCount = inputPTD->GetNumberOfPartitions();
     const auto outCount = outputPTD->GetNumberOfPartitions();
-    if (preserve_input_hierarchy && inCount != outCount)
+    if (preserve_input_hierarchy && inCount > outCount)
     {
       detail::SetPartitionCount(outputPTD, inCount);
     }
+  }
+
+  std::vector<vtkDataSet*> resultVector = vtkCompositeDataSet::GetDataSets(result);
+  for (vtkDataSet* ds : resultVector)
+  {
+    // Ghost arrays become irrelevant after this filter is done, we remove them.
+    ds->GetPointData()->RemoveArray(vtkDataSetAttributes::GhostArrayName());
+    ds->GetCellData()->RemoveArray(vtkDataSetAttributes::GhostArrayName());
   }
 
   // ******************************************************
@@ -517,7 +524,9 @@ int vtkRedistributeDataSetFilter::RequestData(
   else
   {
     assert(vtkUnstructuredGrid::SafeDownCast(outputDO) != nullptr);
+
     vtkNew<vtkAppendFilter> appender;
+    appender->MergePointsOn();
 
     using Opts = vtk::DataObjectTreeOptions;
     for (vtkDataObject* part : vtk::Range(result.GetPointer(),
@@ -685,6 +694,7 @@ bool vtkRedistributeDataSetFilter::Redistribute(vtkPartitionedDataSet* inputPDS,
   for (unsigned int part = 0; part < outputPDS->GetNumberOfPartitions(); ++part)
   {
     vtkNew<vtkAppendFilter> appender;
+    appender->MergePointsOn();
     for (auto& pds : results)
     {
       if (auto ds = pds->GetPartition(part))
@@ -899,7 +909,7 @@ vtkSmartPointer<vtkPartitionedDataSet> vtkRedistributeDataSetFilter::SplitDataSe
     const auto& cell_ids = region_cell_ids[region_idx];
     if (!cell_ids.empty())
     {
-      extractor->SetCellIds(&cell_ids[0], static_cast<vtkIdType>(cell_ids.size()));
+      extractor->SetCellIds(cell_ids.data(), static_cast<vtkIdType>(cell_ids.size()));
       extractor->Update();
 
       vtkNew<vtkUnstructuredGrid> ug;

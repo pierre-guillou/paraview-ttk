@@ -124,7 +124,7 @@ public:
     , InObjs(inObjs)
   {
     int numInputPorts = this->Exec->GetNumberOfInputPorts();
-    this->OutObjs = &outObjs[0];
+    this->OutObjs = outObjs.data();
     this->InfoPrototype = vtkSmartPointer<ProcessBlockData>::New();
     this->InfoPrototype->Construct(this->InInfoVec, numInputPorts, this->OutInfoVec);
   }
@@ -281,8 +281,8 @@ int vtkThreadedCompositeDataPipeline::CallAlgorithm(vtkInformation* request, int
   // If the algorithm failed report it now.
   if (!result)
   {
-    vtkErrorMacro("Algorithm " << this->Algorithm->GetClassName() << "(" << this->Algorithm
-                               << ") returned failure for request: " << *request);
+    vtkErrorMacro("Algorithm " << this->Algorithm->GetObjectDescription()
+                               << " returned failure for request: " << *request);
   }
 
   return result;

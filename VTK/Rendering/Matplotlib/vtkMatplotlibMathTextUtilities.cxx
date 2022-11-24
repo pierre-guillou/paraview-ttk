@@ -26,7 +26,6 @@
 #include "vtkPoints.h"
 #include "vtkPythonInterpreter.h"
 #include "vtkSmartPyObject.h"
-#include "vtkStdString.h"
 #include "vtkTextProperty.h"
 #include "vtkTransform.h"
 
@@ -57,10 +56,13 @@ vtkMatplotlibMathTextUtilities::Availability vtkMatplotlibMathTextUtilities::MPL
 // is defined in the environment. Use vtkGenericWarningMacro to allow this to
 // work in release mode builds.
 #define vtkMplStartUpDebugMacro(x)                                                                 \
-  if (debug)                                                                                       \
+  do                                                                                               \
   {                                                                                                \
-    vtkGenericWarningMacro(x);                                                                     \
-  }
+    if (debug)                                                                                     \
+    {                                                                                              \
+      vtkGenericWarningMacro(x);                                                                   \
+    }                                                                                              \
+  } while (false)
 
 vtkObjectFactoryNewMacro(vtkMatplotlibMathTextUtilities);
 
@@ -623,10 +625,16 @@ bool vtkMatplotlibMathTextUtilities::ComputeRowsAndCols(const GridOfStrings& str
       vecColumnWidth[j] = std::max(vecColumnWidth[j], cellPythonCols);
     }
 
-    lineRows *= tprop->GetLineSpacing();
+    lineRows *= (tprop->GetLineSpacing() < 1.0) ? 1.0 : tprop->GetLineSpacing();
     lineRows += tprop->GetLineOffset();
 
     rows += lineRows;
+
+    // Store cell height
+    if (i < (strGrid.size() - 1))
+    {
+      this->HorizontalLinesPosition[i] = lineRows;
+    }
   }
 
   // The total number of cols is the sum of the maximum number of cols
@@ -635,6 +643,24 @@ bool vtkMatplotlibMathTextUtilities::ComputeRowsAndCols(const GridOfStrings& str
 
   // Handle horizontal offset between cells
   cols += tprop->GetCellOffset() * maxNumberOfCells;
+
+  // Store cell widths
+  for (std::size_t lineIdx = 0; lineIdx < (maxNumberOfCells - 1); ++lineIdx)
+  {
+    this->VerticalLinesPosition[lineIdx] = vecColumnWidth[lineIdx] + tprop->GetCellOffset();
+  }
+
+  // Compute positions of horizontal lines based on cell heights
+  for (std::size_t lineIdx = 1; lineIdx < this->HorizontalLinesPosition.size(); ++lineIdx)
+  {
+    this->HorizontalLinesPosition[lineIdx] += this->HorizontalLinesPosition[lineIdx - 1];
+  }
+
+  // Compute positions of vertical lines based on cell widths
+  for (std::size_t lineIdx = 1; lineIdx < this->VerticalLinesPosition.size(); ++lineIdx)
+  {
+    this->VerticalLinesPosition[lineIdx] += this->VerticalLinesPosition[lineIdx - 1];
+  }
 
   return true;
 }
@@ -931,10 +957,82 @@ bool vtkMatplotlibMathTextUtilities::RenderOneCell(vtkImageData* image, int bbox
 }
 
 //------------------------------------------------------------------------------
+bool vtkMatplotlibMathTextUtilities::DrawInteriorLines(
+  vtkImageData* image, int bbox[4], vtkTextProperty* tprop)
+{
+  if (!image)
+  {
+    vtkErrorMacro("Invalid image.");
+    return false;
+  }
+
+  // Define line offsets to take line width into account
+  int extraLinesMin = 0;
+  int extraLinesMax = 0;
+  int width = tprop->GetInteriorLinesWidth();
+  double* doubleColor = tprop->GetInteriorLinesColor();
+  unsigned char color[3] = { static_cast<unsigned char>(doubleColor[0] * 255),
+    static_cast<unsigned char>(doubleColor[1] * 255),
+    static_cast<unsigned char>(doubleColor[2] * 255) };
+
+  // Draw horizontal lines
+  for (std::size_t lineIdx = 0; lineIdx < this->HorizontalLinesPosition.size(); ++lineIdx)
+  {
+    // Clamp line width to remain in bounds
+    extraLinesMin = ((this->HorizontalLinesPosition[lineIdx] - (width / 2)) >= 0)
+      ? (-width / 2)
+      : (-this->HorizontalLinesPosition[lineIdx]);
+    extraLinesMax = ((this->HorizontalLinesPosition[lineIdx] + (width / 2)) <= (bbox[3] - bbox[2]))
+      ? ((width + 1) / 2)
+      : ((bbox[3] - bbox[2]) - this->HorizontalLinesPosition[lineIdx]);
+
+    for (int extraLineIdx = extraLinesMin; extraLineIdx < extraLinesMax; ++extraLineIdx)
+    {
+      for (int colIdx = bbox[0]; colIdx <= bbox[1]; ++colIdx)
+      {
+        unsigned char* ptr = static_cast<unsigned char*>(image->GetScalarPointer(
+          colIdx, bbox[2] + this->HorizontalLinesPosition[lineIdx] + extraLineIdx, 0));
+        ptr[0] = static_cast<unsigned char>(color[0]);
+        ptr[1] = static_cast<unsigned char>(color[1]);
+        ptr[2] = static_cast<unsigned char>(color[2]);
+        ptr[3] = 255;
+      }
+    }
+  }
+
+  // Draw vertical lines
+  for (std::size_t lineIdx = 0; lineIdx < this->VerticalLinesPosition.size(); ++lineIdx)
+  {
+    // Clamp line width to remain in bounds
+    extraLinesMin = ((this->VerticalLinesPosition[lineIdx] - (width / 2)) >= 0)
+      ? (-width / 2)
+      : (-this->VerticalLinesPosition[lineIdx]);
+    extraLinesMax = ((this->VerticalLinesPosition[lineIdx] + (width / 2)) <= (bbox[1] - bbox[0]))
+      ? ((width + 1) / 2)
+      : ((bbox[1] - bbox[0]) - this->VerticalLinesPosition[lineIdx]);
+
+    for (int extraLineIdx = extraLinesMin; extraLineIdx < extraLinesMax; ++extraLineIdx)
+    {
+      for (int rowIdx = bbox[2]; rowIdx <= bbox[3]; ++rowIdx)
+      {
+        unsigned char* ptr = static_cast<unsigned char*>(image->GetScalarPointer(
+          bbox[0] + this->VerticalLinesPosition[lineIdx] + extraLineIdx, rowIdx, 0));
+        ptr[0] = static_cast<unsigned char>(color[0]);
+        ptr[1] = static_cast<unsigned char>(color[1]);
+        ptr[2] = static_cast<unsigned char>(color[2]);
+        ptr[3] = 255;
+      }
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 bool vtkMatplotlibMathTextUtilities::ParseString(
   const char* str, GridOfStrings& strGrid, std::size_t& maxNumberOfCells)
 {
-  // First, change all occurence of escaped pipe ("\|")
+  // First, change all occurrence of escaped pipe ("\|")
   // Into a special character and recover them after splitting
   std::string stdStr = std::string(str);
   this->FindAndReplaceInString(stdStr, "\\|", vtkMatplotlibMathTextUtilities::PipeProtectString);
@@ -963,6 +1061,10 @@ bool vtkMatplotlibMathTextUtilities::ParseString(
     strGrid.push_back(lineStrVec);
     maxNumberOfCells = std::max(maxNumberOfCells, numberOfCells);
   }
+
+  // Initialize number of interior borders
+  this->VerticalLinesPosition.resize(maxNumberOfCells - 1);
+  this->HorizontalLinesPosition.resize(strGrid.size() - 1);
 
   return true;
 }
@@ -1082,7 +1184,7 @@ bool vtkMatplotlibMathTextUtilities::RenderString(
       cellsPythonRowsAndCols.push_back(0);
     }
 
-    lineRows *= tprop->GetLineSpacing();
+    lineRows *= (tprop->GetLineSpacing() < 1.0) ? 1.0 : tprop->GetLineSpacing();
     lineRows += tprop->GetLineOffset();
 
     vecLineRows.push_back(lineRows);
@@ -1140,7 +1242,7 @@ bool vtkMatplotlibMathTextUtilities::RenderString(
       {
         vtkErrorMacro(<< "Failed to render cell number " << j);
         return false;
-      };
+      }
 
       colStart += cellCols;
     }
@@ -1152,6 +1254,16 @@ bool vtkMatplotlibMathTextUtilities::RenderString(
   {
     textDims[0] = totalCols;
     textDims[1] = totalRows;
+  }
+
+  // Draw interior lines between cells
+  if (tprop->GetInteriorLinesVisibility())
+  {
+    if (!this->DrawInteriorLines(image, bbox, tprop))
+    {
+      vtkErrorMacro("Failed to draw interior lines.");
+      return false;
+    }
   }
 
   // Mark the image data as modified, as it is possible that only

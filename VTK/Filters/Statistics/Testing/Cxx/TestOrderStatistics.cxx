@@ -10,6 +10,7 @@
 // Thanks to Philippe Pebay from Sandia National Laboratories
 // for implementing this test.
 
+#include "vtkDataSetAttributes.h"
 #include "vtkDoubleArray.h"
 #include "vtkInformation.h"
 #include "vtkMath.h"
@@ -17,6 +18,7 @@
 #include "vtkOrderStatistics.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
+#include "vtkUnsignedCharArray.h"
 
 #include <map>
 #include <vector>
@@ -26,7 +28,59 @@ int TestOrderStatistics(int, char*[])
 {
   int testStatus = 0;
 
+  unsigned char ghosts[] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0 };
+
   double mingledData[] = {
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     46,
     45,
     47,
@@ -92,7 +146,8 @@ int TestOrderStatistics(int, char*[])
     47,
     47,
   };
-  int nVals = 32;
+  int nVals = 56;
+  int numberOfGhosts = 24;
 
   vtkDoubleArray* dataset1Arr = vtkDoubleArray::New();
   dataset1Arr->SetNumberOfComponents(1);
@@ -106,12 +161,16 @@ int TestOrderStatistics(int, char*[])
   dataset3Arr->SetNumberOfComponents(1);
   dataset3Arr->SetName("Metric 2");
 
+  vtkNew<vtkUnsignedCharArray> ghostArray;
+  ghostArray->SetName(vtkDataSetAttributes::GhostArrayName());
+
   for (int i = 0; i < nVals; ++i)
   {
     int ti = i << 1;
     dataset1Arr->InsertNextValue(mingledData[ti]);
     dataset2Arr->InsertNextValue(mingledData[ti + 1]);
-    dataset3Arr->InsertNextValue(static_cast<double>(i));
+    dataset3Arr->InsertNextValue(static_cast<double>(i - numberOfGhosts));
+    ghostArray->InsertNextValue(ghosts[i]);
   }
 
   vtkTable* datasetTable = vtkTable::New();
@@ -121,9 +180,10 @@ int TestOrderStatistics(int, char*[])
   dataset2Arr->Delete();
   datasetTable->AddColumn(dataset3Arr);
   dataset3Arr->Delete();
+  datasetTable->AddColumn(ghostArray);
 
   int nMetrics = 3;
-  vtkStdString columns[] = { "Metric 1", "Metric 2", "Metric 0" };
+  std::string columns[] = { "Metric 1", "Metric 2", "Metric 0" };
 
   // Set order statistics algorithm and its input data port
   vtkOrderStatistics* os = vtkOrderStatistics::New();
@@ -141,7 +201,7 @@ int TestOrderStatistics(int, char*[])
   os->AddColumn("Metric 3"); // Include invalid Metric 3
   for (int i = 0; i < nMetrics; ++i)
   { // Try to add all valid indices once more
-    os->AddColumn(columns[i]);
+    os->AddColumn(columns[i].c_str());
   }
 
   // Test Learn, Derive, and Test operations
@@ -174,7 +234,7 @@ int TestOrderStatistics(int, char*[])
   outputQuantiles->Dump();
   for (vtkIdType c = 1; c < outputQuantiles->GetNumberOfColumns(); ++c)
   {
-    vtkStdString colName = outputQuantiles->GetColumnName(c);
+    std::string colName = outputQuantiles->GetColumnName(c);
     cout << "   Variable=" << colName << "\n";
 
     // Check some results of the Derive operation
@@ -191,8 +251,8 @@ int TestOrderStatistics(int, char*[])
     }
 
     // Check some results of the Assess operation
-    vtkStdString quantColName = "Quantile(" + colName + ")";
-    vtkAbstractArray* absQuantArr = outputData->GetColumnByName(quantColName);
+    std::string quantColName = "Quantile(" + colName + ")";
+    vtkAbstractArray* absQuantArr = outputData->GetColumnByName(quantColName.c_str());
     if (!absQuantArr)
     {
       vtkGenericWarningMacro("Cannot retrieve quartile array for variable: " << colName << ".");
@@ -239,7 +299,7 @@ int TestOrderStatistics(int, char*[])
   cout << "## Calculated the following histograms:\n";
   for (unsigned b = 0; b < outputModelDS->GetNumberOfBlocks() - 2; ++b)
   {
-    vtkStdString varName = outputModelDS->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
+    std::string varName = outputModelDS->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
     cout << "   Variable=" << varName << "\n";
 
     vtkTable* histoTab = vtkTable::SafeDownCast(outputModelDS->GetBlock(b));
@@ -258,10 +318,10 @@ int TestOrderStatistics(int, char*[])
 
     // Check whether total cardinality is correct
     int testIntValue = outputCard->GetValueByName(r, "Cardinality").ToInt();
-    if (testIntValue != outputData->GetNumberOfRows())
+    if (testIntValue + numberOfGhosts != outputData->GetNumberOfRows())
     {
-      vtkGenericWarningMacro("Incorrect histogram count: " << testIntValue << " != "
-                                                           << outputData->GetNumberOfRows() << ".");
+      vtkGenericWarningMacro("Incorrect histogram count: "
+        << testIntValue + numberOfGhosts << " != " << outputData->GetNumberOfRows() << ".");
       testStatus = 1;
     }
 
@@ -286,7 +346,7 @@ int TestOrderStatistics(int, char*[])
   os->ResetRequests();
   for (int i = 0; i < nMetrics; ++i)
   { // Try to add all valid indices once more
-    os->AddColumn(columns[i]);
+    os->AddColumn(columns[i].c_str());
   }
 
   // Test Learn, Derive, and Test operations with InverseCDF quantile definition
@@ -374,7 +434,7 @@ int TestOrderStatistics(int, char*[])
   os->Delete();
 
   // Test Learn operation for quartiles with non-numeric ordinal data
-  vtkStdString text(
+  std::string text(
     "an ordinal scale defines a total preorder of objects the scale values themselves have a total "
     "order names may be used like bad medium good if numbers are used they are only relevant up to "
     "strictly monotonically increasing transformations also known as order isomorphisms");
@@ -386,7 +446,7 @@ int TestOrderStatistics(int, char*[])
 
   for (std::vector<int>::size_type i = 0; i < textLength; ++i)
   {
-    vtkStdString s("");
+    std::string s;
     s += text.at(i);
     textArr->InsertNextValue(s);
   }
@@ -425,7 +485,7 @@ int TestOrderStatistics(int, char*[])
   cout << "\n## Calculated the following histogram:\n";
   for (unsigned b = 0; b < outputModelDS2->GetNumberOfBlocks() - 2; ++b)
   {
-    vtkStdString varName = outputModelDS2->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
+    std::string varName = outputModelDS2->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
     cout << "   Variable=" << varName << "\n";
 
     vtkTable* histoTab = vtkTable::SafeDownCast(outputModelDS2->GetBlock(b));

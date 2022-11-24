@@ -432,7 +432,7 @@ int vtkNIFTIImageReader::RequestInformation(vtkInformation* vtkNotUsed(request),
     int headers = 0;
     for (vtkIdType i = 0; i < n; i++)
     {
-      filename = this->FileNames->GetValue(i);
+      filename = this->FileNames->GetValue(i).c_str();
       // this checks for .hdr and .hdr.gz, case insensitive
       if (vtkNIFTIImageReader::CheckExtension(filename, ".hdr"))
       {
@@ -789,7 +789,7 @@ int vtkNIFTIImageReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   //    offset when R is the identity matrix.
   //
   // 3) If there is a qform and qfac is -1, then the situation is more
-  //    compilcated.  We have three choices, each of which is a compromise:
+  //    complicated.  We have three choices, each of which is a compromise:
   //    a) we can use Spacing[2] = qfac*pixdim[3], i.e. use a negative
   //       slice spacing, which might cause some VTK algorithms to
   //       misbehave (the VTK tests only use images with positive spacing).
@@ -1059,7 +1059,7 @@ int vtkNIFTIImageReader::RequestData(vtkInformation* request,
     int headers = 0;
     for (vtkIdType i = 0; i < n; i++)
     {
-      filename = this->FileNames->GetValue(i);
+      filename = this->FileNames->GetValue(i).c_str();
       // this checks for .hdr and .hdr.gz, case insensitive
       if (vtkNIFTIImageReader::CheckExtension(filename, ".hdr"))
       {

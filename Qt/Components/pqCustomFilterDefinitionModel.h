@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * \date 6/19/2006
  */
 
-#ifndef _pqCustomFilterDefinitionModel_h
-#define _pqCustomFilterDefinitionModel_h
+#ifndef pqCustomFilterDefinitionModel_h
+#define pqCustomFilterDefinitionModel_h
 
 #include "pqComponentsModule.h"
 #include <QAbstractItemModel>
@@ -72,8 +72,7 @@ public:
     LastType = Link
   };
 
-public:
-  pqCustomFilterDefinitionModel(QObject* parent = 0);
+  pqCustomFilterDefinitionModel(QObject* parent = nullptr);
   ~pqCustomFilterDefinitionModel() override;
 
   /**
@@ -199,7 +198,6 @@ private:
    */
   pqCustomFilterDefinitionModelItem* getNextItem(pqCustomFilterDefinitionModelItem* item) const;
 
-private:
   pqCustomFilterDefinitionModelItem* Root; ///< The root of the model tree.
   QPixmap* PixmapList;                     ///< Stores the item icons.
 };

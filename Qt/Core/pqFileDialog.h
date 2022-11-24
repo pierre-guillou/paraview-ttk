@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqFileDialog_h
-#define _pqFileDialog_h
+#ifndef pqFileDialog_h
+#define pqFileDialog_h
 
 #include "pqCoreModule.h"
 #include <QDialog>
@@ -149,6 +149,11 @@ public:
   QList<QStringList> getAllSelectedFiles();
 
   /**
+   * Return the used filter index
+   */
+  int getSelectedFilterIndex();
+
+  /**
    * accept this dialog
    */
   void accept() override;
@@ -239,9 +244,10 @@ private Q_SLOTS:
 
   void AddDirectoryToFavorites(QString const&);
   void RemoveDirectoryFromFavorites(QString const&);
+  void FilterDirectoryFromFavorites(const QString& filter);
 
   void onAddCurrentDirectoryToFavorites();
-  void onRemoveCurrentDirectoryFromFavorites();
+  void onRemoveSelectedDirectoriesFromFavorites();
   void onResetFavoritesToSystemDefault();
 
   // Called when the user requests to create a new directory in the cwd
@@ -264,7 +270,7 @@ private Q_SLOTS:
    */
   void updateButtonStates();
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   pqFileDialog(const pqFileDialog&);
   pqFileDialog& operator=(const pqFileDialog&);
 
@@ -286,4 +292,4 @@ private:
   void restoreState();
 };
 
-#endif // !_pqFileDialog_h
+#endif // !pqFileDialog_h

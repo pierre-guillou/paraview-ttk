@@ -54,7 +54,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Used to manage the InteractionState of the widget
-  enum _InteractionState
+  enum InteractionStateType
   {
     Outside = 0,
     OnHandle,
@@ -66,6 +66,10 @@ public:
     Erasing,
     Pushing
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef InteractionStateType _InteractionState;
+#endif
 
   ///@{
   /**
@@ -147,20 +151,6 @@ public:
    */
   virtual void SetNumberOfHandles(int npts) = 0;
   vtkGetMacro(NumberOfHandles, int);
-  ///@}
-
-  ///@{
-  /**
-   * @deprecated VTK 9.1. Use `GetDirectional`  and `SetDirectional` instead.
-   */
-  VTK_DEPRECATED_IN_9_1_0("renamed to SetDirectional")
-  virtual void SetDirectionalLine(bool val);
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetDirectional")
-  virtual bool GetDirectionalLine();
-  VTK_DEPRECATED_IN_9_1_0("renamed to DirectionalOn")
-  virtual void DirectionalLineOn();
-  VTK_DEPRECATED_IN_9_1_0("renamed to DirectionalOff")
-  virtual void DirectionalLineOff();
   ///@}
 
   ///@{
@@ -286,10 +276,19 @@ public:
 
   ///@{
   /**
-   * Returns true if ContrainedAxis
+   * Returns true if ConstrainedAxis
    **/
   bool IsTranslationConstrained() { return this->TranslationAxis != Axis::NONE; }
   ///@}
+
+  /**
+   * Methods to make this class behave as a vtkProp. They are repeated here (from the
+   * vtkProp superclass) as a reminder to the widget implementor. Failure to implement
+   * these methods properly may result in the representation not appearing in the scene
+   * (i.e., not implementing the Render() methods properly) or leaking graphics resources
+   * (i.e., not implementing ReleaseGraphicsResources() properly).
+   */
+  void GetActors(vtkPropCollection*) override;
 
 protected:
   vtkCurveRepresentation();

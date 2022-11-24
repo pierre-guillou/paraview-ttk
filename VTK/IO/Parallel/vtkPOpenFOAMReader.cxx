@@ -66,6 +66,7 @@
 #include "vtkDataArraySelection.h"
 #include "vtkDirectory.h"
 #include "vtkDoubleArray.h"
+#include "vtkDummyController.h"
 #include "vtkFieldData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -74,7 +75,6 @@
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
 #include "vtkSortDataArray.h"
-#include "vtkStdString.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 
@@ -350,6 +350,7 @@ vtkPOpenFOAMReader::vtkPOpenFOAMReader()
   this->SetController(vtkMultiProcessController::GetGlobalController());
   if (this->Controller == nullptr)
   {
+    this->SetController(vtkDummyController::New());
     this->NumProcesses = 1;
     this->ProcessId = 0;
   }
@@ -458,7 +459,7 @@ int vtkPOpenFOAMReader::RequestInformation(
       this->Superclass::PatchDataArraySelection->RemoveAllArrays();
     }
 
-    *this->Superclass::FileNameOld = vtkStdString(this->FileName);
+    *this->Superclass::FileNameOld = this->FileName;
     this->Superclass::Readers->RemoveAllItems();
     this->Superclass::NumberOfReaders = 0;
 

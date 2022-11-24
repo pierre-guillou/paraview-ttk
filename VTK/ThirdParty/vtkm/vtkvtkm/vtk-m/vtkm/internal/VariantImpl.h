@@ -179,7 +179,7 @@ struct VariantStorageImpl
       -> decltype(f(std::declval<const TypeAt<0>&>(), args...))
   {
     VTKM_ASSERT(this->IsValid());
-    return detail::VariantCastAndCallImpl(
+    return detail::VariantCastAndCallImpl<sizeof...(Ts)>(
       this->GetIndex(), std::forward<Functor>(f), this->Storage, std::forward<Args>(args)...);
   }
 
@@ -189,7 +189,7 @@ struct VariantStorageImpl
     -> decltype(f(std::declval<TypeAt<0>&>(), args...))
   {
     VTKM_ASSERT(this->IsValid());
-    return detail::VariantCastAndCallImpl(
+    return detail::VariantCastAndCallImpl<sizeof...(Ts)>(
       this->GetIndex(), std::forward<Functor>(f), this->Storage, std::forward<Args>(args)...);
   }
 };
@@ -304,6 +304,22 @@ public:
   ///
   template <vtkm::IdComponent Index>
   using TypeAt = typename vtkm::ListAt<vtkm::List<Ts...>, Index>;
+
+  /// \brief Type that indicates whether another type can be stored in this Variant.
+  ///
+  /// If this templated type resolves to `std::true_type`, then the provided `T` can be
+  /// represented in this `Variant`. Otherwise, the type resolves to `std::false_type`.
+  ///
+  template <typename T>
+  using CanStore = std::integral_constant<bool, (IndexOf<T>::value >= 0)>;
+
+  /// Returns whether the given type can be respresented in this Variant.
+  ///
+  template <typename T>
+  VTK_M_DEVICE static constexpr bool GetCanStore()
+  {
+    return CanStore<T>::value;
+  }
 
   /// The number of types representable by this Variant.
   ///
@@ -434,18 +450,46 @@ public:
   template <typename T>
   VTK_M_DEVICE T& Get() noexcept
   {
-    VTKM_ASSERT(this->GetIndexOf<T>() == this->GetIndex());
-    return detail::VariantUnionGet<IndexOf<T>::value>(this->Storage);
+    return this->GetImpl<T>(CanStore<T>{});
   }
 
   template <typename T>
   VTK_M_DEVICE const T& Get() const noexcept
   {
-    VTKM_ASSERT(this->GetIndexOf<T>() == this->GetIndex());
-    return detail::VariantUnionGet<IndexOf<T>::value>(this->Storage);
+    return this->GetImpl<T>(CanStore<T>{});
   }
   //@}
 
+private:
+  template <typename T>
+  VTK_M_DEVICE T& GetImpl(std::true_type)
+  {
+    VTKM_ASSERT(this->GetIndexOf<T>() == this->GetIndex());
+    return detail::VariantUnionGet<IndexOf<T>::value>(this->Storage);
+  }
+
+  template <typename T>
+  VTK_M_DEVICE const T& GetImpl(std::true_type) const
+  {
+    VTKM_ASSERT(this->GetIndexOf<T>() == this->GetIndex());
+    return detail::VariantUnionGet<IndexOf<T>::value>(this->Storage);
+  }
+
+  // This function overload only gets created if you attempt to pull a type from a
+  // variant that does not exist. Perhaps this should be a compile error, but there
+  // are cases where you might create templated code that has a path that could call
+  // this but never does. To make this case easier, do a runtime error (when asserts
+  // are active) instead.
+  template <typename T>
+  VTK_M_DEVICE T& GetImpl(std::false_type) const
+  {
+    VTKM_ASSERT(false &&
+                "Attempted to get a type from a variant that the variant does not contain.");
+    // This will cause some _really_ nasty issues if you actually try to use the returned type.
+    return *reinterpret_cast<T*>(0);
+  }
+
+public:
   //@{
   /// Given a functor object, calls the functor with the contained object cast to the appropriate
   /// type. If extra \c args are given, then those are also passed to the functor after the cast
@@ -459,7 +503,7 @@ public:
       -> decltype(f(std::declval<const TypeAt<0>&>(), args...))
   {
     VTKM_ASSERT(this->IsValid());
-    return detail::VariantCastAndCallImpl(
+    return detail::VariantCastAndCallImpl<sizeof...(Ts)>(
       this->GetIndex(), std::forward<Functor>(f), this->Storage, std::forward<Args>(args)...);
   }
 
@@ -469,7 +513,7 @@ public:
     -> decltype(f(std::declval<TypeAt<0>&>(), args...))
   {
     VTKM_ASSERT(this->IsValid());
-    return detail::VariantCastAndCallImpl(
+    return detail::VariantCastAndCallImpl<sizeof...(Ts)>(
       this->GetIndex(), std::forward<Functor>(f), this->Storage, std::forward<Args>(args)...);
   }
 

@@ -37,12 +37,14 @@
 
 #include <vector> // For DataBlocks
 
+#include "vtkNew.h"                          // for ivar
 #include "vtkRenderingVolumeOpenGL2Module.h" // For export macro
 #include "vtkVolumeMapper.h"
 
 class vtkDataObjectTree;
 class vtkDataSet;
 class vtkImageData;
+class vtkMatrix4x4;
 class vtkMultiBlockDataSet;
 class vtkRenderWindow;
 class vtkSmartVolumeMapper;
@@ -102,6 +104,30 @@ public:
 
   ///@{
   /**
+   * ComputeNormalFromOpacity exposed
+   * \sa vtkVolumeMapper::SetComputeNormalFromOpacity
+   */
+  void SetComputeNormalFromOpacity(bool val) override;
+  ///@}
+
+  ///@{
+  /**
+   * @copydoc vtkSmartVolumeMapper::SetGlobalIlluminationReach(float)
+   */
+  void SetGlobalIlluminationReach(float val);
+  vtkGetMacro(GlobalIlluminationReach, float);
+  ///@}
+
+  ///@{
+  /**
+   * @copydoc vtkSmartVolumeMapper::SetVolumetricScatteringBlending(float)
+   */
+  void SetVolumetricScatteringBlending(float val);
+  vtkGetMacro(VolumetricScatteringBlending, float);
+  ///@}
+
+  ///@{
+  /**
    * Cropping API from vtkVolumeMapper
    * \sa vtkVolumeMapper::SetCropping
    */
@@ -128,12 +154,12 @@ public:
   void SetRequestedRenderMode(int);
   ///@}
 
-  //@{
+  ///@{
   /**
    * \sa vtkSmartVolumeMapper::SetTransfer2DYAxisArray
    */
   void SetTransfer2DYAxisArray(const char* a);
-  //@}
+  ///@}
 
 protected:
   vtkMultiBlockVolumeMapper();
@@ -150,6 +176,8 @@ protected:
 
   vtkRenderWindow* DebugWin;
   vtkRenderer* DebugRen;
+
+  vtkNew<vtkMatrix4x4> TempMatrix4x4;
 
 private:
   /**
@@ -203,6 +231,16 @@ private:
   int VectorMode;
   int VectorComponent;
   int RequestedRenderMode;
+
+  /**
+   * Secondary rays ambient/global adjustment coefficient
+   */
+  float GlobalIlluminationReach = 0.0;
+
+  /**
+   * Blending coefficient between surfacic and volumetric models in GPU Mapper
+   */
+  float VolumetricScatteringBlending = 0.0;
 
   char* Transfer2DYAxisArray;
 };

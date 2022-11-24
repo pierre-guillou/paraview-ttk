@@ -55,10 +55,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <QApplication>
 #include <QFileInfo>
+#include <QString>
+#include <QStringList>
 #include <QtDebug>
 
 #include "pqAnimationCue.h"
 #include "pqApplicationCore.h"
+#include "pqCoreUtilities.h"
 #include "pqDataRepresentation.h"
 #include "pqInterfaceTracker.h"
 #include "pqOutputPort.h"
@@ -79,6 +82,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <windows.h>
 #endif
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 
@@ -192,7 +196,7 @@ pqPipelineSource* pqObjectBuilder::createFilter(const QString& sm_group, const Q
     }
 
     vtkSMPropertyHelper helper(prop);
-    foreach (pqOutputPort* opPort, inputs)
+    Q_FOREACH (pqOutputPort* opPort, inputs)
     {
       helper.Add(opPort->getSource()->getProxy(), opPort->getPortNumber());
     }
@@ -235,30 +239,10 @@ pqPipelineSource* pqObjectBuilder::createReader(
     return nullptr;
   }
 
-  unsigned int numFiles = files.size();
-  QString reg_name = QFileInfo(files[0]).fileName();
-
-  if (numFiles > 1)
-  {
-    // Find the largest prefix that matches all filenames, and then append a '*'
-    // to signify that it is a collection of files.  If they all start with
-    // something different, just give up and add the '*' anyway.
-    for (unsigned int i = 1; i < numFiles; i++)
-    {
-      QString nextFile = QFileInfo(files[i]).fileName();
-      if (nextFile.startsWith(reg_name))
-        continue;
-      QString commonPrefix = reg_name;
-      do
-      {
-        commonPrefix.chop(1);
-      } while (!nextFile.startsWith(commonPrefix) && !commonPrefix.isEmpty());
-      if (commonPrefix.isEmpty())
-        break;
-      reg_name = commonPrefix;
-    }
-    reg_name += '*';
-  }
+  std::vector<std::string> filesStd(files.size());
+  std::transform(files.constBegin(), files.constEnd(), filesStd.begin(),
+    [](const QString& str) -> std::string { return str.toStdString(); });
+  QString reg_name = QString(vtkSMCoreUtilities::FindLargestPrefix(filesStd).c_str());
 
   vtkNew<vtkSMParaViewPipelineController> controller;
   vtkSMSessionProxyManager* pxm = server->proxyManager();
@@ -287,14 +271,14 @@ pqPipelineSource* pqObjectBuilder::createReader(
       use_dir = true;
     }
 
-    if (numFiles == 1 || !prop->GetRepeatCommand())
+    if (files.size() == 1 || !prop->GetRepeatCommand())
     {
       pqSMAdaptor::setElementProperty(prop, pqObjectBuilderGetPath(files[0], use_dir));
     }
     else
     {
       QList<QVariant> values;
-      foreach (QString file, files)
+      Q_FOREACH (QString file, files)
       {
         values.push_back(pqObjectBuilderGetPath(file, use_dir));
       }
@@ -372,14 +356,6 @@ pqView* pqObjectBuilder::createView(const QString& type, pqServer* server)
   }
   return view;
 }
-
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
-pqView* pqObjectBuilder::createView(const QString& type, pqServer* server, bool)
-{
-  return this->createView(type, server);
-}
-#endif
 
 //-----------------------------------------------------------------------------
 void pqObjectBuilder::destroy(pqView* view)
@@ -578,14 +554,14 @@ void pqObjectBuilder::destroyLookupTables(pqServer* server)
   pqObjectBuilder* builder = pqApplicationCore::instance()->getObjectBuilder();
 
   QList<pqScalarsToColors*> luts = model->findItems<pqScalarsToColors*>(server);
-  foreach (pqScalarsToColors* lut, luts)
+  Q_FOREACH (pqScalarsToColors* lut, luts)
   {
     builder->destroy(lut);
   }
 
   QList<pqScalarBarRepresentation*> scalarbars =
     model->findItems<pqScalarBarRepresentation*>(server);
-  foreach (pqScalarBarRepresentation* sb, scalarbars)
+  Q_FOREACH (pqScalarBarRepresentation* sb, scalarbars)
   {
     builder->destroy(sb);
   }
@@ -642,7 +618,8 @@ void pqObjectBuilder::abortPendingConnections()
 }
 
 //-----------------------------------------------------------------------------
-pqServer* pqObjectBuilder::createServer(const pqServerResource& resource, int connectionTimeout)
+pqServer* pqObjectBuilder::createServer(const pqServerResource& resource, int connectionTimeout,
+  vtkNetworkAccessManager::ConnectionResult& result)
 {
   if (this->WaitingForConnection)
   {
@@ -651,8 +628,7 @@ pqServer* pqObjectBuilder::createServer(const pqServerResource& resource, int co
     return nullptr;
   }
 
-  // Create a modified version of the resource that only contains server information
-  const pqServerResource server_resource = resource.schemeHostsPorts();
+  pqObjectBuilderNS::ContinueWaiting = true;
 
   pqServerManagerModel* smModel = pqApplicationCore::instance()->getServerManagerModel();
 
@@ -662,7 +638,20 @@ pqServer* pqObjectBuilder::createServer(const pqServerResource& resource, int co
     // new server if no already connected and ensure that any previously
     // connected servers are disconnected.
     // determine if we're already connected to this server.
-    pqServer* server = smModel->findServer(server_resource);
+    pqServer* server = nullptr;
+
+    // If a server name is set, use it to find the server, if not, use the schemehostsports instead
+    if (resource.serverName().isEmpty())
+    {
+      // Create a modified version of the resource that only contains server information
+      const pqServerResource server_resource = resource.schemeHostsPorts();
+      server = smModel->findServer(server_resource);
+    }
+    else
+    {
+      server = smModel->findServer(resource.serverName());
+    }
+
     if (server)
     {
       return server;
@@ -682,40 +671,43 @@ pqServer* pqObjectBuilder::createServer(const pqServerResource& resource, int co
 
   // Based on the server resource, create the correct type of server ...
   vtkIdType id = 0;
-  if (server_resource.scheme() == "builtin")
+  if (resource.scheme() == "builtin")
   {
-    id = vtkSMSession::ConnectToSelf(connectionTimeout);
+    id = vtkSMSession::ConnectToSelf();
+    result = vtkNetworkAccessManager::ConnectionResult::CONNECTION_SUCCESS;
   }
-  else if (server_resource.scheme() == "cs")
+  else if (resource.scheme() == "cs")
   {
-    id = vtkSMSession::ConnectToRemote(
-      resource.host().toUtf8().data(), resource.port(11111), connectionTimeout);
+    id = vtkSMSession::ConnectToRemote(resource.host().toUtf8().data(), resource.port(11111),
+      connectionTimeout, &pqObjectBuilderNS::processEvents, result);
   }
-  else if (server_resource.scheme() == "csrc")
+  else if (resource.scheme() == "csrc")
   {
-    pqObjectBuilderNS::ContinueWaiting = true;
     id = vtkSMSession::ReverseConnectToRemote(
-      server_resource.port(11111), &pqObjectBuilderNS::processEvents);
+      resource.port(11111), connectionTimeout, &pqObjectBuilderNS::processEvents, result);
   }
-  else if (server_resource.scheme() == "cdsrs")
+  else if (resource.scheme() == "cdsrs")
   {
-    id = vtkSMSession::ConnectToRemote(server_resource.dataServerHost().toUtf8().data(),
-      server_resource.dataServerPort(11111), server_resource.renderServerHost().toUtf8().data(),
-      server_resource.renderServerPort(22221), connectionTimeout);
+    id = vtkSMSession::ConnectToRemote(resource.dataServerHost().toUtf8().data(),
+      resource.dataServerPort(11111), resource.renderServerHost().toUtf8().data(),
+      resource.renderServerPort(22221), connectionTimeout, &pqObjectBuilderNS::processEvents,
+      result);
   }
-  else if (server_resource.scheme() == "cdsrsrc")
+  else if (resource.scheme() == "cdsrsrc")
   {
-    pqObjectBuilderNS::ContinueWaiting = true;
-    id = vtkSMSession::ReverseConnectToRemote(server_resource.dataServerPort(11111),
-      server_resource.renderServerPort(22221), &pqObjectBuilderNS::processEvents);
+    id = vtkSMSession::ReverseConnectToRemote(resource.dataServerPort(11111),
+      resource.renderServerPort(22221), connectionTimeout, &pqObjectBuilderNS::processEvents,
+      result);
   }
-  else if (server_resource.scheme() == "catalyst")
+  else if (resource.scheme() == "catalyst")
   {
     id = vtkSMSession::ConnectToCatalyst();
+    result = vtkNetworkAccessManager::ConnectionResult::CONNECTION_SUCCESS;
   }
   else
   {
-    qCritical() << "Unknown server type: " << server_resource.scheme() << "\n";
+    qCritical() << "Unknown server type: " << resource.scheme() << "\n";
+    result = vtkNetworkAccessManager::ConnectionResult::CONNECTION_FAILURE;
   }
 
   pqServer* server = nullptr;
@@ -805,7 +797,7 @@ void pqObjectBuilder::destroy(pqAnimationCue* cue)
 
   QList<vtkSMProxy*> keyframes = cue->getKeyFrames();
   // unregister all the keyframes.
-  foreach (vtkSMProxy* kf, keyframes)
+  Q_FOREACH (vtkSMProxy* kf, keyframes)
   {
     pxm->UnRegisterProxy("animation", pxm->GetProxyName("animation", kf), kf);
   }

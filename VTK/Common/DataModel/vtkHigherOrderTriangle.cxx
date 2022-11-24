@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkHigherOrderTriangle.h"
 
 #include "vtkCellArray.h"
@@ -32,25 +29,6 @@
 
 #define ENABLE_CACHING
 #define SEVEN_POINT_TRIANGLE
-
-double vtkHigherOrderTriangle::eta(vtkIdType n, vtkIdType chi, double sigma)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkHigherOrderTriangle::eta, "VTK 9.1", vtkHigherOrderTriangle::Eta);
-  return vtkHigherOrderTriangle::Eta(n, chi, sigma);
-}
-
-double vtkHigherOrderTriangle::d_eta(vtkIdType n, vtkIdType chi, double sigma)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkHigherOrderTriangle::d_eta, "VTK 9.1", vtkHigherOrderTriangle::Deta);
-  return vtkHigherOrderTriangle::Deta(n, chi, sigma);
-}
-
-vtkHigherOrderCurve* vtkHigherOrderTriangle::getEdgeCell()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHigherOrderTriangle::getEdgeCell, "VTK 9.1", vtkHigherOrderTriangle::GetEdgeCell);
-  return this->GetEdgeCell();
-}
 
 //------------------------------------------------------------------------------
 vtkHigherOrderTriangle::vtkHigherOrderTriangle()
@@ -614,7 +592,7 @@ void vtkHigherOrderTriangle::Derivatives(
   jI[0] = j0;
   jI[1] = j1;
   jI[2] = j2;
-  this->JacobianInverse(pcoords, jI, &fDs[0]);
+  this->JacobianInverse(pcoords, jI, fDs.data());
 
   // now compute derivates of values provided
   for (k = 0; k < dim; k++) // loop over values per vertex

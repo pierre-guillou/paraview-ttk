@@ -20,10 +20,14 @@ set(headers
   ConnectivityTracer.h
   CylinderExtractor.h
   CylinderIntersector.h
+  GlyphExtractor.h
+  GlyphExtractorVector.h
+  GlyphIntersector.h
+  GlyphIntersectorVector.h
   Logger.h
   MeshConnectivityBuilder.h
   MeshConnectivityContainers.h
-  MeshConnectivityBase.h
+  MeshConnectivity.h
   MortonCodes.h
   PartialComposite.h
   QuadExtractor.h

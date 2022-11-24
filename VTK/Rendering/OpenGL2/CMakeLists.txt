@@ -33,6 +33,7 @@ set(classes
   vtkOpenGLGlyph3DMapper
   vtkOpenGLHardwareSelector
   vtkOpenGLHelper
+  vtkOpenGLHyperTreeGridMapper
   vtkOpenGLImageAlgorithmHelper
   vtkOpenGLImageMapper
   vtkOpenGLImageSliceMapper
@@ -101,15 +102,9 @@ set(headers
 
 set(nowrap_headers
   vtkCompositeMapperHelper2.h
-  vtkCompositePolyDataMapper2Internal.h
 )
 
-if (NOT VTK_LEGACY_REMOVE)
-  list(APPEND nowrap_headers
-    vtkOpenGL.h)
-endif ()
-
-# add opengl support test execulatble on windows
+# add opengl support test executable on windows
 if (WIN32 AND (NOT CMAKE_CROSSCOMPILING OR DEFINED CMAKE_CROSSCOMPILING_EMULATOR))
   vtk_module_add_executable(vtkTestOpenGLVersion vtkTestOpenGLVersion.cxx)
   set_target_properties(vtkTestOpenGLVersion
@@ -176,6 +171,14 @@ foreach(file IN LISTS shader_files)
     "${header}")
 endforeach()
 
+vtk_encode_string(
+  INPUT "textures/BlueNoiseTexture64x64.jpg"
+  HEADER_OUTPUT BlueNoiseTexture64x64_header
+  SOURCE_OUTPUT BlueNoiseTexture64x64_source
+  BINARY)
+list(APPEND sources "${BlueNoiseTexture64x64_source}")
+list(APPEND private_headers "${BlueNoiseTexture64x64_header}")
+
 # setup factory overrides
 set(opengl_overrides
   Actor
@@ -186,6 +189,7 @@ set(opengl_overrides
   ImageMapper
   ImageSliceMapper
   Glyph3DMapper
+  HyperTreeGridMapper
   Light
   PointGaussianMapper
   PolyDataMapper
@@ -257,7 +261,8 @@ elseif (VTK_USE_COCOA)
     vtkCocoaRenderWindow.mm
     vtkCocoaGLView.mm)
   list(APPEND headers
-    vtkCocoaRenderWindow.h
+    vtkCocoaRenderWindow.h)
+  list(APPEND nowrap_headers
     vtkCocoaGLView.h)
   # Set specified Objective-C++ flags, if any.
   if (VTK_REQUIRED_OBJCXX_FLAGS)

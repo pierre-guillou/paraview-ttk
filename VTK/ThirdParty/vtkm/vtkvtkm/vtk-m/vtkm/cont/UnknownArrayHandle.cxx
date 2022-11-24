@@ -20,7 +20,11 @@
 #include <vtkm/cont/ArrayHandleReverse.h>
 #include <vtkm/cont/ArrayHandleSOA.h>
 #include <vtkm/cont/ArrayHandleUniformPointCoordinates.h>
+#include <vtkm/cont/ErrorBadType.h>
+#include <vtkm/cont/ErrorInternal.h>
 #include <vtkm/cont/UncertainArrayHandle.h>
+
+#include <vtkm/cont/internal/ArrayCopyUnknown.h>
 
 #include <sstream>
 
@@ -201,6 +205,19 @@ VTKM_CONT std::string UnknownArrayHandle::GetStorageTypeName() const
   }
 }
 
+VTKM_CONT std::string UnknownArrayHandle::GetArrayTypeName() const
+{
+  if (this->Container)
+  {
+    return "vtkm::cont::ArrayHandle<" + this->GetValueTypeName() + ", " +
+      this->GetStorageTypeName() + ">";
+  }
+  else
+  {
+    return "";
+  }
+}
+
 VTKM_CONT vtkm::Id UnknownArrayHandle::GetNumberOfValues() const
 {
   if (this->Container)
@@ -237,16 +254,88 @@ VTKM_CONT vtkm::IdComponent UnknownArrayHandle::GetNumberOfComponentsFlat() cons
   }
 }
 
-VTKM_CONT void UnknownArrayHandle::Allocate(vtkm::Id numValues) const
+VTKM_CONT void UnknownArrayHandle::Allocate(vtkm::Id numValues,
+                                            vtkm::CopyFlag preserve,
+                                            vtkm::cont::Token& token) const
 {
   if (this->Container)
   {
-    this->Container->Allocate(this->Container->ArrayHandlePointer, numValues);
+    this->Container->Allocate(this->Container->ArrayHandlePointer, numValues, preserve, token);
   }
   else
   {
     throw vtkm::cont::ErrorBadAllocation(
       "Cannot allocate UnknownArrayHandle that does not contain an array.");
+  }
+}
+
+VTKM_CONT void UnknownArrayHandle::Allocate(vtkm::Id numValues, vtkm::CopyFlag preserve) const
+{
+  vtkm::cont::Token token;
+  this->Allocate(numValues, preserve, token);
+}
+
+VTKM_CONT void UnknownArrayHandle::DeepCopyFrom(const vtkm::cont::UnknownArrayHandle& source)
+{
+  if (!this->IsValid())
+  {
+    *this = source.NewInstance();
+  }
+
+  const_cast<const UnknownArrayHandle*>(this)->DeepCopyFrom(source);
+}
+
+VTKM_CONT void UnknownArrayHandle::DeepCopyFrom(const vtkm::cont::UnknownArrayHandle& source) const
+{
+  if (!this->IsValid())
+  {
+    throw vtkm::cont::ErrorBadValue(
+      "Attempty to copy to a constant UnknownArrayHandle with no valid array.");
+  }
+
+  if (source.IsValueTypeImpl(this->Container->ValueType) &&
+      source.IsStorageTypeImpl(this->Container->StorageType))
+  {
+    this->Container->DeepCopy(source.Container->ArrayHandlePointer,
+                              this->Container->ArrayHandlePointer);
+  }
+  else
+  {
+    vtkm::cont::internal::ArrayCopyUnknown(source, *this);
+  }
+}
+
+VTKM_CONT
+void UnknownArrayHandle::CopyShallowIfPossible(const vtkm::cont::UnknownArrayHandle& source)
+{
+  if (!this->IsValid())
+  {
+    *this = source;
+  }
+  else
+  {
+    const_cast<const UnknownArrayHandle*>(this)->CopyShallowIfPossible(source);
+  }
+}
+
+VTKM_CONT
+void UnknownArrayHandle::CopyShallowIfPossible(const vtkm::cont::UnknownArrayHandle& source) const
+{
+  if (!this->IsValid())
+  {
+    throw vtkm::cont::ErrorBadValue(
+      "Attempty to copy to a constant UnknownArrayHandle with no valid array.");
+  }
+
+  if (source.IsValueTypeImpl(this->Container->ValueType) &&
+      source.IsStorageTypeImpl(this->Container->StorageType))
+  {
+    this->Container->ShallowCopy(source.Container->ArrayHandlePointer,
+                                 this->Container->ArrayHandlePointer);
+  }
+  else
+  {
+    vtkm::cont::internal::ArrayCopyUnknown(source, *this);
   }
 }
 
@@ -278,7 +367,7 @@ VTKM_CONT void UnknownArrayHandle::PrintSummary(std::ostream& out, bool full) co
   }
 }
 
-namespace detail
+namespace internal
 {
 
 VTKM_CONT_EXPORT void ThrowCastAndCallException(const vtkm::cont::UnknownArrayHandle& ref,
@@ -289,10 +378,10 @@ VTKM_CONT_EXPORT void ThrowCastAndCallException(const vtkm::cont::UnknownArrayHa
          "Array: ";
   ref.PrintSummary(out);
   out << "TypeList: " << vtkm::cont::TypeToString(type) << "\n";
-  throw vtkm::cont::ErrorBadValue(out.str());
+  throw vtkm::cont::ErrorBadType(out.str());
 }
 
-} // namespace detail
+} // namespace internal
 }
 } // namespace vtkm::cont
 
@@ -318,16 +407,65 @@ namespace mangled_diy_namespace
 void Serialization<vtkm::cont::UnknownArrayHandle>::save(BinaryBuffer& bb,
                                                          const vtkm::cont::UnknownArrayHandle& obj)
 {
-  vtkmdiy::save(bb, obj.ResetTypes<UnknownSerializationTypes, UnknownSerializationStorage>());
+  vtkm::IdComponent numComponents = obj.GetNumberOfComponents();
+  switch (numComponents)
+  {
+    case 1:
+      vtkmdiy::save(bb, numComponents);
+      vtkmdiy::save(bb, obj.ResetTypes<vtkm::TypeListBaseC, UnknownSerializationStorage>());
+      break;
+    case 2:
+      vtkmdiy::save(bb, numComponents);
+      vtkmdiy::save(bb, obj.ResetTypes<AllVec<2>, UnknownSerializationStorage>());
+      break;
+    case 3:
+      vtkmdiy::save(bb, numComponents);
+      vtkmdiy::save(bb, obj.ResetTypes<AllVec<3>, UnknownSerializationStorage>());
+      break;
+    case 4:
+      vtkmdiy::save(bb, numComponents);
+      vtkmdiy::save(bb, obj.ResetTypes<AllVec<4>, UnknownSerializationStorage>());
+      break;
+    default:
+      throw vtkm::cont::ErrorBadType(
+        "Vectors of size " + std::to_string(numComponents) +
+        " are not supported for serialization from UnknownArrayHandle. "
+        "Try narrowing down possible types with UncertainArrayHandle.");
+  }
 }
 
 void Serialization<vtkm::cont::UnknownArrayHandle>::load(BinaryBuffer& bb,
                                                          vtkm::cont::UnknownArrayHandle& obj)
 {
-  vtkm::cont::UncertainArrayHandle<UnknownSerializationTypes, UnknownSerializationStorage>
-    uncertainArray;
-  vtkmdiy::load(bb, uncertainArray);
-  obj = uncertainArray;
+  vtkm::IdComponent numComponents;
+  vtkmdiy::load(bb, numComponents);
+
+  vtkm::cont::UncertainArrayHandle<vtkm::TypeListBaseC, UnknownSerializationStorage> array1;
+  vtkm::cont::UncertainArrayHandle<AllVec<2>, UnknownSerializationStorage> array2;
+  vtkm::cont::UncertainArrayHandle<AllVec<3>, UnknownSerializationStorage> array3;
+  vtkm::cont::UncertainArrayHandle<AllVec<4>, UnknownSerializationStorage> array4;
+
+  switch (numComponents)
+  {
+    case 1:
+      vtkmdiy::load(bb, array1);
+      obj = array1;
+      break;
+    case 2:
+      vtkmdiy::load(bb, array2);
+      obj = array2;
+      break;
+    case 3:
+      vtkmdiy::load(bb, array3);
+      obj = array3;
+      break;
+    case 4:
+      vtkmdiy::load(bb, array4);
+      obj = array4;
+      break;
+    default:
+      throw vtkm::cont::ErrorInternal("Unexpected component size when loading UnknownArrayHandle.");
+  }
 }
 
 } // namespace mangled_diy_namespace

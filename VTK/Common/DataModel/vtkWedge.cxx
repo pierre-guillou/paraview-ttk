@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkWedge.h"
 
 #include "vtkCellArray.h"
@@ -221,7 +218,7 @@ int vtkWedge::EvaluatePosition(const double x[3], double closestPoint[3], int& s
   // Efficient point access
   vtkDoubleArray* pointArray = static_cast<vtkDoubleArray*>(this->Points->GetData());
   const double* pts = pointArray->GetPointer(0);
-  const double *pt0, *pt1, *pt;
+  const double *pt0, *pt1;
 
   // compute a bound on the volume to get a scale for an acceptable determinant
   double longestEdge = 0;
@@ -256,13 +253,13 @@ int vtkWedge::EvaluatePosition(const double x[3], double closestPoint[3], int& s
            tcol[3] = { 0, 0, 0 };
     for (int i = 0; i < 6; i++)
     {
-      pt = pts + 3 * i;
       for (int j = 0; j < 3; j++)
       {
-        fcol[j] += pt[j] * weights[i];
-        rcol[j] += pt[j] * derivs[i];
-        scol[j] += pt[j] * derivs[i + 6];
-        tcol[j] += pt[j] * derivs[i + 12];
+        const double coord = pts[3 * i + j];
+        fcol[j] += coord * weights[i];
+        rcol[j] += coord * derivs[i];
+        scol[j] += coord * derivs[i + 6];
+        tcol[j] += coord * derivs[i + 12];
       }
     }
 
@@ -453,10 +450,9 @@ int vtkWedge::CellBoundary(int vtkNotUsed(subId), const double pcoords[3], vtkId
 
 namespace
 { // required so we don't violate ODR
-typedef int EDGE_LIST;
 struct TRIANGLE_CASES_t
 {
-  EDGE_LIST edges[13];
+  int edges[13];
 };
 using TRIANGLE_CASES = struct TRIANGLE_CASES_t;
 
@@ -535,7 +531,7 @@ void vtkWedge::Contour(double value, vtkDataArray* cellScalars, vtkIncrementalPo
 {
   static const int CASE_MASK[6] = { 1, 2, 4, 8, 16, 32 };
   TRIANGLE_CASES* triCase;
-  EDGE_LIST* edge;
+  int* edge;
   int i, j, index, v1, v2, newCellId;
   const vtkIdType* vert;
   vtkIdType pts[3];
@@ -977,15 +973,10 @@ int vtkWedge::JacobianInverse(const double pcoords[3], double** inverse, double 
   // now find the inverse
   if (vtkMath::InvertMatrix(m, inverse, 3) == 0)
   {
-#define VTK_MAX_WARNS 3
-    static int numWarns = 0;
-    if (numWarns++ < VTK_MAX_WARNS)
-    {
-      vtkErrorMacro(<< "Jacobian inverse not found");
-      vtkErrorMacro(<< "Matrix:" << m[0][0] << " " << m[0][1] << " " << m[0][2] << m[1][0] << " "
-                    << m[1][1] << " " << m[1][2] << m[2][0] << " " << m[2][1] << " " << m[2][2]);
-      return 0;
-    }
+    vtkErrorMacro(<< "Jacobian inverse not found"
+                  << "Matrix:" << m[0][0] << " " << m[0][1] << " " << m[0][2] << m[1][0] << " "
+                  << m[1][1] << " " << m[1][2] << m[2][0] << " " << m[2][1] << " " << m[2][2]);
+    return 0;
   }
 
   return 1;
@@ -1028,24 +1019,6 @@ void vtkWedge::GetEdgeToAdjacentFaces(vtkIdType edgeId, const vtkIdType*& pts)
 {
   assert(edgeId < vtkWedge::NumberOfEdges && "edgeId too large");
   pts = edgeToAdjacentFaces[edgeId];
-}
-
-//------------------------------------------------------------------------------
-void vtkWedge::GetEdgePoints(int edgeId, int*& pts)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkWedge::GetEdgePoints(int, int*&), "VTK 9.0",
-    vtkWedge::GetEdgePoints(vtkIdType, const vtkIdType*&));
-  static std::vector<int> tmp(std::begin(faces[edgeId]), std::end(faces[edgeId]));
-  pts = tmp.data();
-}
-
-//------------------------------------------------------------------------------
-void vtkWedge::GetFacePoints(int faceId, int*& pts)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkWedge::GetFacePoints(int, int*&), "VTK 9.0",
-    vtkWedge::GetFacePoints(vtkIdType, const vtkIdType*&));
-  static std::vector<int> tmp(std::begin(faces[faceId]), std::end(faces[faceId]));
-  pts = tmp.data();
 }
 
 //------------------------------------------------------------------------------

@@ -62,18 +62,9 @@
 #include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
 //
-#include "vtkCharArray.h"
-#include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
-#include "vtkIntArray.h"
-#include "vtkLongArray.h"
-#include "vtkShortArray.h"
 #include "vtkSmartPointer.h"
-#include "vtkUnsignedCharArray.h"
-#include "vtkUnsignedShortArray.h"
 
 #include <algorithm>
-#include <functional>
 
 #include "vtk_h5part.h"
 // clang-format off
@@ -369,7 +360,7 @@ int vtkH5PartReader::RequestInformation(vtkInformation* vtkNotUsed(request),
         this->TimeStepValues[i] = i;
       }
     }
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->TimeStepValues[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->TimeStepValues.data(),
       static_cast<int>(this->TimeStepValues.size()));
     double timeRange[2];
     timeRange[0] = this->TimeStepValues.front();
@@ -480,17 +471,13 @@ int GetVTKDataType(hid_t datatype)
     H5Dclose(dataset);                                                                             \
   }
 
-class H5PartToleranceCheck : public std::binary_function<double, double, bool>
+class H5PartToleranceCheck
 {
 public:
   H5PartToleranceCheck(double tol) { this->tolerance = tol; }
   double tolerance;
   //
-  result_type operator()(first_argument_type a, second_argument_type b) const
-  {
-    bool result = (fabs(a - b) <= (this->tolerance));
-    return (result_type)result;
-  }
+  bool operator()(double a, double b) const { return (fabs(a - b) <= (this->tolerance)); }
 };
 //------------------------------------------------------------------------------
 int vtkH5PartReader::RequestData(vtkInformation* vtkNotUsed(request),

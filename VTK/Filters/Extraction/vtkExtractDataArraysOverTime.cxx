@@ -34,7 +34,6 @@
 #include "vtkSplitColumnComponents.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkTable.h"
-#include "vtkWeakPointer.h"
 
 #include <algorithm>
 #include <cassert>
@@ -121,7 +120,7 @@ private:
   typedef std::map<vtkKey, vtkValue> MapType;
   MapType OutputGrids;
   int NumberOfTimeSteps;
-  vtkWeakPointer<vtkExtractDataArraysOverTime> Self;
+  vtkExtractDataArraysOverTime* const Self;
   // We use the same time array for all extracted time lines, since that doesn't
   // change.
   vtkSmartPointer<vtkDoubleArray> TimeArray;
@@ -485,12 +484,16 @@ vtkSmartPointer<vtkDataObject> vtkExtractDataArraysOverTime::vtkInternal::Summar
         vtkTable* drvModel = vtkTable::SafeDownCast(descr->GetBlock(1));
         std::ostringstream avgName;
         std::ostringstream stdName;
+        std::ostringstream sumName;
         avgName << "avg(" << cname << ")";
         stdName << "std(" << cname << ")";
+        sumName << "sum(" << cname << ")";
         vtkExtractArraysAddColumnValue(
           statSummary, avgName.str(), VTK_DOUBLE, rawModel->GetValueByName(0, "Mean"));
         vtkExtractArraysAddColumnValue(statSummary, stdName.str(), VTK_DOUBLE,
           drvModel->GetValueByName(0, "Standard Deviation"));
+        vtkExtractArraysAddColumnValue(
+          statSummary, sumName.str(), VTK_DOUBLE, drvModel->GetValueByName(0, "Sum"));
       }
     }
   }
@@ -613,7 +616,7 @@ vtkExtractDataArraysOverTime::vtkInternal::GetOutput(
     }
 
     if (this->Self->GetFieldAssociation() == vtkDataObject::POINT &&
-      this->Self->GetReportStatisticsOnly() == false)
+      !this->Self->GetReportStatisticsOnly())
     {
       // These are the point coordinates of the original data
       vtkDoubleArray* coordsArray = vtkDoubleArray::New();

@@ -30,6 +30,7 @@
 #include "vtkBoundingBox.h" // needed for iVar
 #include "vtkNew.h"         // needed for iVar
 #include "vtkPVView.h"
+#include "vtkParaViewDeprecation.h"
 #include "vtkRemotingViewsModule.h" //needed for exports
 #include "vtkSmartPointer.h"        // needed for iVar
 #include "vtkWeakPointer.h"         // needed for iVar
@@ -175,6 +176,17 @@ public:
   void ResetCamera(double bounds[6]);
   void ResetCameraScreenSpace();
   void ResetCameraScreenSpace(double bounds[6]);
+  //@}
+
+  //@{
+  /**
+   * Compute and reduce the visible bounds of the provided
+   * representation. Uses LastRepresentationVisibleBounds
+   * to store the result until the next call.
+   * \note CallOnAllProcesses
+   */
+  double* ComputeVisibleBounds(vtkPVDataRepresentation* pvrepr) VTK_SIZEHINT(6);
+  double LastRepresentationVisibleBounds[6];
   //@}
 
   /**
@@ -465,24 +477,6 @@ public:
 
   //@{
   /**
-   * As of ParaView 5.9, these methods are replaced by
-   * `SetOrderedCompositingConfiguration` which provides a new mechanisms for
-   * indicating to the view how this representation participates in
-   * data-redistribution needed when ordered-compositing is being used.
-   *
-   * @deprecated ParaView 5.9.
-   */
-  VTK_LEGACY(static void MarkAsRedistributable(
-    vtkInformation* info, vtkPVDataRepresentation* repr, bool value = true, int port = 0));
-  VTK_LEGACY(static void SetOrderedCompositingInformation(vtkInformation* info,
-    vtkPVDataRepresentation* repr, vtkExtentTranslator* translator, const int whole_extents[6],
-    const double origin[3], const double spacing[3]));
-  VTK_LEGACY(
-    static void SetOrderedCompositingInformation(vtkInformation* info, const double bounds[6]));
-  //@}
-
-  //@{
-  /**
    * `OrderedCompositingConfiguration` lets representations indicate to the view
    * how the representation participates in data-redistribution necessary when
    * ordered-compositing is being used. These flags are meant to be combined
@@ -726,6 +720,8 @@ public:
   virtual void SetCamera2DManipulators(const int manipulators[9]);
   virtual void SetCamera3DManipulators(const int manipulators[9]);
   void SetCameraManipulators(vtkPVInteractorStyle* style, const int manipulators[9]);
+  virtual void SetReverseMouseWheelZoomDirection(bool reverse);
+  virtual void SetMouseWheelZoomsToCursor(bool value);
   virtual void SetCamera2DMouseWheelMotionFactor(double factor);
   virtual void SetCamera3DMouseWheelMotionFactor(double factor);
 
@@ -952,9 +948,12 @@ public:
   /**
    * Set the path tracers volume anisotropy
    */
+  PARAVIEW_DEPRECATED_IN_5_11_0("Use vtkVolumeProperty::SetScatteringAnisotropy instead")
   void SetVolumeAnisotropy(double);
+  PARAVIEW_DEPRECATED_IN_5_11_0("Use vtkVolumeProperty::GetScatteringAnisotropy instead")
   double GetVolumeAnisotropy();
   //@}
+
   //@{
   /**
    * Set the number of primary rays that OSPRay shoots per pixel.
@@ -1203,6 +1202,8 @@ protected:
   // 2D and 3D interactor style
   vtkPVInteractorStyle* TwoDInteractorStyle;
   vtkPVInteractorStyle* ThreeDInteractorStyle;
+
+  bool ReverseMouseWheelZoomDirection = false;
 
   // Active interactor style either [TwoDInteractorStyle, ThreeDInteractorStyle]
   vtkPVInteractorStyle* InteractorStyle;

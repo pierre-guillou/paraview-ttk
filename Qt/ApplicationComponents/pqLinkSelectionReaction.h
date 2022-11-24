@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================*/
-#ifndef __pqLinkSelectionReaction_h
-#define __pqLinkSelectionReaction_h
+#ifndef pqLinkSelectionReaction_h
+#define pqLinkSelectionReaction_h
 
 #include "pqReaction.h"
 
@@ -44,7 +44,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqLinkSelectionReaction : public pqReaction
   typedef pqReaction Superclass;
 
 public:
-  pqLinkSelectionReaction(QAction* parent = 0);
+  pqLinkSelectionReaction(QAction* parent = nullptr);
 
   /**
    * Link selection of the current active source with
@@ -52,7 +52,7 @@ public:
    */
   static void linkSelection();
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * Updates the enabled state. Applications need not explicitly call this.
    */

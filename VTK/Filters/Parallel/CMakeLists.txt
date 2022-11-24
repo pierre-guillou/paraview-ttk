@@ -1,6 +1,7 @@
 set(classes
   vtkAdaptiveTemporalInterpolator
   vtkAggregateDataSetFilter
+  vtkAlignImageDataSetFilter
   vtkAngularPeriodicFilter
   vtkCollectGraph
   vtkCollectPolyData
@@ -13,8 +14,8 @@ set(classes
   vtkExtractUnstructuredGridPiece
   vtkExtractUserDefinedPiece
   vtkHyperTreeGridGhostCellsGenerator
+  vtkPHyperTreeGridProbeFilter
   vtkIntegrateAttributes
-  vtkPassThroughFilter
   vtkPeriodicFilter
   vtkPCellDataToPointData
   vtkPConvertToMultiBlockDataSet

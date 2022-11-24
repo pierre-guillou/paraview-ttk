@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkAxis.h"
 #include "vtkChartXY.h"
 #include "vtkColorTransferFunction.h"
@@ -147,7 +144,7 @@ int TestMultipleScalarsToColors(int, char*[])
         vtkSmartPointer<vtkPiecewiseFunctionItem> item =
           vtkSmartPointer<vtkPiecewiseFunctionItem>::New();
         item->SetPiecewiseFunction(opacityFunction);
-        item->SetColor(1., 0, 0);
+        item->SetColorF(1., 0, 0);
         chart->AddPlot(item);
         vtkSmartPointer<vtkPiecewiseControlPointsItem> controlPointsItem =
           vtkSmartPointer<vtkPiecewiseControlPointsItem>::New();

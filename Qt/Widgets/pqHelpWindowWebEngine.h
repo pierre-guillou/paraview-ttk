@@ -1,7 +1,7 @@
 /*=========================================================================
 
    Program: ParaView
-   Module:  pqHelpWindowWebKit.h
+   Module:  pqHelpWindowWebEngine.h
 
    Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
    All rights reserved.
@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================*/
-#ifndef pqHelpWindowWebKit_h
-#define pqHelpWindowWebKit_h
+#ifndef pqHelpWindowWebEngine_h
+#define pqHelpWindowWebEngine_h
 
 /**
  *============================================================================
@@ -61,7 +61,7 @@ public:
     : Engine(engine)
   {
   }
-  ~pqUrlSchemeHandler() {}
+  ~pqUrlSchemeHandler() = default;
 
   void requestStarted(QWebEngineUrlRequestJob* request) override
   {
@@ -104,7 +104,7 @@ public:
     : Superclass(parentObject)
   {
   }
-  ~pqWebView() {}
+  ~pqWebView() = default;
 
   static pqWebView* newInstance(QHelpEngine* engine, QWidget* parentObject)
   {

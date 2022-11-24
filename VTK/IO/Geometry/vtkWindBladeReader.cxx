@@ -263,7 +263,7 @@ int vtkWindBladeReader::RequestInformation(vtkInformation* reqInfo,
   if (this->NumberOfVariables == 0)
   {
     // Read the size of the problem and variables in data set
-    if (this->ReadGlobalData() == false)
+    if (!this->ReadGlobalData())
     {
       return 0;
     }
@@ -1141,14 +1141,14 @@ void vtkWindBladeReader::SetupBladeData()
   if (!inStr2)
   {
     vtkWarningMacro(
-      "Could not open blade file: " << fileName2.str().c_str() << " to calculate blade cells.");
+      "Could not open blade file: " << fileName2.str() << " to calculate blade cells.");
     for (int j = this->TimeStepFirst + this->TimeStepDelta; j <= this->TimeStepLast;
          j += this->TimeStepDelta)
     {
       std::ostringstream fileName3;
       fileName3 << this->RootDirectory << "/" << this->TurbineDirectory << "/"
                 << this->TurbineBladeName << j;
-      // std::cout << "Trying " << fileName3.str().c_str() << "...";
+      // std::cout << "Trying " << fileName3.str() << "...";
 
       inStr2.open(fileName3.str().c_str());
 
@@ -1263,7 +1263,7 @@ void vtkWindBladeReader::SetUpFieldVars(vtkStructuredGrid* field)
   // Some variables depend on others, so force their loading
   for (int i = 0; i < this->DivideVariables->GetNumberOfTuples(); i++)
   {
-    if (GetPointArrayStatus(this->DivideVariables->GetValue(i)))
+    if (GetPointArrayStatus(this->DivideVariables->GetValue(i).c_str()))
     {
       this->SetPointArrayStatus("Density", 1);
     }
@@ -1282,9 +1282,9 @@ void vtkWindBladeReader::SetUpFieldVars(vtkStructuredGrid* field)
   // Divide variables by Density if required
   for (int i = 0; i < this->DivideVariables->GetNumberOfTuples(); i++)
   {
-    if (GetPointArrayStatus(this->DivideVariables->GetValue(i)))
+    if (GetPointArrayStatus(this->DivideVariables->GetValue(i).c_str()))
     {
-      this->DivideByDensity(this->DivideVariables->GetValue(i));
+      this->DivideByDensity(this->DivideVariables->GetValue(i).c_str());
     }
   }
 
@@ -1628,7 +1628,7 @@ bool vtkWindBladeReader::SetUpGlobalData(const std::string& fileName, std::strin
       {
         lineStr >> this->NumberOfFileVariables;
         this->ReadDataVariables(inStr);
-        if (this->FindVariableOffsets() == false)
+        if (!this->FindVariableOffsets())
         {
           return false;
         }
@@ -1672,7 +1672,7 @@ void vtkWindBladeReader::ProcessZCoords(float* topoData, float* zValues)
     }
 
     // Call spline with zcoeff being the answer
-    this->Spline(&zdata[0], zcrdata, npoints, 99.0e31, 99.0e31, &zcoeff[0]);
+    this->Spline(zdata.data(), zcrdata, npoints, 99.0e31, 99.0e31, zcoeff.data());
   }
 
   // Fill the zValues array depending on compression
@@ -1693,7 +1693,7 @@ void vtkWindBladeReader::ProcessZCoords(float* topoData, float* zValues)
         {
           // Use spline interpolation
           float zinterp;
-          this->Splint(&zdata[0], zcrdata, &zcoeff[0], npoints, z[k], &zinterp, flag);
+          this->Splint(zdata.data(), zcrdata, zcoeff.data(), npoints, z[k], &zinterp, flag);
           zValues[index] = zinterp;
         }
         else
@@ -1739,7 +1739,7 @@ void vtkWindBladeReader::ReadBladeHeader(
   }
   else
   {
-    std::cout << fileName.c_str() << " is empty!\n";
+    std::cout << fileName << " is empty!\n";
   }
   // reset seek position
   inStr.seekg(0, std::ios_base::beg);

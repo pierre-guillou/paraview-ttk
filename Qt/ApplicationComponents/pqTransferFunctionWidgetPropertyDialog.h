@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqTransferFunctionWidgetPropertyDialog_h
-#define _pqTransferFunctionWidgetPropertyDialog_h
+#ifndef pqTransferFunctionWidgetPropertyDialog_h
+#define pqTransferFunctionWidgetPropertyDialog_h
 
 #include "pqApplicationComponentsModule.h" // for export macros
 #include "vtkSmartPointer.h"               // For SmartPointer
@@ -46,7 +46,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqTransferFunctionWidgetPropertyDialog : pu
 public:
   pqTransferFunctionWidgetPropertyDialog(const QString& label,
     vtkPiecewiseFunction* transferFunction, QWidget* propertyWdg, QWidget* parentWdg = nullptr);
-  ~pqTransferFunctionWidgetPropertyDialog();
+  ~pqTransferFunctionWidgetPropertyDialog() override;
 
 private:
   vtkSmartPointer<vtkPiecewiseFunction> TransferFunction;
@@ -55,4 +55,4 @@ private:
   class pqInternals;
   const QScopedPointer<pqInternals> Internals;
 };
-#endif // _pqTransferFunctionWidgetPropertyDialog_h
+#endif // pqTransferFunctionWidgetPropertyDialog_h

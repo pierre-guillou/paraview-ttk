@@ -34,7 +34,9 @@
 
 int TestSEPReader(int argc, char* argv[])
 {
-  const std::string filename = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/small.H");
+  char* fname = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/small.H");
+  const std::string filename = fname;
+  delete[] fname;
 
   vtkNew<vtkSEPReader> SEPReader;
 
@@ -62,14 +64,14 @@ int TestSEPReader(int argc, char* argv[])
     return EXIT_FAILURE;
   }
 
-  double* origin = SEPReader->GetDataOrigin();
+  const double* origin = SEPReader->GetDataOrigin();
   if (origin[0] != 0. || origin[1] != 0. || origin[2] != 0.)
   {
     std::cerr << "Unexpected data origin!" << std::endl;
     return EXIT_FAILURE;
   }
 
-  double* spacing = SEPReader->GetDataSpacing();
+  const double* spacing = SEPReader->GetDataSpacing();
   if (spacing[0] != 1. || spacing[1] != 1. || spacing[2] != 1.)
   {
     std::cerr << "Unexpected data spacing!" << std::endl;

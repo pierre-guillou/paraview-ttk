@@ -33,6 +33,8 @@ if (PARAVIEW_USE_QT)
 endif ()
 
 paraview_add_plugin(SLACTools
+  REQUIRED_ON_CLIENT
+  REQUIRED_ON_SERVER
   VERSION "1.1"
   UI_FILES ${ui_files}
   UI_INTERFACES ${interfaces}
@@ -48,6 +50,7 @@ if (PARAVIEW_USE_QT)
       VTK::CommonCore
       VTK::CommonDataModel
       VTK::CommonExecutionModel)
+  target_compile_definitions(SLACTools PRIVATE QT_NO_KEYWORDS)
 endif ()
 
 if (BUILD_TESTING)

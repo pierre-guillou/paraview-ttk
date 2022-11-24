@@ -320,15 +320,16 @@ int vtkQuadricDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   this->NumberOfEdgeCollapses = 0;
   edgeId = this->EdgeCosts->Pop(0, cost);
 
-  int abort = 0;
-  while (
-    !abort && edgeId >= 0 && cost < VTK_DOUBLE_MAX && this->ActualReduction < this->TargetReduction)
+  while (edgeId >= 0 && cost < VTK_DOUBLE_MAX && this->ActualReduction < this->TargetReduction)
   {
     if (!(this->NumberOfEdgeCollapses % 10000))
     {
       vtkDebugMacro(<< "Collapsing edge#" << this->NumberOfEdgeCollapses);
       this->UpdateProgress(0.20 + 0.80 * this->NumberOfEdgeCollapses / numPts);
-      abort = this->GetAbortExecute();
+      if (this->GetAbortExecute())
+      {
+        break;
+      }
     }
 
     endPtIds[0] = this->EndPoint1List->GetId(edgeId);
@@ -628,7 +629,7 @@ void vtkQuadricDecimation::AddBoundaryConstraints()
   vtkIdType npts;
   const vtkIdType* pts;
   double t0[3], t1[3], t2[3];
-  double e0[3], e1[3], n[3], c, d, w;
+  double e0[3], e1[3], n[3], c, w;
   vtkIdList* cellIds = vtkIdList::New();
 
   // allocate local QEM space matrix
@@ -667,7 +668,16 @@ void vtkQuadricDecimation::AddBoundaryConstraints()
           n[j] = e1[j] - c * e0[j];
         }
         vtkMath::Normalize(n);
-        d = -vtkMath::Dot(n, t1);
+
+#if defined(_MSC_VER) && _MSC_VER >= 1929
+        // Visual Studio toolset starting at toolset 14.29.30133, when building in Release mode
+        // incorrectly optimizes away the line
+        //    QEM[9] = d * d;
+        // By making volatile, we are telling the compiler not to optimize out
+        // or reorder operations regarding this variable.
+        volatile
+#endif
+          double d = -vtkMath::Dot(n, t1);
         w = vtkMath::Norm(e0);
 
         // w *= w;
@@ -1360,7 +1370,7 @@ void vtkQuadricDecimation::ComputeNumberOfComponents()
   {
     for (j = 0; j < pd->GetScalars()->GetNumberOfComponents(); j++)
     {
-      pd->GetScalars()->GetRange(range, j);
+      pd->GetRange(pd->GetScalars()->GetName(), range, j);
       maxRange = (maxRange < (range[1] - range[0]) ? (range[1] - range[0]) : maxRange);
     }
     if (maxRange != 0.0)
@@ -1379,7 +1389,7 @@ void vtkQuadricDecimation::ComputeNumberOfComponents()
   {
     for (j = 0; j < pd->GetVectors()->GetNumberOfComponents(); j++)
     {
-      pd->GetVectors()->GetRange(range, j);
+      pd->GetRange(pd->GetVectors()->GetName(), range, j);
       maxRange = (maxRange < (range[1] - range[0]) ? (range[1] - range[0]) : maxRange);
     }
     if (maxRange != 0.0)
@@ -1408,7 +1418,7 @@ void vtkQuadricDecimation::ComputeNumberOfComponents()
   {
     for (j = 0; j < pd->GetTCoords()->GetNumberOfComponents(); j++)
     {
-      pd->GetTCoords()->GetRange(range, j);
+      pd->GetRange(pd->GetTCoords()->GetName(), range, j);
       maxRange = (maxRange < (range[1] - range[0]) ? (range[1] - range[0]) : maxRange);
     }
     if (maxRange != 0.0)
@@ -1429,7 +1439,7 @@ void vtkQuadricDecimation::ComputeNumberOfComponents()
     int nComp = inTensors->GetNumberOfComponents();
     for (j = 0; j < nComp; j++)
     {
-      inTensors->GetRange(range, j);
+      pd->GetRange(inTensors->GetName(), range, j);
       maxRange = (maxRange < (range[1] - range[0]) ? (range[1] - range[0]) : maxRange);
     }
     if (maxRange != 0.0)

@@ -559,7 +559,7 @@ vtkDataAssemblyUtilities::GenerateCompositeDataSetFromHierarchy(
     vtkSmartPointer<vtkUniformGridAMR> amr;
     amr.TakeReference(vtkUniformGridAMR::SafeDownCast(vtkDataObjectTypes::NewDataObject(dataType)));
     amr->Initialize(static_cast<int>(blocks_per_level.size()),
-      !blocks_per_level.empty() ? &blocks_per_level[0] : nullptr);
+      !blocks_per_level.empty() ? blocks_per_level.data() : nullptr);
     for (const auto child : hierarchy->GetChildNodes(root, /*traverse_subtree=*/false))
     {
       auto level = hierarchy->GetAttributeOrDefault(child, "amr_level", 0u);
@@ -715,7 +715,7 @@ std::vector<unsigned int> vtkDataAssemblyUtilities::GetSelectedCompositeIds(
     // nothing more to do.
     return dsIndices;
   }
-  else if (!isHierarchy && leaf_nodes_only == false)
+  else if (!isHierarchy && !leaf_nodes_only)
   {
     // convert partitioned dataset index to composite index.
     assert(data != nullptr);

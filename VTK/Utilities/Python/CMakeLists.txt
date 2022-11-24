@@ -81,7 +81,7 @@ endif ()
 # Export location of python module dirs in install and build tree for every vtkpython module to use
 # As long as those modules depend on vtkpython, they can retrieve and use these
 if (NOT VTK_PYTHON_SITE_PACKAGES_SUFFIX)
-  if (WIN32 AND NOT CYGWIN)
+  if (MSVC)
     set(VTK_PYTHON_SITE_PACKAGES_SUFFIX "Lib/site-packages")
   else ()
     set(VTK_PYTHON_SITE_PACKAGES_SUFFIX
@@ -157,6 +157,13 @@ if (VTK_PYTHON_OPTIONAL_LINK AND TARGET "${vtk_python_embed_target}")
   set(needs_flags "$<NOT:$<BOOL:${vtk_undefined_symbols_allowed}>>")
   set(direct_link "$<BOOL:$<TARGET_PROPERTY:INTERFACE_vtk_python_direct_link>>")
   set(should_use "$<OR:${is_exe},${direct_link}>")
+  # Intel's Fortran compiler doesn't like some flags, so mask it out when using
+  # the Intel Fortran Compiler (OneAPI).
+  if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.15") # XXX(cmake-3.15): `COMPILE_LANG_AND_ID` genex
+    set(ifx_mask "$<NOT:$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>")
+  else ()
+    set(ifx_mask 1)
+  endif ()
   set(platform_flags
     # Apple flags.
     "$<$<PLATFORM_ID:Darwin>:-undefined;dynamic_lookup>"
@@ -167,7 +174,7 @@ if (VTK_PYTHON_OPTIONAL_LINK AND TARGET "${vtk_python_embed_target}")
     "$<$<AND:${should_use},$<PLATFORM_ID:Linux>>:LINKER:--no-as-needed>"
     # Due to the above making the symbols actually available, we can ignore
     # unresolved symbols in the shared libraries that are being linked to.
-    "$<$<AND:${should_use},$<PLATFORM_ID:Linux>>:LINKER:--unresolved-symbols=ignore-in-shared-libs>")
+    "$<$<AND:${should_use},$<PLATFORM_ID:Linux>,${ifx_mask}>:LINKER:--unresolved-symbols=ignore-in-shared-libs>")
 
   # Use the `PythonX::Module` target from FindPython.
   vtk_module_link(VTK::Python

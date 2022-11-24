@@ -38,6 +38,7 @@
 #ifndef vtkImplicitPlaneRepresentation_h
 #define vtkImplicitPlaneRepresentation_h
 
+#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
 
@@ -191,7 +192,7 @@ public:
 
   ///@{
   /**
-   * Returns true if ContrainedAxis
+   * Returns true if ConstrainedAxis
    **/
   bool IsTranslationConstrained() { return this->TranslationAxis != Axis::NONE; }
   ///@}
@@ -261,7 +262,7 @@ public:
    * Satisfies the superclass API.  This will change the state of the widget
    * to match changes that have been made to the underlying PolyDataSource
    */
-  void UpdatePlacement(void);
+  void UpdatePlacement();
 
   ///@{
   /**
@@ -365,7 +366,7 @@ public:
   ///@}
 
   // Manage the state of the widget
-  enum _InteractionState
+  enum InteractionStateType
   {
     Outside = 0,
     Moving,
@@ -375,6 +376,10 @@ public:
     Pushing,
     Scaling
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef InteractionStateType _InteractionState;
+#endif
 
   ///@{
   /**
@@ -530,7 +535,6 @@ protected:
   // Methods to manipulate the plane
   void Rotate(double X, double Y, double* p1, double* p2, double* vpn);
   void Rotate3D(double* p1, double* p2);
-  void TranslatePlane(double* p1, double* p2);
   void TranslateOutline(double* p1, double* p2);
   void TranslateOrigin(double* p1, double* p2);
   void UpdatePose(double* p1, double* d1, double* p2, double* d2);
@@ -548,8 +552,6 @@ protected:
   vtkProperty* SelectedOutlineProperty;
   vtkProperty* EdgesProperty;
   virtual void CreateDefaultProperties();
-
-  void GeneratePlane();
 
   bool CropPlaneToBoundingBox;
 

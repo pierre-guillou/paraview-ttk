@@ -33,9 +33,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define pqApplicationCore_h
 
 #include "pqCoreModule.h"
-#include "vtkLegacy.h"       // for VTK_LEGACY
-#include "vtkPVConfig.h"     // for PARAVIEW_USE_QTHELP
-#include "vtkSmartPointer.h" // for vtkSmartPointer
+#include "vtkParaViewDeprecation.h" // for PARAVIEW_DEPRECATED_IN_5_10_0
+#include "vtkSmartPointer.h"        // for vtkSmartPointer
 #include <QObject>
 #include <QPointer>
 #include <exception> // for std::exception
@@ -58,9 +57,7 @@ class pqSettings;
 class pqTestUtility;
 class pqUndoStack;
 class QApplication;
-#ifdef PARAVIEW_USE_QTHELP
 class QHelpEngine;
-#endif
 class QStringList;
 class vtkPVXMLElement;
 class vtkSMProxyLocator;
@@ -120,9 +117,10 @@ public:
    * @deprecated in ParaView 5.10. pqOptions has been replaced by vtkCLIOptions
    * based command line parsing.
    */
-  VTK_LEGACY(
-    pqApplicationCore(int& argc, char** argv, pqOptions* options, QObject* parent = nullptr));
-  VTK_LEGACY(pqOptions* getOptions() const);
+  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
+  pqApplicationCore(int& argc, char** argv, pqOptions* options, QObject* parent = nullptr);
+  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
+  pqOptions* getOptions() const;
   ///@}
 
   /**
@@ -163,13 +161,11 @@ public:
    */
   void unRegisterManager(const QString& function);
 
-#ifdef PARAVIEW_USE_QTHELP
   /**
    * provides access to the help engine. The engine is created the first time
    * this method is called.
    */
   QHelpEngine* helpEngine();
-#endif
 
   /**
    * QHelpEngine doesn't like filenames in resource space. This method creates
@@ -327,7 +323,7 @@ public:
    */
   void _paraview_client_environment_complete();
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
 
   /**
    * Applications calls this to ensure that any cleanup is performed correctly.
@@ -339,13 +335,21 @@ public Q_SLOTS:
    */
   void quit();
 
+  ///@{
   /**
    * Load configuration xml. This results in firing of the loadXML() signal
    * which different components that support configuration catch and process to
    * update their behavior.
+   * This also update available readers and writers.
    */
   void loadConfiguration(const QString& filename);
   void loadConfigurationXML(const char* xmldata);
+  ///@}
+
+  /**
+   * Update the available readers and writers using the factories
+   */
+  void updateAvailableReadersAndWriters();
 
   /**
    * Renders all windows
@@ -418,10 +422,10 @@ private Q_SLOTS:
 protected:
   bool LoadingState;
 
-#if !defined(VTK_LEGACY_REMOVE)
+  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
   vtkSmartPointer<pqOptions> Options;
+  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
   void setOptions(pqOptions* options);
-#endif
   pqLinksModel* LinksModel;
   pqObjectBuilder* ObjectBuilder;
   pqInterfaceTracker* InterfaceTracker;
@@ -434,9 +438,7 @@ protected:
   pqRecentlyUsedResourcesList* RecentlyUsedResourcesList;
   pqServerConfigurationCollection* ServerConfigurations;
   pqSettings* Settings;
-#ifdef PARAVIEW_USE_QTHELP
   QHelpEngine* HelpEngine;
-#endif
   QPointer<pqTestUtility> TestUtility;
 
 private:

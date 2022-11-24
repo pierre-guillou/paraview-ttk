@@ -385,11 +385,7 @@ void vtkXYPlotActor::InitializeEntries()
 bool vtkXYPlotActor::DoesConnectionMatch(int i, vtkAlgorithmOutput* in)
 {
   vtkAlgorithmOutput* conn = this->InputConnectionHolder->GetInputConnection(0, i);
-  if (conn->GetProducer() == in->GetProducer() && conn->GetIndex() == in->GetIndex())
-  {
-    return true;
-  }
-  return false;
+  return conn->GetProducer() == in->GetProducer() && conn->GetIndex() == in->GetIndex();
 }
 
 //------------------------------------------------------------------------------
@@ -1004,7 +1000,7 @@ int vtkXYPlotActor::RenderOpaqueGeometry(vtkViewport* viewport)
           case AlignHCenter:
             titlePos[0] = pos[0] + .5 * (pos2[0] - pos[0]);
             break;
-        };
+        }
         switch (this->AdjustTitlePositionMode & (AlignAxisLeft | AlignAxisRight | AlignAxisHCenter))
         {
           case AlignAxisLeft:
@@ -1018,7 +1014,7 @@ int vtkXYPlotActor::RenderOpaqueGeometry(vtkViewport* viewport)
           default:
             titlePos[0] -= (this->AdjustTitlePositionMode & AlignLeft) ? stringSize[0] : 0;
             break;
-        };
+        }
         switch (this->AdjustTitlePositionMode & (AlignTop | AlignBottom | AlignVCenter))
         {
           default:
@@ -1030,7 +1026,7 @@ int vtkXYPlotActor::RenderOpaqueGeometry(vtkViewport* viewport)
             break;
           case AlignVCenter:
             titlePos[1] = pos[1] + .5 * (pos2[1] - pos[1]);
-        };
+        }
 
         switch (this->AdjustTitlePositionMode & (AlignAxisTop | AlignAxisBottom | AlignAxisVCenter))
         {
@@ -1047,7 +1043,7 @@ int vtkXYPlotActor::RenderOpaqueGeometry(vtkViewport* viewport)
           default:
             titlePos[1] += (this->AdjustTitlePositionMode & AlignTop) ? stringSize[1] : 0;
             break;
-        };
+        }
         this->TitleActor->GetPositionCoordinate()->SetValue(titlePos[0], titlePos[1]);
         // this->TitleActor->GetPositionCoordinate()->SetValue(
         //  pos[0] + .5 * ( pos2[0] - pos[0] ) - stringSize[0] / 2.0,
@@ -2529,7 +2525,7 @@ void vtkXYPlotActor::ClipPlotData(int* pos, int* pos2, vtkPolyData* pd)
       if ((x1[0] < p1[0] && x2[0] < p1[0]) || (x1[0] > p2[0] && x2[0] > p2[0]) ||
         (x1[1] < p1[1] && x2[1] < p1[1]) || (x1[1] > p2[1] && x2[1] > p2[1]))
       {
-        ; // trivial rejection
+        // trivial rejection
       }
       else if (x1[0] >= p1[0] && x2[0] >= p1[0] && x1[0] <= p2[0] && x2[0] <= p2[0] &&
         x1[1] >= p1[1] && x2[1] >= p1[1] && x1[1] <= p2[1] && x2[1] <= p2[1])

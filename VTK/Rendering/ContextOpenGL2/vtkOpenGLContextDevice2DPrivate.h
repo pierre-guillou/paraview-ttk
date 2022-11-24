@@ -40,11 +40,9 @@
 #include "vtkColor.h"
 #include "vtkFreeTypeTools.h"
 #include "vtkGenericCell.h"
-#include "vtkStdString.h"
 #include "vtkTextProperty.h"
 #include "vtkTextRenderer.h"
 #include "vtkTexture.h"
-#include "vtkUnicodeString.h"
 #include "vtkUnsignedCharArray.h"
 
 #include <algorithm>
@@ -214,12 +212,21 @@ struct TextPropertyKey
     assert("Hash is really a uint32" && static_cast<size_t>(hash) == id);
 
     // Since we cache the text metrics (which includes orientation and alignment
-    // info), we'll need to store the alignment options, since
-    // MapTextPropertyToId intentionally ignores these:
+    // info), we'll need to store additional options, since MapTextPropertyToId
+    // intentionally ignores them.
+    // These include cell spacing and interior lines for multi cell text, as well
+    // as text justification.
     int tmp = tprop->GetJustification();
     hash = vtkFreeTypeTools::HashBuffer(&tmp, sizeof(int), hash);
     tmp = tprop->GetVerticalJustification();
     hash = vtkFreeTypeTools::HashBuffer(&tmp, sizeof(int), hash);
+    tmp = tprop->GetCellOffset();
+    hash = vtkFreeTypeTools::HashBuffer(&tmp, sizeof(int), hash);
+    tmp = tprop->GetInteriorLinesVisibility();
+    hash = vtkFreeTypeTools::HashBuffer(&tmp, sizeof(int), hash);
+    tmp = tprop->GetInteriorLinesWidth();
+    hash = vtkFreeTypeTools::HashBuffer(&tmp, sizeof(int), hash);
+    hash = vtkFreeTypeTools::HashBuffer(tprop->GetInteriorLinesColor(), 3 * sizeof(double), hash);
 
     return hash;
   }
@@ -263,8 +270,7 @@ struct TextPropertyKey
   int DPI;
 };
 
-typedef TextPropertyKey<vtkStdString> UTF8TextPropertyKey;
-typedef TextPropertyKey<vtkUnicodeString> UTF16TextPropertyKey;
+typedef TextPropertyKey<std::string> UTF8TextPropertyKey;
 
 class vtkOpenGLContextDevice2D::Private
 {
@@ -499,8 +505,7 @@ public:
    * Cache for text images. Generating texture for strings is expensive,
    * we cache the textures here for a faster reuse.
    */
-  mutable vtkTextureImageCache<UTF16TextPropertyKey> TextTextureCache;
-  mutable vtkTextureImageCache<UTF8TextPropertyKey> MathTextTextureCache;
+  mutable vtkTextureImageCache<UTF8TextPropertyKey> TextTextureCache;
   ///@}
 };
 

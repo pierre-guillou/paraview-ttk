@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqFileChooserWidget_h
-#define _pqFileChooserWidget_h
+#ifndef pqFileChooserWidget_h
+#define pqFileChooserWidget_h
 
 #include "pqComponentsModule.h"
 #include "pqQtDeprecated.h"
@@ -175,7 +175,7 @@ protected Q_SLOTS:
    */
   void handleFileLineEditChanged(const QString& fileString);
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   QString Extension;
   QLineEdit* LineEdit;
   pqServer* Server;
@@ -193,4 +193,4 @@ protected:
   void emitFilenamesChanged(const QStringList& fileList);
 };
 
-#endif // _pqFileChooserWidget_h
+#endif // pqFileChooserWidget_h

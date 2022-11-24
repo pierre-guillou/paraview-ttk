@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkClipDataSet.h"
 
 #include "vtkCallbackCommand.h"
@@ -30,18 +27,13 @@
 #include "vtkIncrementalPointLocator.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkIntArray.h"
 #include "vtkMergePoints.h"
 #include "vtkObjectFactory.h"
-#include "vtkPlane.h"
 #include "vtkPointData.h"
 #include "vtkPolyhedron.h"
 #include "vtkSmartPointer.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
-
-#include <cmath>
 
 vtkStandardNewMacro(vtkClipDataSet);
 vtkCxxSetObjectMacro(vtkClipDataSet, ClipFunction, vtkImplicitFunction);
@@ -102,10 +94,6 @@ void vtkClipDataSet::InternalProgressCallback(vtkAlgorithm* algorithm)
 {
   float progress = algorithm->GetProgress();
   this->UpdateProgress(progress);
-  if (this->AbortExecute)
-  {
-    algorithm->SetAbortExecute(1);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -309,10 +297,11 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
     {
       inPD->SetScalars(tmpScalars);
     }
+    double pt[3];
     for (i = 0; i < numPts; i++)
     {
-      s = this->ClipFunction->FunctionValue(input->GetPoint(i));
-      tmpScalars->SetTuple1(i, s);
+      input->GetPoint(i, pt);
+      tmpScalars->SetValue(i, this->ClipFunction->FunctionValue(pt));
     }
     clipScalars = tmpScalars;
   }
@@ -371,7 +360,7 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Process all cells and clip each in turn
   //
-  int abort = 0;
+  bool abort = false;
   vtkIdType updateTime = numCells / 20 + 1; // update roughly every 5%
   vtkGenericCell* cell = vtkGenericCell::New();
   int num[2];
@@ -383,7 +372,7 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
     if (!(cellId % updateTime))
     {
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     input->GetCell(cellId, cell);
@@ -509,9 +498,10 @@ int vtkClipDataSet::ClipPoints(
   }
   if (this->ClipFunction)
   {
+    double pt[3];
     for (vtkIdType i = 0; i < numPts; i++)
     {
-      double* pt = input->GetPoint(i);
+      input->GetPoint(i, pt);
       double fv = this->ClipFunction->FunctionValue(pt);
       int addPoint = 0;
       if (this->InsideOut)
@@ -530,7 +520,7 @@ int vtkClipDataSet::ClipPoints(
       }
       if (addPoint)
       {
-        vtkIdType id = outPoints->InsertNextPoint(input->GetPoint(i));
+        vtkIdType id = outPoints->InsertNextPoint(pt);
         outPD->CopyData(inPD, i, id);
       }
     }
@@ -540,10 +530,12 @@ int vtkClipDataSet::ClipPoints(
     vtkDataArray* clipScalars = this->GetInputArrayToProcess(0, inputVector);
     if (clipScalars)
     {
+      double pt[3];
       for (vtkIdType i = 0; i < numPts; i++)
       {
         int addPoint = 0;
-        double fv = clipScalars->GetTuple1(i);
+        double fv;
+        clipScalars->GetTuple(i, &fv);
         if (this->InsideOut)
         {
           if (fv <= value)
@@ -560,7 +552,8 @@ int vtkClipDataSet::ClipPoints(
         }
         if (addPoint)
         {
-          vtkIdType id = outPoints->InsertNextPoint(input->GetPoint(i));
+          input->GetPoint(i, pt);
+          vtkIdType id = outPoints->InsertNextPoint(pt);
           outPD->CopyData(inPD, i, id);
         }
       }

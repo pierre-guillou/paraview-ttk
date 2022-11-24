@@ -129,6 +129,7 @@ to the more usual form y x; without parentheses.
 #include "vtkParse.h"
 #include "vtkParseData.h"
 #include "vtkParsePreprocess.h"
+#include "vtkParseSystem.h"
 
 /* Define the kinds of [[attributes]] to collect */
 enum
@@ -1652,9 +1653,9 @@ static unsigned int add_indirection_to_array(unsigned int type)
    and five from '(' constructor_args ')' in initializer */
 %expect 10
 
-/* Expect 111 reduce/reduce conflicts, these can be cleared by removing
+/* Expect 110 reduce/reduce conflicts, these can be cleared by removing
    either '<' or angle_brackets_sig from constant_expression_item. */
-%expect-rr 111
+%expect-rr 110
 
 /* The parser will shift/reduce values <str> or <integer>, where
    <str> is for IDs and <integer> is for types, modifiers, etc. */
@@ -1671,7 +1672,6 @@ static unsigned int add_indirection_to_array(unsigned int type)
 %token <str> VTK_ID
 %token <str> QT_ID
 %token <str> StdString
-%token <str> UnicodeString
 %token <str> OSTREAM
 %token <str> ISTREAM
 
@@ -1854,6 +1854,7 @@ namespace_definition:
     NAMESPACE '{' ignored_items '}'
   | NAMESPACE identifier { pushNamespace($<str>2); }
     '{' opt_declaration_seq '}' { popNamespace(); }
+  | INLINE NAMESPACE identifier '{' opt_declaration_seq '}'
 
 namespace_alias_definition:
     NAMESPACE identifier '=' qualified_id ';'
@@ -2890,7 +2891,6 @@ simple_id:
   | ISTREAM { postSig($<str>1); }
   | OSTREAM { postSig($<str>1); }
   | StdString { postSig($<str>1); }
-  | UnicodeString { postSig($<str>1); }
   | NULLPTR_T { postSig($<str>1); }
   | SIZE_T { postSig($<str>1); }
   | SSIZE_T { postSig($<str>1); }
@@ -2906,7 +2906,6 @@ identifier:
   | ISTREAM
   | OSTREAM
   | StdString
-  | UnicodeString
 
 /*
  * Declaration specifiers
@@ -3025,7 +3024,6 @@ simple_type_specifier:
 
 type_name:
     StdString { typeSig($<str>1); $<integer>$ = VTK_PARSE_STRING; }
-  | UnicodeString { typeSig($<str>1); $<integer>$ = VTK_PARSE_UNICODE_STRING;}
   | OSTREAM { typeSig($<str>1); $<integer>$ = VTK_PARSE_OSTREAM; }
   | ISTREAM { typeSig($<str>1); $<integer>$ = VTK_PARSE_ISTREAM; }
   | ID { typeSig($<str>1); $<integer>$ = VTK_PARSE_UNKNOWN; }
@@ -4081,10 +4079,6 @@ static unsigned int guess_id_type(const char* cp)
     {
       t = VTK_PARSE_STRING;
     }
-    else if (strcmp(dp, "vtkUnicodeString") == 0)
-    {
-      t = VTK_PARSE_UNICODE_STRING;
-    }
     else if (strncmp(dp, "vtk", 3) == 0)
     {
       t = VTK_PARSE_OBJECT;
@@ -4127,7 +4121,7 @@ static void set_return(
   if (count)
   {
     val->Count = count;
-    sprintf(text, "%i", count);
+    snprintf(text, sizeof(text), "%i", count);
     vtkParse_AddStringToArray(&val->Dimensions, &val->NumberOfDimensions, vtkstrdup(text));
   }
 
@@ -4749,7 +4743,7 @@ static void dump_macros(const char* filename)
 
   if (filename)
   {
-    ofile = fopen(filename, "w");
+    ofile = vtkParse_FileOpen(filename, "w");
     if (!ofile)
     {
       fprintf(stderr, "Error opening output file %s\n", filename);
@@ -4814,8 +4808,7 @@ FileInfo* vtkParse_ParseFile(const char* filename, FILE* ifile, FILE* errfile)
   /* "data" is a global variable used by the parser */
   data = (FileInfo*)malloc(sizeof(FileInfo));
   vtkParse_InitFile(data);
-  data->Strings = (StringCache*)malloc(sizeof(StringCache));
-  vtkParse_InitStringCache(data->Strings);
+  data->Strings = &system_strings;
 
   /* "preprocessor" is a global struct used by the parser */
   preprocessor = (PreprocessInfo*)malloc(sizeof(PreprocessInfo));
@@ -5017,7 +5010,7 @@ int vtkParse_ReadHints(FileInfo* file_info, FILE* hfile, FILE* errfile)
                 if (func_info->ReturnValue->NumberOfDimensions == 0)
                 {
                   char text[64];
-                  sprintf(text, "%i", h_value);
+                  snprintf(text, sizeof(text), "%i", h_value);
                   func_info->ReturnValue->Count = h_value;
                   vtkParse_AddStringToArray(&func_info->ReturnValue->Dimensions,
                     &func_info->ReturnValue->NumberOfDimensions,
@@ -5054,8 +5047,12 @@ void vtkParse_FinalCleanup(void)
 void vtkParse_Free(FileInfo* file_info)
 {
   vtkParse_FreeFile(file_info);
-  vtkParse_FreeStringCache(file_info->Strings);
-  free(file_info->Strings);
+  // system_strings will be released at program exit
+  if (file_info->Strings && file_info->Strings != &system_strings)
+  {
+    vtkParse_FreeStringCache(file_info->Strings);
+    free(file_info->Strings);
+  }
   free(file_info);
 }
 

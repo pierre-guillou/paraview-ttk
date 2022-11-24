@@ -13,7 +13,8 @@
 #include <vtkm/cont/ArrayHandleConstant.h>
 #include <vtkm/cont/ArrayHandleGroupVecVariable.h>
 #include <vtkm/cont/CellSetExplicit.h>
-#include <vtkm/cont/DynamicCellSet.h>
+#include <vtkm/cont/ConvertNumComponentsToOffsets.h>
+#include <vtkm/cont/UnknownCellSet.h>
 
 #include <vtkm/worklet/DispatcherMapTopology.h>
 #include <vtkm/worklet/WorkletMapTopology.h>
@@ -68,7 +69,7 @@ struct CellDeepCopy
     const InCellSetType& inCellSet,
     vtkm::cont::CellSetExplicit<ShapeStorage, ConnectivityStorage, OffsetsStorage>& outCellSet)
   {
-    VTKM_IS_DYNAMIC_OR_STATIC_CELL_SET(InCellSetType);
+    VTKM_IS_KNOWN_OR_UNKNOWN_CELL_SET(InCellSetType);
 
     vtkm::cont::ArrayHandle<vtkm::IdComponent> numIndices;
 
@@ -80,7 +81,7 @@ struct CellDeepCopy
 
     vtkm::cont::ArrayHandle<vtkm::Id, OffsetsStorage> offsets;
     vtkm::Id connectivitySize;
-    vtkm::cont::ConvertNumIndicesToOffsets(numIndices, offsets, connectivitySize);
+    vtkm::cont::ConvertNumComponentsToOffsets(numIndices, offsets, connectivitySize);
     connectivity.Allocate(connectivitySize);
 
     vtkm::worklet::DispatcherMapTopology<PassCellStructure> passDispatcher;
@@ -95,7 +96,7 @@ struct CellDeepCopy
   template <typename InCellSetType>
   VTKM_CONT static vtkm::cont::CellSetExplicit<> Run(const InCellSetType& inCellSet)
   {
-    VTKM_IS_DYNAMIC_OR_STATIC_CELL_SET(InCellSetType);
+    VTKM_IS_KNOWN_OR_UNKNOWN_CELL_SET(InCellSetType);
 
     vtkm::cont::CellSetExplicit<> outCellSet;
     Run(inCellSet, outCellSet);

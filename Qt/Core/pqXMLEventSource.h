@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqXMLEventSource_h
-#define _pqXMLEventSource_h
+#ifndef pqXMLEventSource_h
+#define pqXMLEventSource_h
 
 #include "pqCoreModule.h"
 #include "pqEventSource.h"
@@ -44,7 +44,7 @@ class PQCORE_EXPORT pqXMLEventSource : public pqEventSource
 {
   Q_OBJECT
 public:
-  pqXMLEventSource(QObject* p = 0);
+  pqXMLEventSource(QObject* p = nullptr);
   ~pqXMLEventSource() override;
 
   void setContent(const QString& path) override;
@@ -59,4 +59,4 @@ private:
   pqImplementation* const Implementation;
 };
 
-#endif // !_pqXMLEventSource_h
+#endif // !pqXMLEventSource_h

@@ -1,11 +1,11 @@
 /*=========================================================================
 
-  Program:   ParaView
+  Program:   Visualization Toolkit
   Module:    vtkSelectionNode.h
 
-  Copyright (c) Kitware, Inc.
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
+  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -29,7 +29,7 @@
  * qualifiers, and information. The core properties must be specified other wise the
  * vtkSelectionNode is not considered valid. These are `FIELD_TYPE` and
  * `CONTENT_TYPE`. `FIELD_TYPE` defines what kinds of entities are being selected.
- * Since selections are used select items in a data-object, these correspond to
+ * Since selections are used to select items in a data-object, these correspond to
  * things like cells, points, nodes, edges, rows, etc. Supported FIELD_TYPE
  * values are defined in `vtkSelectionNode::SelectionField`. `CONTENT_TYPE`
  * defines the how the selection is described. Supported values are
@@ -62,7 +62,7 @@
  *   using vtkDataSetAttributes API. Since global ids are expected to be unique
  *   for that element type over the entire dataset, it's a convenient way of
  *   defining selections. For this content-type, the selection list must be
- *   to a single-component, `vtkIdTypeArray` that lists all the globals ids for
+ *   a single-component, `vtkIdTypeArray` that lists all the globals ids for
  *   the selected elements.
  *
  * * `vtkSelectionNode::PEDIGREEIDS`: similar to `GLOBALIDS` except uses
@@ -87,14 +87,14 @@
  *   `BLOCK_SELECTORS`, `PROCESS_ID` etc. are needed to correctly identify the
  *   chosen element(s) in case of composite or distributed datasets.
  *
- * * `vtkSelectionNode::FRUSTUM: this type is used to define a frustum in world
+ * * `vtkSelectionNode::FRUSTUM`: this type is used to define a frustum in world
  *   coordinates that identifies the selected elements. In this case, the
  *   selection list is a vtkDoubleArray with 32 values specifying the 8 frustum
  *   corners in homogeneous world coordinates.
  *
  * * `vtkSelectionNode::LOCATIONS`: this is used to select points (or cells)
  *   near (or containing) specified locations. The selection list is a
- *   3-compnent vtkDoubleArray with coordinates for locations of interest.
+ *   3-component vtkDoubleArray with coordinates for locations of interest.
  *
  * * `vtkSelectionNode::THRESHOLDS`: this type is used to define a selection based
  *   on array value ranges. This is akin to thresholding. All elements with values in
@@ -152,8 +152,15 @@
  *
  * * `vtkSelectionNode::CONNECTED_LAYERS()`: a qualifier used to expand the
  *   definition of selected elements to connected elements for the specified
- *   number of layers. Layers can be positive or negative to grow or shrink the
- *   selection respectively.
+ *   number of layers. Layers can only be positive to grow the selection.
+ *
+ * * `vtkSelectionNode::CONNECTED_LAYERS_REMOVE_SEED()`: this qualifier indicates
+ *   that when using a number of CONNECTED_LAYERS >= 1, the initial selection will
+ *   not be kept.
+ *
+ * * `vtkSelectionNode::CONNECTED_LAYERS_REMOVE_INTERMEDIATE_LAYERS()`: this qualifier
+ *   indicates that when using a number of CONNECTED_LAYERS >= 2, the intermediate layers
+ *   will not be kept.
  *
  * * `vtkSelectionNode::INVERSE()`: a qualifier that causes the selection to be
  *   inverted i.e. all elements not chosen by the criteria are to be treated
@@ -214,7 +221,6 @@
 #define vtkSelectionNode_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // for deprecation
 #include "vtkObject.h"
 
 class vtkAbstractArray;
@@ -299,7 +305,6 @@ public:
    */
   enum SelectionContent
   {
-    SELECTIONS,      //!< Deprecated.
     GLOBALIDS,       //!< Select entities called out by their globally-unique IDs.
     PEDIGREEIDS,     //!< Select entities that have some identifiable pedigree.
     VALUES,          //!< Select entities that take on specific array values.
@@ -408,6 +413,18 @@ public:
   static vtkInformationIntegerKey* CONNECTED_LAYERS();
 
   /**
+   * When specified and also using CONNECTED_LAYERS(), this indicates
+   * if the initial selection should be kept or not.
+   */
+  static vtkInformationIntegerKey* CONNECTED_LAYERS_REMOVE_SEED();
+
+  /**
+   * When specified and also using CONNECTED_LAYERS(), this indicates
+   * if the intermediate layers should be kept or not.
+   */
+  static vtkInformationIntegerKey* CONNECTED_LAYERS_REMOVE_INTERMEDIATE_LAYERS();
+
+  /**
    * When ContentType==THRESHOLDS  or ContentType==VALUES
    * i.e. threshold and value based selections, it is
    * possible pick the component number using this key. If none is specified,
@@ -480,12 +497,6 @@ public:
   static vtkInformationIntegerKey* HIERARCHICAL_LEVEL();
   static vtkInformationIntegerKey* HIERARCHICAL_INDEX();
   ///@}
-
-  /**
-   * @deprecated no longer relevant.
-   */
-  VTK_DEPRECATED_IN_9_1_0("no longer relevant")
-  static vtkInformationIntegerKey* INDEXED_VERTICES();
 
   /**
    * Merges the selection list between self and the other. Assumes that both has

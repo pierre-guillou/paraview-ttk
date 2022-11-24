@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPlotStacked.h"
 
 #include "vtkAxis.h"
@@ -48,14 +45,7 @@ namespace
 // Compare the two vectors, in X component only
 bool compVector2fX(const vtkVector2f& v1, const vtkVector2f& v2)
 {
-  if (v1.GetX() < v2.GetX())
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return v1.GetX() < v2.GetX();
 }
 
 // Copy the two arrays into the points array
@@ -583,46 +573,25 @@ void vtkPlotStacked::SetColor(unsigned char r, unsigned char g, unsigned char b,
 }
 
 //------------------------------------------------------------------------------
-void vtkPlotStacked::SetColor(double r, double g, double b)
+void vtkPlotStacked::SetColorF(double r, double g, double b, double a)
+{
+  this->Brush->SetColorF(r, g, b, a);
+}
+
+//------------------------------------------------------------------------------
+void vtkPlotStacked::SetColorF(double r, double g, double b)
 {
   this->Brush->SetColorF(r, g, b);
 }
 
 //------------------------------------------------------------------------------
-void vtkPlotStacked::GetColor(double rgb[3])
+void vtkPlotStacked::GetColorF(double rgb[3])
 {
-  this->Brush->GetColorF(rgb);
-}
-
-//------------------------------------------------------------------------------
-void vtkPlotStacked::Update()
-{
-  if (!this->Visible)
-  {
-    return;
-  }
-  // Check if we have an input
-  vtkTable* table = this->Data->GetInput();
-  if (!table)
-  {
-    vtkDebugMacro(<< "Update event called with no input table set.");
-    return;
-  }
-  else if (this->Data->GetMTime() > this->BuildTime || table->GetMTime() > this->BuildTime ||
-    this->MTime > this->BuildTime)
-  {
-    vtkDebugMacro(<< "Updating cached values.");
-    this->UpdateTableCache(table);
-  }
-  else if ((this->XAxis->GetMTime() > this->BuildTime) ||
-    (this->YAxis->GetMTime() > this->BuildTime))
-  {
-    if (this->LogX != this->XAxis->GetLogScaleActive() ||
-      this->LogY != this->YAxis->GetLogScaleActive())
-    {
-      this->UpdateTableCache(table);
-    }
-  }
+  double rgba[4] = { 0.0, 0.0, 0.0, 0.0 };
+  this->Brush->GetColorF(rgba);
+  rgb[0] = rgba[0];
+  rgb[1] = rgba[1];
+  rgb[2] = rgba[2];
 }
 
 //------------------------------------------------------------------------------
@@ -691,22 +660,6 @@ void vtkPlotStacked::GetUnscaledInputBounds(double bounds[4])
 vtkIdType vtkPlotStacked::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
   vtkVector2f* location, vtkIdType* vtkNotUsed(segmentId))
 {
-  if (!this->LegacyRecursionFlag)
-  {
-    this->LegacyRecursionFlag = true;
-    vtkIdType ret = this->GetNearestPoint(point, tol, location);
-    this->LegacyRecursionFlag = false;
-    if (ret != -1)
-    {
-      VTK_LEGACY_REPLACED_BODY(vtkPlotStacked::GetNearestPoint(const vtkVector2f& point,
-                                 const vtkVector2f& tol, vtkVector2f* location),
-        "VTK 9.0",
-        vtkPlotStacked::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
-          vtkVector2f* location, vtkIdType* segmentId));
-      return ret;
-    }
-  }
-
   return this->Private->GetNearestPoint(point, tol, location);
 }
 
@@ -757,8 +710,22 @@ vtkStringArray* vtkPlotStacked::GetLabels()
 }
 
 //------------------------------------------------------------------------------
-bool vtkPlotStacked::UpdateTableCache(vtkTable* table)
+bool vtkPlotStacked::CacheRequiresUpdate()
 {
+  return this->Superclass::CacheRequiresUpdate() ||
+    (this->XAxis && this->LogX != this->XAxis->GetLogScaleActive()) ||
+    (this->YAxis && this->LogY != this->YAxis->GetLogScaleActive());
+}
+
+//------------------------------------------------------------------------------
+bool vtkPlotStacked::UpdateCache()
+{
+  if (!this->Superclass::UpdateCache())
+  {
+    return false;
+  }
+
+  vtkTable* table = this->Data->GetInput();
   // Get the x and ybase and yextent arrays (index 0 1 2 respectively)
   vtkDataArray* x =
     this->UseIndexForXSeries ? nullptr : this->Data->GetInputArrayToProcess(0, table);

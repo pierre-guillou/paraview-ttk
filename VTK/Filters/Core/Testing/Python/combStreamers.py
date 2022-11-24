@@ -3,6 +3,9 @@ import vtk
 from vtk.util.misc import vtkGetDataRoot
 VTK_DATA_ROOT = vtkGetDataRoot()
 
+# Control the test size
+res = 4
+
 # Create the RenderWindow, Renderer and both Actors
 #
 ren1 = vtk.vtkRenderer()
@@ -20,8 +23,8 @@ pl3d.SetVectorFunctionNumber(202)
 pl3d.Update()
 output = pl3d.GetOutput().GetBlock(0)
 ps = vtk.vtkPlaneSource()
-ps.SetXResolution(4)
-ps.SetYResolution(4)
+ps.SetXResolution(res)
+ps.SetYResolution(res)
 ps.SetOrigin(2,-2,26)
 ps.SetPoint1(2,2,26)
 ps.SetPoint2(2,-2,32)

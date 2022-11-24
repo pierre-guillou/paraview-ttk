@@ -41,6 +41,7 @@
 #include "vtkFloatArray.h"
 #include "vtkInformation.h"
 #include "vtkIntArray.h"
+#include "vtkLogger.h"
 #include "vtkLongArray.h"
 #include "vtkLookupTable.h"
 #include "vtkMath.h"
@@ -515,7 +516,7 @@ void vtkEnSightWriter::WriteData()
             this->WriteIntToFile(CellId, fd);
           }
 
-          // element conenctivity information
+          // element connectivity information
           for (k = 0; k < CellsByElement[elementType].size(); k++)
           {
             int CellId = CellsByElement[elementType][k];
@@ -610,7 +611,8 @@ void vtkEnSightWriter::WriteData()
       }
     }
   }
-  // cout << "wrote " << blockCount << "parts\n";
+  vtkLog(TRACE, "wrote " << blockCount << "parts\n");
+
   if (this->TmpInput)
   {
     this->TmpInput->Delete();

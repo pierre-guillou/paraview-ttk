@@ -33,8 +33,8 @@
 #include "vtkTable.h"
 #include "vtkTimeStamp.h"
 
+#include <algorithm>
 #include <array>
-#include <cstring>
 #include <functional>
 #include <iterator>
 #include <numeric>
@@ -50,7 +50,7 @@ typename std::iterator_traits<InputIt>::value_type WindowEnergy(InputIt begin, I
   using T = typename std::iterator_traits<InputIt>::value_type;
   constexpr T zero(0);
   return std::inner_product(begin, end, begin, zero, std::plus<T>(), std::multiplies<T>()) /
-    std::distance(begin, end);
+    static_cast<T>(std::distance(begin, end));
 }
 
 // Easy access to the right windowing function using vtkTableFFT enumeration.
@@ -64,6 +64,46 @@ constexpr static std::array<vtkFFT::WindowGenerator, vtkTableFFT::MAX_WINDOWING_
   vtkFFT::RectangularGenerator
 };
 // clang-format on
+
+//------------------------------------------------------------------------------
+template <typename T>
+void CopyTuple(vtkDataArray* source, size_t sindex, std::vector<T>& target, size_t tindex)
+{
+  target[tindex] = source->GetTuple1(sindex + tindex);
+}
+template <>
+void CopyTuple(
+  vtkDataArray* source, size_t sindex, std::vector<vtkFFT::ComplexNumber>& target, size_t tindex)
+{
+  double* tuple = source->GetTuple2(sindex + tindex);
+  target[tindex].r = tuple[0];
+  target[tindex].i = tuple[1];
+}
+
+//------------------------------------------------------------------------------
+template <typename T>
+T Zero()
+{
+  return 0.0;
+}
+template <>
+vtkFFT::ComplexNumber Zero()
+{
+  return vtkFFT::ComplexNumber{ 0.0, 0.0 };
+}
+
+//------------------------------------------------------------------------------
+template <typename T>
+std::vector<vtkFFT::ComplexNumber> DispatchFFT(const std::vector<T>& in, bool realFft)
+{
+  return realFft ? vtkFFT::RFft(in) : vtkFFT::Fft(in);
+}
+template <>
+std::vector<vtkFFT::ComplexNumber> DispatchFFT(
+  const std::vector<vtkFFT::ComplexNumber>& in, bool vtkNotUsed(realFft))
+{
+  return vtkFFT::Fft(in);
+}
 }
 
 //------------------------------------------------------------------------------
@@ -79,7 +119,7 @@ struct vtkTableFFT::vtkInternal
 
   bool Average = false;
 
-  void UpdateWindow(int window, int size)
+  void UpdateWindow(int window, std::size_t size)
   {
     this->Window.resize(size);
 
@@ -88,6 +128,53 @@ struct vtkTableFFT::vtkInternal
     this->WindowPonderation = (window == vtkTableFFT::RECTANGULAR)
       ? 1.0
       : details::WindowEnergy(this->Window.begin(), this->Window.end());
+  }
+
+  template <typename T>
+  std::vector<vtkFFT::ComplexNumber> DoWelchMethod(vtkDataArray* input, size_t nblocks,
+    size_t blocksize, bool normalize, bool windowing, bool optimize = false)
+  {
+    nblocks = this->Average ? std::max(size_t(1), nblocks) : 1;
+    const std::size_t nsamples = input->GetNumberOfTuples();
+    const std::size_t outSize = this->OutputSize;
+    const std::size_t stepSize = (nblocks <= 1) ? 0 : (nsamples - blocksize - 1) / (nblocks - 1);
+
+    std::vector<vtkFFT::ComplexNumber> resFft(outSize, vtkFFT::ComplexNumber{ 0.0, 0.0 });
+    const double blockCoef = 1.0 / nblocks;
+    for (std::size_t b = 0; b < nblocks; ++b)
+    {
+      // Copy data from input to block
+      vtkIdType startBlock = b * stepSize;
+      std::vector<T> block(blocksize);
+      for (std::size_t i = 0; i < blocksize; ++i)
+      {
+        details::CopyTuple<T>(input, startBlock, block, i);
+      }
+
+      // Remove mean signal for each block and apply windowing function
+      if (normalize || windowing)
+      {
+        T mean = details::Zero<T>();
+        if (normalize)
+        {
+          mean = std::accumulate(block.begin(), block.end(), details::Zero<T>()) / blocksize;
+        }
+        const auto& window = this->Window;
+        for (std::size_t i = 0; i < blocksize; ++i)
+        {
+          block[i] = (block[i] - mean) * window[i];
+        }
+      }
+
+      // Compute fft and increment
+      std::vector<vtkFFT::ComplexNumber> fft = details::DispatchFFT(block, optimize);
+      for (std::size_t i = 0; i < fft.size(); ++i)
+      {
+        resFft[i] = resFft[i] + fft[i] * blockCoef;
+      }
+    }
+
+    return resFft;
   }
 };
 
@@ -102,10 +189,7 @@ vtkTableFFT::vtkTableFFT()
 }
 
 //------------------------------------------------------------------------------
-vtkTableFFT::~vtkTableFFT()
-{
-  delete this->Internals;
-}
+vtkTableFFT::~vtkTableFFT() = default;
 
 //------------------------------------------------------------------------------
 int vtkTableFFT::RequestData(vtkInformation* vtkNotUsed(request),
@@ -121,63 +205,65 @@ int vtkTableFFT::RequestData(vtkInformation* vtkNotUsed(request),
   }
   if (input->GetNumberOfRows() == 0)
   {
-    // Input is empty, nothing to do
     return 1;
   }
 
+  // Initialize internal state such as output size, sampling frequency, etc
   this->Initialize(input);
 
+  // Process every column of the input
   vtkIdType numColumns = input->GetNumberOfColumns();
   for (vtkIdType col = 0; col < numColumns; col++)
   {
-    vtkDataArray* array = vtkArrayDownCast<vtkDataArray>(input->GetColumn(col));
-    if (!array || array->GetNumberOfComponents() != 1)
-    {
-      continue;
-    }
-    const char* name = array->GetName();
-    if (name)
-    {
-      if (vtksys::SystemTools::Strucmp(name, "time") == 0)
-      {
-        continue;
-      }
-      if (strcmp(name, "vtkValidPointMask") == 0)
-      {
-        if (this->OptimizeForRealInput)
-        {
-          vtkSmartPointer<vtkDataArray> half;
-          half.TakeReference(array->NewInstance());
-          half->DeepCopy(array);
-          half->SetNumberOfTuples(this->Internals->OutputSize);
-          half->Squeeze();
-          output->AddColumn(half);
-        }
-        else
-        {
-          output->AddColumn(array);
-        }
-        continue;
-      }
-    }
-    if (array->IsA("vtkIdTypeArray"))
-    {
-      continue;
-    }
+    vtkAbstractArray* array = input->GetColumn(col);
+    const char* arrayName = array->GetName();
+    vtkDataArray* dataArray = vtkDataArray::SafeDownCast(array);
 
-    vtkSmartPointer<vtkDataArray> fft = this->DoFFT(array);
-    auto namefft = std::string("FFT_").append(name);
-    fft->SetName(namefft.c_str());
-    output->AddColumn(fft);
+    // If array is the time array, skip
+    if (vtksys::SystemTools::Strucmp(arrayName, "time") == 0)
+    {
+      continue;
+    }
+    // else if we can and should process the data array for the FFT, do it
+    else if (dataArray && !vtksys::SystemTools::StringStartsWith(arrayName, "vtk") &&
+      (dataArray->GetNumberOfComponents() == 1 ||
+        (dataArray->GetNumberOfComponents() == 2 && !this->OptimizeForRealInput)) &&
+      !array->IsA("vtkIdTypeArray"))
+    {
+      vtkSmartPointer<vtkDataArray> fft = this->DoFFT(dataArray);
+      std::string newArrayName =
+        this->PrefixOutputArrays ? std::string("FFT_").append(arrayName) : arrayName;
+      fft->SetName(newArrayName.c_str());
+      output->AddColumn(fft);
+    }
+    // else pass the array to the output
+    else
+    {
+      if (this->OptimizeForRealInput)
+      {
+        vtkSmartPointer<vtkAbstractArray> half;
+        half.TakeReference(array->NewInstance());
+        half->DeepCopy(array);
+        half->SetNumberOfTuples(this->Internals->OutputSize);
+        half->Squeeze();
+        output->AddColumn(half);
+      }
+      else
+      {
+        output->AddColumn(array);
+      }
+    }
   }
 
+  // Create the frequency column if needed
   if (this->CreateFrequencyColumn)
   {
-    vtkIdType size = this->Internals->Window.size();
+    std::size_t size = this->Internals->Window.size();
     double spacing = 1.0 / this->Internals->SampleRate;
 
-    std::vector<double> stdFreq =
-      this->OptimizeForRealInput ? vtkFFT::RFftFreq(size, spacing) : vtkFFT::FftFreq(size, spacing);
+    std::vector<double> stdFreq = this->OptimizeForRealInput
+      ? vtkFFT::RFftFreq(static_cast<int>(size), spacing)
+      : vtkFFT::FftFreq(static_cast<int>(size), spacing);
 
     vtkNew<vtkDoubleArray> frequencies;
     frequencies->SetName("Frequency");
@@ -196,105 +282,86 @@ int vtkTableFFT::RequestData(vtkInformation* vtkNotUsed(request),
 //------------------------------------------------------------------------------
 void vtkTableFFT::Initialize(vtkTable* input)
 {
-  // Get temporal information
-  std::size_t nTimestep = input->GetNumberOfRows();
+  // Find time array and compute sample rate
+  std::size_t nsamples = input->GetNumberOfRows();
   vtkDataArray* timeArray = nullptr;
   vtkIdType numColumns = input->GetNumberOfColumns();
+  bool imaginaryColumnFound = false;
   for (vtkIdType col = 0; col < numColumns; col++)
   {
-    if (vtksys::SystemTools::Strucmp(input->GetColumn(col)->GetName(), "time") == 0)
+    vtkAbstractArray* column = input->GetColumn(col);
+
+    if (vtksys::SystemTools::Strucmp(column->GetName(), "time") == 0)
     {
       timeArray = vtkDataArray::SafeDownCast(input->GetColumn(col));
       break;
     }
+
+    imaginaryColumnFound |= (column->GetNumberOfComponents() == 2);
   }
-  double deltaT = 0.0;
+
+  if (this->OptimizeForRealInput && imaginaryColumnFound)
+  {
+    vtkWarningMacro("OptimizeForRealInput is True but found columns with 2 components"
+                    " (interpreted as imaginary data). Imaginary columns will be ignored.");
+  }
+
   if (timeArray && timeArray->GetNumberOfTuples() > 1)
   {
-    deltaT = timeArray->GetTuple1(1) - timeArray->GetTuple1(0);
+    double deltaT = timeArray->GetTuple1(1) - timeArray->GetTuple1(0);
+    this->Internals->SampleRate = 1.0 / deltaT;
   }
-
-  if (deltaT == 0.0)
+  else
   {
-    if (this->Normalize || this->CreateFrequencyColumn)
-    {
-      vtkWarningMacro("'Time' information not found, we will assume a 10'000 Hz sampling rate");
-    }
-    deltaT = 1.0e-4;
+    this->Internals->SampleRate = this->DefaultSampleRate;
   }
-  this->Internals->SampleRate = 1.0 / deltaT;
 
-  // Generate windowing function
-  std::size_t actualSize = nTimestep;
+  // Check if we can average and compute the size of the windowing function
+  std::size_t nfft = nsamples;
   this->Internals->Average = this->AverageFft;
   if (this->AverageFft)
   {
-    actualSize = vtkMath::NearestPowerOfTwo(this->BlockSize);
-    if (actualSize > (nTimestep - this->NumberOfBlock))
+    nfft = vtkMath::NearestPowerOfTwo(static_cast<int>(this->BlockSize));
+    if (nfft > (nsamples - this->NumberOfBlock))
     {
       vtkWarningMacro(
         "Cannot average FFT per block : block size is too large compared to the input. "
         << "Computing FFT on the whole input.");
       this->Internals->Average = false;
-      actualSize = nTimestep;
+      nfft = nsamples;
     }
   }
+
+  // Generate windowing function
   // We're caching the windowing function for more efficiency when applying this filter
   // on different tables multiple times
-  if (this->Internals->WindowLastUpdated < this->Internals->WindowTimeStamp.GetMTime())
+  if (this->Internals->WindowLastUpdated < this->Internals->WindowTimeStamp.GetMTime() ||
+    nfft != this->Internals->Window.size())
   {
-    this->Internals->UpdateWindow(this->WindowingFunction, static_cast<int>(actualSize));
+    this->Internals->UpdateWindow(this->WindowingFunction, nfft);
     this->Internals->WindowLastUpdated = this->Internals->WindowTimeStamp.GetMTime();
   }
 
   // Get output size
-  const std::size_t nfft = this->Internals->Window.size();
   this->Internals->OutputSize = this->OptimizeForRealInput ? (nfft / 2) + 1 : nfft;
 }
 
 //------------------------------------------------------------------------------
 vtkSmartPointer<vtkDataArray> vtkTableFFT::DoFFT(vtkDataArray* input)
 {
-  const std::size_t nvalues = input->GetNumberOfValues();
-  const std::size_t nblocks =
-    this->Internals->Average ? static_cast<std::size_t>(std::max(1, this->NumberOfBlock)) : 1;
-  const double blockCoef = 1.0 / nblocks;
-  const std::size_t nfft = this->Internals->Window.size();
-  const std::size_t outSize = this->Internals->OutputSize;
-  const std::size_t stepSize = (nblocks <= 1) ? 0 : (nvalues - nfft - 1) / (nblocks - 1);
+  const std::size_t blocksize = this->Internals->Window.size();
 
-  std::vector<vtkFFT::ScalarNumber> block(nfft);
-  std::vector<vtkFFT::ComplexNumber> resFft(outSize, vtkFFT::ComplexNumber{ 0.0, 0.0 });
-
-  for (std::size_t b = 0; b < nblocks; ++b)
+  std::vector<vtkFFT::ComplexNumber> fft;
+  if (input->GetNumberOfComponents() == 1)
   {
-    // Copy data from input to block
-    vtkIdType startBlock = b * stepSize;
-    for (std::size_t i = 0; i < nfft; ++i)
-    {
-      block[i] = input->GetTuple1(startBlock + i);
-    }
-
-    // Remove mean signal for each block and apply windowing function
-    if (this->Normalize || this->WindowingFunction != RECTANGULAR)
-    {
-      const double mean =
-        this->Normalize ? std::accumulate(block.begin(), block.end(), 0.0) / nfft : 0.0;
-      const auto& window = this->Internals->Window;
-      for (std::size_t i = 0; i < nfft; ++i)
-      {
-        block[i] = (block[i] - mean) * window[i];
-      }
-    }
-
-    // Compute fft and increment
-    std::vector<vtkFFT::ComplexNumber> fft =
-      this->OptimizeForRealInput ? vtkFFT::RFft(block) : vtkFFT::Fft(block);
-    for (std::size_t i = 0; i < fft.size(); ++i)
-    {
-      resFft[i].r += blockCoef * fft[i].r;
-      resFft[i].i += blockCoef * fft[i].i;
-    }
+    fft =
+      this->Internals->DoWelchMethod<vtkFFT::ScalarNumber>(input, this->NumberOfBlock, blocksize,
+        this->Normalize, this->WindowingFunction != RECTANGULAR, this->OptimizeForRealInput);
+  }
+  else if (input->GetNumberOfComponents() == 2)
+  {
+    fft = this->Internals->DoWelchMethod<vtkFFT::ComplexNumber>(input, this->NumberOfBlock,
+      blocksize, this->Normalize, this->WindowingFunction != RECTANGULAR);
   }
 
   vtkSmartPointer<vtkDataArray> output;
@@ -302,23 +369,23 @@ vtkSmartPointer<vtkDataArray> vtkTableFFT::DoFFT(vtkDataArray* input)
   if (this->Normalize)
   {
     const double norm =
-      1.0 / (this->Internals->WindowPonderation * nfft * this->Internals->SampleRate);
+      1.0 / (this->Internals->WindowPonderation * blocksize * this->Internals->SampleRate);
     output->SetNumberOfComponents(1);
-    output->SetNumberOfTuples(outSize);
+    output->SetNumberOfTuples(fft.size());
 
-    output->SetTuple1(0, vtkFFT::Abs(resFft[0]) * norm);
-    for (std::size_t i = 1; i < outSize; ++i)
+    output->SetTuple1(0, vtkFFT::Abs(fft[0]) * norm);
+    for (std::size_t i = 1; i < fft.size(); ++i)
     {
-      output->SetTuple1(i, vtkFFT::Abs(resFft[i]) * 2.0 * norm);
+      output->SetTuple1(i, vtkFFT::Abs(fft[i]) * 2.0 * norm);
     }
   }
   else
   {
     output->SetNumberOfComponents(2);
-    output->SetNumberOfTuples(outSize);
-    for (std::size_t i = 0; i < outSize; ++i)
+    output->SetNumberOfTuples(fft.size());
+    for (std::size_t i = 0; i < fft.size(); ++i)
     {
-      output->SetTuple2(i, resFft[i].r, resFft[i].i);
+      output->SetTuple2(i, fft[i].r, fft[i].i);
     }
   }
 
@@ -331,7 +398,7 @@ void vtkTableFFT::SetAverageFft(bool _arg)
   vtkDebugMacro(<< this->GetClassName() << " (" << this << "): setting AverageFft to " << _arg);
   if (this->AverageFft != _arg)
   {
-    this->BlockSize = _arg;
+    this->AverageFft = _arg;
     this->Internals->WindowTimeStamp.Modified();
     this->Modified();
   }
@@ -353,11 +420,8 @@ void vtkTableFFT::SetBlockSize(int _arg)
 void vtkTableFFT::SetWindowingFunction(int _arg)
 {
   vtkDebugMacro(<< this->GetClassName() << " (" << this << "): setting "
-                << "WindowingFunction"
-                   " to "
-                << _arg);
-  int clamped =
-    (_arg < 0 ? 0 : (_arg >= MAX_WINDOWING_FUNCTION ? (MAX_WINDOWING_FUNCTION - 1) : _arg));
+                << "WindowingFunction to " << _arg);
+  int clamped = std::min(std::max(_arg, 0), static_cast<int>(MAX_WINDOWING_FUNCTION));
   if (this->WindowingFunction != clamped)
   {
     this->WindowingFunction = clamped;

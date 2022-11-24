@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtk3DLinearGridCrinkleExtractor.h"
 
 #include "vtk3DLinearGridInternal.h"
@@ -52,27 +49,33 @@ vtkCxxSetObjectMacro(vtk3DLinearGridCrinkleExtractor, ImplicitFunction, vtkImpli
 // parallel processing mode. The _REDUCE_ version is used to called functors
 // with a Reduce() method).
 #define EXECUTE_SMPFOR(_seq, _num, _op)                                                            \
-  if (!_seq)                                                                                       \
+  do                                                                                               \
   {                                                                                                \
-    vtkSMPTools::For(0, _num, _op);                                                                \
-  }                                                                                                \
-  else                                                                                             \
-  {                                                                                                \
-    _op(0, _num);                                                                                  \
-  }
+    if (!_seq)                                                                                     \
+    {                                                                                              \
+      vtkSMPTools::For(0, _num, _op);                                                              \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+      _op(0, _num);                                                                                \
+    }                                                                                              \
+  } while (false)
 
 #define EXECUTE_REDUCED_SMPFOR(_seq, _num, _op, _nt)                                               \
-  if (!_seq)                                                                                       \
+  do                                                                                               \
   {                                                                                                \
-    vtkSMPTools::For(0, _num, _op);                                                                \
-  }                                                                                                \
-  else                                                                                             \
-  {                                                                                                \
-    _op.Initialize();                                                                              \
-    _op(0, _num);                                                                                  \
-    _op.Reduce();                                                                                  \
-  }                                                                                                \
-  _nt = _op.NumThreadsUsed;
+    if (!_seq)                                                                                     \
+    {                                                                                              \
+      vtkSMPTools::For(0, _num, _op);                                                              \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+      _op.Initialize();                                                                            \
+      _op(0, _num);                                                                                \
+      _op.Reduce();                                                                                \
+    }                                                                                              \
+    _nt = _op.NumThreadsUsed;                                                                      \
+  } while (false)
 
 namespace
 { // anonymous
@@ -949,16 +952,17 @@ bool vtk3DLinearGridCrinkleExtractor::CanFullyProcessDataObject(vtkDataObject* o
   if (ug)
   {
     // Get list of cell types in the unstructured grid
-    vtkNew<vtkCellTypes> cellTypes;
-    ug->GetCellTypes(cellTypes);
-    for (vtkIdType i = 0; i < cellTypes->GetNumberOfTypes(); ++i)
+    if (vtkUnsignedCharArray* cellTypes = ug->GetDistinctCellTypesArray())
     {
-      unsigned char cellType = cellTypes->GetCellType(i);
-      if (cellType != VTK_VOXEL && cellType != VTK_TETRA && cellType != VTK_HEXAHEDRON &&
-        cellType != VTK_WEDGE && cellType != VTK_PYRAMID)
+      for (vtkIdType i = 0; i < cellTypes->GetNumberOfValues(); ++i)
       {
-        // Unsupported cell type, can't process data
-        return false;
+        unsigned char cellType = cellTypes->GetValue(i);
+        if (cellType != VTK_VOXEL && cellType != VTK_TETRA && cellType != VTK_HEXAHEDRON &&
+          cellType != VTK_WEDGE && cellType != VTK_PYRAMID)
+        {
+          // Unsupported cell type, can't process data
+          return false;
+        }
       }
     }
 

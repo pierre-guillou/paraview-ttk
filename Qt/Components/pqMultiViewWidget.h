@@ -33,7 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define pqMultiViewWidget_h
 
 #include "pqComponentsModule.h"
-#include "vtkSetGet.h" // for VTK_LEGACY
 #include <QWidget>
 
 class pqProxy;
@@ -119,16 +118,6 @@ public:
    * Returns the location of the active frame, if any, else -1.
    */
   int activeFrameLocation() const;
-
-  /**
-   * @deprecated use `decorationsVisibility` instead.
-   */
-  VTK_LEGACY(bool isDecorationsVisible() const);
-
-  /**
-   * @deprecated, use `setDecorationsVisibility` instead.
-   */
-  VTK_LEGACY(void setDecorationsVisible(bool val));
 
 Q_SIGNALS:
   /**
@@ -231,7 +220,7 @@ protected Q_SLOTS:
   void resizeEvent(QResizeEvent* evt) override;
   //@}
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   /**
    * Called whenever a new frame needs to be created for a view. Note that view
    * may be null, in which case a place-holder frame is expected. The caller
@@ -249,7 +238,6 @@ protected:
 private:
   void layoutPropertyModified(vtkObject*, unsigned long, void*);
 
-private:
   Q_DISABLE_COPY(pqMultiViewWidget)
 
   class pqInternals;

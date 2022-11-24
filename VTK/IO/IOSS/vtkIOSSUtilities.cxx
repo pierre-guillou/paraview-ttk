@@ -22,10 +22,12 @@
 #include "vtkArrayDispatch.h"
 #include "vtkCellArray.h"
 #include "vtkCellType.h"
+#include "vtkDataSet.h"
 #include "vtkGenericCell.h"
 #include "vtkIdTypeArray.h"
 #include "vtkLogger.h"
 #include "vtkObjectFactory.h"
+#include "vtkPointData.h"
 #include "vtkPoints.h"
 
 #include <vtksys/RegularExpression.hxx>
@@ -68,9 +70,8 @@ public:
       }
       e = parent;
     }
-    stream
-      << ":"
-      << vtksys::SystemTools::GetFilenameName(entity->get_database()->decoded_filename()).c_str();
+    stream << ":"
+           << vtksys::SystemTools::GetFilenameName(entity->get_database()->decoded_filename());
     return stream.str();
   }
 };
@@ -103,7 +104,7 @@ void Cache::ClearUnused()
   auto iter = internals.CacheMap.begin();
   while (iter != internals.CacheMap.end())
   {
-    if (iter->second.second == false)
+    if (!iter->second.second)
     {
       iter = internals.CacheMap.erase(iter);
     }
@@ -146,6 +147,29 @@ void Cache::Insert(
   value.second = true;
 }
 
+//============================================================================
+CaptureNonErrorMessages::CaptureNonErrorMessages()
+  : DebugStream(&Ioss::Utils::get_debug_stream())
+  , WarningStream(&Ioss::Utils::get_warning_stream())
+{
+  Ioss::Utils::set_debug_stream(this->Stream);
+  Ioss::Utils::set_warning_stream(this->Stream);
+}
+
+//----------------------------------------------------------------------------
+CaptureNonErrorMessages::~CaptureNonErrorMessages()
+{
+  Ioss::Utils::set_warning_stream(*this->WarningStream);
+  Ioss::Utils::set_debug_stream(*this->DebugStream);
+}
+
+//----------------------------------------------------------------------------
+std::string CaptureNonErrorMessages::GetMessages() const
+{
+  return this->Stream.str();
+}
+
+//============================================================================
 //----------------------------------------------------------------------------
 std::vector<std::pair<int, double>> GetTime(const Ioss::Region* region)
 {
@@ -274,9 +298,13 @@ int GetCellType(const Ioss::ElementTopology* topology)
 {
   switch (topology->shape())
   {
+    case Ioss::ElementShape::SPHERE:
+      return VTK_VERTEX;
+
     case Ioss::ElementShape::POINT:
       return VTK_POLY_VERTEX;
 
+    case Ioss::ElementShape::SPRING:
     case Ioss::ElementShape::LINE:
       switch (topology->number_nodes())
       {
@@ -369,6 +397,87 @@ int GetCellType(const Ioss::ElementTopology* topology)
   vtkLogF(ERROR, "Element of topology '%s' with %d nodes is not supported.",
     topology->name().c_str(), topology->number_nodes());
   throw std::runtime_error("Unsupported topology " + topology->name());
+}
+
+//----------------------------------------------------------------------------
+const Ioss::ElementTopology* GetElementTopology(int vtk_cell_type)
+{
+  const char* elementType = nullptr;
+  switch (vtk_cell_type)
+  {
+    case VTK_VERTEX:
+    case VTK_POLY_VERTEX:
+      elementType = "point";
+      break;
+    case VTK_LINE:
+      elementType = "edge2";
+      break;
+    case VTK_QUADRATIC_EDGE:
+      elementType = "edge4";
+      break;
+    case VTK_TRIANGLE:
+      elementType = "tri3";
+      break;
+    case VTK_QUADRATIC_TRIANGLE:
+      elementType = "tri6";
+      break;
+    case VTK_QUAD:
+      elementType = "quad4";
+      break;
+    case VTK_QUADRATIC_QUAD:
+      elementType = "quad8";
+      break;
+    case VTK_BIQUADRATIC_QUAD:
+      elementType = "quad9";
+      break;
+    case VTK_TETRA:
+      elementType = "tet4";
+      break;
+    case VTK_QUADRATIC_TETRA:
+      elementType = "tet11";
+      break;
+    case VTK_LAGRANGE_TETRAHEDRON:
+      elementType = "tet15";
+      break;
+    case VTK_QUADRATIC_PYRAMID:
+      elementType = "pyramid13";
+      break;
+    case VTK_TRIQUADRATIC_PYRAMID:
+      elementType = "pyramid19";
+      break;
+    case VTK_PYRAMID:
+      elementType = "pyramid5";
+      break;
+    case VTK_QUADRATIC_WEDGE:
+      elementType = "wedge15";
+      break;
+    case VTK_BIQUADRATIC_QUADRATIC_WEDGE:
+      elementType = "wedge18";
+      break;
+    case VTK_LAGRANGE_WEDGE:
+      elementType = "wedge21";
+      break;
+    case VTK_WEDGE:
+      elementType = "wedge6";
+      break;
+    case VTK_HEXAHEDRON:
+      elementType = "hex8";
+      break;
+    case VTK_QUADRATIC_HEXAHEDRON:
+      elementType = "hex20";
+      break;
+    case VTK_TRIQUADRATIC_HEXAHEDRON:
+      elementType = "hex27";
+      break;
+  }
+
+  if (auto* element = elementType ? Ioss::ElementTopology::factory(elementType) : nullptr)
+  {
+    return element;
+  }
+
+  vtkLogF(ERROR, "VTK cell type (%d) cannot be mapped to an Ioss element type!", vtk_cell_type);
+  throw std::runtime_error("Unsupported cell type " + std::to_string(vtk_cell_type));
 }
 
 //----------------------------------------------------------------------------
@@ -747,6 +856,31 @@ std::string GetDisplacementFieldName(Ioss::GroupingEntity* nodeblock)
 }
 
 //----------------------------------------------------------------------------
+std::string GetDisplacementFieldName(vtkDataSet* dataset)
+{
+  if (dataset == nullptr)
+  {
+    return std::string();
+  }
+
+  auto* pd = dataset->GetPointData();
+  for (int cc = 0, max = pd->GetNumberOfArrays(); cc < max; ++cc)
+  {
+    auto* array = pd->GetArray(cc);
+    std::string arrayName = (array && array->GetName()) ? array->GetName() : "";
+    if (vtksys::SystemTools::UpperCase(arrayName.substr(0, 3)) == "DIS" &&
+      array->GetNumberOfComponents() == 3)
+    {
+      // while not true currently, once paraview/paraview#21237 is fixed, all
+      // displacement vectors will be 3 component arrays.
+      return arrayName;
+    }
+  }
+
+  return std::string();
+}
+
+//----------------------------------------------------------------------------
 DatabaseFormatType DetectType(const std::string& dbaseName)
 {
   // clang-format off
@@ -880,6 +1014,37 @@ std::vector<Ioss::StructuredBlock*> GetMatchingStructuredBlocks(
   }
 
   return groups;
+}
+
+//----------------------------------------------------------------------------
+template <>
+void GetEntityAndFieldNames<Ioss::SideSet>(const Ioss::Region* region,
+  const std::vector<Ioss::SideSet*>& entities, std::set<EntityNameType>& entity_names,
+  std::set<std::string>& field_names)
+{
+  for (const auto& entity : entities)
+  {
+    const int64_t id = entity->property_exists("id") ? entity->get_property("id").get_int() : 0;
+    auto name = vtkIOSSUtilities::GetSanitizedBlockName(region, entity->name());
+    entity_names.insert(EntityNameType{ static_cast<vtkTypeUInt64>(id), name });
+
+    for (const auto& block : entity->get_side_blocks())
+    {
+      Ioss::NameList attributeNames;
+      block->field_describe(Ioss::Field::TRANSIENT, &attributeNames);
+      block->field_describe(Ioss::Field::ATTRIBUTE, &attributeNames);
+      std::copy(attributeNames.begin(), attributeNames.end(),
+        std::inserter(field_names, field_names.end()));
+    }
+
+    // not sure if there will ever be any fields on the side-set itself, but no
+    // harm in checking.
+    Ioss::NameList attributeNames;
+    entity->field_describe(Ioss::Field::TRANSIENT, &attributeNames);
+    entity->field_describe(Ioss::Field::ATTRIBUTE, &attributeNames);
+    std::copy(
+      attributeNames.begin(), attributeNames.end(), std::inserter(field_names, field_names.end()));
+  }
 }
 
 } // end of namespace.

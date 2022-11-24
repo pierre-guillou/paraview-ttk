@@ -31,8 +31,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef pq_SignalsBlocker_h
-#define pq_SignalsBlocker_h
+#ifndef pqSignalsBlocker_h
+#define pqSignalsBlocker_h
 
 #include "pqCoreModule.h"
 #include <QObject>
@@ -48,7 +48,7 @@ class PQCORE_EXPORT pqSignalsBlocker : public QObject
 public:
   pqSignalsBlocker(QObject* parent = nullptr);
 
-signals:
+Q_SIGNALS:
   void passSignal();
 };
 

@@ -15,13 +15,16 @@
 
 #define _USE_MATH_DEFINES
 
+#include "vtkAppendPolyData.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDoubleArray.h"
 #include "vtkFeatureEdges.h"
+#include "vtkGhostCellsGenerator.h"
 #include "vtkImageData.h"
 #include "vtkLogger.h"
 #include "vtkNew.h"
+#include "vtkPartitionedDataSet.h"
 #include "vtkPointData.h"
 #include "vtkPointDataToCellData.h"
 #include "vtkPolyData.h"
@@ -66,7 +69,6 @@ vtkSmartPointer<vtkPolyData> Convert1DImageToPolyData(vtkImageData* input)
 {
   vtkSmartPointer<vtkPolyData> output = vtkSmartPointer<vtkPolyData>::New();
 
-  output->ShallowCopy(input);
   vtkNew<vtkPoints> points;
   output->SetPoints(points);
   points->SetNumberOfPoints(input->GetNumberOfPoints());
@@ -98,6 +100,7 @@ vtkSmartPointer<vtkPolyData> Convert1DImageToPolyData(vtkImageData* input)
   }
 
   output->SetLines(lines);
+  output->GetPointData()->ShallowCopy(input->GetPointData());
 
   return output;
 }
@@ -107,7 +110,6 @@ vtkSmartPointer<vtkPolyData> Convert2DImageToPolyData(vtkImageData* input)
 {
   vtkSmartPointer<vtkPolyData> output = vtkSmartPointer<vtkPolyData>::New();
 
-  output->ShallowCopy(input);
   vtkNew<vtkPoints> points;
   output->SetPoints(points);
   points->SetNumberOfPoints(input->GetNumberOfPoints());
@@ -187,6 +189,8 @@ vtkSmartPointer<vtkPolyData> Convert2DImageToPolyData(vtkImageData* input)
   output->SetStrips(strips);
   output->SetPolys(polys);
 
+  output->GetPointData()->ShallowCopy(input->GetPointData());
+
   return output;
 }
 
@@ -207,30 +211,12 @@ bool TestMixedTypes()
   FillImage(lineImage);
 
   vtkSmartPointer<vtkPolyData> pdLines = Convert1DImageToPolyData(lineImage);
-  for (vtkIdType pointId = 0; pointId < pdLines->GetNumberOfPoints(); ++pointId)
-  {
-    pd->GetPoints()->InsertNextPoint(pdLines->GetPoint(pointId));
-  }
 
-  vtkIdType pointOffset = image->GetNumberOfPoints();
-  vtkCellArray* lines = pdLines->GetLines();
-  vtkDataArray* connectivity = lines->GetConnectivityArray();
-  for (vtkIdType id = 0; id < connectivity->GetNumberOfTuples(); ++id)
-  {
-    connectivity->SetTuple1(id, connectivity->GetTuple1(id) + pointOffset);
-  }
-
-  vtkDoubleArray* pdArray =
-    vtkArrayDownCast<vtkDoubleArray>(pd->GetPointData()->GetAbstractArray(0));
-  vtkDoubleArray* pdLinesArray =
-    vtkArrayDownCast<vtkDoubleArray>(pdLines->GetPointData()->GetAbstractArray(0));
-  for (vtkIdType linePointId = 0; linePointId < pdLines->GetNumberOfPoints(); ++linePointId)
-  {
-    pdArray->InsertNextValue(pdLinesArray->GetValue(linePointId));
-  }
-
-  pd->SetLines(lines);
-  pd->DeleteCells();
+  vtkNew<vtkAppendPolyData> appendPD;
+  appendPD->AddInputData(pd);
+  appendPD->AddInputData(pdLines);
+  appendPD->Update();
+  pd = appendPD->GetOutput();
 
   vtkNew<vtkPointDataToCellData> imagePointToCell;
   imagePointToCell->SetInputData(image);
@@ -326,8 +312,53 @@ bool TestMixedTypes()
     if (error)
     {
       vtkLog(ERROR, "Error when copying cell data into output when using vtkFeatureEdge.");
-      //    return false;
+      return false;
     }
+  }
+
+  // Creating a second image next to the first image.
+  // We're going to test how the feature edge filter reacts to ghost cells.
+  vtkNew<vtkImageData> image2;
+  int extent2[6] = { -maxExtent, 0, 0, maxExtent, 0, 0 };
+  image2->SetExtent(extent2);
+  FillImage(image2);
+
+  vtkSmartPointer<vtkPolyData> imagePD = Convert2DImageToPolyData(image);
+  vtkSmartPointer<vtkPolyData> imagePD2 = Convert2DImageToPolyData(image2);
+
+  vtkNew<vtkPartitionedDataSet> pds;
+  pds->SetNumberOfPartitions(2);
+  pds->SetPartition(0, imagePD);
+  pds->SetPartition(1, imagePD2);
+
+  vtkNew<vtkGhostCellsGenerator> ghostGenerator;
+  ghostGenerator->SetInputData(pds);
+  ghostGenerator->SetNumberOfGhostLayers(1);
+  ghostGenerator->BuildIfRequiredOff();
+  ghostGenerator->Update();
+
+  vtkPolyData* pdWithGhosts = vtkPolyData::SafeDownCast(
+    vtkPartitionedDataSet::SafeDownCast(ghostGenerator->GetOutputDataObject(0))->GetPartition(0));
+
+  edges->SetInputData(pdWithGhosts);
+  edges->RemoveGhostInterfacesOn();
+  edges->Update();
+  out = vtkPolyData::SafeDownCast(edges->GetOutputDataObject(0));
+  if (out->GetNumberOfCells() != maxExtent * 3)
+  {
+    vtkLog(ERROR,
+      "Feature edges failed at generating edges with ghost cells. it generated "
+        << out->GetNumberOfCells() << " cells instead of " << (maxExtent * 3));
+  }
+
+  edges->RemoveGhostInterfacesOff();
+  edges->Update();
+  out = vtkPolyData::SafeDownCast(edges->GetOutputDataObject(0));
+  if (out->GetNumberOfCells() != maxExtent * 4)
+  {
+    vtkLog(ERROR,
+      "Feature edges failed at generating edges with ghost cells. it generated "
+        << out->GetNumberOfCells() << " cells instead of " << (maxExtent * 4));
   }
 
   return true;

@@ -212,6 +212,7 @@ void vtkBorderRepresentation::SetShowBorder(int border)
 {
   this->SetShowVerticalBorder(border);
   this->SetShowHorizontalBorder(border);
+  this->SetShowPolygonBackground(border);
   this->UpdateShowBorder();
 }
 
@@ -230,8 +231,23 @@ int vtkBorderRepresentation::GetShowBorderMaxValue()
 //------------------------------------------------------------------------------
 int vtkBorderRepresentation::GetShowBorder()
 {
-  return this->GetShowVerticalBorder() != BORDER_OFF ? this->GetShowVerticalBorder()
-                                                     : this->GetShowHorizontalBorder();
+  return this->GetShowVerticalBorder() != BORDER_OFF
+    ? this->GetShowVerticalBorder()
+    : (this->GetShowHorizontalBorder() != BORDER_OFF ? this->GetShowHorizontalBorder()
+                                                     : this->GetShowPolygonBackground());
+}
+
+//------------------------------------------------------------------------------
+void vtkBorderRepresentation::SetShowPolygon(int polygon)
+{
+  this->SetShowPolygonBackground(polygon);
+  this->UpdateShowBorder();
+}
+
+//------------------------------------------------------------------------------
+int vtkBorderRepresentation::GetShowPolygon()
+{
+  return this->GetShowPolygonBackground();
 }
 
 //------------------------------------------------------------------------------
@@ -535,7 +551,7 @@ int vtkBorderRepresentation::ComputeInteractionState(int X, int Y, int vtkNotUse
       if (this->Moving)
       {
         // FIXME: This must be wrong.  Moving is not an entry in the
-        // _InteractionState enum.  It is an ivar flag and it has no business
+        // InteractionStateType enum.  It is an ivar flag and it has no business
         // being set to InteractionState.  This just happens to work because
         // Inside happens to be 1, and this gets set when Moving is 1.
         this->InteractionState = vtkBorderRepresentation::Moving;
@@ -561,6 +577,7 @@ void vtkBorderRepresentation::UpdateShowBorder()
     HorizontalBorder = 0x02,
     AllBorders = VerticalBorder | HorizontalBorder
   };
+
   int currentBorder = NoBorder;
   switch (this->BWPolyData->GetLines()->GetNumberOfCells())
   {
@@ -581,6 +598,8 @@ void vtkBorderRepresentation::UpdateShowBorder()
       currentBorder = NoBorder;
       break;
   }
+  bool currentBackground = this->BWActorPolygon->GetVisibility();
+
   int newBorder = NoBorder;
   if (this->ShowVerticalBorder == this->ShowHorizontalBorder)
   {
@@ -605,12 +624,18 @@ void vtkBorderRepresentation::UpdateShowBorder()
           ? HorizontalBorder
           : NoBorder);
   }
-  bool visible = (newBorder != NoBorder);
-  if (currentBorder != newBorder && visible)
+  bool backgroundVisible = (this->ShowPolygonBackground == BORDER_ON ||
+    (this->ShowPolygonBackground == BORDER_ACTIVE &&
+      this->InteractionState != vtkBorderRepresentation::Outside));
+
+  bool edgesVisible = (newBorder != NoBorder);
+  if ((currentBorder != newBorder || currentBackground != backgroundVisible) &&
+    (edgesVisible || backgroundVisible))
   {
     vtkNew<vtkCellArray> outline;
     switch (newBorder)
     {
+      case NoBorder: // fall-through for backgrounds only
       case AllBorders:
         outline->InsertNextCell(5);
         outline->InsertCellPoint(0);
@@ -643,7 +668,8 @@ void vtkBorderRepresentation::UpdateShowBorder()
     this->Modified();
     this->ComputeRoundCorners();
   }
-  this->BWActorEdges->SetVisibility(visible);
+  this->BWActorEdges->SetVisibility(edgesVisible);
+  this->BWActorPolygon->SetVisibility(backgroundVisible);
 }
 
 //------------------------------------------------------------------------------
@@ -653,6 +679,24 @@ void vtkBorderRepresentation::SetBWActorDisplayOverlay(bool enable)
   {
     this->BWActorEdges->SetVisibility(enable);
   }
+  if (this->BWActorPolygon)
+  {
+    this->BWActorPolygon->SetVisibility(enable);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkBorderRepresentation::SetBWActorDisplayOverlayEdges(bool enable)
+{
+  if (this->BWActorEdges)
+  {
+    this->BWActorEdges->SetVisibility(enable);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkBorderRepresentation::SetBWActorDisplayOverlayPolygon(bool enable)
+{
   if (this->BWActorPolygon)
   {
     this->BWActorPolygon->SetVisibility(enable);
@@ -742,35 +786,68 @@ void vtkBorderRepresentation::ReleaseGraphicsResources(vtkWindow* w)
 int vtkBorderRepresentation::RenderOverlay(vtkViewport* w)
 {
   this->BuildRepresentation();
-  if (!this->BWActorEdges->GetVisibility())
+
+  vtkTypeBool edgesVisible = this->BWActorEdges->GetVisibility();
+  vtkTypeBool polygonVisible = this->BWActorPolygon->GetVisibility();
+  if (edgesVisible && polygonVisible)
   {
-    return 0;
+    return this->BWActorEdges->RenderOverlay(w) && this->BWActorPolygon->RenderOverlay(w);
   }
-  return this->BWActorEdges->RenderOverlay(w) && this->BWActorPolygon->RenderOverlay(w);
+  else if (edgesVisible)
+  {
+    return this->BWActorEdges->RenderOverlay(w);
+  }
+  else if (polygonVisible)
+  {
+    return this->BWActorPolygon->RenderOverlay(w);
+  }
+  return 0;
 }
 
 //------------------------------------------------------------------------------
 int vtkBorderRepresentation::RenderOpaqueGeometry(vtkViewport* w)
 {
   this->BuildRepresentation();
-  if (!this->BWActorEdges->GetVisibility())
+
+  vtkTypeBool edgesVisible = this->BWActorEdges->GetVisibility();
+  vtkTypeBool polygonVisible = this->BWActorPolygon->GetVisibility();
+  if (edgesVisible && polygonVisible)
   {
-    return 0;
+    return this->BWActorEdges->RenderOpaqueGeometry(w) &&
+      this->BWActorPolygon->RenderOpaqueGeometry(w);
   }
-  return this->BWActorEdges->RenderOpaqueGeometry(w) &&
-    this->BWActorPolygon->RenderOpaqueGeometry(w);
+  else if (edgesVisible)
+  {
+    return this->BWActorEdges->RenderOpaqueGeometry(w);
+  }
+  else if (polygonVisible)
+  {
+    return this->BWActorPolygon->RenderOpaqueGeometry(w);
+  }
+  return 0;
 }
 
 //------------------------------------------------------------------------------
 int vtkBorderRepresentation::RenderTranslucentPolygonalGeometry(vtkViewport* w)
 {
   this->BuildRepresentation();
-  if (!this->BWActorEdges->GetVisibility())
+
+  vtkTypeBool edgesVisible = this->BWActorEdges->GetVisibility();
+  vtkTypeBool polygonVisible = this->BWActorPolygon->GetVisibility();
+  if (edgesVisible && polygonVisible)
   {
-    return 0;
+    return this->BWActorEdges->RenderTranslucentPolygonalGeometry(w) &&
+      this->BWActorPolygon->RenderTranslucentPolygonalGeometry(w);
   }
-  return this->BWActorEdges->RenderTranslucentPolygonalGeometry(w) &&
-    this->BWActorPolygon->RenderTranslucentPolygonalGeometry(w);
+  else if (edgesVisible)
+  {
+    return this->BWActorEdges->RenderTranslucentPolygonalGeometry(w);
+  }
+  else if (polygonVisible)
+  {
+    return this->BWActorPolygon->RenderTranslucentPolygonalGeometry(w);
+  }
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -779,12 +856,23 @@ int vtkBorderRepresentation::RenderTranslucentPolygonalGeometry(vtkViewport* w)
 vtkTypeBool vtkBorderRepresentation::HasTranslucentPolygonalGeometry()
 {
   this->BuildRepresentation();
-  if (!this->BWActorEdges->GetVisibility())
+
+  vtkTypeBool edgesVisible = this->BWActorEdges->GetVisibility();
+  vtkTypeBool polygonVisible = this->BWActorPolygon->GetVisibility();
+  if (edgesVisible && polygonVisible)
   {
-    return 0;
+    return this->BWActorEdges->HasTranslucentPolygonalGeometry() &&
+      this->BWActorPolygon->HasTranslucentPolygonalGeometry();
   }
-  return this->BWActorEdges->HasTranslucentPolygonalGeometry() &&
-    this->BWActorPolygon->HasTranslucentPolygonalGeometry();
+  else if (edgesVisible)
+  {
+    return this->BWActorEdges->HasTranslucentPolygonalGeometry();
+  }
+  else if (polygonVisible)
+  {
+    return this->BWActorPolygon->HasTranslucentPolygonalGeometry();
+  }
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -811,6 +899,55 @@ void vtkBorderRepresentation::GetPolygonRGBA(double& r, double& g, double& b, do
 {
   this->GetPolygonColor(r, g, b);
   a = this->GetPolygonOpacity();
+}
+
+//------------------------------------------------------------------------------
+void vtkBorderRepresentation::UpdateWindowLocation()
+{
+  if (this->WindowLocation != vtkBorderRepresentation::AnyLocation)
+  {
+    double* pos2 = this->Position2Coordinate->GetValue();
+    switch (this->WindowLocation)
+    {
+      case vtkBorderRepresentation::LowerLeftCorner:
+        this->SetPosition(0.01, 0.01);
+        break;
+      case vtkBorderRepresentation::LowerRightCorner:
+        this->SetPosition(0.99 - pos2[0], 0.01);
+        break;
+      case vtkBorderRepresentation::LowerCenter:
+        this->SetPosition((1 - pos2[0]) / 2.0, 0.01);
+        break;
+      case vtkBorderRepresentation::UpperLeftCorner:
+        this->SetPosition(0.01, 0.99 - pos2[1]);
+        break;
+      case vtkBorderRepresentation::UpperRightCorner:
+        this->SetPosition(0.99 - pos2[0], 0.99 - pos2[1]);
+        break;
+      case vtkBorderRepresentation::UpperCenter:
+        this->SetPosition((1 - pos2[0]) / 2.0, 0.99 - pos2[1]);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkBorderRepresentation::SetWindowLocation(int enumLocation)
+{
+  if (this->WindowLocation == enumLocation)
+  {
+    return;
+  }
+
+  this->WindowLocation = enumLocation;
+
+  if (this->WindowLocation != vtkBorderRepresentation::AnyLocation)
+  {
+    this->UpdateWindowLocation();
+  }
+  this->Modified();
 }
 
 //------------------------------------------------------------------------------
@@ -842,6 +979,20 @@ void vtkBorderRepresentation::PrintSelf(ostream& os, vtkIndent indent)
     os << "On" << endl;
   }
   else // if ( this->ShowHorizontalBorder == BORDER_ACTIVE)
+  {
+    os << "Active" << endl;
+  }
+
+  os << indent << "Show Polygon: ";
+  if (this->ShowPolygonBackground == BORDER_OFF)
+  {
+    os << "Off" << endl;
+  }
+  else if (this->ShowPolygonBackground == BORDER_ON)
+  {
+    os << "On" << endl;
+  }
+  else // if ( this->ShowPolygonBackground == BORDER_ACTIVE)
   {
     os << "Active" << endl;
   }
@@ -889,4 +1040,30 @@ void vtkBorderRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PolygonColor: (" << this->PolygonColor[0] << ", " << this->PolygonColor[1]
      << ", " << this->PolygonColor[2] << ")" << endl;
   os << indent << "PolygonOpacity: " << this->PolygonOpacity << endl;
+
+  os << indent << "Window Location: ";
+  switch (this->WindowLocation)
+  {
+    case vtkBorderRepresentation::LowerLeftCorner:
+      os << "LowerLeftCorner\n";
+      break;
+    case vtkBorderRepresentation::LowerRightCorner:
+      os << "LowerRightCorner\n";
+      break;
+    case vtkBorderRepresentation::LowerCenter:
+      os << "LowerCenter\n";
+      break;
+    case vtkBorderRepresentation::UpperLeftCorner:
+      os << "UpperLeftCorner\n";
+      break;
+    case vtkBorderRepresentation::UpperRightCorner:
+      os << "UpperRightCorner\n";
+      break;
+    case vtkBorderRepresentation::UpperCenter:
+      os << "UpperCenter\n";
+      break;
+    case vtkBorderRepresentation::AnyLocation:
+      os << "Any Location\n";
+      break;
+  }
 }

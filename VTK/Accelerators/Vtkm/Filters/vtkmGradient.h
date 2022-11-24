@@ -35,6 +35,7 @@
 
 #include "vtkAcceleratorsVTKmFiltersModule.h" //required for correct implementation
 #include "vtkGradientFilter.h"
+#include "vtkmlib/vtkmInitializer.h" // Need for initializing vtk-m
 
 class VTKACCELERATORSVTKMFILTERS_EXPORT vtkmGradient : public vtkGradientFilter
 {
@@ -56,6 +57,13 @@ public:
   ///@}
 
 protected:
+  /// \brief Check if the input dataset and parameters combination is supported by this filter
+  ///
+  /// Certain input and parameters combinations are not currently supported by vtkm.
+  /// This information is internally used to determine if this filter should fall back to
+  /// Superclass implementaion.
+  bool CanProcessInput(vtkDataSet* input);
+
   vtkmGradient();
   ~vtkmGradient() override;
 
@@ -66,6 +74,7 @@ protected:
 private:
   vtkmGradient(const vtkmGradient&) = delete;
   void operator=(const vtkmGradient&) = delete;
+  vtkmInitializer Initializer;
 };
 
 #endif // vtkmGradient_h

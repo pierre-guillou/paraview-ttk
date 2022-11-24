@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef pqPythonActionsConnector_h
-#define pqPythonActionsConnector_h
+#ifndef pqPythonEditorActions_h
+#define pqPythonEditorActions_h
 
 #include "pqPythonUtils.h"
 
@@ -42,6 +42,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 #include <cstddef>
 #include <vector>
+
+class pqPythonManager;
 
 /**
  * @struct EditorActionGroup
@@ -117,6 +119,7 @@ struct pqPythonEditorActions
     SaveFileAs,
     SaveFileAsMacro,
     SaveFileAsScript,
+    DeleteAll,
 
     // Undo/Redo Actions
     Undo,
@@ -130,6 +133,7 @@ struct pqPythonEditorActions
     // Editor Actions
     CloseCurrentTab,
     Exit,
+    Run,
 
     END
   };
@@ -143,6 +147,7 @@ struct pqPythonEditorActions
     Open,
     Load,
     Delete,
+    Run,
 
     END
   };
@@ -177,8 +182,9 @@ struct pqPythonEditorActions
   /**
    * @brief Updates the list of actions by listing
    * the files contained into the default Script dir
+   * @param python_mgr: instance of the python manager
    */
-  void updateScriptsList();
+  void updateScriptsList(pqPythonManager* const python_mgr);
 
   /**
    * @brief Fill the input menus with the current actions
@@ -201,4 +207,4 @@ struct pqPythonEditorActions
   static void disconnect(pqPythonEditorActions&, T*);
 };
 
-#endif // pqPythonActionsConnector_h
+#endif // pqPythonEditorActions_h

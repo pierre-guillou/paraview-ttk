@@ -12,8 +12,14 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
+
 #include "vtkPVGeneralSettings.h"
 
+#include "vtkAlgorithm.h"
+#include "vtkLegacy.h"
 #include "vtkObjectFactory.h"
 #include "vtkProcessModule.h"
 #include "vtkSISourceProxy.h"
@@ -31,6 +37,10 @@
 #include "vtkSMChartSeriesSelectionDomain.h"
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMTransferFunctionManager.h"
+#endif
+
+#if VTK_MODULE_ENABLE_VTK_AcceleratorsVTKmFilters
+#include "vtkmFilterOverrides.h"
 #endif
 
 #include <cassert>
@@ -52,11 +62,6 @@ vtkPVGeneralSettings::vtkPVGeneralSettings()
   , AutoApply(false)
   , AutoApplyActiveOnly(false)
   , DefaultViewType(nullptr)
-#if VTK_MODULE_ENABLE_ParaView_RemotingViews
-  , TransferFunctionResetMode(vtkSMTransferFunctionManager::GROW_ON_APPLY)
-#else
-  , TransferFunctionResetMode(0)
-#endif
   , ScalarBarMode(vtkPVGeneralSettings::AUTOMATICALLY_HIDE_SCALAR_BARS)
   , AnimationGeometryCacheLimit(0)
   , AnimationTimePrecision(6)
@@ -71,6 +76,7 @@ vtkPVGeneralSettings::vtkPVGeneralSettings()
   , ColorByBlockColorsOnApply(true)
   , AnimationTimeNotation(vtkPVGeneralSettings::MIXED)
   , EnableStreaming(false)
+  , SelectOnClickMultiBlockInspector(true)
 {
   this->SetDefaultViewType("RenderView");
 }
@@ -110,38 +116,30 @@ bool vtkPVGeneralSettings::GetAutoConvertProperties()
 }
 
 //----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 void vtkPVGeneralSettings::SetEnableAutoMPI(bool)
 {
   VTK_LEGACY_BODY(vtkPVGeneralSettings::SetEnableAutoMPI, "ParaView 5.10");
 }
-#endif
 
 //----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 bool vtkPVGeneralSettings::GetEnableAutoMPI()
 {
   VTK_LEGACY_BODY(vtkPVGeneralSettings::GetEnableAutoMPI, "ParaView 5.10");
   return false;
 }
-#endif
 
 //----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 void vtkPVGeneralSettings::SetAutoMPILimit(int)
 {
   VTK_LEGACY_BODY(vtkPVGeneralSettings::SetAutoMPILimit, "ParaView 5.10");
 }
-#endif
 
 //----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 int vtkPVGeneralSettings::GetAutoMPILimit()
 {
   VTK_LEGACY_BODY(vtkPVGeneralSettings::GetAutoMPILimit, "ParaView 5.10");
   return 1;
 }
-#endif
 
 //----------------------------------------------------------------------------
 void vtkPVGeneralSettings::SetCacheGeometryForAnimation(bool val)
@@ -291,14 +289,38 @@ void vtkPVGeneralSettings::SetEnableStreaming(bool val)
 }
 
 //----------------------------------------------------------------------------
+void vtkPVGeneralSettings::SetUseAcceleratedFilters(bool val)
+{
+  static_cast<void>(val);
+
+#if VTK_MODULE_ENABLE_VTK_AcceleratorsVTKmFilters
+  if (this->GetUseAcceleratedFilters() != val)
+  {
+    vtkmFilterOverrides::SetEnabled(val);
+    this->Modified();
+  }
+#endif
+}
+
+//----------------------------------------------------------------------------
+bool vtkPVGeneralSettings::GetUseAcceleratedFilters()
+{
+#if VTK_MODULE_ENABLE_VTK_AcceleratorsVTKmFilters
+  return vtkmFilterOverrides::GetEnabled();
+#else
+  return false;
+#endif
+}
+
+//----------------------------------------------------------------------------
 void vtkPVGeneralSettings::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 
   os << indent << "AutoApply: " << this->AutoApply << "\n";
+  os << indent << "AutoApplyDelay: " << this->AutoApplyDelay << "\n";
   os << indent << "AutoApplyActiveOnly: " << this->AutoApplyActiveOnly << "\n";
   os << indent << "DefaultViewType: " << this->DefaultViewType << "\n";
-  os << indent << "TransferFunctionResetMode: " << this->TransferFunctionResetMode << "\n";
   os << indent << "ScalarBarMode: " << this->ScalarBarMode << "\n";
   os << indent << "CacheGeometryForAnimation: " << this->CacheGeometryForAnimation << "\n";
   os << indent << "AnimationGeometryCacheLimit: " << this->AnimationGeometryCacheLimit << "\n";

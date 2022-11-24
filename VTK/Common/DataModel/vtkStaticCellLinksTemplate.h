@@ -110,7 +110,8 @@ public:
    * Indicate whether the point ids provided defines at least one cell, or a
    * portion of a cell.
    */
-  bool MatchesCell(vtkIdType npts, const vtkIdType* pts);
+  template <typename TGivenIds>
+  bool MatchesCell(TGivenIds npts, const TGivenIds* pts);
 
   /**
    * Return a list of cell ids using the point specified by ptId.
@@ -122,6 +123,18 @@ public:
    * these point ids. The set of linked cells is returned in cells.
    */
   void GetCells(vtkIdType npts, const vtkIdType* pts, vtkIdList* cells);
+
+  /**
+   * Return the total number of links represented after the links have
+   * been built.
+   */
+  TIds GetLinksSize() { return this->LinksSize; }
+
+  /**
+   * Obtain the offsets into the internal links array. This is useful for
+   * parallel computing.
+   */
+  TIds GetOffset(vtkIdType ptId) { return this->Offsets[ptId]; }
 
   ///@{
   /**

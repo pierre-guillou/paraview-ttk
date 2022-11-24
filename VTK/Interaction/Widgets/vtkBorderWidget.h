@@ -74,6 +74,7 @@
 #define vtkBorderWidget_h
 
 #include "vtkAbstractWidget.h"
+#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
 class vtkBorderRepresentation;
@@ -140,6 +141,12 @@ public:
    */
   void CreateDefaultRepresentation() override;
 
+  /**
+   * Reimplement ProcessEvents to disable it when using relative location with
+   * windowLocation. When using exact location this override has no effect.
+   */
+  vtkTypeBool GetProcessEvents() override;
+
 protected:
   vtkBorderWidget();
   ~vtkBorderWidget() override;
@@ -174,13 +181,17 @@ protected:
 
   // widget state
   int WidgetState;
-  enum _WidgetState
+  enum WidgetStateType
   {
     Start = 0,
     Define,
     Manipulate,
     Selected
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef WidgetStateType _WidgetState;
+#endif
 
 private:
   vtkBorderWidget(const vtkBorderWidget&) = delete;

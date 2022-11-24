@@ -16,9 +16,6 @@
 // Thanks to Soeren Gebbert who developed this class and
 // integrated it into VTK 5.0.
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkQuadraticLinearWedge.h"
 
 #include "vtkDoubleArray.h"
@@ -633,7 +630,7 @@ void vtkQuadraticLinearWedge::InterpolationDerivs(const double pcoords[3], doubl
   derivs[34] = (x + 1.0) * (y + 1.0) * 0.5;
   derivs[35] = -(y + 1.0) * (x + y) * 0.5;
 
-  // we compute derivatives in in [-1; 1] but we need them in [ 0; 1]
+  // we compute derivatives in [-1; 1] but we need them in [ 0; 1]
   for (int i = 0; i < 36; i++)
     derivs[i] *= 2;
 }

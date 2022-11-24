@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkCellValidator.h"
 
 #include "vtkCell.h"
@@ -354,7 +351,7 @@ bool vtkCellValidator::Convex(vtkCell* cell, double vtkNotUsed(tolerance))
         polyhedron_pointIds[i] = i;
       }
 
-      // udpate the face ids
+      // update the face ids
       vtkIdType cpt = 0;
       for (vtkIdType i = 0; i < faces_n; i++)
       {
@@ -388,13 +385,8 @@ namespace
 // inconsistent to maintain backwards compatibility.
 bool outwardOrientation(int cellType)
 {
-  if (cellType == VTK_QUADRATIC_LINEAR_WEDGE || cellType == VTK_BIQUADRATIC_QUADRATIC_WEDGE ||
-    cellType == VTK_QUADRATIC_WEDGE)
-  {
-    return false;
-  }
-
-  return true;
+  return cellType != VTK_QUADRATIC_LINEAR_WEDGE && cellType != VTK_BIQUADRATIC_QUADRATIC_WEDGE &&
+    cellType != VTK_QUADRATIC_WEDGE;
 }
 }
 

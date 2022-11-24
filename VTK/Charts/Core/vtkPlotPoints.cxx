@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPlotPoints.h"
 
 #include "vtkAxis.h"
@@ -107,49 +104,6 @@ vtkPlotPoints::~vtkPlotPoints()
   if (this->Colors != nullptr)
   {
     this->Colors->UnRegister(this);
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkPlotPoints::Update()
-{
-  if (!this->Visible)
-  {
-    return;
-  }
-  // Check if we have an input
-  vtkTable* table = this->Data->GetInput();
-
-  if (table && !this->ValidPointMaskName.empty() &&
-    table->GetColumnByName(this->ValidPointMaskName))
-  {
-    this->ValidPointMask =
-      vtkArrayDownCast<vtkCharArray>(table->GetColumnByName(this->ValidPointMaskName));
-  }
-  else
-  {
-    this->ValidPointMask = nullptr;
-  }
-
-  if (!table)
-  {
-    vtkDebugMacro(<< "Update event called with no input table set.");
-    return;
-  }
-  else if (this->Data->GetMTime() > this->BuildTime || table->GetMTime() > this->BuildTime ||
-    (this->LookupTable && this->LookupTable->GetMTime() > this->BuildTime) ||
-    this->MTime > this->BuildTime)
-  {
-    vtkDebugMacro(<< "Updating cached values.");
-    this->UpdateTableCache(table);
-  }
-  else if (this->XAxis && this->YAxis &&
-    ((this->XAxis->GetMTime() > this->BuildTime) || (this->YAxis->GetMTime() > this->BuildTime)))
-  {
-    if ((this->LogX != this->XAxis->GetLogScale()) || (this->LogY != this->YAxis->GetLogScale()))
-    {
-      this->UpdateTableCache(table);
-    }
   }
 }
 
@@ -309,28 +263,14 @@ namespace
 
 bool compVector3fX(const vtkIndexedVector2f& v1, const vtkIndexedVector2f& v2)
 {
-  if (v1.pos.GetX() < v2.pos.GetX())
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return v1.pos.GetX() < v2.pos.GetX();
 }
 
 // See if the point is within tolerance.
 bool inRange(const vtkVector2f& point, const vtkVector2f& tol, const vtkVector2f& current)
 {
-  if (current.GetX() > point.GetX() - tol.GetX() && current.GetX() < point.GetX() + tol.GetX() &&
-    current.GetY() > point.GetY() - tol.GetY() && current.GetY() < point.GetY() + tol.GetY())
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return current.GetX() > point.GetX() - tol.GetX() && current.GetX() < point.GetX() + tol.GetX() &&
+    current.GetY() > point.GetY() - tol.GetY() && current.GetY() < point.GetY() + tol.GetY();
 }
 
 }
@@ -352,22 +292,6 @@ void vtkPlotPoints::CreateSortedPoints()
 vtkIdType vtkPlotPoints::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
   vtkVector2f* location, vtkIdType* vtkNotUsed(segmentId))
 {
-  if (!this->LegacyRecursionFlag)
-  {
-    this->LegacyRecursionFlag = true;
-    vtkIdType ret = this->GetNearestPoint(point, tol, location);
-    this->LegacyRecursionFlag = false;
-    if (ret != -1)
-    {
-      VTK_LEGACY_REPLACED_BODY(vtkPlotPoints::GetNearestPoint(const vtkVector2f& point,
-                                 const vtkVector2f& tol, vtkVector2f* location),
-        "VTK 9.0",
-        vtkPlotPoints::GetNearestPoint(const vtkVector2f& point, const vtkVector2f& tol,
-          vtkVector2f* location, vtkIdType* segmentId));
-      return ret;
-    }
-  }
-
   // Right now doing a simple bisector search of the array.
   if (!this->Points)
   {
@@ -671,8 +595,22 @@ bool vtkPlotPoints::GetDataArrays(vtkTable* table, vtkDataArray* array[2])
 }
 
 //------------------------------------------------------------------------------
-bool vtkPlotPoints::UpdateTableCache(vtkTable* table)
+bool vtkPlotPoints::CacheRequiresUpdate()
 {
+  return this->Superclass::CacheRequiresUpdate() ||
+    (this->XAxis && this->LogX != this->XAxis->GetLogScaleActive()) ||
+    (this->YAxis && this->LogY != this->YAxis->GetLogScaleActive());
+}
+
+//------------------------------------------------------------------------------
+bool vtkPlotPoints::UpdateCache()
+{
+  if (!this->Superclass::UpdateCache())
+  {
+    return false;
+  }
+
+  vtkTable* table = this->Data->GetInput();
   vtkDataArray* array[2] = { nullptr, nullptr };
   if (!this->GetDataArrays(table, array))
   {
@@ -705,7 +643,19 @@ bool vtkPlotPoints::UpdateTableCache(vtkTable* table)
     }
   }
   this->CalculateLogSeries();
+
+  if (table && !this->ValidPointMaskName.empty() &&
+    table->GetColumnByName(this->ValidPointMaskName.c_str()))
+  {
+    this->ValidPointMask =
+      vtkArrayDownCast<vtkCharArray>(table->GetColumnByName(this->ValidPointMaskName.c_str()));
+  }
+  else
+  {
+    this->ValidPointMask = nullptr;
+  }
   this->FindBadPoints();
+
   this->Points->Modified();
   delete this->Sorted;
   this->Sorted = nullptr;
@@ -713,7 +663,8 @@ bool vtkPlotPoints::UpdateTableCache(vtkTable* table)
   // Additions for color mapping
   if (this->ScalarVisibility && !this->ColorArrayName.empty())
   {
-    vtkDataArray* c = vtkArrayDownCast<vtkDataArray>(table->GetColumnByName(this->ColorArrayName));
+    vtkDataArray* c =
+      vtkArrayDownCast<vtkDataArray>(table->GetColumnByName(this->ColorArrayName.c_str()));
     // TODO: Should add support for categorical coloring & try enum lookup
     if (c)
     {

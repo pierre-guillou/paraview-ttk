@@ -103,13 +103,13 @@ void vtkExecutableRunner::Execute()
 
     // Configure and launch process
     vtksysProcess* process = vtksysProcess_New();
-    vtksysProcess_SetCommand(process, &stringViewC[0]);
+    vtksysProcess_SetCommand(process, stringViewC.data());
     vtksysProcess_SetPipeShared(process, vtksysProcess_Pipe_STDOUT, 0);
     vtksysProcess_SetPipeShared(process, vtksysProcess_Pipe_STDERR, 0);
     vtksysProcess_SetTimeout(process, this->Timeout);
     vtksysProcess_Execute(process);
 
-    // Get ouput streams
+    // Get output streams
     int pipe;
     std::string out;
     std::string err;

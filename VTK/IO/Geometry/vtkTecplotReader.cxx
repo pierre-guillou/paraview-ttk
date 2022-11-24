@@ -618,7 +618,7 @@ int vtkTecplotReader::IsDataAttributeCellBased(const char* attrName)
   {
     for (unsigned int i = 0; i < this->Variables.size(); i++)
     {
-      if (strcmp(this->Variables[i].c_str(), attrName) == 0)
+      if (this->Variables[i] == attrName)
       {
         varIndex = i;
         break;
@@ -956,7 +956,8 @@ void vtkTecplotReader::GetStructuredGridFromBlockPackingZone(int iDimSize, int j
   pntCords = nullptr;
 
   if ((this->Internal->TopologyDim == 2 || this->Internal->TopologyDim == 3) ||
-    (this->Internal->TopologyDim == 0 && this->Internal->GeometryDim > 1))
+    ((this->Internal->TopologyDim == 0 || this->Internal->TopologyDim == 1) &&
+      this->Internal->GeometryDim > 1))
   {
     multZone->SetBlock(zoneIndx, strcGrid);
     multZone->GetMetaData(zoneIndx)->Set(vtkCompositeDataSet::NAME(), zoneName);
@@ -2060,7 +2061,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
         else
         {
           // UNKNOWN FORMAT
-          vtkErrorMacro(<< this->FileName << ": The format " << format.c_str()
+          vtkErrorMacro(<< this->FileName << ": The format " << format
                         << " found in the file is unknown.");
           return;
         }
@@ -2151,8 +2152,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
               if (pos != std::string::npos)
               {
                 exprDef.replace(pos, 1, "}");
-                vtkDebugMacro(
-                  "Expr name = " << exprName.c_str() << ", Expr def = " << exprDef.c_str());
+                vtkDebugMacro("Expr name = " << exprName << ", Expr def = " << exprDef);
               }
             }
           }
@@ -2173,7 +2173,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
     else
     {
       // UNKNOWN RECORD TYPE
-      vtkErrorMacro(<< this->FileName << ": The record type " << tok.c_str()
+      vtkErrorMacro(<< this->FileName << ": The record type " << tok
                     << " found in the file is unknown.");
       return;
     }

@@ -107,7 +107,6 @@ static void ReadStringVersion(const char* version, int& major, int& minor)
 
   for (s = begin; (s != end) && (*s != '.'); ++s)
   {
-    ;
   }
 
   if (s > begin)
@@ -597,7 +596,7 @@ int vtkXMLReader::RequestInformation(vtkInformation* request,
       std::vector<double> timeSteps(numTimesteps);
       std::iota(timeSteps.begin(), timeSteps.end(), 0.0);
       double timeRange[2] = { timeSteps[0], timeSteps[numTimesteps - 1] };
-      outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &timeSteps[0], numTimesteps);
+      outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), timeSteps.data(), numTimesteps);
       outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange, 2);
     }
     else
@@ -845,7 +844,7 @@ int vtkXMLDataReaderReadArrayValues(vtkXMLDataElement* da, vtkXMLDataParser* xml
   int result = 1;
   vtkIdType inIndex = 0;
   vtkIdType outIndex = arrayIndex;
-  vtkStdString prev_string;
+  std::string prev_string;
   while (result && inIndex < actualNumValues)
   {
     size_t chars_read = 0;
@@ -871,7 +870,7 @@ int vtkXMLDataReaderReadArrayValues(vtkXMLDataElement* da, vtkXMLDataParser* xml
 
     while (ptr < end_ptr)
     {
-      vtkStdString temp_string = ptr; // will read in string until 0x0;
+      std::string temp_string = ptr; // will read in string until 0x0;
       ptr += temp_string.size() + 1;
       if (!prev_string.empty())
       {
@@ -1172,7 +1171,7 @@ bool readVectorInfo(KeyType* key, vtkInformation* info, vtkXMLDataElement* eleme
     }
     values.push_back(value);
   }
-  info->Set(key, &values[0], length);
+  info->Set(key, values.data(), length);
 
   return true;
 }
@@ -1924,7 +1923,7 @@ const char* vtkXMLReader::GetTimeDataArray(int idx) const
   {
     vtkErrorMacro("Invalid index for 'GetTimeDataArray': " << idx);
   }
-  return this->TimeDataStringArray->GetValue(idx);
+  return this->TimeDataStringArray->GetValue(idx).c_str();
 }
 
 //------------------------------------------------------------------------------

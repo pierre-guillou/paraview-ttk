@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkCell.h"
 
 #include "vtkDataArrayRange.h"
@@ -351,7 +348,7 @@ int vtkCell::Inflate(double dist)
   {
     ConstTupleRef p1 = pointRange[this->Points->GetNumberOfPoints() - 1], p2 = pointRange[0];
 
-    // We do not supporte the case of collapsed edges
+    // We do not support the case of collapsed edges
     if (vtkMathUtilities::NearlyEqual<ConstScalar>(p1[0], p2[0]) &&
       vtkMathUtilities::NearlyEqual<ConstScalar>(p1[1], p2[1]) &&
       vtkMathUtilities::NearlyEqual<ConstScalar>(p1[2], p2[2]))

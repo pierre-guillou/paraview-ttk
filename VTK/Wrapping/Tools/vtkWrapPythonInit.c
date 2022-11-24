@@ -1,3 +1,6 @@
+#include "vtkParseMain.h"
+#include "vtkParseSystem.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -115,6 +118,9 @@ static void CreateImplFile(const char* libName, const char* importName, int numD
     fprintf(fout, "  {\n");
     fprintf(fout, "    if (!vtkPythonUtil::ImportModule(depends[i], d))\n");
     fprintf(fout, "    {\n");
+    fprintf(fout, "#ifdef VTK_PY3K\n");
+    fprintf(fout, "      Py_DECREF(m);\n");
+    fprintf(fout, "#endif\n");
     fprintf(fout,
       "      return PyErr_Format(PyExc_ImportError,\n"
       "        \"Failed to load %s: No module named %%s\",\n"
@@ -122,6 +128,24 @@ static void CreateImplFile(const char* libName, const char* importName, int numD
       libName);
     fprintf(fout, "    }\n");
     fprintf(fout, "  }\n\n");
+
+    /* vtkPythonUtil should have been initialized by one of our dependencies */
+    fprintf(fout, "  if (!vtkPythonUtil::IsInitialized())\n");
+    fprintf(fout, "  {\n");
+    fprintf(fout, "#ifdef VTK_PY3K\n");
+    fprintf(fout, "    Py_DECREF(m);\n");
+    fprintf(fout, "#endif\n");
+    fprintf(fout,
+      "    return PyErr_Format(PyExc_ImportError,\n"
+      "      \"Initialization failed for %s, not compatible with %%s\",\n"
+      "      depends[0]);\n",
+      libName);
+    fprintf(fout, "  }\n\n");
+  }
+  else
+  {
+    /* if we have no dependencies, ensure wrappers are initialized */
+    fprintf(fout, "  vtkPythonUtil::Initialize();\n\n");
   }
 
   for (i = 0; i < numFiles; i++)
@@ -136,7 +160,7 @@ static void CreateImplFile(const char* libName, const char* importName, int numD
   fprintf(fout, "}\n\n");
 }
 
-int main(int argc, char* argv[])
+int VTK_PARSE_MAIN(int argc, char* argv[])
 {
   FILE* file;
   FILE* fout_init;
@@ -156,7 +180,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  file = fopen(argv[1], "r");
+  file = vtkParse_FileOpen(argv[1], "r");
   if (!file)
   {
     fprintf(stderr, "Input file %s could not be opened\n", argv[1]);
@@ -190,13 +214,13 @@ int main(int argc, char* argv[])
   fclose(file);
   file = NULL;
 
-  fout_init = fopen(argv[2], "w");
+  fout_init = vtkParse_FileOpen(argv[2], "w");
   if (!fout_init)
   {
     return 1;
   }
 
-  fout_impl = fopen(argv[3], "w");
+  fout_impl = vtkParse_FileOpen(argv[3], "w");
   if (!fout_impl)
   {
     fclose(fout_init);

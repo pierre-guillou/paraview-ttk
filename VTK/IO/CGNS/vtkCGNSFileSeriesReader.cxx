@@ -138,7 +138,7 @@ void vtkCGNSFileSeriesReader::SetReader(vtkCGNSReader* reader)
 //----------------------------------------------------------------------------
 void vtkCGNSFileSeriesReader::OnReaderModifiedEvent()
 {
-  if (this->InProcessRequest == false)
+  if (!this->InProcessRequest)
   {
     this->Modified();
   }
@@ -435,9 +435,9 @@ private:
     int numRanks = controller->GetNumberOfProcesses();
     std::vector<char> buffer(numRanks * maxslen, '\0');
     std::vector<char> sbuffer(maxslen, '\0');
-    strcpy(&sbuffer[0], str.str().c_str());
+    strcpy(sbuffer.data(), str.str().c_str());
 
-    controller->AllGather(&sbuffer[0], &buffer[0], maxslen);
+    controller->AllGather(sbuffer.data(), buffer.data(), maxslen);
     names.clear();
     for (int cc = 0; cc < numRanks; ++cc)
     {

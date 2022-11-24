@@ -17,28 +17,20 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkActor.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCamera.h"
-#include "vtkCellArray.h"
 #include "vtkLineSource.h"
-#include "vtkPoints.h"
-#include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
-#include "vtkProperty.h"
-#include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkSmartPointer.h"
 #include "vtkTextActor3D.h"
 #include "vtkTextProperty.h"
 #include "vtkTransform.h"
-#include "vtkVRModel.h"
 #include "vtkVRRenderWindow.h"
-#include "vtkWindow.h"
 
 //------------------------------------------------------------------------------
 vtkVRControlsHelper::vtkVRControlsHelper()
 {
   // The text
-  this->Text = vtkStdString("");
+  this->Text = {};
   this->TextActor = vtkTextActor3D::New();
   this->TextActor->GetTextProperty()->SetFontSize(30);
   this->TextActor->SetInput(this->Text.c_str());
@@ -64,7 +56,7 @@ vtkVRControlsHelper::vtkVRControlsHelper()
   this->LineActor->SetMapper(this->LineMapper);
 
   // Tooltip default option
-  this->ComponentName = vtkStdString("trigger");
+  this->ComponentName = "trigger";
   this->DrawSide = vtkVRControlsHelper::Right;
   this->ButtonSide = vtkVRControlsHelper::Back;
 
@@ -163,7 +155,7 @@ void vtkVRControlsHelper::UpdateRepresentation()
     vtkEventDataDevice controller = this->Device;
 
     // Hide controls tooltips if the controller is off
-    vtkVRModel* mod = renWin->GetTrackedDeviceModel(controller);
+    vtkVRModel* mod = renWin->GetModelForDevice(controller);
     if (!mod)
     {
       this->LabelVisible = false;

@@ -74,7 +74,7 @@ public:
 
   ///@{
   /**
-   * Standard methdos for type information and printing.
+   * Standard methods for type information and printing.
    */
   vtkTypeMacro(vtkPointSet, vtkDataSet);
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -138,6 +138,7 @@ public:
   /**
    * This method resets parameter idList, as there is no cell in a `vtkPointSet`.
    */
+  using vtkDataSet::GetCellPoints;
   void GetCellPoints(vtkIdType, vtkIdList* idList) override { idList->Reset(); }
   void GetPointCells(vtkIdType, vtkIdList* idList) override { idList->Reset(); }
   ///@}
@@ -152,6 +153,12 @@ public:
    * `vtkPointSet`.
    */
   int GetCellType(vtkIdType) override { return VTK_EMPTY_CELL; }
+
+  /**
+   * This method always returns 1, as all cells are point in a pure
+   * `vtkPointSet`.
+   */
+  vtkIdType GetCellSize(vtkIdType) override { return 1; }
 
   /**
    * See vtkDataSet for additional information.
@@ -195,7 +202,7 @@ public:
   ///@{
   /**
    * Set / get an instance of vtkAbstractCellLocator which may be used
-   * when a vtkCellLocatorStrategy is used during a FindCelloperation.
+   * when a vtkCellLocatorStrategy is used during a FindCell() operation.
    */
   virtual void SetCellLocator(vtkAbstractCellLocator*);
   vtkGetObjectMacro(CellLocator, vtkAbstractCellLocator);
@@ -246,8 +253,7 @@ public:
   /**
    * Overwritten to handle the data/locator loop
    */
-  void Register(vtkObjectBase* o) override;
-  void UnRegister(vtkObjectBase* o) override;
+  bool UsesGarbageCollector() const override { return true; }
   ///@}
 
   ///@{

@@ -28,7 +28,6 @@
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkTable.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkVariant.h"
@@ -481,7 +480,7 @@ QVariant vtkQtTableModelAdapter::data(const QModelIndex& idx, int role) const
     }
     else
     {
-      return QString::fromUtf8(v.ToUnicodeString().utf8_str()).trimmed();
+      return QString::fromUtf8(v.ToString().c_str()).trimmed();
     }
   }
 

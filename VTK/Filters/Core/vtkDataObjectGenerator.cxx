@@ -653,7 +653,7 @@ vtkDataObject* vtkDataObjectGenerator::FillOutputDataObjects(
     }
     case HBS:
     {
-      // Making octrees, structured can grid up space arbitratily though
+      // Making octrees, structured can grid up space arbitrarily though
 
       vtkHierarchicalBoxDataSet* hbo = vtkHierarchicalBoxDataSet::SafeDownCast(outData);
 
@@ -667,7 +667,7 @@ vtkDataObject* vtkDataObjectGenerator::FillOutputDataObjects(
       }
 
       double origin[3] = { 0, 0, 0 };
-      hbo->Initialize(static_cast<int>(blocksPerLevel.size()), &blocksPerLevel[0]);
+      hbo->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
       hbo->SetOrigin(origin);
       hbo->SetGridDescription(VTK_XYZ_GRID);
       vtkIdType gcnt = 0;

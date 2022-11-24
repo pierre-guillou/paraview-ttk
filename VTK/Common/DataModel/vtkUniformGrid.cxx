@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkUniformGrid.h"
 
 #include "vtkAMRBox.h"
@@ -181,13 +178,11 @@ void vtkUniformGrid::CopyStructure(vtkDataSet* ds)
   {
     // there is blanking
     this->GetPointData()->AddArray(ds->GetPointGhostArray());
-    this->PointGhostArray = nullptr;
   }
   if (ds->HasAnyBlankCells())
   {
     // we assume there is blanking
     this->GetCellData()->AddArray(ds->GetCellGhostArray());
-    this->CellGhostArray = nullptr;
   }
 }
 
@@ -1079,12 +1074,12 @@ vtkUniformGrid* vtkUniformGrid::GetData(vtkInformationVector* v, int i)
 //------------------------------------------------------------------------------
 bool vtkUniformGrid::HasAnyBlankPoints()
 {
-  return IsAnyBitSet(this->GetPointGhostArray(), vtkDataSetAttributes::HIDDENPOINT);
+  return this->PointData->HasAnyGhostBitSet(vtkDataSetAttributes::HIDDENPOINT);
 }
 
 //------------------------------------------------------------------------------
 bool vtkUniformGrid::HasAnyBlankCells()
 {
-  int cellBlanking = IsAnyBitSet(this->GetCellGhostArray(), vtkDataSetAttributes::HIDDENCELL);
+  int cellBlanking = this->CellData->HasAnyGhostBitSet(vtkDataSetAttributes::HIDDENCELL);
   return cellBlanking || this->HasAnyBlankPoints();
 }

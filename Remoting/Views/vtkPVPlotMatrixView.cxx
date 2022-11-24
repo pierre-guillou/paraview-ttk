@@ -13,12 +13,16 @@
 
 =========================================================================*/
 
+// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
+
 #include "vtkPVPlotMatrixView.h"
 
 #include "vtkAnnotationLink.h"
 #include "vtkCommand.h"
 #include "vtkContextScene.h"
 #include "vtkContextView.h"
+#include "vtkLegacy.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVStringFormatter.h"
 #include "vtkRenderWindow.h"
@@ -330,6 +334,15 @@ void vtkPVPlotMatrixView::SetGutterY(float value)
   if (this->PlotMatrix)
   {
     this->PlotMatrix->SetGutterY(value);
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVPlotMatrixView::SetPadding(float padding)
+{
+  if (this->PlotMatrix)
+  {
+    this->PlotMatrix->SetPadding(padding);
   }
 }
 
@@ -801,7 +814,6 @@ void vtkPVPlotMatrixView::Render(bool interactive)
 }
 
 // Deprecated methods
-#if !defined(VTK_LEGACY_REMOVE)
 //----------------------------------------------------------------------------
 double* vtkPVPlotMatrixView::GetBackgroundColor(int plotType)
 {
@@ -857,4 +869,3 @@ double* vtkPVPlotMatrixView::GetScatterPlotSelectedActiveColor()
   static double colorStore[3];
   return this->GetScatterPlotSelectedActiveColor(colorStore) ? colorStore : nullptr;
 }
-#endif

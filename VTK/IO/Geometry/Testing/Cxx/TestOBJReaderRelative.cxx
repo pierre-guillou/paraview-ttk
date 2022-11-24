@@ -64,35 +64,47 @@ int TestOBJReaderRelative(int argc, char* argv[])
   vtkPolyData* data_abs = reader_abs->GetOutput();
 
 #define CHECK(obj, method)                                                                         \
-  if (obj##_rel->method != obj##_abs->method)                                                      \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Error: different values for " #obj "->" #method << endl;                              \
-    retVal = 1;                                                                                    \
-  }
+    if (obj##_rel->method != obj##_abs->method)                                                    \
+    {                                                                                              \
+      cerr << "Error: different values for " #obj "->" #method << endl;                            \
+      retVal = 1;                                                                                  \
+    }                                                                                              \
+  } while (false)
 #define CHECK_ARRAY(obj, idx)                                                                      \
-  if (obj##_rel[idx] != obj##_abs[idx])                                                            \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Error: different values for " #obj "[" << (idx) << "]" << endl;                       \
-    retVal = 1;                                                                                    \
-  }
+    if (obj##_rel[idx] != obj##_abs[idx])                                                          \
+    {                                                                                              \
+      cerr << "Error: different values for " #obj "[" << (idx) << "]" << endl;                     \
+      retVal = 1;                                                                                  \
+    }                                                                                              \
+  } while (false)
 #define CHECK_SCALAR(obj)                                                                          \
-  if (obj##_rel != obj##_abs)                                                                      \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Error: different values for " #obj << endl;                                           \
-    retVal = 1;                                                                                    \
-  }
+    if (obj##_rel != obj##_abs)                                                                    \
+    {                                                                                              \
+      cerr << "Error: different values for " #obj << endl;                                         \
+      retVal = 1;                                                                                  \
+    }                                                                                              \
+  } while (false)
 
 #define CHECK_ARRAY_EXISTS(array)                                                                  \
-  if (!(array))                                                                                    \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Array does not exist." << endl;                                                       \
-    retVal = 1;                                                                                    \
-  }
+    if (!(array))                                                                                  \
+    {                                                                                              \
+      cerr << "Array does not exist." << endl;                                                     \
+      retVal = 1;                                                                                  \
+    }                                                                                              \
+  } while (false)
 
-  CHECK(data, GetNumberOfVerts())
-  CHECK(data, GetNumberOfLines())
-  CHECK(data, GetNumberOfCells())
-  CHECK(data, GetNumberOfStrips())
+  CHECK(data, GetNumberOfVerts());
+  CHECK(data, GetNumberOfLines());
+  CHECK(data, GetNumberOfCells());
+  CHECK(data, GetNumberOfStrips());
 
   vtkCellArray* polys_rel = data_rel->GetPolys();
   vtkCellArray* polys_abs = data_abs->GetPolys();
@@ -111,8 +123,8 @@ int TestOBJReaderRelative(int argc, char* argv[])
   vtkDataArray* tcoords_rel = data_rel->GetPointData()->GetTCoords();
   vtkDataArray* tcoords_abs = data_abs->GetPointData()->GetTCoords();
 
-  CHECK_ARRAY_EXISTS(tcoords_rel)
-  CHECK_ARRAY_EXISTS(tcoords_abs)
+  CHECK_ARRAY_EXISTS(tcoords_rel);
+  CHECK_ARRAY_EXISTS(tcoords_abs);
 
   int tcoordsNbComp_rel = tcoords_rel->GetNumberOfComponents();
   int tcoordsNbComp_abs = tcoords_abs->GetNumberOfComponents();
@@ -120,22 +132,22 @@ int TestOBJReaderRelative(int argc, char* argv[])
   vtkDataArray* normals_rel = data_rel->GetPointData()->GetNormals();
   vtkDataArray* normals_abs = data_abs->GetPointData()->GetNormals();
 
-  CHECK_ARRAY_EXISTS(normals_rel)
-  CHECK_ARRAY_EXISTS(normals_abs)
+  CHECK_ARRAY_EXISTS(normals_rel);
+  CHECK_ARRAY_EXISTS(normals_abs);
 
   int normalsNbComp_rel = normals_rel->GetNumberOfComponents();
   int normalsNbComp_abs = normals_abs->GetNumberOfComponents();
 
-  CHECK_SCALAR(tcoordsNbComp)
-  CHECK_SCALAR(normalsNbComp)
+  CHECK_SCALAR(tcoordsNbComp);
+  CHECK_SCALAR(normalsNbComp);
 
   while (polys_rel->GetNextCell(npts_rel, pts_rel) && polys_abs->GetNextCell(npts_abs, pts_abs))
   {
-    CHECK_SCALAR(npts)
+    CHECK_SCALAR(npts);
 
     for (vtkIdType i = 0; i < npts_rel && i < npts_abs; ++i)
     {
-      CHECK_ARRAY(pts, i)
+      CHECK_ARRAY(pts, i);
 
       // For each points, check if the point data associated with the points
       // from the OBJ using relative coordinates matches the ones from the

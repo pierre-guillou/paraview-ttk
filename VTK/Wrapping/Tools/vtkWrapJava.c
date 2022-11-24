@@ -16,6 +16,7 @@
 #include "vtkParse.h"
 #include "vtkParseHierarchy.h"
 #include "vtkParseMain.h"
+#include "vtkParseSystem.h"
 #include "vtkWrap.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -888,9 +889,9 @@ void HandleDataArray(FILE* fp, ClassInfo* data)
   fprintf(fp, "{\n");
   fprintf(fp, "  %s* op = static_cast<%s*>(vtkJavaGetPointerFromObject(env, obj));\n", data->Name,
     data->Name);
-  fprintf(fp, "  %s* temp20 = static_cast<%s*>(op->GetVoidPointer(0));\n", type, type);
+  fprintf(fp, "  %s* buffer = op->GetPointer(0);\n", type);
   fprintf(fp,
-    "  return vtkJavaMakeJArrayOf%s(env, reinterpret_cast<j%s*>(temp20), op->GetSize());\n",
+    "  return vtkJavaMakeJArrayOf%s(env, reinterpret_cast<j%s*>(buffer), op->GetSize());\n",
     jfromtype, jtype);
   fprintf(fp, "}\n\n");
 
@@ -900,14 +901,12 @@ void HandleDataArray(FILE* fp, ClassInfo* data)
     "len0)\n",
     data->Name, jtype);
   fprintf(fp, "{\n");
-  fprintf(fp, "  %s* buffer = new %s[len0];\n", type, type);
-  fprintf(fp, "  env->Get%sArrayRegion(id0, 0, len0, reinterpret_cast<j%s*>(&buffer[0]));\n",
-    jfromtype, jtype);
   fprintf(fp, "  %s* op = static_cast<%s*>(vtkJavaGetPointerFromObject(env, obj));\n", data->Name,
     data->Name);
   fprintf(fp, "  op->SetNumberOfTuples(len0 / op->GetNumberOfComponents());\n");
-  fprintf(fp, "  memcpy(op->GetVoidPointer(0), buffer, len0 * sizeof(%s));\n", type);
-  fprintf(fp, "  delete[] buffer;\n");
+  fprintf(fp, "  %s* buffer = op->GetPointer(0);\n", type);
+  fprintf(fp, "  env->Get%sArrayRegion(id0, 0, len0, reinterpret_cast<j%s*>(buffer));\n", jfromtype,
+    jtype);
   fprintf(fp, "}\n");
 }
 
@@ -930,7 +929,7 @@ static int isClassWrapped(const char* classname)
 
 int checkFunctionSignature(ClassInfo* data)
 {
-  static unsigned int supported_types[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
+  static const unsigned int supported_types[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
     VTK_PARSE_DOUBLE, VTK_PARSE_CHAR, VTK_PARSE_UNSIGNED_CHAR, VTK_PARSE_SIGNED_CHAR, VTK_PARSE_INT,
     VTK_PARSE_UNSIGNED_INT, VTK_PARSE_SHORT, VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_LONG,
     VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_LONG_LONG, VTK_PARSE_UNSIGNED_LONG_LONG, VTK_PARSE___INT64,
@@ -1345,7 +1344,7 @@ void outputFunction(FILE* fp, ClassInfo* data)
 }
 
 /* print the parsed structures */
-int main(int argc, char* argv[])
+int VTK_PARSE_MAIN(int argc, char* argv[])
 {
   OptionInfo* options;
   FileInfo* file_info;
@@ -1373,7 +1372,7 @@ int main(int argc, char* argv[])
   }
 
   /* get the output file */
-  fp = fopen(options->OutputFileName, "w");
+  fp = vtkParse_FileOpen(options->OutputFileName, "w");
 
   if (!fp)
   {

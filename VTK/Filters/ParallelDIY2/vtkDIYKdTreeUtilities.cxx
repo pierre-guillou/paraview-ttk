@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkDIYKdTreeUtilities.h"
 
 #include "vtkAppendFilter.h"
@@ -383,6 +380,7 @@ vtkSmartPointer<vtkPartitionedDataSet> vtkDIYKdTreeUtilities::Exchange(
     else if (block0[cc].size() > 1)
     {
       vtkNew<vtkAppendFilter> appender;
+      appender->MergePointsOn();
       for (auto& ug : block0[cc])
       {
         appender->AddInputDataObject(ug);

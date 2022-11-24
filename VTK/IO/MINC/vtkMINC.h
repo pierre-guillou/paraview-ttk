@@ -45,6 +45,16 @@ THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
 =========================================================================*/
+/*=========================================================================
+Copyright 1993-2000 Peter Neelin and David MacDonald, McConnell Brain
+Imaging Centre, Montreal Neurological Institute, McGill University.
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies.  The
+author and McGill University make no representations about the
+suitability of this software for any purpose.  It is provided "as is"
+without express or implied warranty.
+=========================================================================*/
 
 /*
    This file has been modified from the original "minc.h" that was
@@ -145,7 +155,7 @@ use it.
  * Start of modifications to get minc working with netcdf 3.5.
  *
  * Revision 6.1  1999/10/19 14:45:08  neelin
- * Fixed Log subsitutions for CVS
+ * Fixed Log substitutions for CVS
  *
  * Revision 6.0  1997/09/12 13:24:54  neelin
  * Release of minc version 0.6
@@ -190,19 +200,8 @@ use it.
  * Revision 1.26  93/08/11  12:06:34  neelin
  * Added RCS logging in source.
  *
-              July 15, 1993 (P.N.)
-                 - added MI_ICV_DO_FILLVALUE and MI_FILLVALUE
-@COPYRIGHT  :
-              Copyright 1993 Peter Neelin, McConnell Brain Imaging Centre,
-              Montreal Neurological Institute, McGill University.
-              Permission to use, copy, modify, and distribute this
-              software and its documentation for any purpose and without
-              fee is hereby granted, provided that the above copyright
-              notice appear in all copies.  The author and McGill University
-              make no representations about the suitability of this
-              software for any purpose.  It is provided "as is" without
-              express or implied warranty.
-@RCSID      : Header MINC (MNI)
+ * July 15, 1993 (P.N.)
+ * Added MI_ICV_DO_FILLVALUE and MI_FILLVALUE
 ---------------------------------------------------------------------------- */
 
 /* Some useful constants */

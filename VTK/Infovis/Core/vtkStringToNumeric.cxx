@@ -33,7 +33,6 @@
 #include "vtkPointData.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
-#include "vtkUnicodeStringArray.h"
 #include "vtkVariant.h"
 
 vtkStandardNewMacro(vtkStringToNumeric);
@@ -58,12 +57,7 @@ int vtkStringToNumeric::CountItemsToConvert(vtkFieldData* fieldData)
   {
     vtkAbstractArray* array = fieldData->GetAbstractArray(arr);
     vtkStringArray* stringArray = vtkArrayDownCast<vtkStringArray>(array);
-    vtkUnicodeStringArray* unicodeArray = vtkArrayDownCast<vtkUnicodeStringArray>(array);
-    if (!stringArray && !unicodeArray)
-    {
-      continue;
-    }
-    else
+    if (stringArray)
     {
       count += array->GetNumberOfTuples() * array->GetNumberOfComponents();
     }
@@ -152,39 +146,26 @@ void vtkStringToNumeric::ConvertArrays(vtkFieldData* fieldData)
   {
     vtkStringArray* stringArray =
       vtkArrayDownCast<vtkStringArray>(fieldData->GetAbstractArray(arr));
-    vtkUnicodeStringArray* unicodeArray =
-      vtkArrayDownCast<vtkUnicodeStringArray>(fieldData->GetAbstractArray(arr));
-    if (!stringArray && !unicodeArray)
+    if (!stringArray)
     {
       continue;
     }
 
-    vtkIdType numTuples, numComps;
-    vtkStdString arrayName;
-    if (stringArray)
-    {
-      numTuples = stringArray->GetNumberOfTuples();
-      numComps = stringArray->GetNumberOfComponents();
-      arrayName = stringArray->GetName();
-    }
-    else
-    {
-      numTuples = unicodeArray->GetNumberOfTuples();
-      numComps = unicodeArray->GetNumberOfComponents();
-      arrayName = unicodeArray->GetName();
-    }
+    vtkIdType numTuples = stringArray->GetNumberOfTuples();
+    vtkIdType numComps = stringArray->GetNumberOfComponents();
+    std::string arrayName = stringArray->GetName();
 
     // Set up the output array
     vtkDoubleArray* doubleArray = vtkDoubleArray::New();
     doubleArray->SetNumberOfComponents(numComps);
     doubleArray->SetNumberOfTuples(numTuples);
-    doubleArray->SetName(arrayName);
+    doubleArray->SetName(arrayName.c_str());
 
     // Set up the output array
     vtkIntArray* intArray = vtkIntArray::New();
     intArray->SetNumberOfComponents(numComps);
     intArray->SetNumberOfTuples(numTuples);
-    intArray->SetName(arrayName);
+    intArray->SetName(arrayName.c_str());
 
     // Convert the strings to time point values
     bool allInteger = true;
@@ -198,20 +179,12 @@ void vtkStringToNumeric::ConvertArrays(vtkFieldData* fieldData)
           static_cast<double>(this->ItemsConverted) / static_cast<double>(this->ItemsToConvert));
       }
 
-      vtkStdString str;
-      if (stringArray)
-      {
-        str = stringArray->GetValue(i);
-      }
-      else
-      {
-        str = unicodeArray->GetValue(i).utf8_str();
-      }
+      std::string str = stringArray->GetValue(i);
 
       if (this->TrimWhitespacePriorToNumericConversion)
       {
         size_t startPos = str.find_first_not_of(" \n\t\r");
-        if (startPos == vtkStdString::npos)
+        if (startPos == std::string::npos)
         {
           str = "";
         }

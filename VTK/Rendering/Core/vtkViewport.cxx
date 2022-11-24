@@ -93,6 +93,10 @@ vtkViewport::vtkViewport()
 
   this->Props = vtkPropCollection::New();
   this->Actors2D = vtkActor2DCollection::New();
+
+  this->LastComputeAspectSize.fill(-1);
+  this->LastComputeAspectVPort.fill(-1);
+  this->LastComputeAspectPixelAspect.fill(-1);
 }
 
 //------------------------------------------------------------------------------
@@ -676,15 +680,15 @@ void vtkViewport::ComputeAspect()
     }
     double* vport = this->GetViewport();
 
-    if (!std::equal(size, size + 1, this->LastComputeAspectSize.begin()) ||
-      !std::equal(vport, vport + 3, this->LastComputeAspectVPort.begin()) ||
-      !std::equal(std::begin(this->PixelAspect), std::end(this->PixelAspect),
-        this->LastComputeAspectPixelAspect.begin()))
+    if (!std::equal(size, size + 2, this->LastComputeAspectSize.begin()) ||
+      !std::equal(vport, vport + 4, this->LastComputeAspectVPort.begin()) ||
+      !std::equal(
+        this->PixelAspect, this->PixelAspect + 2, this->LastComputeAspectPixelAspect.begin()))
     {
-      std::copy(size, size + 1, this->LastComputeAspectSize.begin());
-      std::copy(vport, vport + 3, this->LastComputeAspectVPort.begin());
-      std::copy(std::begin(this->PixelAspect), std::end(this->PixelAspect),
-        this->LastComputeAspectPixelAspect.begin());
+      std::copy(size, size + 2, this->LastComputeAspectSize.begin());
+      std::copy(vport, vport + 4, this->LastComputeAspectVPort.begin());
+      std::copy(
+        this->PixelAspect, this->PixelAspect + 2, this->LastComputeAspectPixelAspect.begin());
 
       int lowerLeft[2], upperRight[2];
       lowerLeft[0] = static_cast<int>(vport[0] * size[0] + 0.5);
@@ -727,6 +731,23 @@ vtkAssemblyPath* vtkViewport::PickPropFrom(double selectionX1, double selectionY
 {
   this->PickFromProps = pickfrom;
   return this->PickProp(selectionX1, selectionY1, selectionX2, selectionY2);
+}
+
+//------------------------------------------------------------------------------
+vtkAssemblyPath* vtkViewport::PickPropFrom(double selectionX, double selectionY,
+  vtkPropCollection* pickfrom, int fieldAssociation, vtkSmartPointer<vtkSelection> sel)
+{
+  this->PickFromProps = pickfrom;
+  return this->PickProp(selectionX, selectionY, fieldAssociation, sel);
+}
+
+//------------------------------------------------------------------------------
+vtkAssemblyPath* vtkViewport::PickPropFrom(double selectionX1, double selectionY1,
+  double selectionX2, double selectionY2, vtkPropCollection* pickfrom, int fieldAssociation,
+  vtkSmartPointer<vtkSelection> sel)
+{
+  this->PickFromProps = pickfrom;
+  return this->PickProp(selectionX1, selectionY1, selectionX2, selectionY2, fieldAssociation, sel);
 }
 
 //------------------------------------------------------------------------------

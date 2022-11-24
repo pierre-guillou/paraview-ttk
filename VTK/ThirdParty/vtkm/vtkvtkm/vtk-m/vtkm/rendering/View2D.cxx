@@ -56,6 +56,8 @@ void View2D::RenderScreenAnnotations()
                                     viewportRight,
                                     viewportBottom,
                                     viewportTop);
+  this->GetCanvas().BeginTextRenderingBatch();
+  this->GetWorldAnnotator().BeginLineRenderingBatch();
   this->HorizontalAxisAnnotation.SetColor(AxisColor);
   this->HorizontalAxisAnnotation.SetScreenPosition(
     viewportLeft, viewportBottom, viewportRight, viewportBottom);
@@ -91,6 +93,8 @@ void View2D::RenderScreenAnnotations()
     this->ColorBarAnnotation.Render(
       this->GetCamera(), this->GetWorldAnnotator(), this->GetCanvas());
   }
+  this->GetWorldAnnotator().EndLineRenderingBatch();
+  this->GetCanvas().EndTextRenderingBatch();
 }
 
 void View2D::RenderWorldAnnotations()
@@ -113,7 +117,7 @@ void View2D::UpdateCameraProperties()
     origCamBounds.X.Min, origCamBounds.X.Max, origCamBounds.Y.Min, origCamBounds.Y.Max);
 
   // if unchanged by user we always want to start with a curve being full-frame
-  if (this->GetCamera().GetMode() == Camera::MODE_2D && this->GetCamera().GetXScale() == 1.0f)
+  if (this->GetCamera().GetMode() == Camera::Mode::TwoD && this->GetCamera().GetXScale() == 1.0f)
   {
     vtkm::Float32 left, right, bottom, top;
     this->GetCamera().GetViewRange2D(left, right, bottom, top);

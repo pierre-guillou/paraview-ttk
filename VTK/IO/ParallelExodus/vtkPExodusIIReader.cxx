@@ -169,23 +169,10 @@ vtkPExodusIIReader::~vtkPExodusIIReader()
 //------------------------------------------------------------------------------
 void vtkPExodusIIReader::SetController(vtkMultiProcessController* c)
 {
-  if (this->Controller == c)
-  {
-    return;
-  }
-
-  this->Modified();
+  vtkSetObjectBodyMacro(Controller, vtkMultiProcessController, c);
 
   if (this->Controller)
   {
-    this->Controller->UnRegister(this);
-  }
-
-  this->Controller = c;
-
-  if (this->Controller)
-  {
-    this->Controller->Register(this);
     this->ProcRank = this->Controller->GetLocalProcessId();
     this->ProcSize = this->Controller->GetNumberOfProcesses();
   }
@@ -310,7 +297,7 @@ int vtkPExodusIIReader::RequestInformation(
     timeRange[0] = commonTimes[0];
 
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange, 2);
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &commonTimes[0], numTimes);
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), commonTimes.data(), numTimes);
   }
 
   if (this->CurrentFilePrefix)
@@ -992,7 +979,7 @@ static bool BroadcastRecvString(vtkMultiProcessController* ctrl, std::vector<cha
   if (len)
   {
     str.resize(len);
-    ctrl->Broadcast(&str[0], len, 0);
+    ctrl->Broadcast(str.data(), len, 0);
     return true;
   }
   return false;
@@ -1009,7 +996,7 @@ static void BroadcastDoubleVector(
   }
   if (len)
   {
-    controller->Broadcast(&dvec[0], len, 0);
+    controller->Broadcast(dvec.data(), len, 0);
   }
 }
 
@@ -1024,11 +1011,11 @@ static void BroadcastIntVector(
   }
   if (len)
   {
-    controller->Broadcast(&ivec[0], len, 0);
+    controller->Broadcast(ivec.data(), len, 0);
   }
 }
 
-static void BroadcastString(vtkMultiProcessController* controller, vtkStdString& str, int rank)
+static void BroadcastString(vtkMultiProcessController* controller, std::string& str, int rank)
 {
   unsigned long len = static_cast<unsigned long>(str.size()) + 1;
   controller->Broadcast(&len, 1, 0);
@@ -1038,14 +1025,14 @@ static void BroadcastString(vtkMultiProcessController* controller, vtkStdString&
     {
       std::vector<char> tmp;
       tmp.resize(len);
-      controller->Broadcast(&(tmp[0]), len, 0);
-      str = &tmp[0];
+      controller->Broadcast(tmp.data(), len, 0);
+      str = tmp.data();
     }
     else
     {
       const char* start = str.c_str();
       std::vector<char> tmp(start, start + len);
-      controller->Broadcast(&tmp[0], len, 0);
+      controller->Broadcast(tmp.data(), len, 0);
     }
   }
 }
@@ -1057,8 +1044,7 @@ static void BroadcastStringVector(
   controller->Broadcast(&len, 1, 0);
   if (rank)
     svec.resize(len);
-  std::vector<vtkStdString>::iterator it;
-  for (it = svec.begin(); it != svec.end(); ++it)
+  for (auto it = svec.begin(); it != svec.end(); ++it)
   {
     BroadcastString(controller, *it, rank);
   }
@@ -1470,12 +1456,13 @@ void vtkPExodusIIReader::Broadcast(vtkMultiProcessController* ctrl)
       std::vector<char> tmp;
       delete[] this->FilePattern;
       delete[] this->FilePrefix;
-      // this->SetFilePattern( BroadcastRecvString( ctrl, tmp ) ? &tmp[0] : 0 ); // XXX Bad set
-      // this->SetFilePrefix(  BroadcastRecvString( ctrl, tmp ) ? &tmp[0] : 0 ); // XXX Bad set
+      // XXX Bad set for these two calls
+      // this->SetFilePattern( BroadcastRecvString( ctrl, tmp ) ? tmp.data() : nullptr );
+      // this->SetFilePrefix(  BroadcastRecvString( ctrl, tmp ) ? tmp.data() : nullptr );
       this->FilePattern =
-        BroadcastRecvString(ctrl, tmp) ? vtksys::SystemTools::DuplicateString(&tmp[0]) : nullptr;
+        BroadcastRecvString(ctrl, tmp) ? vtksys::SystemTools::DuplicateString(tmp.data()) : nullptr;
       this->FilePrefix =
-        BroadcastRecvString(ctrl, tmp) ? vtksys::SystemTools::DuplicateString(&tmp[0]) : nullptr;
+        BroadcastRecvString(ctrl, tmp) ? vtksys::SystemTools::DuplicateString(tmp.data()) : nullptr;
     }
     ctrl->Broadcast(this->FileRange, 2, 0);
     ctrl->Broadcast(&this->NumberOfFiles, 1, 0);

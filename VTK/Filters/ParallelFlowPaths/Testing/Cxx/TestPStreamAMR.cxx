@@ -22,7 +22,6 @@
 #include "vtkIdList.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkInterpolatedVelocityField.h"
 #include "vtkMPIController.h"
 #include "vtkMath.h"
 #include "vtkNew.h"
@@ -175,6 +174,8 @@ int TestPStreamAMR(int argc, char* argv[])
   imageSource->SetCellArrayStatus("x-velocity", 1);
   imageSource->SetCellArrayStatus("y-velocity", 1);
   imageSource->SetCellArrayStatus("z-velocity", 1);
+
+  delete[] fname;
 
   vtkNew<TestAMRVectorSource> gradientSource;
   gradientSource->SetInputConnection(imageSource->GetOutputPort());

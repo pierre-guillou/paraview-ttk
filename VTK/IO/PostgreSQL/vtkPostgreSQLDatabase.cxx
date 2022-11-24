@@ -109,7 +109,7 @@ vtkStdString vtkPostgreSQLDatabase::GetColumnSpecification(
 
   // Figure out column type
   int colType = schema->GetColumnTypeFromHandle(tblHandle, colHandle);
-  vtkStdString colTypeStr;
+  std::string colTypeStr;
   switch (static_cast<vtkSQLDatabaseSchema::DatabaseColumnType>(colType))
   {
     case vtkSQLDatabaseSchema::SERIAL:
@@ -157,7 +157,7 @@ vtkStdString vtkPostgreSQLDatabase::GetColumnSpecification(
   else // if ( !colTypeStr.empty() )
   {
     vtkGenericWarningMacro("Unable to get column specification: unsupported data type " << colType);
-    return vtkStdString();
+    return {};
   }
 
   // Decide whether size is allowed, required, or unused
@@ -222,7 +222,7 @@ vtkStdString vtkPostgreSQLDatabase::GetColumnSpecification(
     }
   }
 
-  vtkStdString attStr = schema->GetColumnAttributesFromHandle(tblHandle, colHandle);
+  std::string attStr = schema->GetColumnAttributesFromHandle(tblHandle, colHandle);
   if (!attStr.empty())
   {
     queryStr << " " << attStr;
@@ -337,7 +337,7 @@ bool vtkPostgreSQLDatabase::HasError()
   // Assume that an unopened connection is not a symptom of failure.
   if (this->Connection)
   {
-    return this->LastErrorText ? true : false;
+    return this->LastErrorText != nullptr;
   }
   else
   {
@@ -385,7 +385,7 @@ bool vtkPostgreSQLDatabase::ParseURL(const char* URL)
   if (!vtksys::SystemTools::ParseURL(
         urlstr, protocol, username, password, hostname, dataport, database))
   {
-    vtkErrorMacro("Invalid URL: \"" << urlstr.c_str() << "\"");
+    vtkErrorMacro("Invalid URL: \"" << urlstr << "\"");
     return false;
   }
 
@@ -445,11 +445,11 @@ vtkStringArray* vtkPostgreSQLDatabase::GetRecord(const char* table)
   // currently in the query below are probably over the top. But there's
   // just so much peanut-buttery goodness in the table, I couldn't resist.
   vtkSQLQuery* query = this->GetQueryInstance();
-  vtkStdString text("SELECT "
-                    "column_name,column_default,data_type,is_nullable,character_maximum_length,"
-                    "numeric_precision,datetime_precision"
-                    "  FROM information_schema.columns"
-                    "  WHERE table_name='");
+  std::string text("SELECT "
+                   "column_name,column_default,data_type,is_nullable,character_maximum_length,"
+                   "numeric_precision,datetime_precision"
+                   "  FROM information_schema.columns"
+                   "  WHERE table_name='");
   text += table;
   text += "' ORDER BY ordinal_position";
 
@@ -570,7 +570,7 @@ bool vtkPostgreSQLDatabase::CreateDatabase(const char* dbName, bool dropExisting
     bool err = true;
     if (this->DatabaseName && this->HostName)
     {
-      err = this->Open() ? false : true;
+      err = !this->Open();
     }
     if (err)
     {
@@ -589,7 +589,7 @@ bool vtkPostgreSQLDatabase::CreateDatabase(const char* dbName, bool dropExisting
   qstr += "\"";
   vtkSQLQuery* query = this->GetQueryInstance();
   query->SetQuery(qstr.c_str());
-  if (query->Execute() == false)
+  if (!query->Execute())
   {
     this->SetLastErrorText(query->GetLastErrorText());
     vtkErrorMacro(
@@ -628,7 +628,7 @@ bool vtkPostgreSQLDatabase::DropDatabase(const char* dbName)
     bool err = true;
     if (this->DatabaseName && this->HostName)
     {
-      err = this->Open() ? false : true;
+      err = !this->Open();
     }
     if (err)
     {
@@ -642,7 +642,7 @@ bool vtkPostgreSQLDatabase::DropDatabase(const char* dbName)
   qstr += "\"";
   vtkSQLQuery* query = this->GetQueryInstance();
   query->SetQuery(qstr.c_str());
-  if (query->Execute() == false)
+  if (!query->Execute())
   {
     this->SetLastErrorText(query->GetLastErrorText());
     vtkErrorMacro(<< "Could not drop database \"" << dbName << "\".  "
@@ -712,7 +712,7 @@ void vtkPostgreSQLDatabase::UpdateDataTypeMap()
     while (typeQuery->NextRow())
     {
       Oid oid;
-      vtkStdString name;
+      std::string name;
       int len;
 
       // Caution: this assumes that the Postgres OID type is a 32-bit

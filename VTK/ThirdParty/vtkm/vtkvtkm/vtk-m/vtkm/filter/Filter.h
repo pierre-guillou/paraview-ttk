@@ -12,16 +12,16 @@
 
 #include <vtkm/cont/CoordinateSystem.h>
 #include <vtkm/cont/DataSet.h>
+#include <vtkm/cont/ErrorExecution.h>
 #include <vtkm/cont/Field.h>
 #include <vtkm/cont/Invoker.h>
+#include <vtkm/cont/Logging.h>
 #include <vtkm/cont/PartitionedDataSet.h>
 
 #include <vtkm/filter/CreateResult.h>
 #include <vtkm/filter/FieldSelection.h>
 #include <vtkm/filter/FilterTraits.h>
 #include <vtkm/filter/PolicyBase.h>
-#include <vtkm/filter/vtkm_filter_common_export.h>
-
 
 namespace vtkm
 {
@@ -178,7 +178,35 @@ public:
   Filter();
 
   VTKM_CONT
-  ~Filter();
+  virtual ~Filter();
+
+  VTKM_CONT
+  virtual bool CanThread() const { return false; }
+
+  VTKM_CONT
+  bool GetRunMultiThreadedFilter() const
+  {
+    return this->CanThread() && this->RunFilterWithMultipleThreads;
+  }
+
+  VTKM_CONT
+  void SetRunMultiThreadedFilter(bool val)
+  {
+    if (this->CanThread())
+      this->RunFilterWithMultipleThreads = val;
+    else
+    {
+      std::string msg =
+        "Multi threaded filter not supported for " + std::string(typeid(Derived).name());
+      VTKM_LOG_S(vtkm::cont::LogLevel::Info, msg);
+    }
+  }
+
+  VTKM_CONT
+  virtual Filter* Clone() const
+  {
+    throw vtkm::cont::ErrorExecution("You must implement Clone in the derived class.");
+  }
 
   /// \brief Specify which subset of types a filter supports.
   ///
@@ -233,7 +261,7 @@ public:
 
   VTKM_CONT
   void SetFieldsToPass(const vtkm::filter::FieldSelection& fieldsToPass,
-                       vtkm::filter::FieldSelection::ModeEnum mode)
+                       vtkm::filter::FieldSelection::Mode mode)
   {
     this->FieldsToPass = fieldsToPass;
     this->FieldsToPass.SetMode(mode);
@@ -243,7 +271,7 @@ public:
   void SetFieldsToPass(
     const std::string& fieldname,
     vtkm::cont::Field::Association association,
-    vtkm::filter::FieldSelection::ModeEnum mode = vtkm::filter::FieldSelection::MODE_SELECT)
+    vtkm::filter::FieldSelection::Mode mode = vtkm::filter::FieldSelection::Mode::Select)
   {
     this->SetFieldsToPass({ fieldname, association }, mode);
   }
@@ -274,6 +302,10 @@ public:
   /// On success, this the dataset produced. On error, vtkm::cont::ErrorExecution will be thrown.
   VTKM_CONT vtkm::cont::PartitionedDataSet Execute(const vtkm::cont::PartitionedDataSet& input);
 
+  VTKM_CONT vtkm::cont::PartitionedDataSet ExecuteThreaded(
+    const vtkm::cont::PartitionedDataSet& input,
+    vtkm::Id numThreads);
+
   template <typename DerivedPolicy>
   VTKM_DEPRECATED(1.6,
                   "Filter::Execute no longer guarantees policy modifications. "
@@ -295,68 +327,23 @@ public:
   /// which device adapters a filter uses.
   void SetInvoker(vtkm::cont::Invoker inv) { this->Invoke = inv; }
 
+  VTKM_CONT
+  virtual vtkm::Id DetermineNumberOfThreads(const vtkm::cont::PartitionedDataSet& input);
+
 protected:
   vtkm::cont::Invoker Invoke;
 
+  vtkm::filter::Filter<Derived>& operator=(const vtkm::filter::Filter<Derived>&) = default;
+
+  VTKM_CONT
+  void CopyStateFrom(const Filter<Derived>* filter) { *this = *filter; }
+
 private:
   vtkm::filter::FieldSelection FieldsToPass;
+  bool RunFilterWithMultipleThreads = false;
 };
 }
 } // namespace vtkm::filter
-
-#define VTKM_FILTER_COMMON_EXPORT_EXECUTE_METHOD_WITH_POLICY(Name, Policy)          \
-  extern template VTKM_FILTER_COMMON_TEMPLATE_EXPORT vtkm::cont::PartitionedDataSet \
-  vtkm::filter::Filter<Name>::Execute(vtkm::cont::PartitionedDataSet const&,        \
-                                      vtkm::filter::PolicyBase<Policy>)
-#define VTKM_FILTER_COMMON_INSTANTIATE_EXECUTE_METHOD_WITH_POLICY(Name, Policy)            \
-  template VTKM_FILTER_COMMON_EXPORT vtkm::cont::PartitionedDataSet Filter<Name>::Execute( \
-    vtkm::cont::PartitionedDataSet const&, vtkm::filter::PolicyBase<Policy>)
-
-#define VTKM_FILTER_COMMON_EXPORT_EXECUTE_METHOD(Name) \
-  VTKM_FILTER_COMMON_EXPORT_EXECUTE_METHOD_WITH_POLICY(Name, vtkm::filter::PolicyDefault)
-#define VTKM_FILTER_COMMON_INSTANTIATE_EXECUTE_METHOD(Name) \
-  VTKM_FILTER_COMMON_INSTANTIATE_EXECUTE_METHOD_WITH_POLICY(Name, vtkm::filter::PolicyDefault)
-
-
-#define VTKM_FILTER_EXTRA_EXPORT_EXECUTE_METHOD_WITH_POLICY(Name, Policy)          \
-  extern template VTKM_FILTER_EXTRA_TEMPLATE_EXPORT vtkm::cont::PartitionedDataSet \
-  vtkm::filter::Filter<Name>::Execute(vtkm::cont::PartitionedDataSet const&,       \
-                                      vtkm::filter::PolicyBase<Policy>)
-#define VTKM_FILTER_EXTRA_INSTANTIATE_EXECUTE_METHOD_WITH_POLICY(Name, Policy)            \
-  template VTKM_FILTER_EXTRA_EXPORT vtkm::cont::PartitionedDataSet Filter<Name>::Execute( \
-    vtkm::cont::PartitionedDataSet const&, vtkm::filter::PolicyBase<Policy>)
-
-#define VTKM_FILTER_EXTRA_EXPORT_EXECUTE_METHOD(Name) \
-  VTKM_FILTER_EXTRA_EXPORT_EXECUTE_METHOD_WITH_POLICY(Name, vtkm::filter::PolicyDefault)
-#define VTKM_FILTER_EXTRA_INSTANTIATE_EXECUTE_METHOD(Name) \
-  VTKM_FILTER_EXTRA_INSTANTIATE_EXECUTE_METHOD_WITH_POLICY(Name, vtkm::filter::PolicyDefault)
-
-
-#define VTKM_FILTER_CONTOUR_EXPORT_EXECUTE_METHOD_WITH_POLICY(Name, Policy)          \
-  extern template VTKM_FILTER_CONTOUR_TEMPLATE_EXPORT vtkm::cont::PartitionedDataSet \
-  vtkm::filter::Filter<Name>::Execute(vtkm::cont::PartitionedDataSet const&,         \
-                                      vtkm::filter::PolicyBase<Policy>)
-#define VTKM_FILTER_CONTOUR_INSTANTIATE_EXECUTE_METHOD_WITH_POLICY(Name, Policy)            \
-  template VTKM_FILTER_CONTOUR_EXPORT vtkm::cont::PartitionedDataSet Filter<Name>::Execute( \
-    vtkm::cont::PartitionedDataSet const&, vtkm::filter::PolicyBase<Policy>)
-
-#define VTKM_FILTER_CONTOUR_EXPORT_EXECUTE_METHOD(Name) \
-  VTKM_FILTER_CONTOUR_EXPORT_EXECUTE_METHOD_WITH_POLICY(Name, vtkm::filter::PolicyDefault)
-#define VTKM_FILTER_CONTOUR_INSTANTIATE_EXECUTE_METHOD(Name) \
-  VTKM_FILTER_CONTOUR_INSTANTIATE_EXECUTE_METHOD_WITH_POLICY(Name, vtkm::filter::PolicyDefault)
-
-#define VTKM_FILTER_GRADIENT_EXPORT_EXECUTE_METHOD_WITH_POLICY(Name, Policy)          \
-  extern template VTKM_FILTER_GRADIENT_TEMPLATE_EXPORT vtkm::cont::PartitionedDataSet \
-  vtkm::filter::Filter<Name>::Execute(vtkm::cont::PartitionedDataSet const&,          \
-                                      vtkm::filter::PolicyBase<Policy>)
-#define VTKM_FILTER_GRADIENT_INSTANTIATE_EXECUTE_METHOD_WITH_POLICY(Name, Policy)            \
-  template VTKM_FILTER_GRADIENT_EXPORT vtkm::cont::PartitionedDataSet Filter<Name>::Execute( \
-    vtkm::cont::PartitionedDataSet const&, vtkm::filter::PolicyBase<Policy>)
-
-#define VTKM_FILTER_GRADIENT_EXPORT_EXECUTE_METHOD(Name) \
-  VTKM_FILTER_GRADIENT_EXPORT_EXECUTE_METHOD_WITH_POLICY(Name, vtkm::filter::PolicyDefault)
-#define VTKM_FILTER_GRADIENT_INSTANTIATE_EXECUTE_METHOD(Name) \
-  VTKM_FILTER_GRADIENT_INSTANTIATE_EXECUTE_METHOD_WITH_POLICY(Name, vtkm::filter::PolicyDefault)
 
 #include <vtkm/filter/Filter.hxx>
 #endif

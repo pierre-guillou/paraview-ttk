@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqFavoritesDialog_h
-#define _pqFavoritesDialog_h
+#ifndef pqFavoritesDialog_h
+#define pqFavoritesDialog_h
 
 #include "pqComponentsModule.h"
 #include <QDialog>
@@ -92,7 +92,7 @@ protected Q_SLOTS:
    */
   void onSearchTextChanged(QString pattern);
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   /**
    * Populate the favorites tree from the favorites settings.
    */

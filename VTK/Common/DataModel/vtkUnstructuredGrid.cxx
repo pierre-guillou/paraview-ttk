@@ -13,7 +13,7 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+// Hide VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkUnstructuredGrid.h"
@@ -50,6 +50,7 @@
 #include "vtkLagrangeTetra.h"
 #include "vtkLagrangeTriangle.h"
 #include "vtkLagrangeWedge.h"
+#include "vtkLegacy.h"
 #include "vtkLine.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
@@ -90,6 +91,114 @@
 
 vtkStandardNewMacro(vtkUnstructuredGrid);
 vtkStandardExtendedNewMacro(vtkUnstructuredGrid);
+
+namespace
+{
+constexpr unsigned char MASKED_CELL_VALUE = vtkDataSetAttributes::HIDDENCELL |
+  vtkDataSetAttributes::DUPLICATECELL | vtkDataSetAttributes::REFINEDCELL;
+
+//==============================================================================
+struct RemoveGhostCellsWorker
+{
+  vtkNew<vtkIdList> NewPointIdMap;
+  vtkNew<vtkIdList> NewCellIdMap;
+
+  template <class ArrayT1, class ArrayT2>
+  void operator()(ArrayT1* inputOffsets, ArrayT2* outputOffsets, vtkDataArray* inputConnectivityDA,
+    vtkDataArray* outputConnectivityDA, vtkUnsignedCharArray* types,
+    vtkUnsignedCharArray* ghostCells, vtkIdType numPoints, vtkIdTypeArray* inputFaces,
+    vtkIdTypeArray* inputFaceLocations, vtkIdTypeArray* outputFaces,
+    vtkIdTypeArray* outputFaceLocations)
+  {
+    if (!inputOffsets->GetNumberOfValues())
+    {
+      return;
+    }
+
+    auto inputConnectivity = vtkArrayDownCast<ArrayT1>(inputConnectivityDA);
+    auto outputConnectivity = vtkArrayDownCast<ArrayT2>(outputConnectivityDA);
+
+    outputOffsets->SetNumberOfValues(inputOffsets->GetNumberOfValues());
+    outputConnectivity->SetNumberOfValues(inputConnectivity->GetNumberOfValues());
+
+    auto inputOffsetsRange = vtk::DataArrayValueRange<1>(inputOffsets);
+    auto inputConnectivityRange = vtk::DataArrayValueRange<1>(inputConnectivity);
+    using InputValueType = typename decltype(inputOffsetsRange)::ValueType;
+
+    auto outputOffsetsRange = vtk::DataArrayValueRange<1>(outputOffsets);
+    auto outputConnectivityRange = vtk::DataArrayValueRange<1>(outputConnectivity);
+    using OutputValueType = typename decltype(outputOffsetsRange)::ValueType;
+
+    auto typesRange = vtk::DataArrayValueRange<1>(types);
+    auto ghostCellsRange = vtk::DataArrayValueRange<1>(ghostCells);
+
+    std::vector<vtkIdType> pointIdRedirectionMap(numPoints, -1);
+
+    this->NewPointIdMap->Allocate(numPoints);
+    this->NewCellIdMap->Allocate(types->GetNumberOfValues());
+
+    vtkIdType newPointsMaxId = -1;
+    InputValueType startId = inputOffsetsRange[0];
+    vtkIdType newCellsMaxId = -1;
+    OutputValueType currentOutputOffset = 0;
+
+    for (vtkIdType cellId = 0; cellId < inputOffsets->GetNumberOfValues() - 1; ++cellId)
+    {
+      if (ghostCellsRange[cellId] & MASKED_CELL_VALUE)
+      {
+        startId = inputOffsetsRange[cellId + 1];
+        continue;
+      }
+
+      this->NewCellIdMap->InsertNextId(cellId);
+
+      InputValueType endId = inputOffsetsRange[cellId + 1];
+      InputValueType size = endId - startId;
+
+      outputOffsetsRange[++newCellsMaxId] = currentOutputOffset;
+      outputOffsetsRange[newCellsMaxId + 1] = currentOutputOffset + size;
+
+      for (InputValueType cellPointId = 0; cellPointId < size; ++cellPointId)
+      {
+        vtkIdType pointId = inputConnectivityRange[startId + cellPointId];
+        if (pointIdRedirectionMap[pointId] == -1)
+        {
+          pointIdRedirectionMap[pointId] = ++newPointsMaxId;
+          this->NewPointIdMap->InsertNextId(pointId);
+        }
+        outputConnectivityRange[currentOutputOffset + cellPointId] = pointIdRedirectionMap[pointId];
+      }
+
+      if (typesRange[cellId] == VTK_POLYHEDRON)
+      {
+        outputFaceLocations->SetValue(newCellsMaxId, outputFaces->GetNumberOfValues());
+        vtkIdType inId = inputFaceLocations->GetValue(cellId);
+        vtkIdType numberOfFaces = inputFaces->GetValue(inId++);
+        outputFaces->InsertNextValue(numberOfFaces);
+        for (vtkIdType faceId = 0; faceId < numberOfFaces; ++faceId)
+        {
+          vtkIdType faceSize = inputFaces->GetValue(inId++);
+          outputFaces->InsertNextValue(faceSize);
+          for (vtkIdType pointId = 0; pointId < faceSize; ++pointId)
+          {
+            outputFaces->InsertNextValue(pointIdRedirectionMap[inputFaces->GetValue(inId++)]);
+          }
+        }
+      }
+
+      currentOutputOffset += size;
+      startId = endId;
+    }
+
+    if (outputFaceLocations)
+    {
+      outputFaceLocations->Resize(newCellsMaxId + 1);
+    }
+    outputOffsets->Resize(newCellsMaxId + 2);
+    outputConnectivity->Resize(currentOutputOffset + 1);
+  }
+};
+} // anonymous namespace
 
 //------------------------------------------------------------------------------
 vtkIdTypeArray* vtkUnstructuredGrid::GetCellLocationsArray()
@@ -448,6 +557,12 @@ int vtkUnstructuredGrid::GetCellType(vtkIdType cellId)
 {
   vtkDebugMacro(<< "Returning cell type " << static_cast<int>(this->Types->GetValue(cellId)));
   return static_cast<int>(this->Types->GetValue(cellId));
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkUnstructuredGrid::GetCellSize(vtkIdType cellId)
+{
+  return this->Connectivity ? this->Connectivity->GetCellSize(cellId) : 0;
 }
 
 //------------------------------------------------------------------------------
@@ -1438,8 +1553,8 @@ void vtkUnstructuredGrid::SetCells(vtkUnsignedCharArray* cellTypes, vtkCellArray
 //------------------------------------------------------------------------------
 void vtkUnstructuredGrid::BuildLinks()
 {
-  // Create appropriate locator. Currently it's either a vtkCellLocator (when
-  // the dataset is editable) or vtkStaticCellLocator (when the dataset is
+  // Create appropriate links. Currently, it's either a vtkCellLinks (when
+  // the dataset is editable) or vtkStaticCellLinks (when the dataset is
   // not editable).
   vtkIdType numPts = this->GetNumberOfPoints();
   if (!this->Editable)
@@ -1479,15 +1594,6 @@ void vtkUnstructuredGrid::GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkId
     ncells = links->GetNcells(ptId);
     cells = links->GetCells(ptId);
   }
-}
-
-//------------------------------------------------------------------------------
-void vtkUnstructuredGrid::GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
-{
-  VTK_LEGACY_BODY(vtkUnstructuredGrid::GetPointCells, "VTK 9.0");
-  vtkIdType nc;
-  this->GetPointCells(ptId, nc, cells);
-  ncells = static_cast<unsigned short>(nc);
 }
 
 //------------------------------------------------------------------------------
@@ -1544,10 +1650,21 @@ public:
 //------------------------------------------------------------------------------
 void vtkUnstructuredGrid::GetCellTypes(vtkCellTypes* types)
 {
+  VTK_LEGACY_BODY(vtkCellTypes::GetCellTypes, "VTK 9.2");
+  this->GetDistinctCellTypesArray();
+  types->DeepCopy(this->DistinctCellTypes);
+}
+
+//------------------------------------------------------------------------------
+vtkUnsignedCharArray* vtkUnstructuredGrid::GetDistinctCellTypesArray()
+{
   if (this->Types == nullptr)
   {
-    // No cell types
-    return;
+    if (this->DistinctCellTypes == nullptr)
+    {
+      this->DistinctCellTypes = vtkSmartPointer<vtkCellTypes>::New();
+    }
+    return this->DistinctCellTypes->GetCellTypesArray();
   }
 
   if (this->DistinctCellTypes == nullptr ||
@@ -1577,7 +1694,7 @@ void vtkUnstructuredGrid::GetCellTypes(vtkCellTypes* types)
     this->DistinctCellTypesUpdateMTime = this->Types->GetMTime();
   }
 
-  types->DeepCopy(this->DistinctCellTypes);
+  return this->DistinctCellTypes->GetCellTypesArray();
 }
 
 //------------------------------------------------------------------------------
@@ -1994,34 +2111,41 @@ namespace
 // by only one cell), or whether the points define an interior entity (used
 // by more than one cell).
 template <class TLinks>
-inline bool IsCellBoundaryImp(TLinks* links, vtkIdType cellId, vtkIdType npts, const vtkIdType* pts)
+inline bool IsCellBoundaryImp(
+  TLinks* links, vtkIdType cellId, vtkIdType npts, const vtkIdType* pts, vtkIdList* cellIdsList)
 {
-  std::vector<vtkIdType> cellSet;
-  cellSet.reserve(256); // avoid reallocs if possible
-
+  vtkIdType numberOfCells;
+  const vtkIdType* cells;
   // Combine all of the cell lists, and then sort them.
-  for (auto i = 0; i < npts; ++i)
+  for (vtkIdType i = 0; i < npts; ++i)
   {
-    vtkIdType numCells = links->GetNcells(pts[i]);
-    const vtkIdType* cells = links->GetCells(pts[i]);
-    cellSet.insert(cellSet.end(), cells, cells + numCells);
+    numberOfCells = links->GetNcells(pts[i]);
+    cells = links->GetCells(pts[i]);
+    for (vtkIdType j = 0; j < numberOfCells; ++j)
+    {
+      cellIdsList->InsertNextId(cells[j]);
+    }
   }
-  std::sort(cellSet.begin(), cellSet.end());
+  vtkIdType numberOfIds = cellIdsList->GetNumberOfIds();
+  vtkIdType* cellIds = cellIdsList->GetPointer(0);
+  vtkIdType* endCellIds = cellIds + numberOfIds;
+  std::sort(cellIds, endCellIds);
 
   // Sorting will have grouped the cells into contiguous runs. Determine the
   // length of the runs - if equal to npts, then a cell is present in all
   // sets, and if this cell is not the user-provided cellId, then there is a
   // cell common to all sets, hence this is not a boundary cell.
-  auto itr = cellSet.begin();
-  while (itr != cellSet.end())
+  vtkIdType *itr = cellIds, *start;
+  vtkIdType currentCell;
+  while (itr != endCellIds)
   {
-    auto start = itr;
-    vtkIdType currentCell = *itr;
-    while (itr != cellSet.end() && *itr == currentCell)
+    start = itr;
+    currentCell = *itr;
+    while (itr != endCellIds && *itr == currentCell)
       ++itr; // advance across this contiguous run
 
     // What is the size of the contiguous run? If equal to
-    // the number of sets, then this is an interior boundary.
+    // the number of sets, then this is a neighboring cell.
     if (((itr - start) >= npts) && (currentCell != cellId))
     {
       return false;
@@ -2035,39 +2159,55 @@ inline bool IsCellBoundaryImp(TLinks* links, vtkIdType cellId, vtkIdType npts, c
 // use all the points in the points list (pts).
 template <class TLinks>
 inline void GetCellNeighborsImp(
-  TLinks* links, vtkIdType cellId, vtkIdType npts, const vtkIdType* pts, vtkIdList* cellIds)
+  TLinks* links, vtkIdType cellId, vtkIdType npts, const vtkIdType* pts, vtkIdList* cellIdsList)
 {
-  std::vector<vtkIdType> cellSet;
-  cellSet.reserve(256); // avoid reallocs if possible
-
+  vtkIdType numberOfCells;
+  const vtkIdType* cells;
   // Combine all of the cell lists, and then sort them.
-  for (auto i = 0; i < npts; ++i)
+  for (vtkIdType i = 0; i < npts; ++i)
   {
-    vtkIdType numCells = links->GetNcells(pts[i]);
-    const vtkIdType* cells = links->GetCells(pts[i]);
-    cellSet.insert(cellSet.end(), cells, cells + numCells);
+    numberOfCells = links->GetNcells(pts[i]);
+    cells = links->GetCells(pts[i]);
+    for (vtkIdType j = 0; j < numberOfCells; ++j)
+    {
+      cellIdsList->InsertNextId(cells[j]);
+    }
   }
-  std::sort(cellSet.begin(), cellSet.end());
+  vtkIdType numberOfIds = cellIdsList->GetNumberOfIds();
+  vtkIdType* cellIds = cellIdsList->GetPointer(0);
+  vtkIdType* endCellIds = cellIds + numberOfIds;
+  std::sort(cellIds, endCellIds);
 
   // Sorting will have grouped the cells into contiguous runs. Determine the
   // length of the runs - if equal to npts, then a cell is present in all
   // sets, and if this cell is not the user-provided cellId, then this is a
   // cell common to all sets, hence it is a neighboring cell.
-  auto itr = cellSet.begin();
-  while (itr != cellSet.end())
+  if (numberOfIds == 0)
   {
-    auto start = itr;
-    vtkIdType currentCell = *itr;
-    while (itr != cellSet.end() && *itr == currentCell)
+    // no id will be returned
+    cellIdsList->Reset();
+    return;
+  }
+  vtkIdType *itr = cellIds, *start;
+  vtkIdType numberOfOutputIds = 0, currentCell;
+  while (itr != endCellIds)
+  {
+    start = itr;
+    currentCell = *itr;
+    while (itr != endCellIds && *itr == currentCell)
       ++itr; // advance across this contiguous run
 
     // What is the size of the contiguous run? If equal to
     // the number of sets, then this is a neighboring cell.
     if (((itr - start) >= npts) && (currentCell != cellId))
     {
-      cellIds->InsertNextId(currentCell);
+      // since this id will not be revisited, we can write the results in place
+      cellIds[numberOfOutputIds++] = currentCell;
     }
   } // while over the cell set
+  // change the length of the list to the number of neighbors
+  // the allocated space will not be touched
+  cellIdsList->SetNumberOfIds(numberOfOutputIds);
 }
 
 } // end anonymous namespace
@@ -2075,6 +2215,18 @@ inline void GetCellNeighborsImp(
 //----------------------------------------------------------------------------
 bool vtkUnstructuredGrid::IsCellBoundary(vtkIdType cellId, vtkIdType npts, const vtkIdType* pts)
 {
+  vtkNew<vtkIdList> cellIds;
+  cellIds->Allocate(256);
+  return this->IsCellBoundary(cellId, npts, pts, cellIds);
+}
+
+//----------------------------------------------------------------------------
+bool vtkUnstructuredGrid::IsCellBoundary(
+  vtkIdType cellId, vtkIdType npts, const vtkIdType* pts, vtkIdList* cellIds)
+{
+  // Empty the list
+  cellIds->Reset();
+
   // Ensure that a valid neighborhood request is made.
   if (npts <= 0)
   {
@@ -2092,12 +2244,12 @@ bool vtkUnstructuredGrid::IsCellBoundary(vtkIdType cellId, vtkIdType npts, const
   if (!this->Editable)
   {
     vtkStaticCellLinks* links = static_cast<vtkStaticCellLinks*>(this->Links.Get());
-    return IsCellBoundaryImp<vtkStaticCellLinks>(links, cellId, npts, pts);
+    return IsCellBoundaryImp<vtkStaticCellLinks>(links, cellId, npts, pts, cellIds);
   }
   else
   {
     vtkCellLinks* links = static_cast<vtkCellLinks*>(this->Links.Get());
-    return IsCellBoundaryImp<vtkCellLinks>(links, cellId, npts, pts);
+    return IsCellBoundaryImp<vtkCellLinks>(links, cellId, npts, pts, cellIds);
   }
 }
 
@@ -2172,102 +2324,67 @@ void vtkUnstructuredGrid::GetIdsOfCellsOfType(int type, vtkIdTypeArray* array)
 //------------------------------------------------------------------------------
 void vtkUnstructuredGrid::RemoveGhostCells()
 {
-  vtkUnstructuredGrid* newGrid = vtkUnstructuredGrid::New();
-  vtkUnsignedCharArray* temp;
-  unsigned char* cellGhosts;
-
-  vtkIdType cellId, newCellId;
-  vtkIdList *cellPts, *pointMap;
-  vtkIdList* newCellPts;
-  vtkCell* cell;
-  vtkPoints* newPoints;
-  vtkIdType i, ptId, newId, numPts;
-  vtkIdType numCellPts;
-  double* x;
-  vtkPointData* pd = this->GetPointData();
-  vtkPointData* outPD = newGrid->GetPointData();
-  vtkCellData* cd = this->GetCellData();
-  vtkCellData* outCD = newGrid->GetCellData();
-
-  // Get a pointer to the cell ghost array.
-  temp = this->GetCellGhostArray();
-  if (temp == nullptr)
+  if (!this->GetNumberOfCells() || !this->CellData->GetGhostArray())
   {
-    vtkDebugMacro("Could not find cell ghost array.");
-    newGrid->Delete();
     return;
   }
-  if ((temp->GetNumberOfComponents() != 1) ||
-    (temp->GetNumberOfTuples() < this->GetNumberOfCells()))
+  vtkNew<vtkUnstructuredGrid> newGrid;
+
+  vtkSmartPointer<vtkIdTypeArray> newFaces, newFaceLocations;
+  if (this->GetFaces())
   {
-    vtkErrorMacro("Poorly formed ghost array.");
-    newGrid->Delete();
-    return;
+    newFaces = vtkSmartPointer<vtkIdTypeArray>::New();
+    newFaces->Allocate(this->GetFaces()->GetNumberOfValues());
+    newFaceLocations = vtkSmartPointer<vtkIdTypeArray>::New();
+    newFaceLocations->SetNumberOfValues(this->GetNumberOfCells());
+    newFaceLocations->Fill(-1);
   }
-  cellGhosts = temp->GetPointer(0);
 
-  // Now threshold based on the cell ghost array.
+  vtkNew<vtkCellArray> newCells;
+#ifdef VTK_USE_64BIT_IDS
+  if (!(this->GetNumberOfPoints() >> 31))
+  {
+    newCells->ConvertTo32BitStorage();
+  }
+#endif
 
-  // ensure that all attributes are copied over, including global ids.
-  outPD->CopyAllOn(vtkDataSetAttributes::COPYTUPLE);
-  outCD->CopyAllOn(vtkDataSetAttributes::COPYTUPLE);
+  using Dispatcher = vtkArrayDispatch::Dispatch2ByArray<vtkCellArray::StorageArrayList,
+    vtkCellArray::StorageArrayList>;
+  ::RemoveGhostCellsWorker worker;
 
-  outPD->CopyAllocate(pd);
-  outCD->CopyAllocate(cd);
+  if (!Dispatcher::Execute(this->Connectivity->GetOffsetsArray(), newCells->GetOffsetsArray(),
+        worker, this->Connectivity->GetConnectivityArray(), newCells->GetConnectivityArray(),
+        this->Types, this->CellData->GetGhostArray(), this->GetNumberOfPoints(), this->Faces,
+        this->FaceLocations, newFaces, newFaceLocations))
+  {
+    worker(this->Connectivity->GetOffsetsArray(), newCells->GetOffsetsArray(),
+      this->Connectivity->GetConnectivityArray(), newCells->GetConnectivityArray(), this->Types,
+      this->CellData->GetGhostArray(), this->GetNumberOfPoints(), this->Faces, this->FaceLocations,
+      newFaces, newFaceLocations);
+  }
 
-  numPts = this->GetNumberOfPoints();
-  newGrid->Allocate(this->GetNumberOfCells());
-  newPoints = vtkPoints::New();
+  vtkNew<vtkUnsignedCharArray> newTypes;
+  newTypes->InsertTuplesStartingAt(0, worker.NewCellIdMap, this->Types);
+
+  vtkNew<vtkPoints> newPoints;
   newPoints->SetDataType(this->GetPoints()->GetDataType());
-  newPoints->Allocate(numPts);
-
-  pointMap = vtkIdList::New(); // maps old point ids into new
-  pointMap->SetNumberOfIds(numPts);
-  pointMap->Fill(-1);
-
-  newCellPts = vtkIdList::New();
-
-  // Check that the scalars of each cell satisfy the threshold criterion
-  for (cellId = 0; cellId < this->GetNumberOfCells(); cellId++)
-  {
-    cell = this->GetCell(cellId);
-    cellPts = cell->GetPointIds();
-    numCellPts = cell->GetNumberOfPoints();
-
-    if ((cellGhosts[cellId] &
-          (vtkDataSetAttributes::DUPLICATECELL | vtkDataSetAttributes::HIDDENCELL)) ==
-      0) // Keep the cell.
-    {
-      for (i = 0; i < numCellPts; i++)
-      {
-        ptId = cellPts->GetId(i);
-        if ((newId = pointMap->GetId(ptId)) < 0)
-        {
-          x = this->GetPoint(ptId);
-          newId = newPoints->InsertNextPoint(x);
-          pointMap->SetId(ptId, newId);
-          outPD->CopyData(pd, ptId, newId);
-        }
-        newCellPts->InsertId(i, newId);
-      }
-      newCellId = newGrid->InsertNextCell(cell->GetCellType(), newCellPts);
-      outCD->CopyData(cd, cellId, newCellId);
-      newCellPts->Reset();
-    } // satisfied thresholding
-  }   // for all cells
-
-  // now clean up / update ourselves
-  pointMap->Delete();
-  newCellPts->Delete();
-
+  newPoints->GetData()->InsertTuplesStartingAt(0, worker.NewPointIdMap, this->Points->GetData());
   newGrid->SetPoints(newPoints);
-  newPoints->Delete();
+
+  vtkCellData* outCD = newGrid->GetCellData();
+  outCD->CopyAllOn(vtkDataSetAttributes::COPYTUPLE);
+  outCD->CopyAllocate(this->CellData);
+  outCD->CopyData(this->CellData, worker.NewCellIdMap);
+
+  vtkPointData* outPD = newGrid->GetPointData();
+  outPD->CopyAllOn(vtkDataSetAttributes::COPYTUPLE);
+  outPD->CopyAllocate(this->PointData);
+  outPD->CopyData(this->PointData, worker.NewPointIdMap);
 
   this->CopyStructure(newGrid);
   this->GetPointData()->ShallowCopy(newGrid->GetPointData());
   this->GetCellData()->ShallowCopy(newGrid->GetCellData());
-  newGrid->Delete();
-  newGrid = nullptr;
+  this->SetCells(newTypes, newCells, newFaceLocations, newFaces);
 
   this->Squeeze();
 }

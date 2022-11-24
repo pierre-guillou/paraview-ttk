@@ -20,6 +20,8 @@
 #include "vtkObject.h"
 #include "vtkSMP.h"
 
+#include <atomic>
+
 #define VTK_SMP_MAX_BACKENDS_NB 4
 
 #define VTK_SMP_BACKEND_SEQUENTIAL 0
@@ -56,6 +58,9 @@ template <BackendType Backend>
 class VTKCOMMONCORE_EXPORT vtkSMPToolsImpl
 {
 public:
+  //--------------------------------------------------------------------------------
+  vtkSMPToolsImpl() {} // no default because of TBB specialisation
+
   //--------------------------------------------------------------------------------
   void Initialize(int numThreads = 0);
 
@@ -97,8 +102,8 @@ public:
   void Sort(RandomAccessIterator begin, RandomAccessIterator end, Compare comp);
 
 private:
-  bool NestedActivated = true;
-  bool IsParallel = false;
+  bool NestedActivated = false;
+  std::atomic<bool> IsParallel{ false };
 };
 
 using ExecuteFunctorPtrType = void (*)(void*, vtkIdType, vtkIdType, vtkIdType);

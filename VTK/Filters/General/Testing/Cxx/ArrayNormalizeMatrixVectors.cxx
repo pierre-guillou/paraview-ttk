@@ -19,9 +19,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include <vtkArrayData.h>
 #include <vtkArrayPrint.h>
 #include <vtkDiagonalMatrixSource.h>
@@ -34,10 +31,11 @@
 #include <stdexcept>
 
 #define test_expression(expression)                                                                \
+  do                                                                                               \
   {                                                                                                \
     if (!(expression))                                                                             \
       throw std::runtime_error("Expression failed: " #expression);                                 \
-  }
+  } while (false)
 
 static bool close_enough(const double lhs, const double rhs)
 {

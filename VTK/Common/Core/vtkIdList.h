@@ -137,7 +137,7 @@ public:
    * underlying array. This instance of vtkIdList takes ownership of the
    * array, meaning that it deletes it on destruction (using delete[]).
    */
-  void SetArray(vtkIdType* array, vtkIdType size);
+  void SetArray(vtkIdType* array, vtkIdType size, bool save = true);
 
   /**
    * Reset to an empty state but retain previously allocated memory.
@@ -177,11 +177,6 @@ public:
    */
   vtkIdType* Resize(const vtkIdType sz);
 
-  /**
-   * Intersect one id list with another. This method should become legacy.
-   */
-  void IntersectWith(vtkIdList& otherIds) { this->IntersectWith(&otherIds); }
-
 #ifndef __VTK_WRAP__
   /**
    * This releases the ownership of the internal vtkIdType array and returns the
@@ -208,6 +203,7 @@ protected:
   vtkIdType NumberOfIds;
   vtkIdType Size;
   vtkIdType* Ids;
+  bool ManageMemory;
 
 private:
   vtkIdList(const vtkIdList&) = delete;

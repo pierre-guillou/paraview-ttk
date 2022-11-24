@@ -78,12 +78,10 @@ int vtkContourTriangulator::RequestData(vtkInformation* vtkNotUsed(request),
 
   input->BuildCells();
 
-  vtkCellArray* polys = vtkCellArray::New();
+  vtkNew<vtkCellArray> polys;
   output->SetPolys(polys);
   output->SetPoints(input->GetPoints());
   output->GetPointData()->PassData(input->GetPointData());
-
-  polys->Delete();
 
   this->TriangulationError = !vtkContourTriangulator::TriangulateContours(
     input, input->GetNumberOfVerts(), lines->GetNumberOfCells(), polys, nullptr);
@@ -870,10 +868,10 @@ int vtkCCSSplitAtPinchPoints(std::vector<vtkCCSPoly>& polys, vtkPoints* points,
   std::vector<vtkCCSPolyGroup>& polyGroups, std::vector<vtkCCSPolyEdges>& polyEdges,
   const double normal[3], bool oriented)
 {
-  vtkPoints* tryPoints = vtkPoints::New();
+  vtkNew<vtkPoints> tryPoints;
   tryPoints->SetDataTypeToDouble();
 
-  vtkIncrementalOctreePointLocator* locator = vtkIncrementalOctreePointLocator::New();
+  vtkNew<vtkIncrementalOctreePointLocator> locator;
 
   int splitCount = 0;
 
@@ -1012,9 +1010,6 @@ int vtkCCSSplitAtPinchPoints(std::vector<vtkCCSPoly>& polys, vtkPoints* points,
       }
     }
   }
-
-  tryPoints->Delete();
-  locator->Delete();
 
   return splitCount;
 }
@@ -2330,7 +2325,7 @@ int vtkCCSCutHoleyPolys(std::vector<vtkCCSPoly>& polys, vtkPoints* points,
 
   // Go through all groups and cut out the first inner poly that is
   // found.  Every time an inner poly is cut out, the groupId counter
-  // is reset because a cutting a poly creates a new group.
+  // is reset because cutting a poly creates a new group.
   size_t groupId = 0;
   while (groupId < polyGroups.size())
   {
@@ -2419,6 +2414,7 @@ int vtkCCSCutHoleyPolys(std::vector<vtkCCSPoly>& polys, vtkPoints* points,
         double tol2;
         vtkCCSPrepareForPolyInPoly(poly1, points, pp, bounds, tol2);
 
+        size_t nextGroupId = groupId;
         size_t ii = 1;
         while (ii < polyGroup.size())
         {
@@ -2429,26 +2425,21 @@ int vtkCCSCutHoleyPolys(std::vector<vtkCCSPoly>& polys, vtkPoints* points,
           }
           else
           {
-            // If innerPolyId and groupId are the same then adding to the list would cause an
-            // infinte loop since the size of polyGroup would never decrease.
-            if (innerPolyId != groupId)
-            {
-              // Move this poly to poly2 group
-              polyGroups[innerPolyId].push_back(polyGroup[ii]);
-            }
+            // Move this poly to poly2 group
+            polyGroups[innerPolyId].push_back(polyGroup[ii]);
             polyGroup.erase(polyGroup.begin() + ii);
 
-            // Reduce the groupId to ensure that this new group
-            // will get cut
-            if (innerPolyId < groupId)
+            // Reduce the groupId to ensure that this new group will get cut
+            if (innerPolyId < nextGroupId)
             {
-              groupId = innerPolyId;
+              nextGroupId = innerPolyId;
             }
           }
         }
         delete[] pp;
 
-        // Continue without incrementing groupId
+        // Set the groupId for the next iteration
+        groupId = nextGroupId;
         continue;
       }
     }

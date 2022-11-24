@@ -16,9 +16,6 @@
 // Thanks to Soeren Gebbert who developed this class and
 // integrated it into VTK 5.0.
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkBiQuadraticQuadraticHexahedron.h"
 
 #include "vtkBiQuadraticQuad.h"
@@ -774,7 +771,7 @@ void vtkBiQuadraticQuadraticHexahedron::InterpolationDerivs(
   derivs[70] = ((1 - x * x) * y + x * x - 1) * z;
   derivs[71] = ((x * x - 1) * y + x * x - 1) * z;
 
-  // we compute derivatives in in [-1; 1] but we need them in [ 0; 1]
+  // we compute derivatives in [-1; 1] but we need them in [ 0; 1]
   for (int i = 0; i < 72; i++)
     derivs[i] *= 2;
 }

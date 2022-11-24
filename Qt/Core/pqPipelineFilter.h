@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * \date 4/17/2006
  */
 
-#ifndef _pqPipelineFilter_h
-#define _pqPipelineFilter_h
+#ifndef pqPipelineFilter_h
+#define pqPipelineFilter_h
 
 #include "pqCoreModule.h"
 #include "pqPipelineSource.h"
@@ -145,7 +145,7 @@ protected Q_SLOTS:
    */
   void inputChanged(vtkObject*, unsigned long, void* client_data);
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   /**
    * Use this method to initialize the pqObject state using the underlying
    * vtkSMProxy. This needs to be done only once, after the object has been

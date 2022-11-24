@@ -9,10 +9,8 @@
 //============================================================================
 
 #include <vtkm/StaticAssert.h>
-#include <vtkm/cont/ArrayCopy.h>
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/DataSet.h>
-#include <vtkm/cont/DeviceAdapterAlgorithm.h>
 #include <vtkm/cont/EnvironmentTracker.h>
 #include <vtkm/cont/ErrorBadValue.h>
 #include <vtkm/cont/Field.h>
@@ -61,7 +59,8 @@ PartitionedDataSet& PartitionedDataSet::operator=(const vtkm::cont::PartitionedD
 }
 
 VTKM_CONT
-vtkm::cont::Field PartitionedDataSet::GetField(const std::string& field_name, int partition_index)
+vtkm::cont::Field PartitionedDataSet::GetField(const std::string& field_name,
+                                               int partition_index) const
 {
   assert(partition_index >= 0);
   assert(static_cast<std::size_t>(partition_index) < this->Partitions.size());

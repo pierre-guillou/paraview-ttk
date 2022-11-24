@@ -29,8 +29,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#ifndef _pqPythonScriptEditor_h
-#define _pqPythonScriptEditor_h
+#ifndef pqPythonScriptEditor_h
+#define pqPythonScriptEditor_h
 
 #include "pqPythonModule.h"
 
@@ -108,6 +108,11 @@ public:
    * Wraps up the trace tab
    */
   void stopTrace(const QString& str);
+
+  /**
+   * Run the code inside the current tab
+   */
+  void runCurrentTab();
 
   /**
    * Utility function that provides a single instance of the editor.

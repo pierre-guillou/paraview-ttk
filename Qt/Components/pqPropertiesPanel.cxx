@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCollection.h"
 #include "vtkCommand.h"
 #include "vtkEventQtSlotConnect.h"
+#include "vtkLegacy.h"
 #include "vtkNew.h"
 #include "vtkPVGeneralSettings.h"
 #include "vtkPVLogger.h"
@@ -158,9 +159,6 @@ private:
 unsigned long pqProxyWidgets::Counter = 0;
 };
 
-bool pqPropertiesPanel::AutoApply = false;
-int pqPropertiesPanel::AutoApplyDelay = 0; // in msec
-
 //*****************************************************************************
 class pqPropertiesPanel::pqInternals
 {
@@ -168,12 +166,12 @@ public:
   Ui::propertiesPanel Ui;
   QPointer<pqView> View;
   QPointer<pqProxy> Source;
+  int SourcePort;
   QPointer<pqDataRepresentation> Representation;
   QMap<void*, QPointer<pqProxyWidgets>> SourceWidgets;
   QPointer<pqProxyWidgets> DisplayWidgets;
   QPointer<pqProxyWidgets> ViewWidgets;
   bool ReceivedChangeAvailable;
-  pqTimer AutoApplyTimer;
   vtkNew<vtkSMProxyClipboard> SourceClipboard;
   vtkNew<vtkSMProxyClipboard> DisplayClipboard;
   vtkNew<vtkSMProxyClipboard> ViewClipboard;
@@ -182,7 +180,8 @@ public:
 
   //---------------------------------------------------------------------------
   pqInternals(pqPropertiesPanel* panel)
-    : ReceivedChangeAvailable(false)
+    : SourcePort(-1)
+    , ReceivedChangeAvailable(false)
   {
     this->Ui.setupUi(panel);
 
@@ -227,14 +226,11 @@ public:
 
     // change the apply button palette so it is green when it is enabled.
     pqCoreUtilities::initializeClickMeButton(this->Ui.Accept);
-
-    this->AutoApplyTimer.setSingleShot(true);
-    panel->connect(&this->AutoApplyTimer, SIGNAL(timeout()), SLOT(apply()));
   }
 
   ~pqInternals()
   {
-    foreach (pqProxyWidgets* widgets, this->SourceWidgets)
+    Q_FOREACH (pqProxyWidgets* widgets, this->SourceWidgets)
     {
       delete widgets;
     }
@@ -243,14 +239,11 @@ public:
     delete this->ViewWidgets;
   }
 
-  void triggerAutoApply() { this->AutoApplyTimer.start(pqPropertiesPanel::autoApplyDelay()); }
-
   //---------------------------------------------------------------------------
   void updateInformationAndDomains()
   {
     if (this->Source)
     {
-      // this->Source->updatePipeline();
       vtkSMProxy* proxy = this->Source->getProxy();
       if (vtkSMSourceProxy* sourceProxy = vtkSMSourceProxy::SafeDownCast(proxy))
       {
@@ -270,14 +263,6 @@ pqPropertiesPanel::pqPropertiesPanel(QWidget* parentObject)
   , Internals(new pqInternals(this))
   , PanelMode(pqPropertiesPanel::ALL_PROPERTIES)
 {
-  // Get AutoApply setting from GeneralSettings object.
-  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
-  pqPropertiesPanel::AutoApply = generalSettings->GetAutoApply();
-
-  // every time the settings change, we need to update our auto-apply status.
-  pqCoreUtilities::connect(
-    generalSettings, vtkCommand::ModifiedEvent, this, SLOT(generalSettingsChanged()));
-
   //---------------------------------------------------------------------------
   // Listen to various signals from the application indicating changes in active
   // source/view/representation, etc.
@@ -403,34 +388,39 @@ void pqPropertiesPanel::setPanelMode(int val)
 }
 
 //-----------------------------------------------------------------------------
-void pqPropertiesPanel::generalSettingsChanged()
-{
-  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
-  pqPropertiesPanel::AutoApply = generalSettings->GetAutoApply();
-}
-
-//-----------------------------------------------------------------------------
 void pqPropertiesPanel::setAutoApply(bool enabled)
 {
-  pqPropertiesPanel::AutoApply = enabled;
+  VTK_LEGACY_REPLACED_BODY(
+    pqPropertiesPanel::setAutoApply, "ParaView 5.11", vtkPVGeneralSettings::SetAutoApply());
+  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
+  generalSettings->SetAutoApply(enabled);
 }
 
 //-----------------------------------------------------------------------------
 bool pqPropertiesPanel::autoApply()
 {
-  return pqPropertiesPanel::AutoApply;
+  VTK_LEGACY_REPLACED_BODY(
+    pqPropertiesPanel::autoApply, "ParaView 5.11", vtkPVGeneralSettings::GetAutoApply());
+  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
+  return generalSettings->GetAutoApply();
 }
 
 //-----------------------------------------------------------------------------
 void pqPropertiesPanel::setAutoApplyDelay(int delay)
 {
-  pqPropertiesPanel::AutoApplyDelay = delay;
+  VTK_LEGACY_REPLACED_BODY(pqPropertiesPanel::setAutoApplyDelay, "ParaView 5.11",
+    vtkPVGeneralSettings::SetAutoApplyDelay());
+  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
+  return generalSettings->SetAutoApplyDelay(delay);
 }
 
 //-----------------------------------------------------------------------------
 int pqPropertiesPanel::autoApplyDelay()
 {
-  return pqPropertiesPanel::AutoApplyDelay;
+  VTK_LEGACY_REPLACED_BODY(
+    pqPropertiesPanel::autoApplyDelay, "ParaView 5.11", vtkPVGeneralSettings::GetAutoApplyDelay());
+  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
+  return generalSettings->GetAutoApplyDelay();
 }
 
 //-----------------------------------------------------------------------------
@@ -454,22 +444,22 @@ void pqPropertiesPanel::setView(pqView* pqview)
 }
 
 //-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
-void pqPropertiesPanel::setOutputPort(pqOutputPort* port)
-{
-  VTK_LEGACY_REPLACED_BODY(
-    pqPropertiesPanel::setOutputPort, "ParaView 5.9", pqPropertiesPanel::setPipelineProxy);
-  this->setPipelineProxy(port);
-}
-#endif
-
-//-----------------------------------------------------------------------------
 void pqPropertiesPanel::setPipelineProxy(pqProxy* proxy)
 {
   if (auto port = qobject_cast<pqOutputPort*>(proxy))
   {
+    this->Internals->SourcePort = port->getPortNumber();
     proxy = port->getSource();
   }
+  else if (proxy)
+  {
+    this->Internals->SourcePort = 0;
+  }
+  else
+  {
+    this->Internals->SourcePort = -1;
+  }
+
   this->updatePropertiesPanel(proxy);
   this->updateButtonState();
 }
@@ -478,26 +468,16 @@ void pqPropertiesPanel::setPipelineProxy(pqProxy* proxy)
 void pqPropertiesPanel::updatePanel()
 {
   auto& internals = (*this->Internals);
+  if (!internals.Source.isNull() && internals.SourcePort < 0)
+  {
+    internals.SourcePort = 0;
+  }
+
   this->updatePropertiesPanel(internals.Source);
   this->updateDisplayPanel(internals.Representation);
   this->updateViewPanel(internals.View);
   this->updateButtonState();
 }
-
-//-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
-void pqPropertiesPanel::updatePanel(pqOutputPort* port)
-{
-  VTK_LEGACY_BODY(pqPropertiesPanel::updatePanel, "ParaView 5.9");
-
-  // Determine if the proxy/repr has changed. If so, we have to recreate the
-  // entire panel, else we simply update the widgets.
-  this->setPipelineProxy(port);
-  this->updateDisplayPanel(port ? port->getRepresentation(this->view()) : nullptr);
-  this->updateViewPanel(this->view());
-  this->updateButtonState();
-}
-#endif
 
 //-----------------------------------------------------------------------------
 void pqPropertiesPanel::updatePropertiesPanel(pqProxy* source)
@@ -538,16 +518,20 @@ void pqPropertiesPanel::updatePropertiesPanel(pqProxy* source)
   // update widgets.
   if (source)
   {
+    auto sourceWidgets = this->Internals->SourceWidgets[source];
+
     this->Internals->Ui.PropertiesButton->setText(
       tr("Properties") + QString(" (%1)").arg(source->getSMName()));
-    this->Internals->SourceWidgets[source]->showWidgets(
-      this->Internals->Ui.SearchBox->isAdvancedSearchActive(),
+    sourceWidgets->showWidgets(this->Internals->Ui.SearchBox->isAdvancedSearchActive(),
       this->Internals->Ui.SearchBox->text());
 
-    if (pqPropertiesPanel::AutoApply)
+    // update interactive widgets specifically
+    if (this->Internals->SourcePort >= 0)
     {
-      this->Internals->triggerAutoApply();
+      sourceWidgets->Panel->showLinkedInteractiveWidget(this->Internals->SourcePort, true);
     }
+
+    Q_EMIT this->modified();
   }
   else
   {
@@ -710,9 +694,9 @@ void pqPropertiesPanel::sourcePropertyChanged(bool change_finished /*=true*/)
   {
     this->Internals->Source->setModifiedState(pqProxy::MODIFIED);
   }
-  if (pqPropertiesPanel::AutoApply && change_finished)
+  if (change_finished)
   {
-    this->Internals->triggerAutoApply();
+    Q_EMIT this->modified();
   }
   this->updateButtonState();
 }
@@ -729,7 +713,7 @@ void pqPropertiesPanel::updateButtonState()
   ui.Help->setEnabled(this->Internals->Source != nullptr);
   ui.Delete->setEnabled(isDeletable(this->Internals->Source));
 
-  foreach (const pqProxyWidgets* widgets, this->Internals->SourceWidgets)
+  Q_FOREACH (const pqProxyWidgets* widgets, this->Internals->SourceWidgets)
   {
     pqProxy* proxy = widgets->Proxy;
     if (proxy == nullptr)
@@ -838,7 +822,6 @@ void pqPropertiesPanel::apply()
   vtkVLogScopeFunction(PARAVIEW_LOG_APPLICATION_VERBOSITY());
 
   vtkTimerLog::MarkStartEvent("PropertiesPanel::Apply");
-  this->Internals->AutoApplyTimer.stop();
 
   BEGIN_UNDO_SET("Apply");
 
@@ -856,7 +839,7 @@ void pqPropertiesPanel::apply()
   }
   else
   {
-    foreach (pqProxyWidgets* widgets, this->Internals->SourceWidgets)
+    Q_FOREACH (pqProxyWidgets* widgets, this->Internals->SourceWidgets)
     {
       widgets->apply(this->view());
       Q_EMIT this->applied(widgets->Proxy);
@@ -874,8 +857,6 @@ void pqPropertiesPanel::apply()
 //-----------------------------------------------------------------------------
 void pqPropertiesPanel::reset()
 {
-  this->Internals->AutoApplyTimer.stop();
-
   bool onlyApplyCurrentPanel = vtkPVGeneralSettings::GetInstance()->GetAutoApplyActiveOnly();
   if (onlyApplyCurrentPanel)
   {
@@ -888,11 +869,12 @@ void pqPropertiesPanel::reset()
   }
   else
   {
-    foreach (pqProxyWidgets* widgets, this->Internals->SourceWidgets)
+    Q_FOREACH (pqProxyWidgets* widgets, this->Internals->SourceWidgets)
     {
       widgets->reset();
     }
   }
+  Q_EMIT this->resetDone();
 
   this->Internals->updateInformationAndDomains();
   this->updateButtonState();

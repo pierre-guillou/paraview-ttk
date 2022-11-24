@@ -50,17 +50,19 @@ vtkIVExporter::~vtkIVExporter()
 static char indent[256];
 static int indent_now = 0;
 #define VTK_INDENT_MORE                                                                            \
+  do                                                                                               \
   {                                                                                                \
     indent[indent_now] = ' ';                                                                      \
     indent_now += 4;                                                                               \
     indent[indent_now] = 0;                                                                        \
-  }
+  } while (false)
 #define VTK_INDENT_LESS                                                                            \
+  do                                                                                               \
   {                                                                                                \
     indent[indent_now] = ' ';                                                                      \
     indent_now -= 4;                                                                               \
     indent[indent_now] = 0;                                                                        \
-  }
+  } while (false)
 
 void vtkIVExporter::WriteData()
 {
@@ -337,7 +339,7 @@ void vtkIVExporter::WriteAnActor(vtkActor* anActor, FILE* fp)
     tempd[2] * tempf2);
   fprintf(fp, "%sshininess %g\n", indent, prop->GetSpecularPower() / 128.0);
   fprintf(fp, "%stransparency %g\n", indent, 1.0 - prop->GetOpacity());
-  fprintf(fp, "%s}\n", indent); // close matrial
+  fprintf(fp, "%s}\n", indent); // close material
   VTK_INDENT_LESS;
 
   // is there a texture map

@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkBezierHexahedron.h"
 
 #include "vtkBezierCurve.h"
@@ -113,18 +110,6 @@ vtkCell* vtkBezierHexahedron::GetFace(int faceId)
   }
 
   return result;
-}
-
-/**\brief EvaluateLocation Given a point_id. This is required by Bezier because the interior
- * points are non-interpolatory .
- */
-void vtkBezierHexahedron::EvaluateLocationProjectedNode(
-  int& subId, const vtkIdType point_id, double x[3], double* weights)
-{
-  this->vtkHigherOrderHexahedron::SetParametricCoords();
-  double pcoords[3];
-  this->PointParametricCoordinates->GetPoint(this->PointIds->FindIdLocation(point_id), pcoords);
-  this->vtkHigherOrderHexahedron::EvaluateLocation(subId, pcoords, x, weights);
 }
 
 /**\brief Populate the linear hex returned by GetApprox() with point-data from one voxel-like

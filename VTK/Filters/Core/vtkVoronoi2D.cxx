@@ -283,15 +283,8 @@ struct VTile
     sMaxIJ[1] = this->SpiralOrigin[1] + level;
 
     // If the spiral iterator covers the flower footprint then we are done.
-    if (sMinIJ[0] <= this->FMinIJ[0] && this->FMaxIJ[0] <= sMaxIJ[0] &&
-      sMinIJ[1] <= this->FMinIJ[1] && this->FMaxIJ[1] <= sMaxIJ[1])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+    return sMinIJ[0] <= this->FMinIJ[0] && this->FMaxIJ[0] <= sMaxIJ[0] &&
+      sMinIJ[1] <= this->FMinIJ[1] && this->FMaxIJ[1] <= sMaxIJ[1];
   }
 
   // Call to update the Voronoi flower footprint.
@@ -512,7 +505,6 @@ struct VTile
     int ij[2];
     vtkIdType bucket, i, ptId, nPts, numClips = 0, numClipAttempts = 0;
     vtkIdType prevNumClips, numPts = this->NPts;
-    ;
 
     // Use a spiral iterator to visit locator buckets starting at the bucket
     // containing the tile generating point, and then spiraling out and

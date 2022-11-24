@@ -13,7 +13,7 @@ from vtkmodules.web import (
 
 from vtkmodules.vtkCommonCore import vtkTypeUInt32Array
 from vtkmodules.vtkFiltersGeometry import vtkCompositeDataGeometryFilter
-from vtkmodules.vtkFiltersGeometry import vtkGeometryFilter
+from vtkmodules.vtkFiltersGeometry import vtkDataSetSurfaceFilter
 from vtkmodules.vtkRenderingCore import vtkColorTransferFunction
 
 
@@ -198,6 +198,9 @@ def initializeSerializers():
     registerInstanceSerializer("vtkOpenGLActor", genericActorSerializer)
     registerInstanceSerializer("vtkPVLODActor", genericActorSerializer)
 
+    # Volume/viewProps
+    registerInstanceSerializer("vtkVolume", genericVolumeSerializer)
+
     # Mappers
     registerInstanceSerializer("vtkMapper", genericMapperSerializer)
     registerInstanceSerializer("vtkDataSetMapper", genericMapperSerializer)
@@ -210,11 +213,19 @@ def initializeSerializers():
     registerJSClass("vtkOpenGLPolyDataMapper", "vtkMapper")
     registerJSClass("vtkCompositePolyDataMapper2", "vtkMapper")
 
+    registerInstanceSerializer("vtkVolumeMapper", genericVolumeMapperSerializer)
+    registerInstanceSerializer("vtkFixedPointVolumeRayCastMapper", genericVolumeMapperSerializer)
+    registerJSClass("vtkFixedPointVolumeRayCastMapper", "vtkVolumeMapper")
+
     # LookupTables/TransferFunctions
     registerInstanceSerializer("vtkLookupTable", lookupTableSerializer2)
     registerInstanceSerializer(
-        "vtkPVDiscretizableColorTransferFunction", colorTransferFunctionSerializer
+        "vtkPVDiscretizableColorTransferFunction", discretizableColorTransferFunctionSerializer
     )
+    registerInstanceSerializer(
+        "vtkColorTransferFunction", colorTransferFunctionSerializer
+    )
+    registerInstanceSerializer("vtkPiecewiseFunction", pwfSerializer)
 
     # Textures
     registerInstanceSerializer("vtkTexture", textureSerializer)
@@ -224,11 +235,17 @@ def initializeSerializers():
     registerInstanceSerializer("vtkProperty", propertySerializer)
     registerInstanceSerializer("vtkOpenGLProperty", propertySerializer)
 
+    # VolumeProperty
+    registerInstanceSerializer("vtkVolumeProperty", volumePropertySerializer)
+
     # Datasets
     registerInstanceSerializer("vtkPolyData", polydataSerializer)
     registerInstanceSerializer("vtkImageData", imagedataSerializer)
     registerInstanceSerializer("vtkUnstructuredGrid", mergeToPolydataSerializer)
     registerInstanceSerializer("vtkMultiBlockDataSet", mergeToPolydataSerializer)
+    registerInstanceSerializer("vtkStructuredPoints", imagedataSerializer)
+    registerJSClass("vtkStructuredPoints", "vtkImageData")
+
 
     # RenderWindows
     registerInstanceSerializer("vtkRenderWindow", renderWindowSerializer)
@@ -237,11 +254,13 @@ def initializeSerializers():
     registerInstanceSerializer("vtkWin32OpenGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkEGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkOpenVRRenderWindow", renderWindowSerializer)
+    registerInstanceSerializer("vtkOpenXRRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkGenericOpenGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkOSOpenGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkOpenGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkIOSRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkExternalOpenGLRenderWindow", renderWindowSerializer)
+    registerInstanceSerializer("vtkOffscreenOpenGLRenderWindow", renderWindowSerializer)
 
     # Renderers
     registerInstanceSerializer("vtkRenderer", rendererSerializer)
@@ -255,6 +274,10 @@ def initializeSerializers():
     registerInstanceSerializer("vtkLight", lightSerializer)
     registerInstanceSerializer("vtkPVLight", lightSerializer)
     registerInstanceSerializer("vtkOpenGLLight", lightSerializer)
+
+    # Annotations (ScalarBar/CubeAxes
+    registerInstanceSerializer("vtkCubeAxesActor", cubeAxesSerializer)
+    registerInstanceSerializer("vtkScalarBarActor", scalarBarActorSerializer)
 
 
 # -----------------------------------------------------------------------------
@@ -369,12 +392,17 @@ def extractRequiredFields(
                 if array_to_export is None:
                     array_to_export = dataset.GetCellData().GetScalars()
                 arrays_to_export.add(array_to_export)
+            if scalarVisibility and scalarMode == 0:
+              array_to_export = dataset.GetPointData().GetScalars()
+              if array_to_export is None:
+                    array_to_export = dataset.GetCellData().GetScalars()
+              arrays_to_export.add(array_to_export)
 
         if parent and parent.IsA("vtkTexture") and dataset.GetPointData().GetScalars():
             arrays_to_export.add(dataset.GetPointData().GetScalars())
 
         arrays_to_export.update(
-            [getattr(dataset.GetPointData(), "Get" + requestedField, lambda : None) for requestedField in requestedFields]
+            [getattr(dataset.GetPointData(), "Get" + requestedField, lambda : None)() for requestedField in requestedFields]
         )
 
     # Browse all arrays
@@ -478,6 +506,73 @@ def genericActorSerializer(parent, actor, actorId, context, depth):
 
     return None
 
+
+# -----------------------------------------------------------------------------
+
+
+def genericVolumeSerializer(parent, actor, actorId, context, depth):
+    # This kind of actor has two "children" of interest, a property and a
+    # mapper
+    actorVisibility = actor.GetVisibility()
+    mapperInstance = None
+    propertyInstance = None
+    calls = []
+    dependencies = []
+
+    if actorVisibility:
+        mapper = None
+        if not hasattr(actor, "GetMapper"):
+            if context.debugAll:
+                print("This actor does not have a GetMapper method")
+        else:
+            mapper = actor.GetMapper()
+
+        if mapper:
+            mapperId = getReferenceId(mapper)
+            mapperInstance = serializeInstance(
+                actor, mapper, mapperId, context, depth + 1
+            )
+            if mapperInstance:
+                dependencies.append(mapperInstance)
+                calls.append(["setMapper", [wrapId(mapperId)]])
+
+        prop = None
+        if hasattr(actor, "GetProperty"):
+            prop = actor.GetProperty()
+        else:
+            if context.debugAll:
+                print("This actor does not have a GetProperty method")
+
+        if prop:
+            propId = getReferenceId(prop)
+            propertyInstance = serializeInstance(
+                actor, prop, propId, context, depth + 1
+            )
+            if propertyInstance:
+                dependencies.append(propertyInstance)
+                calls.append(["setProperty", [wrapId(propId)]])
+
+    if actorVisibility == 0 or (mapperInstance and propertyInstance):
+        return {
+            "parent": getReferenceId(parent),
+            "id": actorId,
+            "type": class_name(actor),
+            "properties": {
+                # vtkProp
+                "visibility": actorVisibility,
+                "pickable": actor.GetPickable(),
+                "dragable": actor.GetDragable(),
+                "useBounds": actor.GetUseBounds(),
+                # vtkProp3D
+                "origin": actor.GetOrigin(),
+                "position": actor.GetPosition(),
+                "scale": actor.GetScale(),
+            },
+            "calls": calls,
+            "dependencies": dependencies,
+        }
+
+    return None
 
 # -----------------------------------------------------------------------------
 
@@ -604,6 +699,57 @@ def genericMapperSerializer(parent, mapper, mapperId, context, depth):
 # -----------------------------------------------------------------------------
 
 
+def genericVolumeMapperSerializer(parent, mapper, mapperId, context, depth):
+    # This kind of mapper requires us to get 2 items: input data and lookup
+    # table
+    dataObject = None
+    dataObjectInstance = None
+    lookupTableInstance = None
+    calls = []
+    dependencies = []
+
+    if hasattr(mapper, "GetInputDataObject"):
+        mapper.GetInputAlgorithm().Update()
+        dataObject = mapper.GetInputDataObject(0, 0)
+    else:
+        if context.debugAll:
+            print("This mapper does not have GetInputDataObject method")
+
+    if dataObject:
+        dataObjectId = "%s-dataset" % mapperId
+        dataObjectInstance = serializeInstance(
+            mapper, dataObject, dataObjectId, context, depth + 1
+        )
+
+        if dataObjectInstance:
+            dependencies.append(dataObjectInstance)
+            calls.append(["setInputData", [wrapId(dataObjectId)]])
+
+    if dataObjectInstance:
+        return {
+            "parent": getReferenceId(parent),
+            "id": mapperId,
+            "type": class_name(mapper),
+            "properties": {
+                # VolumeMapper
+                "sampleDistance": mapper.GetSampleDistance(),
+                "imageSampleDistance": mapper.GetImageSampleDistance(),
+                # "maximumSamplesPerRay": mapper.GetMaximumSamplesPerRay(),
+                "autoAdjustSampleDistances": mapper.GetAutoAdjustSampleDistances(),
+                "blendMode": mapper.GetBlendMode(),
+                # "ipScalarRange": mapper.GetIpScalarRange(),
+                # "filterMode": mapper.GetFilterMode(),
+                # "preferSizeOverAccuracy": mapper.Get(),
+            },
+            "calls": calls,
+            "dependencies": dependencies,
+        }
+
+    return None
+
+# -----------------------------------------------------------------------------
+
+
 def lookupTableSerializer(parent, lookupTable, lookupTableId, context, depth):
     # No children in this case, so no additions to bindings and return empty list
     # But we do need to add instance
@@ -715,6 +861,52 @@ def propertySerializer(parent, propObj, propObjId, context, depth):
         },
     }
 
+def volumePropertySerializer(parent, propObj, propObjId, context, depth):
+    calls = []
+    dependencies = []
+
+    # Color handling
+    lut = propObj.GetRGBTransferFunction()
+    if lut:
+        lookupTableId = getReferenceId(lut)
+        lookupTableInstance = serializeInstance(
+            propObj, lut, lookupTableId, context, depth + 1
+        )
+
+        if lookupTableInstance:
+            dependencies.append(lookupTableInstance)
+            calls.append(["setRGBTransferFunction", [0, wrapId(lookupTableId)]])
+
+    # Piecewise handling
+    pwf = propObj.GetScalarOpacity()
+    if pwf:
+        pwfId = getReferenceId(pwf)
+        pwfInstance = serializeInstance(
+            propObj, pwf, pwfId, context, depth + 1
+        )
+
+        if pwfInstance:
+            dependencies.append(pwfInstance)
+            calls.append(["setScalarOpacity", [0, wrapId(pwfId)]])
+
+    return {
+        "parent": getReferenceId(parent),
+        "id": propObjId,
+        "type": class_name(propObj),
+        "properties": {
+            "independentComponents": propObj.GetIndependentComponents(),
+            "interpolationType": propObj.GetInterpolationType(),
+            "shade": propObj.GetShade(),
+            "ambient": propObj.GetAmbient(),
+            "diffuse": propObj.GetDiffuse(),
+            "specular": propObj.GetSpecular(),
+            "specularPower": propObj.GetSpecularPower(),
+            # "useLabelOutline": propObj.GetUseLabelOutline(),
+            # "labelOutlineThickness": propObj.GetLabelOutlineThickness(),
+        },
+        "calls": calls,
+        "dependencies": dependencies,
+    }
 
 # -----------------------------------------------------------------------------
 
@@ -727,7 +919,7 @@ def imagedataSerializer(parent, dataset, datasetId, context, depth, requested_fi
 
     # Extract dataset fields
     fields = []
-    extractRequiredFields(fields, parent, dataset, context, requested_fields)
+    extractRequiredFields(fields, parent, dataset, context, "*")
 
     return {
         "parent": getReferenceId(parent),
@@ -810,7 +1002,7 @@ def mergeToPolydataSerializer(parent, dataObject, dataObjectId, context, depth, 
         gf.Update()
         dataset = gf.GetOutput()
     elif dataObject.IsA("vtkUnstructuredGrid"):
-        gf = vtkGeometryFilter()
+        gf = vtkDataSetSurfaceFilter()
         gf.SetInputData(dataObject)
         gf.Update()
         dataset = gf.GetOutput()
@@ -855,6 +1047,193 @@ def colorTransferFunctionSerializer(parent, instance, objId, context, depth):
         },
     }
 
+def discretizableColorTransferFunctionSerializer(parent, instance, objId, context, depth):
+    ctf = colorTransferFunctionSerializer(parent, instance, objId, context, depth)
+    ctf["properties"]["discretize"] = instance.GetDiscretize()
+    ctf["properties"]["numberOfValues"] = instance.GetNumberOfValues()
+    return ctf
+
+# -----------------------------------------------------------------------------
+
+def pwfSerializer(parent, instance, objId, context, depth):
+    nodes = []
+
+    for i in range(instance.GetSize()):
+        # x, y, midpoint, sharpness
+        node = [0, 0, 0, 0]
+        instance.GetNodeValue(i, node)
+        nodes.append(node)
+
+    return {
+        "parent": getReferenceId(parent),
+        "id": objId,
+        "type": class_name(instance),
+        "properties": {
+            "range": list(instance.GetRange()),
+            "clamping": instance.GetClamping(),
+            "allowDuplicateScalars": instance.GetAllowDuplicateScalars(),
+            "nodes": nodes,
+        },
+    }
+
+# -----------------------------------------------------------------------------
+
+def cubeAxesSerializer(parent, actor, actorId, context, depth):
+    """
+    Possible add-on properties for vtk.js:
+        gridLines: True,
+        axisLabels: None,
+        axisTitlePixelOffset: 35.0,
+        axisTextStyle: {
+            fontColor: 'white',
+            fontStyle: 'normal',
+            fontSize: 18,
+            fontFamily: 'serif',
+        },
+        tickLabelPixelOffset: 12.0,
+        tickTextStyle: {
+            fontColor: 'white',
+            fontStyle: 'normal',
+            fontSize: 14,
+            fontFamily: 'serif',
+        },
+    """
+    axisLabels = ["", "", ""]
+    if actor.GetXAxisLabelVisibility():
+        axisLabels[0] = actor.GetXTitle()
+    if actor.GetYAxisLabelVisibility():
+        axisLabels[1] = actor.GetYTitle()
+    if actor.GetZAxisLabelVisibility():
+        axisLabels[2] = actor.GetZTitle()
+
+    return {
+        "parent": getReferenceId(parent),
+        "id": actorId,
+        "type": "vtkCubeAxesActor",
+        "properties": {
+            # vtkProp
+            "visibility": actor.GetVisibility(),
+            "pickable": actor.GetPickable(),
+            "dragable": actor.GetDragable(),
+            "useBounds": actor.GetUseBounds(),
+            # vtkProp3D
+            "origin": actor.GetOrigin(),
+            "position": actor.GetPosition(),
+            "scale": actor.GetScale(),
+            # vtkActor
+            "forceOpaque": actor.GetForceOpaque(),
+            "forceTranslucent": actor.GetForceTranslucent(),
+            # vtkCubeAxesActor
+            "dataBounds": actor.GetBounds(),
+            "faceVisibilityAngle": 8,
+            "gridLines": True,
+            "axisLabels": axisLabels,
+            "axisTitlePixelOffset": 35.0,
+            "axisTextStyle": {
+                "fontColor": "white",
+                "fontStyle": "normal",
+                "fontSize": 18,
+                "fontFamily": "serif",
+            },
+            "tickLabelPixelOffset": 12.0,
+            "tickTextStyle": {
+                "fontColor": "white",
+                "fontStyle": "normal",
+                "fontSize": 14,
+                "fontFamily": "serif",
+            },
+        },
+        "calls": [["setCamera", [wrapId(getReferenceId(actor.GetCamera()))]]],
+        "dependencies": [],
+    }
+
+# -----------------------------------------------------------------------------
+
+def scalarBarActorSerializer(parent, actor, actorId, context, depth):
+    dependencies = []
+    calls = []
+    lut = actor.GetLookupTable()
+    if not lut:
+        return None
+
+    lutId = getReferenceId(lut)
+    lutInstance = serializeInstance(actor, lut, lutId, context, depth + 1)
+    if not lutInstance:
+        return None
+
+    dependencies.append(lutInstance)
+    calls.append(["setScalarsToColors", [wrapId(lutId)]])
+
+    prop = None
+    if hasattr(actor, "GetProperty"):
+        prop = actor.GetProperty()
+    else:
+        if context.debugAll:
+            print("This scalarBarActor does not have a GetProperty method")
+
+        if prop:
+            propId = getReferenceId(prop)
+            propertyInstance = serializeInstance(
+                actor, prop, propId, context, depth + 1
+            )
+            if propertyInstance:
+                dependencies.append(propertyInstance)
+                calls.append(["setProperty", [wrapId(propId)]])
+
+    axisLabel = actor.GetTitle()
+    width = actor.GetWidth()
+    height = actor.GetHeight()
+
+    # axisTitlePixelOffset = actor.GetTextPad()
+    # position = actor.GetPosition()
+    # position2 = actor.GetPosition2()
+    # print(f'axisTitlePixelOffset: {axisTitlePixelOffset}')
+    # print(f'axisLabel: {axisLabel}')
+    # print(f'width: {width}')
+    # print(f'height: {height}')
+    # print(f'position: {position}')
+    # print(f'position2: {position2}')
+
+    return {
+        "parent": getReferenceId(parent),
+        "id": actorId,
+        "type": "vtkScalarBarActor",
+        "properties": {
+            # vtkProp
+            "visibility": actor.GetVisibility(),
+            "pickable": actor.GetPickable(),
+            "dragable": actor.GetDragable(),
+            "useBounds": actor.GetUseBounds(),
+            # vtkActor2D
+            # "position": actor.GetPosition(),
+            # "position2": actor.GetPosition2(),
+            # "width": actor.GetWidth(),
+            # "height": actor.GetHeight(),
+            # vtkScalarBarActor
+            "automated": True,
+            "axisLabel": axisLabel,
+            # 'barPosition': [0, 0],
+            # 'barSize': [0, 0],
+            "boxPosition": [0.88, -0.92],
+            "boxSize": [width, height],
+            "axisTitlePixelOffset": 36.0,
+            "axisTextStyle": {
+                "fontColor": "white",
+                "fontStyle": "normal",
+                "fontSize": 18,
+                "fontFamily": "serif",
+            },
+            "tickLabelPixelOffset": 14.0,
+            "tickTextStyle": {
+                "fontColor": "white",
+                "fontStyle": "normal",
+                "fontSize": 14,
+                "fontFamily": "serif",
+            },
+        },
+        "calls": calls,
+        "dependencies": dependencies,
+    }
 
 # -----------------------------------------------------------------------------
 

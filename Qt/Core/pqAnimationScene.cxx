@@ -88,8 +88,10 @@ pqAnimationScene::pqAnimationScene(const QString& group, const QString& name, vt
     proxy->GetProperty("Cues"), vtkCommand::ModifiedEvent, this, SLOT(onCuesChanged()));
   connector->Connect(animationScene, vtkCommand::AnimationCueTickEvent, this,
     SLOT(onTick(vtkObject*, unsigned long, void*, void*)));
-  connector->Connect(animationScene, vtkCommand::StartEvent, this, SIGNAL(beginPlay()));
-  connector->Connect(animationScene, vtkCommand::EndEvent, this, SIGNAL(endPlay()));
+  connector->Connect(animationScene, vtkCommand::StartEvent, this,
+    SIGNAL(beginPlay(vtkObject*, unsigned long, void*, void*)));
+  connector->Connect(animationScene, vtkCommand::EndEvent, this,
+    SIGNAL(endPlay(vtkObject*, unsigned long, void*, void*)));
 
   connector->Connect(
     proxy->GetProperty("PlayMode"), vtkCommand::ModifiedEvent, this, SIGNAL(playModeChanged()));
@@ -156,14 +158,14 @@ void pqAnimationScene::onCuesChanged()
   QSet<QPointer<pqAnimationCue>> added = currentCues - this->Internals->Cues;
   QSet<QPointer<pqAnimationCue>> removed = this->Internals->Cues - currentCues;
 
-  foreach (pqAnimationCue* cue, removed)
+  Q_FOREACH (pqAnimationCue* cue, removed)
   {
     Q_EMIT this->preRemovedCue(cue);
     this->Internals->Cues.remove(cue);
     Q_EMIT this->removedCue(cue);
   }
 
-  foreach (pqAnimationCue* cue, added)
+  Q_FOREACH (pqAnimationCue* cue, added)
   {
     Q_EMIT this->preAddedCue(cue);
     this->Internals->Cues.insert(cue);
@@ -186,7 +188,7 @@ bool pqAnimationScene::contains(pqAnimationCue* cue) const
 QSet<pqAnimationCue*> pqAnimationScene::getCues() const
 {
   QSet<pqAnimationCue*> ret;
-  foreach (pqAnimationCue* cue, this->Internals->Cues)
+  Q_FOREACH (pqAnimationCue* cue, this->Internals->Cues)
   {
     ret.insert(cue);
   }
@@ -197,7 +199,7 @@ QSet<pqAnimationCue*> pqAnimationScene::getCues() const
 pqAnimationCue* pqAnimationScene::getCue(
   vtkSMProxy* proxy, const char* propertyname, int index) const
 {
-  foreach (pqAnimationCue* pqCue, this->Internals->Cues)
+  Q_FOREACH (pqAnimationCue* pqCue, this->Internals->Cues)
   {
     vtkSMProxy* cue = pqCue->getProxy();
     vtkSMProxy* animatedProxy = pqSMAdaptor::getProxyProperty(cue->GetProperty("AnimatedProxy"));
@@ -422,7 +424,7 @@ void pqAnimationScene::removeCues(vtkSMProxy* animated_proxy)
     }
   }
   vtkSMProxy* sceneProxy = this->getProxy();
-  foreach (pqAnimationCue* cue, toRemove)
+  Q_FOREACH (pqAnimationCue* cue, toRemove)
   {
     if (cue)
     {
@@ -433,7 +435,7 @@ void pqAnimationScene::removeCues(vtkSMProxy* animated_proxy)
 
   pqObjectBuilder* builder = pqApplicationCore::instance()->getObjectBuilder();
 
-  foreach (pqAnimationCue* cue, toRemove)
+  Q_FOREACH (pqAnimationCue* cue, toRemove)
   {
     // When the Cue is removed, the manipulator proxy as well as the keyframes
     // get unregistered automatically, since we've registered them as internal

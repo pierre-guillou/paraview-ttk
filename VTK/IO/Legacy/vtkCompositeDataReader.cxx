@@ -361,7 +361,7 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkOverlappingAMR* oamr)
   }
 
   // initialize the AMR.
-  oamr->Initialize(num_levels, &blocksPerLevel[0]);
+  oamr->Initialize(num_levels, blocksPerLevel.data());
   oamr->SetGridDescription(description);
   oamr->SetOrigin(origin);
   for (int cc = 0; cc < num_levels; cc++)
@@ -586,6 +586,14 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkPartitionedDataSet* mp)
     // eat up the "\n" and other whitespace at the end of CHILD <type>.
     this->ReadLine(line);
 
+    // if "line" has text enclosed in [] then that's the composite name.
+    vtksys::RegularExpression regEx("\\s*\\[(.*)\\]");
+    if (regEx.find(line))
+    {
+      std::string name = regEx.match(1);
+      mp->GetMetaData(cc)->Set(vtkCompositeDataSet::NAME(), name.c_str());
+    }
+
     if (type != -1)
     {
       vtkDataObject* child = this->ReadChild();
@@ -647,6 +655,14 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkPartitionedDataSetCollection* 
     }
     // eat up the "\n" and other whitespace at the end of CHILD <type>.
     this->ReadLine(line);
+
+    // if "line" has text enclosed in [] then that's the composite name.
+    vtksys::RegularExpression regEx("\\s*\\[(.*)\\]");
+    if (regEx.find(line))
+    {
+      std::string name = regEx.match(1);
+      mp->GetMetaData(cc)->Set(vtkCompositeDataSet::NAME(), name.c_str());
+    }
 
     if (type != -1)
     {

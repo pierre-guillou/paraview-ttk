@@ -49,14 +49,25 @@ class vtkIndent;
 class PQCORE_EXPORT pqServerConfiguration
 {
 public:
+  /**
+   * Create an empty server configuration with the default name.
+   */
   pqServerConfiguration();
+
+  /**
+   * Default destructor
+   */
   ~pqServerConfiguration();
 
   /**
-   * Create a server configuration with the provided xml and timeout.
-   * the timeout is in seconds, 0 means no retry and -1 means infinite retries.
+   * Create an empty server configuration with a provided name.
    */
-  pqServerConfiguration(vtkPVXMLElement* xml, int connectionTimeout = 60);
+  pqServerConfiguration(const QString& name);
+
+  /**
+   * Create a server configuration with the provided xml.
+   */
+  pqServerConfiguration(vtkPVXMLElement* xml);
 
   /**
    * Get/Set whether the configuration is mutable. This variable is not
@@ -79,6 +90,11 @@ public:
   bool isNameDefault() const;
 
   /**
+   * Returns the default name of a server configuration.
+   */
+  static QString defaultName();
+
+  /**
    * Get/Set the resource that describes the server scheme, hostname(s) and port(s).
    */
   pqServerResource resource() const;
@@ -92,20 +108,21 @@ public:
    * which can be different than the server where the pvserver is running.
    * eg. it will give you localhost:8080, instead of serverip:serverport when using port forwarding.
    * Using this method is needed only when using low level tcp api.
-   * ressource() method should be used in any other cases.
+   * resource() method should be used in any other cases.
    */
-  pqServerResource actualResource() const;
+  pqServerResource actualResource();
 
   /**
-   * get the resource URI
+   * get the resource URI, does not contain the server name
    */
   QString URI() const;
 
   /**
    * Get/Set the timeout in seconds that will be used when connecting
    * 0 means no retry and -1 means infinite retries.
+   * If not set in the XML, the defaultTimeout is retuned.
    */
-  int connectionTimeout() const;
+  int connectionTimeout(int defaultTimeout = 60) const;
   void setConnectionTimeout(int connectionTimeout);
 
   /**
@@ -125,23 +142,29 @@ public:
   StartupType startupType() const;
 
   /**
-   * If startupType() == COMMAND, then this method can be used to obtain the
-   * command for the startup, from the client side.
-   * Note that this does not include any information options etc. that may be
-   * specified in the startup.
-   * This is the full command to be executed on the client, which includes
-   * xterm, ssh...
+   * If startupType() == COMMAND, then this method can be used to obtain
+   * the command for the startup, from the client side.
+   * Note that this does not include any information options etc.
+   * that may be specified in the startup.
+   * This is the full command to be executed on the client,
+   * which includes xterm, ssh...
+   * This also recovers processWait and delay attributes.
+   * processWait is the amount of time to wait for the process to start in seconds.
+   * delay is the amount of time wait for the process to finish, -1 means infinite wait.
    */
-  QString command(double& timeout, double& delay) const;
+  QString command(double& processWait, double& delay) const;
 
   /**
-   * If startupType() == COMMAND, then this method can be used to obtain the
-   * command for the startup, on the remote server, contained in the exec
-   * attributes.
-   * Note that this does not include any information options etc. that may be
-   * specified in the startup. This also recovers timeout and delay attributes.
+   * If startupType() == COMMAND, then this method can be used to obtain
+   * the command for the startup, on the remote server,
+   * contained in the exec attributes.
+   * Note that this does not include any information options etc.
+   * that may be specified in the startup.
+   * This also recovers processWait and delay attributes.
+   * processWait is the amount of time to wait for the process to start in seconds.
+   * delay is the amount of time wait for the process to finish, -1 means infinite wait.
    */
-  QString execCommand(double& timeout, double& delay) const;
+  QString execCommand(double& processWait, double& delay) const;
 
   /**
    * changes the startup type to manual.
@@ -151,7 +174,7 @@ public:
   /**
    * changes the startup type to command.
    */
-  void setStartupToCommand(double timeout, double delay, const QString& command);
+  void setStartupToCommand(double processWait, double delay, const QString& command);
 
   /**
    * serialize to a string.
@@ -183,7 +206,7 @@ public:
   /**
    * Get the port forwarding local port.
    * Initialized by the server xml if port forwarding is used.
-   * Equal to the ressource port if port forwarding is not used.
+   * Equal to the resource port if port forwarding is not used.
    */
   QString portForwardingLocalPort() const;
 
@@ -198,12 +221,12 @@ protected:
   static QString lookForCommand(QString command);
 
 private:
-  void constructor(vtkPVXMLElement*, int connectionTimeout = 60);
-  bool Mutable;
-  int ConnectionTimeout;
+  void constructor(const QString& name);
+  void constructor(vtkPVXMLElement*);
+  bool Mutable = true;
   vtkSmartPointer<vtkPVXMLElement> XML;
-  bool PortForwarding;
-  bool SSHCommand;
+  bool PortForwarding = false;
+  bool SSHCommand = false;
   QString PortForwardingLocalPort;
   QString ActualURI;
 };

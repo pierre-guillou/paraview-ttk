@@ -50,19 +50,6 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   *  A stub method that is called from ParaView.
-   *  Additional logic can be implemented here.
-   *  Example of usage (3dwidgets_remotingviews.xml):
-   *
-   * \code
-   *     <Proxy class="vtkEqualizerContextItem"
-   *       name="EqualizerContextItem"
-   *       post_creation="InstantiateHandleRepresentation">
-   * \endcode
-   */
-  void InstantiateHandleRepresentation() {}
-
-  /**
    * Paint event for the item, called whenever the item needs to be drawn.
    */
   bool Paint(vtkContext2D* painter) override;
@@ -107,13 +94,7 @@ public:
    */
   bool MouseButtonReleaseEvent(const vtkContextMouseEvent& mouse) override;
 
-  /**
-   * Set the vtkContextScene for the item, always set for an item in a scene.
-   * After setting the scene calls the Modified() method.
-   */
-  void SetScene(vtkContextScene* scene) override;
-
-  //@{
+  ///@{
   /**
    * Set / Get anchor points in the following format
    * "P1x,P1y;P2x,P2y; ... PNx,PNy;"
@@ -123,7 +104,7 @@ public:
    */
   void SetPoints(const std::string& points);
   std::string GetPoints() const;
-  //@}
+  ///@}
 
 protected:
   enum MouseStates

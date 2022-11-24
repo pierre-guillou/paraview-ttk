@@ -67,6 +67,12 @@ bool vtkMergeTimeFilter::AreTimesWithinTolerance(double t1, double t2)
 double vtkMergeTimeFilter::MapToInputTime(int input, double outputTime)
 {
   double inputTime = outputTime;
+  if (this->InputsTimeSteps[input].empty())
+  {
+    // input has no time info, return the one asked by the pipeline.
+    return inputTime;
+  }
+
   for (double time : this->InputsTimeSteps[input])
   {
     if (this->AreTimesWithinTolerance(time, outputTime))
@@ -94,7 +100,7 @@ void vtkMergeTimeFilter::MergeTimeSteps(const std::vector<double>& timeSteps)
   for (double newTime : timeSteps)
   {
     // lambda to find TimeStep in the list, depending on Tolerance.
-    auto insideTolerance = [=](double outputTime) {
+    auto insideTolerance = [this, newTime](double outputTime) {
       return this->AreTimesWithinTolerance(outputTime, newTime);
     };
 
@@ -150,26 +156,26 @@ int vtkMergeTimeFilter::RequestInformation(vtkInformation* vtkNotUsed(request),
   for (int i = 0; i < numInputs; i++)
   {
     vtkInformation* inInfo = inputVector[0]->GetInformationObject(i);
+    std::vector<double> originalTimeSteps;
     if (inInfo->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
     {
       double* inputTimes = inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
       int nbOfTimes = inInfo->Length(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
-      std::vector<double> originalTimeSteps;
       for (int idx = 0; idx < nbOfTimes; idx++)
       {
         double toInsert = inputTimes[idx];
         originalTimeSteps.push_back(toInsert);
       }
-      this->InputsTimeSteps.push_back(originalTimeSteps);
-      this->MergeTimeSteps(originalTimeSteps);
     }
+    this->InputsTimeSteps.push_back(originalTimeSteps);
+    this->MergeTimeSteps(originalTimeSteps);
   }
 
   if (!this->OutputTimeSteps.empty())
   {
     double outRange[2] = { this->OutputTimeSteps.front(), this->OutputTimeSteps.back() };
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), outRange, 2);
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->OutputTimeSteps[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->OutputTimeSteps.data(),
       static_cast<int>(this->OutputTimeSteps.size()));
   }
 
@@ -199,9 +205,12 @@ int vtkMergeTimeFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
     this->RequestedTimeValue = timeValue;
     for (int i = 0; i < numInputs; i++)
     {
-      double requestedTimeForInput = this->MapToInputTime(i, timeValue);
       vtkInformation* inInfo = inputVector[0]->GetInformationObject(i);
-      inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP(), requestedTimeForInput);
+      if (inInfo->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
+      {
+        double requestedTimeForInput = this->MapToInputTime(i, timeValue);
+        inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP(), requestedTimeForInput);
+      }
     }
   }
   else

@@ -140,7 +140,7 @@ int vtkHyperTreeGridThreshold::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObje
   {
     output->ShallowCopy(input);
 
-    this->OutMask->SetNumberOfTuples(output->GetNumberOfVertices());
+    this->OutMask->SetNumberOfTuples(output->GetNumberOfCells());
 
     // Iterate over all input and output hyper trees
     vtkIdType outIndex;
@@ -238,7 +238,7 @@ bool vtkHyperTreeGridThreshold::RecursivelyProcessTree(
     int numChildren = inCursor->GetNumberOfChildren();
     for (int ichild = 0; ichild < numChildren; ++ichild)
     {
-      // Descend into child in intput grid as well
+      // Descend into child in input grid as well
       inCursor->ToChild(ichild);
       // Descend into child in output grid as well
       outCursor->ToChild(ichild);

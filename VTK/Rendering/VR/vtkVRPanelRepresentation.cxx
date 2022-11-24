@@ -23,7 +23,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkTextProperty.h"
 #include "vtkTransform.h"
 #include "vtkVRRenderWindow.h"
-#include "vtkVectorOperators.h"
 
 // TODO
 // - add option to remove crop planes
@@ -371,10 +370,11 @@ void vtkVRPanelRepresentation::ComputeMatrix(vtkRenderer* ren)
       ? vtkEventDataDevice::LeftController
       : vtkEventDataDevice::RightController;
 
-    vtkNew<vtkMatrix4x4> poseMatrixWorld;
-    if (rw->GetPoseMatrixWorldFromDevice(device, poseMatrixWorld))
+    vtkNew<vtkMatrix4x4> deviceToWorldMatrix;
+    if (rw->GetDeviceToWorldMatrixForDevice(device, deviceToWorldMatrix))
     {
-      this->TextActor->GetUserMatrix()->DeepCopy(poseMatrixWorld);
+      // transform the text to the devices location in world coordinates
+      this->TextActor->GetUserMatrix()->DeepCopy(deviceToWorldMatrix);
     }
   }
 }
@@ -388,7 +388,7 @@ int vtkVRPanelRepresentation::RenderOpaqueGeometry(vtkViewport* v)
   }
 
   // make sure the device has the same matrix
-  if (true /* HMD coords */)
+  // if (true /* HMD coords * /)
   {
     vtkRenderer* ren = static_cast<vtkRenderer*>(v);
     this->ComputeMatrix(ren);

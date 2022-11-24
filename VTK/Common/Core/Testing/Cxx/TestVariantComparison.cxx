@@ -46,8 +46,8 @@ int TestVariantComparison(int, char*[])
   unsigned long unsignedLong = (static_cast<unsigned long>(1) << shiftAmountLong) * 3;
   vtkTypeUInt64 unsigned64 = 3 * (static_cast<vtkTypeUInt64>(1) << shiftAmount64);
 
-  vtkStdString numberString("100000");
-  vtkStdString alphaString("ABCDEFG");
+  std::string numberString("100000");
+  std::string alphaString("ABCDEFG");
 
   float positiveFloat = 12345.678;
   float negativeFloat = -12345.678;
@@ -93,22 +93,24 @@ int TestVariantComparison(int, char*[])
   int overallErrorCount = 0;
 
 #define CHECK_EXPRESSION_FALSE(expr)                                                               \
+  do                                                                                               \
   {                                                                                                \
     if ((expr))                                                                                    \
     {                                                                                              \
       ++errorCount;                                                                                \
       cerr << "TEST FAILED: " << #expr << " should have been false\n\n";                           \
     }                                                                                              \
-  }
+  } while (false)
 
 #define CHECK_EXPRESSION_TRUE(expr)                                                                \
+  do                                                                                               \
   {                                                                                                \
     if (!(expr))                                                                                   \
     {                                                                                              \
       ++errorCount;                                                                                \
       cerr << "TEST FAILED: " << #expr << " should have been true\n\n";                            \
     }                                                                                              \
-  }
+  } while (false)
 
   cerr << "Testing same-type comparisons... ";
   CHECK_EXPRESSION_FALSE(positiveCharVariant < negativeCharVariant);
@@ -207,7 +209,7 @@ int TestVariantComparison(int, char*[])
   vtkTypeInt64 i64 = 100;
   float f = 100;
   double d = 100;
-  vtkStdString str("100");
+  std::string str("100");
 
   CHECK_EXPRESSION_TRUE(vtkVariant(c) == vtkVariant(s));
   CHECK_EXPRESSION_TRUE(vtkVariant(c) == vtkVariant(i));
@@ -256,7 +258,7 @@ int TestVariantComparison(int, char*[])
 
   cerr << "Testing vtkVariant as STL map key... ";
 
-  std::map<vtkVariant, vtkStdString> TestMap;
+  std::map<vtkVariant, std::string> TestMap;
 
   TestMap[vtkVariant(s)] = "short";
   TestMap[vtkVariant(i)] = "int";
@@ -285,7 +287,7 @@ int TestVariantComparison(int, char*[])
 
   // This one should treat variants containing different types as
   // unequal.
-  std::map<vtkVariant, vtkStdString, vtkVariantStrictWeakOrder> TestMap2;
+  std::map<vtkVariant, std::string, vtkVariantStrictWeakOrder> TestMap2;
   TestMap2[vtkVariant()] = "invalid";
   TestMap2[vtkVariant(s)] = "short";
   TestMap2[vtkVariant(i)] = "int";

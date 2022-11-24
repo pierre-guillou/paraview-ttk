@@ -29,7 +29,13 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================*/
+
+// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
+
 #include "pqApplicationCore.h"
+
+#include "pqQtConfig.h" // for PARAVIEW_USE_QTHELP
 
 #include <vtksys/SystemTools.hxx>
 
@@ -37,9 +43,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QApplication>
 #include <QDebug>
 #include <QFile>
-#ifdef PARAVIEW_USE_QTHELP
-#include <QHelpEngine>
-#endif
 #include <QMainWindow>
 #include <QMap>
 #include <QPointer>
@@ -59,6 +62,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqLinksModel.h"
 #include "pqMainWindowEventManager.h"
 #include "pqObjectBuilder.h"
+#include "pqOptions.h"
 #include "pqPipelineFilter.h"
 #include "pqPluginManager.h"
 #include "pqProgressManager.h"
@@ -76,6 +80,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCLIOptions.h"
 #include "vtkCommand.h"
 #include "vtkInitializationHelper.h"
+#include "vtkLegacy.h"
 #include "vtkPVGeneralSettings.h"
 #include "vtkPVLogger.h"
 #include "vtkPVPluginTracker.h"
@@ -97,8 +102,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
 
-#if !defined(VTK_LEGACY_REMOVE)
-#include "pqOptions.h"
+#ifdef PARAVIEW_USE_QTHELP
+#include <QHelpEngine>
 #endif
 
 //-----------------------------------------------------------------------------
@@ -118,24 +123,19 @@ pqApplicationCore* pqApplicationCore::instance()
 }
 
 //-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 pqApplicationCore::pqApplicationCore(
   int& argc, char** argv, pqOptions* options, QObject* parentObject)
   : pqApplicationCore(argc, argv, static_cast<vtkCLIOptions*>(nullptr), true, parentObject)
 {
   this->setOptions(options);
 }
-#endif
 
-#if !defined(VTK_LEGACY_REMOVE)
 //-----------------------------------------------------------------------------
 void pqApplicationCore::setOptions(pqOptions* options)
 {
   this->Options = options;
   vtkProcessModule::GetProcessModule()->SetOptions(this->Options);
 }
-
-#endif
 
 //-----------------------------------------------------------------------------
 pqApplicationCore::pqApplicationCore(int& argc, char** argv, vtkCLIOptions* options /*=nullptr*/,
@@ -164,10 +164,8 @@ pqApplicationCore::pqApplicationCore(int& argc, char** argv, vtkCLIOptions* opti
     throw pqApplicationCoreExitCode(vtkInitializationHelper::GetExitCode());
   }
 
-#if !defined(VTK_LEGACY_REMOVE)
   this->Options = vtk::TakeSmartPointer(pqOptions::New());
   vtkProcessModule::GetProcessModule()->SetOptions(this->Options);
-#endif
 
   this->constructor();
 }
@@ -183,9 +181,7 @@ void pqApplicationCore::constructor()
   this->RecentlyUsedResourcesList = nullptr;
   this->ServerConfigurations = nullptr;
   this->Settings = nullptr;
-#ifdef PARAVIEW_USE_QTHELP
   this->HelpEngine = nullptr;
-#endif
 
   // initialize statics in case we're a static library
   pqCoreInit();
@@ -280,15 +276,15 @@ pqApplicationCore::~pqApplicationCore()
   delete this->Settings;
   this->Settings = nullptr;
 
-#ifdef PARAVIEW_USE_QTHELP
   if (this->HelpEngine)
   {
+#ifdef PARAVIEW_USE_QTHELP
     QString collectionFile = this->HelpEngine->collectionFile();
     delete this->HelpEngine;
     QFile::remove(collectionFile);
+#endif
   }
   this->HelpEngine = nullptr;
-#endif
 
   // We don't call delete on these since we have already setup parent on these
   // correctly so they will be deleted. It's possible that the user calls delete
@@ -310,13 +306,11 @@ pqApplicationCore::~pqApplicationCore()
 }
 
 //-----------------------------------------------------------------------------
-#if !defined(VTK_LEGACY_REMOVE)
 pqOptions* pqApplicationCore::getOptions() const
 {
   VTK_LEGACY_BODY(pqApplicationCore::getOptions, "ParaView 5.10");
   return this->Options;
 }
-#endif
 
 //-----------------------------------------------------------------------------
 void pqApplicationCore::setUndoStack(pqUndoStack* stack)
@@ -420,7 +414,7 @@ void pqApplicationCore::clearViewsForLoadingState(pqServer* server)
   BEGIN_UNDO_EXCLUDE();
   QList<pqProxy*> proxies = this->ServerManagerModel->findItems<pqProxy*>(server);
   QList<QPointer<pqProxy>> to_destroy;
-  foreach (pqProxy* proxy, proxies)
+  Q_FOREACH (pqProxy* proxy, proxies)
   {
     pqView* view = qobject_cast<pqView*>(proxy);
     if (view)
@@ -432,7 +426,7 @@ void pqApplicationCore::clearViewsForLoadingState(pqServer* server)
       to_destroy.push_back(proxy);
     }
   }
-  foreach (pqProxy* cur, to_destroy)
+  Q_FOREACH (pqProxy* cur, to_destroy)
   {
     pqView* view = qobject_cast<pqView*>(cur);
     if (view)
@@ -499,7 +493,7 @@ void pqApplicationCore::onStateLoaded(vtkPVXMLElement* root, vtkSMProxyLocator* 
   // the scenes gets pushed before StartTime and EndTime and as a consequence
   // the scene may not even result in the animation time being set as expected.
   QList<pqAnimationScene*> scenes = this->getServerManagerModel()->findItems<pqAnimationScene*>();
-  foreach (pqAnimationScene* scene, scenes)
+  Q_FOREACH (pqAnimationScene* scene, scenes)
   {
     scene->getProxy()->UpdateProperty("AnimationTime", 1);
   }
@@ -587,7 +581,7 @@ void pqApplicationCore::clearSettings()
 void pqApplicationCore::render()
 {
   QList<pqView*> list = this->ServerManagerModel->findItems<pqView*>();
-  foreach (pqView* view, list)
+  Q_FOREACH (pqView* view, list)
   {
     view->render();
   }
@@ -603,7 +597,7 @@ pqServer* pqApplicationCore::getActiveServer() const
 //-----------------------------------------------------------------------------
 void pqApplicationCore::prepareForQuit()
 {
-  foreach (pqServer* server, this->getServerManagerModel()->findChildren<pqServer*>())
+  Q_FOREACH (pqServer* server, this->getServerManagerModel()->findChildren<pqServer*>())
   {
     server->session()->PreDisconnection();
   }
@@ -613,7 +607,7 @@ void pqApplicationCore::prepareForQuit()
   // fired until the event loop exits, which doesn't happen until animation
   // stops playing.
   QList<pqAnimationScene*> scenes = this->getServerManagerModel()->findItems<pqAnimationScene*>();
-  foreach (pqAnimationScene* scene, scenes)
+  Q_FOREACH (pqAnimationScene* scene, scenes)
   {
     scene->pause();
   }
@@ -656,10 +650,7 @@ void pqApplicationCore::loadConfigurationXML(const char* xmldata)
   // processing everytime the session startsup?
   vtkPVXMLElement* root = parser->GetRootElement();
 
-  // Load configuration files for server manager components since they don't
-  // listen to Qt signals.
-  vtkSMProxyManager::GetProxyManager()->GetReaderFactory()->UpdateAvailableReaders();
-  vtkSMProxyManager::GetProxyManager()->GetWriterFactory()->UpdateAvailableWriters();
+  this->updateAvailableReadersAndWriters();
 
   // Give a warning that if there is ParaViewReaders or ParaViewWriters in root
   // that it has been changed and people should change their code accordingly.
@@ -678,6 +669,15 @@ void pqApplicationCore::loadConfigurationXML(const char* xmldata)
 }
 
 //-----------------------------------------------------------------------------
+void pqApplicationCore::updateAvailableReadersAndWriters()
+{
+  // Load configuration files for server manager components since they don't
+  // listen to Qt signals.
+  vtkSMProxyManager::GetProxyManager()->GetReaderFactory()->UpdateAvailableReaders();
+  vtkSMProxyManager::GetProxyManager()->GetWriterFactory()->UpdateAvailableWriters();
+}
+
+//-----------------------------------------------------------------------------
 pqTestUtility* pqApplicationCore::testUtility()
 {
   if (!this->TestUtility)
@@ -693,10 +693,10 @@ void pqApplicationCore::onHelpEngineWarning(const QString& msg)
   qWarning() << msg;
 }
 
-#ifdef PARAVIEW_USE_QTHELP
 //-----------------------------------------------------------------------------
 QHelpEngine* pqApplicationCore::helpEngine()
 {
+#ifdef PARAVIEW_USE_QTHELP
   if (!this->HelpEngine)
   {
     QTemporaryFile tFile;
@@ -719,7 +719,7 @@ QHelpEngine* pqApplicationCore::helpEngine()
       filters << "*.qch";
       help_files = dir.entryList(filters, QDir::Files);
     }
-    foreach (const QString& filename, help_files)
+    Q_FOREACH (const QString& filename, help_files)
     {
       QString qch_file =
         QString(":/%1/Documentation/%2").arg(QApplication::applicationName()).arg(filename);
@@ -727,10 +727,10 @@ QHelpEngine* pqApplicationCore::helpEngine()
     }
     this->HelpEngine->setupData();
   }
+#endif
 
   return this->HelpEngine;
 }
-#endif
 
 //-----------------------------------------------------------------------------
 void pqApplicationCore::registerDocumentation(const QString& filename)
@@ -752,6 +752,8 @@ void pqApplicationCore::registerDocumentation(const QString& filename)
   {
     engine->registerDocumentation(filename);
   }
+#else
+  (void)filename;
 #endif
 }
 

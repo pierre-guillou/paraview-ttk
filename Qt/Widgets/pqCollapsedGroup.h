@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 
-#ifndef _pqCollapsedGroup
-#define _pqCollapsedGroup
+#ifndef pqCollapsedGroup_h
+#define pqCollapsedGroup_h
 
 #include "pqWidgetsModule.h"
 #include <QGroupBox>
@@ -41,7 +41,7 @@ class PQWIDGETS_EXPORT pqCollapsedGroup : public QGroupBox
   Q_OBJECT
   Q_PROPERTY(bool collapsed READ collapsed WRITE setCollapsed)
 public:
-  explicit pqCollapsedGroup(QWidget* p = 0);
+  explicit pqCollapsedGroup(QWidget* p = nullptr);
 
   bool collapsed() const;
   void setCollapsed(bool);
@@ -65,4 +65,4 @@ private:
   QRect collapseRect();
 };
 
-#endif // _pqCollapsedGroup
+#endif // pqCollapsedGroup_h

@@ -30,6 +30,37 @@ vtkStandardNewMacro(vtkQuad);
 static const double VTK_DIVERGED = 1.e6;
 
 //------------------------------------------------------------------------------
+struct IntersectionStruct
+{
+  bool Intersected = false;
+  int SubId = -1;
+  double X[3] = { 0.0, 0.0, 0.0 };
+  double PCoords[3] = { 0.0, 0.0, 0.0 };
+  double T = -1.0;
+
+  operator bool() { return this->Intersected; }
+
+  void CopyValues(double& t, double* x, double* pcoords, int& subId) const
+  {
+    t = this->T;
+    subId = this->SubId;
+    for (int i = 0; i < 3; ++i)
+    {
+      x[i] = this->X[i];
+      pcoords[i] = this->PCoords[i];
+    }
+  }
+
+  static IntersectionStruct CellIntersectWithLine(
+    vtkCell* cell, const double* p1, const double* p2, double tol)
+  {
+    IntersectionStruct res;
+    res.Intersected = cell->IntersectWithLine(p1, p2, tol, res.T, res.X, res.PCoords, res.SubId);
+    return res;
+  }
+};
+
+//------------------------------------------------------------------------------
 // Construct the quad with four points.
 vtkQuad::vtkQuad()
 {
@@ -375,10 +406,9 @@ constexpr vtkIdType edges[4][2] = {
   { 0, 3 },
 };
 
-typedef int EDGE_LIST;
 struct LINE_CASES_t
 {
-  EDGE_LIST edges[5];
+  int edges[5];
 };
 using LINE_CASES = struct LINE_CASES_t;
 
@@ -415,7 +445,7 @@ void vtkQuad::Contour(double value, vtkDataArray* cellScalars, vtkIncrementalPoi
 {
   static const int CASE_MASK[4] = { 1, 2, 4, 8 };
   LINE_CASES* lineCase;
-  EDGE_LIST* edge;
+  int* edge;
   int i, j, index;
   const vtkIdType* vert;
   int newCellId;
@@ -560,50 +590,85 @@ int vtkQuad::IntersectWithLine(const double p1[3], const double p2[3], double to
 
   // Note: in the following code the parametric coords must be adjusted to
   // reflect the use of the triangle parametric coordinate system.
+  IntersectionStruct res;
   switch (diagonalCase)
   {
     case 0:
+    {
       this->Triangle->Points->SetPoint(0, this->Points->GetPoint(0));
       this->Triangle->Points->SetPoint(1, this->Points->GetPoint(1));
       this->Triangle->Points->SetPoint(2, this->Points->GetPoint(2));
-      if (this->Triangle->IntersectWithLine(p1, p2, tol, t, x, pcoords, subId))
-      {
-        pcoords[0] = pcoords[0] + pcoords[1];
-        return 1;
-      }
+      IntersectionStruct firstIntersect =
+        IntersectionStruct::CellIntersectWithLine(this->Triangle, p1, p2, tol);
+
       this->Triangle->Points->SetPoint(0, this->Points->GetPoint(2));
       this->Triangle->Points->SetPoint(1, this->Points->GetPoint(3));
       this->Triangle->Points->SetPoint(2, this->Points->GetPoint(0));
-      if (this->Triangle->IntersectWithLine(p1, p2, tol, t, x, pcoords, subId))
+      IntersectionStruct secondIntersect =
+        IntersectionStruct::CellIntersectWithLine(this->Triangle, p1, p2, tol);
+
+      bool useFirstIntersection = (firstIntersect && secondIntersect)
+        ? (firstIntersect.T <= secondIntersect.T)
+        : firstIntersect;
+      bool useSecondIntersection = (firstIntersect && secondIntersect)
+        ? (secondIntersect.T < firstIntersect.T)
+        : secondIntersect;
+
+      if (useFirstIntersection)
       {
-        pcoords[0] = 1.0 - (pcoords[0] + pcoords[1]);
-        pcoords[1] = 1.0 - pcoords[1];
-        return 1;
+        res = firstIntersect;
+        res.PCoords[0] += res.PCoords[1];
       }
-      return 0;
+      else if (useSecondIntersection)
+      {
+        res = secondIntersect;
+        res.PCoords[0] = 1.0 - (res.PCoords[0] + res.PCoords[1]);
+        res.PCoords[1] = 1.0 - res.PCoords[1];
+      }
+    }
+    break;
 
     case 1:
+    {
       this->Triangle->Points->SetPoint(0, this->Points->GetPoint(0));
       this->Triangle->Points->SetPoint(1, this->Points->GetPoint(1));
       this->Triangle->Points->SetPoint(2, this->Points->GetPoint(3));
-      if (this->Triangle->IntersectWithLine(p1, p2, tol, t, x, pcoords, subId))
-      {
-        return 1;
-      }
+      IntersectionStruct firstIntersect =
+        IntersectionStruct::CellIntersectWithLine(this->Triangle, p1, p2, tol);
+
       this->Triangle->Points->SetPoint(0, this->Points->GetPoint(2));
       this->Triangle->Points->SetPoint(1, this->Points->GetPoint(3));
       this->Triangle->Points->SetPoint(2, this->Points->GetPoint(1));
-      if (this->Triangle->IntersectWithLine(p1, p2, tol, t, x, pcoords, subId))
-      {
-        pcoords[0] = 1.0 - pcoords[0];
-        pcoords[1] = 1.0 - pcoords[1];
-        return 1;
-      }
+      IntersectionStruct secondIntersect =
+        IntersectionStruct::CellIntersectWithLine(this->Triangle, p1, p2, tol);
 
-      return 0;
+      bool useFirstIntersection = (firstIntersect && secondIntersect)
+        ? (firstIntersect.T <= secondIntersect.T)
+        : firstIntersect;
+      bool useSecondIntersection = (firstIntersect && secondIntersect)
+        ? (secondIntersect.T < firstIntersect.T)
+        : secondIntersect;
+
+      if (useFirstIntersection)
+      {
+        res = firstIntersect;
+      }
+      else if (useSecondIntersection)
+      {
+        res = secondIntersect;
+        res.PCoords[0] = 1.0 - res.PCoords[0];
+        res.PCoords[1] = 1.0 - res.PCoords[1];
+      }
+    }
+    break;
   }
 
-  return 0;
+  if (res)
+  {
+    res.CopyValues(t, x, pcoords, subId);
+  }
+
+  return res.Intersected;
 }
 
 //------------------------------------------------------------------------------

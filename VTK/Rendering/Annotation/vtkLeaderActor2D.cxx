@@ -50,6 +50,8 @@ vtkLeaderActor2D::vtkLeaderActor2D()
   this->LabelFormat = new char[8];
   snprintf(this->LabelFormat, 8, "%s", "%-#6.3g");
 
+  this->UseFontSizeFromProperty = 0;
+
   this->ArrowPlacement = vtkLeaderActor2D::VTK_ARROW_BOTH;
   this->ArrowStyle = vtkLeaderActor2D::VTK_ARROW_FILLED;
   this->ArrowLength = 0.04;
@@ -286,7 +288,7 @@ void vtkLeaderActor2D::BuildLeader(vtkViewport* viewport)
   // Build the arrows---------------------------------------
   if (this->ArrowPlacement == vtkLeaderActor2D::VTK_ARROW_NONE)
   {
-    ; // do nothin
+    // do nothing
   }
   else // we are creating arrows
   {
@@ -407,7 +409,21 @@ int vtkLeaderActor2D::SetFontSize(vtkViewport* viewport, vtkTextMapper* textMapp
   targetHeight = static_cast<int>(
     VTK_LA2D_FACTOR * factor * targetSize[0] + VTK_LA2D_FACTOR * factor * targetSize[1]);
 
-  fontSize = textMapper->SetConstrainedFontSize(viewport, targetWidth, targetHeight);
+  if (!this->UseFontSizeFromProperty)
+  {
+    fontSize = textMapper->SetConstrainedFontSize(viewport, targetWidth, targetHeight);
+  }
+  else
+  {
+    vtkTextProperty* tprop = textMapper->GetTextProperty();
+    if (!tprop)
+    {
+      vtkGenericWarningMacro(<< "Need text property to apply font size");
+      return 0;
+    }
+    fontSize = tprop->GetFontSize();
+  }
+
   textMapper->GetSize(viewport, stringSize);
 
   return fontSize;
@@ -494,7 +510,7 @@ void vtkLeaderActor2D::BuildCurvedLeader(double p1[3], double p2[3], double ray[
   if ((theta1 >= 0.0 && theta1 <= vtkMath::Pi() && theta2 >= 0.0 && theta2 <= vtkMath::Pi()) ||
     (theta1 <= 0.0 && theta1 >= -vtkMath::Pi() && theta2 <= 0.0 && theta2 >= -vtkMath::Pi()))
   {
-    ; // do nothin angles are fine
+    // do nothing angles are fine
   }
   else if (theta1 >= 0.0 && theta2 <= 0.0)
   {

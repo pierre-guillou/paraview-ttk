@@ -51,17 +51,19 @@ static char indent[256];
 static int indent_now = 0;
 
 #define VTK_INDENT_MORE                                                                            \
+  do                                                                                               \
   {                                                                                                \
     indent[indent_now] = ' ';                                                                      \
     indent_now += 4;                                                                               \
     indent[indent_now] = 0;                                                                        \
-  }
+  } while (false)
 #define VTK_INDENT_LESS                                                                            \
+  do                                                                                               \
   {                                                                                                \
     indent[indent_now] = ' ';                                                                      \
     indent_now -= 4;                                                                               \
     indent[indent_now] = 0;                                                                        \
-  }
+  } while (false)
 
 void vtkOOGLExporter::WriteData()
 {
@@ -320,7 +322,7 @@ void vtkOOGLExporter::WriteAnActor(vtkActor* anActor, FILE* fp, int count)
   // start an INST object
   fprintf(fp, "%s{ INST\n", indent);
 
-  VTK_INDENT_MORE
+  VTK_INDENT_MORE;
 
   // start a LIST object
   fprintf(fp, "%sgeom { LIST\n", indent);

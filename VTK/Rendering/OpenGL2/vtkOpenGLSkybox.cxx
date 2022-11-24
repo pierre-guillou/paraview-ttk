@@ -131,11 +131,19 @@ void vtkOpenGLSkybox::Render(vtkRenderer* ren, vtkMapper* mapper)
 
     if (this->Projection == vtkSkybox::Cube)
     {
-      vtkShaderProgram::Substitute(
-        str, "//VTK::Projection::Dec", "uniform samplerCube actortexture;\n");
+      vtkShaderProgram::Substitute(str, "//VTK::Projection::Dec",
+        "uniform samplerCube actortexture;\n"
+        "uniform vec4 floorPlane;\n" // floor plane eqn
+        "uniform vec3 floorRight;\n" // floor plane right
+        "uniform vec3 floorFront;\n" // floor plane front
+      );
 
       vtkShaderProgram::Substitute(str, "//VTK::Projection::Impl",
-        "  vec4 color = texture(actortexture, normalize(TexCoords - cameraPos));\n"
+        "  vec3 diri = normalize(TexCoords - cameraPos);\n"
+        "  vec3 dirv = vec3(dot(diri,floorRight),\n"
+        "    dot(diri,floorPlane.xyz),\n"
+        "    dot(diri,floorFront));\n"
+        "  vec4 color = textureLod(actortexture, dirv, 0.0);\n"
         "//VTK::Gamma::Impl\n");
     }
     if (this->Projection == vtkSkybox::Sphere)
@@ -154,7 +162,7 @@ void vtkOpenGLSkybox::Render(vtkRenderer* ren, vtkMapper* mapper)
         "    dot(diri,floorFront));\n"
         "  float phix = length(vec2(dirv.x, dirv.z));\n"
         "  vec4 color = textureLod(actortexture, vec2(0.5*atan(dirv.x, "
-        "dirv.z)/3.1415927 + 0.5, atan(dirv.y,phix)/3.1415927 + 0.5), 1.0);\n"
+        "dirv.z)/3.1415927 + 0.5, atan(dirv.y,phix)/3.1415927 + 0.5), 0.0);\n"
         "//VTK::Gamma::Impl\n");
     }
     if (this->Projection == vtkSkybox::StereoSphere)
@@ -174,7 +182,7 @@ void vtkOpenGLSkybox::Render(vtkRenderer* ren, vtkMapper* mapper)
         "    dot(diri,floorFront));\n"
         "  float phix = length(vec2(dirv.x, dirv.z));\n"
         "  vec4 color = textureLod(actortexture, vec2(0.5*atan(dirv.x, dirv.z)/3.1415927 + "
-        "0.5, 0.5*atan(dirv.y,phix)/3.1415927 + 0.25 + 0.5*leftEye), 1.0);\n"
+        "0.5, 0.5*atan(dirv.y,phix)/3.1415927 + 0.25 + 0.5*leftEye), 0.0);\n"
         "//VTK::Gamma::Impl\n");
     }
     if (this->Projection == vtkSkybox::Floor)

@@ -429,9 +429,9 @@ int vtkAvtSTMDFileFormatAlgorithm::FillAMR(
     //use the first data set to compute the grid description
     if(gridDescription<0)
       {
-      int ext[6] = {0,dims[0]-1,0,dims[1]-1,0,dims[2]-1};
-      int ext1[6];
-      gridDescription = vtkStructuredData::SetExtent(ext,ext1);
+      int inExt[6] = {0,dims[0]-1,0,dims[1]-1,0,dims[2]-1};
+      int outExt[6];
+      gridDescription = vtkStructuredData::SetExtent(inExt,outExt);
       }
     }
 

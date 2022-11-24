@@ -28,6 +28,7 @@
 #include "vtkInformationVector.h"
 #include "vtkMatrix3x3.h"
 #include "vtkObjectFactory.h"
+#include "vtkOverlappingAMR.h"
 #include "vtkQuadratureSchemeDefinition.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnstructuredGrid.h"
@@ -217,10 +218,11 @@ const char* vtkHDFReader::GetCellArrayName(int index)
 int vtkHDFReader::RequestDataObject(vtkInformation*, vtkInformationVector** vtkNotUsed(inputVector),
   vtkInformationVector* outputVector)
 {
-  std::map<int, std::string> typeNameMap = { std::make_pair(VTK_IMAGE_DATA, "vtkImageData"),
-    std::make_pair(VTK_UNSTRUCTURED_GRID, "vtkUnstructuredGrid") };
+  std::map<int, std::string> typeNameMap = { { VTK_IMAGE_DATA, "vtkImageData" },
+    { VTK_UNSTRUCTURED_GRID, "vtkUnstructuredGrid" },
+    { VTK_OVERLAPPING_AMR, "vtkOverlappingAMR" } };
   vtkInformation* info = outputVector->GetInformationObject(0);
-  vtkDataSet* output = vtkDataSet::SafeDownCast(info->Get(vtkDataObject::DATA_OBJECT()));
+  vtkDataObject* output = info->Get(vtkDataObject::DATA_OBJECT());
 
   if (!this->FileName)
   {
@@ -244,7 +246,7 @@ int vtkHDFReader::RequestDataObject(vtkInformation*, vtkInformationVector** vtkN
   int dataSetType = this->Impl->GetDataSetType();
   if (!output || !output->IsA(typeNameMap[dataSetType].c_str()))
   {
-    vtkDataSet* newOutput = nullptr;
+    vtkDataObject* newOutput = nullptr;
     if (dataSetType == VTK_IMAGE_DATA)
     {
       newOutput = vtkImageData::New();
@@ -252,6 +254,10 @@ int vtkHDFReader::RequestDataObject(vtkInformation*, vtkInformationVector** vtkN
     else if (dataSetType == VTK_UNSTRUCTURED_GRID)
     {
       newOutput = vtkUnstructuredGrid::New();
+    }
+    else if (dataSetType == VTK_OVERLAPPING_AMR)
+    {
+      newOutput = vtkOverlappingAMR::New();
     }
     else
     {
@@ -318,6 +324,15 @@ int vtkHDFReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   {
     outInfo->Set(CAN_HANDLE_PIECE_REQUEST(), 1);
   }
+  else if (dataSetType == VTK_OVERLAPPING_AMR)
+  {
+    if (!this->Impl->GetAttribute("Origin", 3, this->Origin))
+    {
+      return 0;
+    }
+    outInfo->Set(vtkDataObject::ORIGIN(), this->Origin, 3);
+    outInfo->Set(CAN_HANDLE_PIECE_REQUEST(), 0);
+  }
   else
   {
     vtkErrorMacro("Invalid dataset type: " << dataSetType);
@@ -330,7 +345,7 @@ int vtkHDFReader::RequestInformation(vtkInformation* vtkNotUsed(request),
 void vtkHDFReader::PrintPieceInformation(vtkInformation* outInfo)
 {
   std::array<int, 6> updateExtent;
-  outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), &updateExtent[0]);
+  outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), updateExtent.data());
   int numPieces = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
   int piece = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
   int numGhosts = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
@@ -348,11 +363,11 @@ void vtkHDFReader::PrintPieceInformation(vtkInformation* outInfo)
 int vtkHDFReader::Read(vtkInformation* outInfo, vtkImageData* data)
 {
   std::array<int, 6> updateExtent;
-  outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), &updateExtent[0]);
+  outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), updateExtent.data());
   // this->PrintPieceInformation(outInfo);
   data->SetOrigin(this->Origin);
   data->SetSpacing(this->Spacing);
-  data->SetExtent(&updateExtent[0]);
+  data->SetExtent(updateExtent.data());
   if (!this->Impl->GetAttribute("Direction", 9, data->GetDirectionMatrix()->GetData()))
   {
     return 0;
@@ -368,7 +383,7 @@ int vtkHDFReader::Read(vtkInformation* outInfo, vtkImageData* data)
       if (this->DataArraySelection[attributeType]->ArrayIsEnabled(name.c_str()))
       {
         vtkSmartPointer<vtkDataArray> array;
-        std::vector<hsize_t> fileExtent = ::ReduceDimension(&updateExtent[0], this->WholeExtent);
+        std::vector<hsize_t> fileExtent = ::ReduceDimension(updateExtent.data(), this->WholeExtent);
         std::copy(updateExtent.begin(), updateExtent.end(), fileExtent.begin());
         if ((array = vtk::TakeSmartPointer(
                this->Impl->NewArray(attributeType, name.c_str(), fileExtent))) == nullptr)
@@ -385,7 +400,7 @@ int vtkHDFReader::Read(vtkInformation* outInfo, vtkImageData* data)
 }
 
 //------------------------------------------------------------------------------
-int vtkHDFReader::AddFieldArrays(vtkDataSet* data)
+int vtkHDFReader::AddFieldArrays(vtkDataObject* data)
 {
   std::vector<std::string> names = this->Impl->GetArrayNames(vtkDataObject::FIELD);
   for (const std::string& name : names)
@@ -411,7 +426,7 @@ int vtkHDFReader::Read(const std::vector<vtkIdType>& numberOfPoints,
   // read the piece and add it to data
   vtkNew<vtkPoints> points;
   vtkSmartPointer<vtkDataArray> pointArray;
-  vtkIdType pointOffset = std::accumulate(&numberOfPoints[0], &numberOfPoints[filePiece], 0);
+  vtkIdType pointOffset = std::accumulate(numberOfPoints.data(), &numberOfPoints[filePiece], 0);
   if ((pointArray = vtk::TakeSmartPointer(this->Impl->NewMetadataArray(
          "Points", pointOffset, numberOfPoints[filePiece]))) == nullptr)
   {
@@ -426,14 +441,14 @@ int vtkHDFReader::Read(const std::vector<vtkIdType>& numberOfPoints,
   vtkSmartPointer<vtkDataArray> p;
   vtkUnsignedCharArray* typesArray;
   // the offsets array has (numberOfCells[i] + 1) elements.
-  vtkIdType offset = std::accumulate(&numberOfCells[0], &numberOfCells[filePiece], filePiece);
+  vtkIdType offset = std::accumulate(numberOfCells.data(), &numberOfCells[filePiece], filePiece);
   if ((offsetsArray = vtk::TakeSmartPointer(
          this->Impl->NewMetadataArray("Offsets", offset, numberOfCells[filePiece] + 1))) == nullptr)
   {
     vtkErrorMacro("Cannot read the Offsets array");
     return 0;
   }
-  offset = std::accumulate(&numberOfConnectivityIds[0], &numberOfConnectivityIds[filePiece], 0);
+  offset = std::accumulate(numberOfConnectivityIds.data(), &numberOfConnectivityIds[filePiece], 0);
   if ((connectivityArray = vtk::TakeSmartPointer(this->Impl->NewMetadataArray(
          "Connectivity", offset, numberOfConnectivityIds[filePiece]))) == nullptr)
   {
@@ -442,7 +457,7 @@ int vtkHDFReader::Read(const std::vector<vtkIdType>& numberOfPoints,
   }
   cellArray->SetData(offsetsArray, connectivityArray);
 
-  vtkIdType cellOffset = std::accumulate(&numberOfCells[0], &numberOfCells[filePiece], 0);
+  vtkIdType cellOffset = std::accumulate(numberOfCells.data(), &numberOfCells[filePiece], 0);
   if ((p = vtk::TakeSmartPointer(
          this->Impl->NewMetadataArray("Types", cellOffset, numberOfCells[filePiece]))) == nullptr)
   {
@@ -523,6 +538,20 @@ int vtkHDFReader::Read(vtkInformation* outInfo, vtkUnstructuredGrid* data)
 }
 
 //------------------------------------------------------------------------------
+int vtkHDFReader::Read(vtkInformation* vtkNotUsed(outInfo), vtkOverlappingAMR* data)
+{
+  data->SetOrigin(this->Origin);
+
+  if (!this->Impl->FillAMR(
+        data, this->MaximumLevelsToReadByDefaultForAMR, this->Origin, this->DataArraySelection))
+  {
+    return 0;
+  }
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 int vtkHDFReader::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
 {
@@ -532,7 +561,7 @@ int vtkHDFReader::RequestData(vtkInformation* vtkNotUsed(request),
   {
     return 0;
   }
-  vtkDataSet* output = vtkDataSet::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
+  vtkDataObject* output = outInfo->Get(vtkDataObject::DATA_OBJECT());
   if (!output)
   {
     return 0;
@@ -546,6 +575,11 @@ int vtkHDFReader::RequestData(vtkInformation* vtkNotUsed(request),
   else if (dataSetType == VTK_UNSTRUCTURED_GRID)
   {
     vtkUnstructuredGrid* data = vtkUnstructuredGrid::SafeDownCast(output);
+    ok = this->Read(outInfo, data);
+  }
+  else if (dataSetType == VTK_OVERLAPPING_AMR)
+  {
+    vtkOverlappingAMR* data = vtkOverlappingAMR::SafeDownCast(output);
     ok = this->Read(outInfo, data);
   }
   else

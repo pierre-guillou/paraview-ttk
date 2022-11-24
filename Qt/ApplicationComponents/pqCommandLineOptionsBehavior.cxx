@@ -55,13 +55,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTimeKeeper.h"
 #include "pqTimer.h"
 #include "pqUndoStack.h"
-#include "vtkPVConfig.h"
 #include "vtkProcessModule.h"
 #include "vtkRemotingCoreConfiguration.h"
 #include "vtkSMPluginManager.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyManager.h"
 #include "vtkSMStringVectorProperty.h"
+#include <vtksys/SystemTools.hxx>
 
 #include <QApplication>
 #include <QDebug>
@@ -141,7 +141,7 @@ void pqCommandLineOptionsBehavior::processServerConnection()
   if (!serverResourceName.isEmpty())
   {
     if (!pqServerConnectReaction::connectToServerUsingConfigurationName(
-          qPrintable(serverResourceName)))
+          qPrintable(serverResourceName), false))
     {
       qCritical() << "Could not connect to requested server \"" << serverResourceName
                   << "\". Creating default builtin connection.";
@@ -155,14 +155,14 @@ void pqCommandLineOptionsBehavior::processServerConnection()
       const QStringList urls = serverURL.split(QRegExp("\\|"), PV_QT_SKIP_EMPTY_PARTS);
       for (const QString& url : urls)
       {
-        if (!pqServerConnectReaction::connectToServer(pqServerResource(url)))
+        if (!pqServerConnectReaction::connectToServer(pqServerResource(url), false))
         {
           qCritical() << "Could not connect to requested server \"" << url
                       << "\". Creating default builtin connection.";
         }
       }
     }
-    else if (!pqServerConnectReaction::connectToServer(pqServerResource(serverURL)))
+    else if (!pqServerConnectReaction::connectToServer(pqServerResource(serverURL), false))
     {
       qCritical() << "Could not connect to requested server \"" << serverURL
                   << "\". Creating default builtin connection.";
@@ -172,7 +172,7 @@ void pqCommandLineOptionsBehavior::processServerConnection()
   // Connect to builtin, if none present.
   if (pqActiveObjects::instance().activeServer() == nullptr)
   {
-    pqServerConnectReaction::connectToServer(pqServerResource("builtin:"));
+    pqServerConnectReaction::connectToServer(pqServerResource("builtin:"), false);
   }
 
   // Now we are assured that some default server connection has been made
@@ -197,6 +197,7 @@ void pqCommandLineOptionsBehavior::processData()
 
     // We don't directly set the data file name instead use the dialog. This
     // makes it possible to select a file group.
+    // This also resolve relative path into a canonical one.
     pqFileDialog dialog(pqActiveObjects::instance().activeServer(), pqCoreUtilities::mainWidget(),
       tr("Internal Open File"), QString(), QString());
     dialog.setFileMode(pqFileDialog::ExistingFiles);
@@ -207,7 +208,7 @@ void pqCommandLineOptionsBehavior::processData()
     }
     QList<QStringList> files = dialog.getAllSelectedFiles();
     QStringList file;
-    foreach (file, files)
+    Q_FOREACH (file, files)
     {
       if (pqLoadDataReaction::loadData(file) == nullptr)
       {
@@ -221,11 +222,23 @@ void pqCommandLineOptionsBehavior::processData()
 void pqCommandLineOptionsBehavior::processState()
 {
   auto cConfig = pqCoreConfiguration::instance();
-  const auto& fname = cConfig->stateFileName();
-  if (!fname.empty())
+  std::string fullPath;
+  if (!cConfig->stateFileName().empty())
   {
-    // Load state file without fix-filenames dialog.
-    pqLoadStateReaction::loadState(QString::fromStdString(fname), true);
+    fullPath = vtksys::SystemTools::CollapseFullPath(cConfig->stateFileName());
+  }
+  if (!fullPath.empty())
+  {
+    QFileInfo fileInfo(QString::fromStdString(fullPath));
+    if (fileInfo.exists())
+    {
+      // Load state file using canonical path without fix-filenames dialog.
+      pqLoadStateReaction::loadState(fileInfo.canonicalFilePath(), true);
+    }
+    else
+    {
+      qCritical() << "Specified state file does not exists: '" << fullPath.c_str() << "'";
+    }
   }
 }
 
