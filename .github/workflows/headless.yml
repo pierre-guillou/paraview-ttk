@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04]
     steps:
     - uses: actions/checkout@v3
       name: Checkout TTK-ParaView source code
@@ -94,12 +94,11 @@ jobs:
       run: |
         cd build
         cmake --build . --parallel
-        sudo cmake --build . --target install
 
     - name: Create ParaView package
       run: |
         cd build
-        sudo cpack -G TGZ
+        cpack -G TGZ
 
     - name: Upload compressed binaries
       uses: actions/upload-artifact@v3
@@ -202,14 +201,6 @@ jobs:
 
     - name: Fetch all uploaded artifacts
       uses: actions/download-artifact@v3
-
-    - name: Upload Ubuntu Bionic .deb as Release Asset
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref }}
-        file: ttk-paraview-headless-ubuntu-18.04/ttk-paraview.deb
-        asset_name: ttk-paraview-headless-ubuntu-18.04.deb
 
     - name: Upload Ubuntu Focal .deb as Release Asset
       uses: svenstaro/upload-release-action@v2
