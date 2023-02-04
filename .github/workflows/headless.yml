@@ -124,7 +124,8 @@ jobs:
     - name: Install dependencies with conda
       shell: bash
       run: |
-        conda install -c conda-forge glew
+        conda install -c conda-forge boost glew eigen spectralib zfp \
+          scikit-learn openmp graphviz ninja websocketpp sccache zlib
 
     - name: Remove hosted Python
       shell: bash
