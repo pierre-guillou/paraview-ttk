@@ -126,13 +126,7 @@ jobs:
     - name: Install dependencies with conda
       shell: bash
       run: |
-        conda install -c conda-forge boost glew eigen spectralib zfp \
-          scikit-learn openmp graphviz ninja websocketpp sccache zlib
-
-    - name: Remove hosted Python
-      shell: bash
-      run: |
-        rm -rf C:/hostedtoolcache/windows/Python
+        conda install -c conda-forge glew
 
     - name: Create & configure ParaView build directory
       shell: cmd
@@ -142,7 +136,6 @@ jobs:
         cd b
         cmake ^
           -DPARAVIEW_USE_QT=OFF ^
-          -DPython3_ROOT_DIR="%CONDA_ROOT%" ^
           -DCMAKE_BUILD_TYPE=Release ^
           -G"Visual Studio 17 2022" ^
           %GITHUB_WORKSPACE%
@@ -169,7 +162,7 @@ jobs:
       continue-on-error: true
       shell: cmd
       run: |
-        set PYTHONPATH=%PV_DIR%\bin\Lib\site-packages;%CONDA_ROOT%\Lib
+        set PYTHONPATH=%PV_DIR%\bin\Lib\site-packages
         set PATH=%PV_DIR%\bin;%CONDA_ROOT%
         echo "pvpython"
         pvpython --version
