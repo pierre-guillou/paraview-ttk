@@ -123,6 +123,10 @@ jobs:
 
     - uses: s-weigand/setup-conda@v1
 
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
     - name: Install dependencies with conda
       shell: bash
       run: |
@@ -163,7 +167,7 @@ jobs:
       shell: cmd
       run: |
         set PYTHONPATH=%PV_DIR%\bin\Lib\site-packages
-        set PATH=%PV_DIR%\bin;%CONDA_ROOT%
+        set PATH=%PV_DIR%\bin;%PATH%
         echo "pvpython"
         pvpython --version
         pvpython -m sysconfig
