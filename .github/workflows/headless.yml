@@ -123,14 +123,15 @@ jobs:
 
     - uses: s-weigand/setup-conda@v1
 
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
     - name: Install dependencies with conda
       shell: bash
       run: |
-        conda install -c conda-forge glew
+        conda install -c conda-forge glew python=3.11
+
+    - name: Remove hosted Python
+      shell: bash
+      run: |
+        rm -rf C:/hostedtoolcache/windows/Python
 
     - name: Create & configure ParaView build directory
       shell: cmd
@@ -140,6 +141,7 @@ jobs:
         cd b
         cmake ^
           -DPARAVIEW_USE_QT=OFF ^
+          -DPython3_ROOT_DIR="%CONDA_ROOT%" ^
           -DCMAKE_BUILD_TYPE=Release ^
           -G"Visual Studio 17 2022" ^
           %GITHUB_WORKSPACE%
@@ -166,8 +168,8 @@ jobs:
       continue-on-error: true
       shell: cmd
       run: |
-        set PYTHONPATH=%PV_DIR%\bin\Lib\site-packages
-        set PATH=%PV_DIR%\bin;%PATH%
+        set PYTHONPATH=%PV_DIR%\bin\Lib\site-packages;%CONDA_ROOT%\Lib
+        set PATH=%PV_DIR%\bin;%CONDA_ROOT%
         echo "pvpython"
         pvpython --version
         pvpython -m sysconfig
