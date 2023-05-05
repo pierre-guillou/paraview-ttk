@@ -157,6 +157,35 @@ jobs:
         cpack -G NSIS64
         mv ttk-paraview.exe $GITHUB_WORKSPACE
 
+    - name: Install ParaView package
+      shell: cmd
+      run: |
+        ttk-paraview.exe /S
+
+    - name: Test Python imports
+      continue-on-error: true
+      shell: cmd
+      run: |
+        set PYTHONPATH=%PV_DIR%\bin\Lib\site-packages;%CONDA_ROOT%\Lib
+        set PATH=%PV_DIR%\bin;%CONDA_ROOT%
+        echo "pvpython"
+        pvpython --version
+        pvpython -m sysconfig
+        echo "pvpython vtk"
+        pvpython -m vtk
+        echo "pvpython simple
+        pvpython -m paraview.simple
+        echo "python"
+        python -m sysconfig
+        echo "python vtk"
+        python -m vtk
+        echo "python simple
+        python -m paraview.simple
+        dir "%CONDA_ROOT%
+      env:
+        PV_DIR: C:\Program Files\TTK-ParaView
+        CONDA_ROOT: C:\Miniconda
+
     - name: Upload install executable
       uses: actions/upload-artifact@v3
       with:
