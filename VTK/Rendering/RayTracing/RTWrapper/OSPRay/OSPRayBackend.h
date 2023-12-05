@@ -81,15 +81,9 @@ namespace RTW
         {
           std::runtime_error("OSPRay device could not be fetched!");
         }
-#if OSPRAY_VERSION_MINOR > 1
         ospDeviceSetErrorCallback(device, [](void *, OSPError, const char *errorDetails) {
           std::cerr << "OSPRay ERROR: " << errorDetails << std::endl;
         }, nullptr);
-#else
-        ospDeviceSetErrorFunc(device, [](OSPError, const char *errorDetails) {
-          std::cerr << "OSPRay ERROR: " << errorDetails << std::endl;
-        });
-#endif
         once = true;
       }
       return ret;
@@ -196,9 +190,9 @@ namespace RTW
       return reinterpret_cast<RTWLight>(ospNewLight(light_type));
     }
 
-    RTWMaterial NewMaterial(const char *renderer_type, const char *material_type) override
+    RTWMaterial NewMaterial(const char *material_type) override
     {
-      return reinterpret_cast<RTWMaterial>(ospNewMaterial(renderer_type, material_type));
+      return reinterpret_cast<RTWMaterial>(ospNewMaterial(material_type));
     }
 
     RTWVolume NewVolume(const char *type) override
@@ -277,6 +271,11 @@ namespace RTW
       ospSetInt(reinterpret_cast<OSPObject>(object), id, x);
     }
 
+    void SetUInt(RTWObject object, const char *id, uint32_t x) override
+    {
+      ospSetUInt(reinterpret_cast<OSPObject>(object), id, x);
+    }
+
     void SetBool(RTWObject object, const char *id, bool x) override
     {
       ospSetBool(reinterpret_cast<OSPObject>(object), id, x);
@@ -285,6 +284,16 @@ namespace RTW
     void SetFloat(RTWObject object, const char *id, float x) override
     {
       ospSetFloat(reinterpret_cast<OSPObject>(object), id, x);
+    }
+
+    void SetLinear2f(RTWObject object, const char *id, float x, float y, float z, float w) override
+    {
+      ospSetLinear2f(reinterpret_cast<OSPObject>(object), id, x, y, z, w);
+    }
+
+    void SetBox1f(RTWObject object, const char *id, float x, float y) override
+    {
+      ospSetBox1f(reinterpret_cast<OSPObject>(object), id, x, y);
     }
 
     void SetVec2f(RTWObject object, const char *id, float x, float y) override

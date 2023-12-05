@@ -311,7 +311,7 @@ void vtkOSPRayVolumeMapperNode::Render(bool prepass)
         ospCommit(isosurfaces);
 
         ospSetObject(OSPRayIsosurface, "isovalue", isosurfaces);
-        ospSetObject(OSPRayIsosurface, "volume", this->OSPRayVolumeModel);
+        ospSetObject(OSPRayIsosurface, "volume", this->OSPRayVolume);
         ospCommit(OSPRayIsosurface);
         ospRelease(isosurfaces);
 
@@ -319,12 +319,15 @@ void vtkOSPRayVolumeMapperNode::Render(bool prepass)
         OSPInstance instance = ospNewInstance(group);
 
         OSPGeometricModel OSPRayGeometricModel = ospNewGeometricModel(OSPRayIsosurface);
-
+        OSPData ospIsoColors = ospNewCopyData1D(this->IsoColors.data(), OSP_VEC4F, nbContours);
+        ospCommit(ospIsoColors);
+        ospSetObject(OSPRayGeometricModel, "color", ospIsoColors);
         OSPMaterial material =
           vtkOSPRayMaterialHelpers::NewMaterial(orn, orn->GetORenderer(), "obj");
         ospCommit(material);
         ospSetObjectAsData(OSPRayGeometricModel, "material", OSP_MATERIAL, material);
         ospCommit(OSPRayGeometricModel);
+        ospRelease(ospIsoColors);
         ospRelease(material);
         ospRelease(OSPRayIsosurface);
 
@@ -406,7 +409,7 @@ void vtkOSPRayVolumeMapperNode::UpdateTransferFunction(
   ospCommit(colorData);
   ospSetObject(this->TransferFunction, "color", colorData);
 
-  ospSetVec2f(this->TransferFunction, "valueRange", tfRange.x, tfRange.y);
+  ospSetBox1f(this->TransferFunction, "value", tfRange.x, tfRange.y);
 
   OSPData tfAlphaData = ospNewCopyData1D(&this->TFOVals[0], OSP_FLOAT, this->NumColors);
   ospCommit(tfAlphaData);
@@ -415,6 +418,21 @@ void vtkOSPRayVolumeMapperNode::UpdateTransferFunction(
   ospCommit(this->TransferFunction);
   ospRelease(colorData);
   ospRelease(tfAlphaData);
+
+  vtkContourValues* contours = volProperty->GetIsoSurfaceValues();
+  this->IsoColors.clear();
+  if (contours)
+  {
+    double* p = contours->GetValues();
+    for (auto i = 0; i < contours->GetNumberOfContours(); ++i)
+    {
+      double* ncol = colorTF->GetColor(p[i]);
+      this->IsoColors.push_back(ncol[0]);
+      this->IsoColors.push_back(ncol[1]);
+      this->IsoColors.push_back(ncol[2]);
+      this->IsoColors.push_back(scalarTF->GetValue(p[i]));
+    }
+  }
 
   this->PropertyTime.Modified();
 }

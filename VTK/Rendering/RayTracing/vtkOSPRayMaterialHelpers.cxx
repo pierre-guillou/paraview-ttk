@@ -79,10 +79,10 @@ OSPTexture vtkOSPRayMaterialHelpers::NewTexture2D(RTW::Backend* backend, const o
   ospSetObject(texture, "data", data_handle);
   ospRelease(data_handle);
 
-  ospSetInt(texture, "format", static_cast<int>(type));
+  ospSetUInt(texture, "format", type);
   if (flags & OSP_TEXTURE_FILTER_NEAREST)
   {
-    ospSetInt(texture, "filter", OSP_TEXTURE_FILTER_NEAREST);
+    ospSetUInt(texture, "filter", OSP_TEXTURE_FILTER_NEAREST);
   }
   ospCommit(texture);
 
@@ -374,14 +374,13 @@ OSPMaterial vtkOSPRayMaterialHelpers::NewMaterial(
     return result;
 
   (void)oRenderer;
-  const std::string rendererType = vtkOSPRayRendererNode::GetRendererType(orn->GetRenderer());
-  result = ospNewMaterial(rendererType.c_str(), ospMatName.c_str());
+  result = ospNewMaterial(ospMatName.c_str());
 
   if (!result)
   {
     vtkGenericWarningMacro(
       "OSPRay failed to create material: " << ospMatName << ". Trying obj instead.");
-    result = ospNewMaterial(rendererType.c_str(), "obj");
+    result = ospNewMaterial("obj");
   }
 
   ospCommit(result);

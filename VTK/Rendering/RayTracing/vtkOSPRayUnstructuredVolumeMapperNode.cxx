@@ -367,7 +367,7 @@ void vtkOSPRayUnstructuredVolumeMapperNode::Render(bool prepass)
       OSPData tfAlphaData = ospNewCopyData1D(&tfOVals[0], OSP_FLOAT, NumColors);
       ospCommit(tfAlphaData);
       ospSetObject(oTF, "opacity", tfAlphaData);
-      ospSetVec2f(oTF, "valueRange", range[0], range[1]);
+      ospSetBox1f(oTF, "value", (float)range[0], (float)range[1]);
       ospCommit(oTF);
 
       ospRelease(colorData);

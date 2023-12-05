@@ -57,7 +57,7 @@ vtk_module_add_module(VTK::RenderingRayTracing
 if (VTK_ENABLE_OSPRAY)
   vtk_module_find_package(
     PACKAGE ospray
-    VERSION 2.1)
+    VERSION 3.0)
 
   vtk_module_link(VTK::RenderingRayTracing
     PRIVATE
