@@ -116,5 +116,5 @@ set(ALL_DATA_FILE
 install(
   FILES ${ALL_DATA_FILE}
   DESTINATION ${DATADIR}
-  COMPONENT "libproj-data"
+  COMPONENT "libproj_data"
 )
